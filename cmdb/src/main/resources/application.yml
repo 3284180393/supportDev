@@ -1,0 +1,14 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: dev
+
+#showSql
+logging:
+  config: classpath:log4j2_dev.xml
+  level:
+    com:
+      example:
+        mapper : debug

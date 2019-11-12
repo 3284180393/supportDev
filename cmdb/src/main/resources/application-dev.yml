@@ -1,0 +1,4 @@
+nexus:
+  user: admin
+  password: 123456
+  url: http://10.130.41.216:8081
