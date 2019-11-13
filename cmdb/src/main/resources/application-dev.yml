@@ -1,82 +1,80 @@
 spring:
   datasource:
-    username: root
-    password: 1234
-    url: jdbc:mysql://10.130.44.108:3306/cmdb?useUnicode=true&amp;characterEncoding=utf8
-    driver-class-name: com.mysql.jdbc.Driver
+    username : root
+    password : 1234
+    url : jdbc:mysql://10.130.44.108:3306/cmdb?useUnicode=true&amp;characterEncoding=utf8
+    driver-class-name : com.mysql.jdbc.Driver
 
 mybatis:
-  mapper-locations: classpath:mapping/*Mapper.xml
-  type-aliases-package: com.example.entity
+  mapper-locations : classpath:mapping/*Mapper.xml
+  type-aliases-package : com.example.entity
   table:
-    auto: update
+    auto : update
   model:
-    pack: com.example.entity
+    pack : com.example.entity
   database:
-    type: mysqls
+    type : mysqls
 
 ccod:
   ccod_kernel_module:
-    default_base_path: /home/ccodrunner/Platform
-    default_bin: ./bin/{module_alias_name}
-    default_cfg_path: ./cfg
-    default_log_path: ./log
-    default_version_control: git
-    default_run_method: runnable
-    nexus_repository: CCOD
+    default_base_path : /home/ccodrunner/Platform
+    default_bin : ./bin/{module_alias_name}
+    default_cfg_path : ./cfg
+    default_log_path : ./log
+    default_version_control : git
+    default_run_method : runnable
+    nexus_repository : CCOD
     nexus_package_name: modules/{module_name}/{version}/{module_alias}
     nexus_cfg_name: modules/{module_name}/{version}/cfg/{cfg_filename}
     nexus_note_name: modules/{module_name}/{version}/note/note.txt
     Glsserver:
-      alias: gls
-      bin: ./bin/glsserver.jar
-      log_path: ./log
-      version_control: git
-      runnable: jar_runnable
+      alias : gls
+      bin : ./bin/glsserver.jar
+      log_path : ./log
+      version_control : git
+      runnable : jar_runnable
     LicenseServer:
-      alias: license
+      alias : license
     DDSServer:
-      alias: dds
+      alias : dds
     cmsserver:
-      alias: cms
+      alias : cms
     ucxserver:
-      alias: ucx
+      alias : ucx
     DataKeeper:
-      alias: datakeeper
+      alias : datakeeper
     RMServer:
-      alias: rm
+      alias : rm
     UCDServer:
-      alias: ucds
+      alias : ucds
     dcs:
-      alias: dcs
+      alias : dcs
     StatSchedule:
-      alias: ss
+      alias : ss
     EAService:
-      alias: eas
+      alias : eas
     dae:
-      alias: dae
+      alias : dae
     psr:
-      alias: psr
+      alias : psr
     fpsvr:
-      alias: fps
+      alias : fps
     dcproxy:
-      alias: dcproxy
+      alias : dcproxy
     daengine:
-      alias: daengine
+      alias : daengine
     tsrecadsrv:
-      alias: tsr
+      alias : tsr
     tsr_longlink:
-      alias: tsrl
+      alias : tsrl
     AgentProxy:
-      alias: agentproxy
+      alias : agentproxy
 
 nexus:
-  user: admin
-  password: 123456
-  nexus_host: http://10.130.41.216:8081
-  query_repository_url: {nexus_host}/service/rest/v1/components?repository={repository_name}
-  query_raw_url: {nexus_host}/service/rest/v1/components/{raw_id}
-  upload_raw_url: {nexus_host}/service/rest/v1/components?repository={repository_name}
-  download_raw_url: {nexus_host}/repository/{repository_name}/{raw_name}
-
-
+  login_user : admin
+  password : 123456
+  nexus_host : http://10.130.41.216:8081
+  query_repository_url : ${nexus_host}/service/rest/v1/components?repository={repository_name}
+  query_raw_url : ${nexus_host}/service/rest/v1/components/{raw_id}
+  upload_raw_url : ${nexus_host}/service/rest/v1/components?repository={repository_name}
+  download_raw_url : ${nexus_host}/repository/{repository_name}/{raw_name}
