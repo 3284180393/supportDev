@@ -24,6 +24,10 @@ public class AppTemplatePo {
 
     private String appAlias; // app的运行别名例如cms
 
+    private String binPath; //app bin所在的目录,可以是绝对路径也可以是相对base path的相对路径
+
+    private String binName; //app的bin名称
+
     private String threadFilterRegEx; // app进程过滤正则表达式
 
     private String relativePort; // app对应端口,如果app正常运行,这些端口将默认打开,多个端口用|连接
