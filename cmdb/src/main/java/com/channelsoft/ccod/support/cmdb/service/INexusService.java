@@ -1,5 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
+import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
+
 /**
  * @ClassName: INexusService
  * @Author: lanhb
@@ -19,5 +22,28 @@ public interface INexusService {
      */
     boolean uploadRawFile(String sourceFilePath, String repository, String group, String fileName) throws Exception;
 
+    /**
+     * 根据componentId从指定仓库查询component
+     * @param repository 指定的仓库
+     * @param componentId 指定的componentId
+     * @return 查询结果
+     * @throws Exception
+     */
+    NexusComponentPo queryComponentById(String repository, String componentId) throws Exception;
 
+    /**
+     * 根据assetId从指定仓库查询asset
+     * @param repository 指定的仓库
+     * @param assetId 指定的assetId
+     * @return 查询结果
+     */
+    NexusAssetInfo queryAssetById(String repository, String assetId) throws Exception;
+
+    /**
+     * 从指定仓库查询所有的component
+     * @param repository
+     * @return
+     * @throws Exception
+     */
+    NexusComponentPo[] queryComponentFromRepository(String repository) throws Exception;
 }

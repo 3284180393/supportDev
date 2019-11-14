@@ -18,8 +18,6 @@ public class PlatformAppPo {
 
     private int serverId; //应用部署所在服务器id,外键server表的server_id
 
-    private int serverUserId; //应用运行用户id,外键server_user表的user_id
-
     private int appId; //应用id,外键app的appId
 
     private String deployPath; //该应用的部署路径
@@ -58,14 +56,6 @@ public class PlatformAppPo {
 
     public void setServerId(int serverId) {
         this.serverId = serverId;
-    }
-
-    public int getServerUserId() {
-        return serverUserId;
-    }
-
-    public void setServerUserId(int serverUserId) {
-        this.serverUserId = serverUserId;
     }
 
     public int getAppId() {
