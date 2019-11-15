@@ -78,3 +78,18 @@ nexus:
   query_raw_url : ${nexus_host}/service/rest/v1/components/{raw_id}
   upload_raw_url : ${nexus_host}/service/rest/v1/components?repository={repository_name}
   download_raw_url : ${nexus_host}/repository/{repository_name}/{raw_name}
+
+activemq:
+  brokerUrl : failover:(tcp://10.130.44.108:61616)?timeout=3000
+
+cmdb:
+  server_name: support_dev_cmdb_server
+  share_secret: ae12139afadabde12345r
+  app_collect:
+    instruction_topic: CMDB_TO_{platformId}_INSTRUCTION
+    start_instruction: START_{platformId}_APP_COLLECT
+    client_receipt_topic: RECEIPT_OF_{platformId}_TO_CMDB
+    client_report_collect_data_queue: CLIENT_REPORT_COLLECT_DATA_{sig}
+    receive_file_queue: FILE_REC_{sig}
+
+

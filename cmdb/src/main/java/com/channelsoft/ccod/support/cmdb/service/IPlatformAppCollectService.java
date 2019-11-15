@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.vo.CcodPlatformAppVo;
+
 /**
  * @ClassName: IPlatformAppCollectService
  * @Author: lanhb
@@ -9,4 +11,5 @@ package com.channelsoft.ccod.support.cmdb.service;
  */
 public interface IPlatformAppCollectService {
 
+    CcodPlatformAppVo collectPlatformApp(String platformId) throws Exception;
 }

@@ -14,6 +14,8 @@ public class AppModuleCfgVo {
 
     private String md5; //配置文件md5
 
+    private String localSavePath; //cfg文件传输过来后本地保存路径
+
     public String getFileName() {
         return fileName;
     }
@@ -36,5 +38,13 @@ public class AppModuleCfgVo {
 
     public void setMd5(String md5) {
         this.md5 = md5;
+    }
+
+    public String getLocalSavePath() {
+        return localSavePath;
+    }
+
+    public void setLocalSavePath(String localSavePath) {
+        this.localSavePath = localSavePath;
     }
 }

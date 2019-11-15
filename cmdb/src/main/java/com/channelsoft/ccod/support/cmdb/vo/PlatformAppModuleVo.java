@@ -31,6 +31,8 @@ public class PlatformAppModuleVo {
 
     private String moduleName; //模块名
 
+    private String moduleAliasName; //模块别名
+
     private String version; //版本
 
     private String basePath; //模块安装base path
@@ -40,6 +42,8 @@ public class PlatformAppModuleVo {
     private String installPackage; //安装包
 
     private String installPackageMd5; //安装包md5特征值
+
+    private String installPackageLocalSavePath; //安装包传输过来后本地存放路径
 
     private AppModuleCfgVo[] cfgs; //安装包的配置文件列表
 
@@ -179,5 +183,21 @@ public class PlatformAppModuleVo {
 
     public void setSerialNo(String serialNo) {
         this.serialNo = serialNo;
+    }
+
+    public String getInstallPackageLocalSavePath() {
+        return installPackageLocalSavePath;
+    }
+
+    public void setInstallPackageLocalSavePath(String installPackageLocalSavePath) {
+        this.installPackageLocalSavePath = installPackageLocalSavePath;
+    }
+
+    public String getModuleAliasName() {
+        return moduleAliasName;
+    }
+
+    public void setModuleAliasName(String moduleAliasName) {
+        this.moduleAliasName = moduleAliasName;
     }
 }
