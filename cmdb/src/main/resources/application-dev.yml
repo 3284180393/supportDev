@@ -81,15 +81,33 @@ nexus:
 
 activemq:
   brokerUrl : failover:(tcp://10.130.44.108:61616)?timeout=3000
+  receive_time_span: 300
 
 cmdb:
   server_name: support_dev_cmdb_server
   share_secret: ae12139afadabde12345r
   app_collect:
+    receipt_timeout: 5000
+    collect_data_timeout: 432000
+    transfer_file_timeout: 432000
     instruction_topic: CMDB_TO_{platformId}_INSTRUCTION
     start_instruction: START_{platformId}_APP_COLLECT
     client_receipt_topic: RECEIPT_OF_{platformId}_TO_CMDB
     client_report_collect_data_queue: CLIENT_REPORT_COLLECT_DATA_{sig}
     receive_file_queue: FILE_REC_{sig}
+    file_type: FILE.TYPE
+    install_package: INSTALLPACKAGE
+    cfg: CFG
+    app_name: APP.NAME
+    app_alias: APP.ALIAS
+    app_version: APP.VERSION
+    platformId: PLATFORMID
+    domainName: DOMAINNAME
+    host_ip: HOSTIP
+    base_path: BASEPATH
+    deploy_path: DEPLOYPATH
+    file_name: FILENAME
+    file_size: FILESIZE
+    file_md5: FILEMD5
 
 

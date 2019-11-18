@@ -12,6 +12,8 @@ public class AppModuleCfgVo {
 
     private String filePath; //配置文件存放路径
 
+    private long fileSize; //配置文件大小
+
     private String md5; //配置文件md5
 
     private String localSavePath; //cfg文件传输过来后本地保存路径
@@ -46,5 +48,13 @@ public class AppModuleCfgVo {
 
     public void setLocalSavePath(String localSavePath) {
         this.localSavePath = localSavePath;
+    }
+
+    public long getFileSize() {
+        return fileSize;
+    }
+
+    public void setFileSize(long fileSize) {
+        this.fileSize = fileSize;
     }
 }
