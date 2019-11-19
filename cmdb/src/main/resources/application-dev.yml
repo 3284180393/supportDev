@@ -71,13 +71,14 @@ ccod:
       alias : agentproxy
 
 nexus:
-  login_user : admin
+  user : admin
   password : 123456
   nexus_host : http://10.130.41.216:8081
-  query_repository_url : ${nexus_host}/service/rest/v1/components?repository={repository_name}
-  query_raw_url : ${nexus_host}/service/rest/v1/components/{raw_id}
-  upload_raw_url : ${nexus_host}/service/rest/v1/components?repository={repository_name}
-  download_raw_url : ${nexus_host}/repository/{repository_name}/{raw_name}
+  repository_name : ccod_modules
+  query_repository_url : ${nexus_host}/service/rest/v1/components?repository=${repository_name}
+  query_component_url : ${nexus_host}/service/rest/v1/components/{component_id}
+  query_asset_url : ${nexus_host}/service/rest/v1/assets/{asset_id}
+  upload_raw_url : ${nexus_host}/service/rest/v1/components?repository=${repository_name}
 
 activemq:
   brokerUrl : failover:(tcp://10.130.44.108:61616)?timeout=3000

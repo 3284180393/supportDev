@@ -20,6 +20,8 @@ public class DeployFileInfo {
 
     private String localSavePath; //该文件被传输过来后的本地存储路径
 
+    private String nexusAssetId; //在nexus库中的assetId
+
     public String getLocalSavePath() {
         return localSavePath;
     }
@@ -66,5 +68,13 @@ public class DeployFileInfo {
 
     public void setFileMd5(String fileMd5) {
         this.fileMd5 = fileMd5;
+    }
+
+    public String getNexusAssetId() {
+        return nexusAssetId;
+    }
+
+    public void setNexusAssetId(String nexusAssetId) {
+        this.nexusAssetId = nexusAssetId;
     }
 }

@@ -14,5 +14,27 @@ import java.util.List;
  */
 public interface IPlatformAppCollectService {
 
-    List<PlatformAppModuleVo> collectPlatformApp(String platformId) throws Exception;
+    /**
+     * 从平台收集指定条件的应用部署情况，并上传安装包和配置文件
+     * @param platformId 平台id不能为空
+     * @param domainName 域名可以为空
+     * @param hostIp 主机ip可以为空
+     * @param appName 应用名，可以为空
+     * @param version 应用版本，可以为空
+     * @return 指定条件的应用部署情况
+     * @throws Exception
+     */
+    List<PlatformAppModuleVo> collectPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception;
+
+    /**
+     * 从平台收集指定条件的应用部署情况，不上传安装包和配置文件
+     * @param platformId 平台id不能为空
+     * @param domainName 域名可以为空
+     * @param hostIp 主机ip可以为空
+     * @param appName 应用名，可以为空
+     * @param version 应用版本，可以为空
+     * @return 指定条件的应用部署情况
+     * @throws Exception
+     */
+    List<PlatformAppModuleVo> checkPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception;
 }

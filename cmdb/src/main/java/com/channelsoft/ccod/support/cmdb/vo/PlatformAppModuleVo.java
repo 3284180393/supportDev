@@ -33,6 +33,8 @@ public class PlatformAppModuleVo {
 
     private String version; //版本
 
+    private String nexusComponentId; //该应用模块在nexus存储的componentId
+
     private String basePath; //模块安装base path
 
     private DeployFileInfo installPackage; //安装包信息
@@ -159,5 +161,13 @@ public class PlatformAppModuleVo {
 
     public void setAttributes(Map<String, String> attributes) {
         this.attributes = attributes;
+    }
+
+    public String getNexusComponentId() {
+        return nexusComponentId;
+    }
+
+    public void setNexusComponentId(String nexusComponentId) {
+        this.nexusComponentId = nexusComponentId;
     }
 }

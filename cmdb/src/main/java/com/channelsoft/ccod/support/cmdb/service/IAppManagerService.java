@@ -5,7 +5,9 @@ import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
+import com.channelsoft.ccod.support.cmdb.vo.CCODAppModuleVo;
 import com.channelsoft.ccod.support.cmdb.vo.CcodPlatformAppVo;
+import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 
 /**
  * @ClassName: IAppManagerService
@@ -41,13 +43,12 @@ public interface IAppManagerService {
      * @param installPackage 应用包存放路径
      * @param cfgs 应用的相关配置存放路径
      * @param basePath 应用在服务器的base path
-     * @param deployPath 应用的部署路径
      * @return 创建后的应用模块信息
      * @throws Exception
      */
     AppModuleVo createNewAppModule(String appName, String appAlias, String version, VersionControl versionControl,
                                    String versionControlUrl, AppPackagePo installPackage, AppCfgFilePo[] cfgs,
-                                   String basePath, String deployPath) throws Exception;
+                                   String basePath) throws Exception;
 
     /**
      * 查询指定版本的应用模块
@@ -74,7 +75,7 @@ public interface IAppManagerService {
      * @return 查询结果
      * @throws Exception
      */
-    CcodPlatformAppVo[] queryPlatformApps(String platformId) throws Exception;
+    PlatformAppModuleVo[] queryPlatformApps(String platformId) throws Exception;
 
     /**
      * 查询指定平台指定域下的所有模块部署情况
@@ -83,7 +84,7 @@ public interface IAppManagerService {
      * @return 查询结果
      * @throws Exception
      */
-    CcodPlatformAppVo[] queryDomainApps(String platformId, String domainId) throws Exception;
+    PlatformAppModuleVo[] queryDomainApps(String platformId, String domainId) throws Exception;
 
     /**
      * 查询指定平台指定域下某个ip的服务器的所有模块部署情况
@@ -93,19 +94,30 @@ public interface IAppManagerService {
      * @return 查询结果
      * @throws Exception
      */
-    CcodPlatformAppVo[] queryAppsForHostIp(String platformId, String domainId, String hostIp) throws Exception;
+    PlatformAppModuleVo[] queryAppsForHostIp(String platformId, String domainId, String hostIp) throws Exception;
 
     /**
-     * 添加新的平台应用模块
-     * @param platformId 平台id
-     * @param domainId 域id
-     * @param hostIp 服务器ip
-     * @param installPackage 应用模块安装包
-     * @param cfgs 应用配置文件
-     * @return 添加后的平台应用模块信息
+     * 检查指定条件的平台的应用部署情况，并上传对应的安装包和配置文件
+     * @param platformId 平台id，不能为空
+     * @param domainName 域名，可以为空
+     * @param hostIp 主机名，可以为空
+     * @param appName 应用名，可以为空
+     * @param version 版本号，可以为空
+     * @return 所有满足条件的应用配置信息
      * @throws Exception
      */
-    CcodPlatformAppVo addNewPlatformAppModule(String platformId, String domainId, String hostIp,
-                                                AppPackagePo installPackage, AppCfgFilePo[] cfgs) throws Exception;
+    PlatformAppModuleVo[] startCollectPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception;
+
+    /**
+     * 检查指定条件的平台的应用部署情况，不上传对应的安装包和配置文件
+     * @param platformId 平台id，不能为空
+     * @param domainName 域名，可以为空
+     * @param hostIp 主机名，可以为空
+     * @param appName 应用名，可以为空
+     * @param version 版本号，可以为空
+     * @return 所有满足条件的应用配置信息
+     * @throws Exception
+     */
+    PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception;
 
 }

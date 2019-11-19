@@ -10,6 +10,7 @@ import org.apache.activemq.ActiveMQConnectionFactory;
 import javax.jms.*;
 
 import org.apache.activemq.BlobMessage;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,8 +123,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
     private ConnectionFactory connectionFactory = null;
 
-    private Connection connection = null;
-
     private String cfgKeyFmt = "%s;%s;%s;%s;%s;%s";
 
     private String packageKeyFmt = "%s;%s;%s";
@@ -132,26 +131,79 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
     private String tmpSavePathFmt = "%s/%s";
 
-
-
+    @Override
+    public List<PlatformAppModuleVo> checkPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception {
+        if(StringUtils.isBlank(platformId))
+        {
+            logger.error(String.format("checkPlatformAppData FAIL : platformId is blank"));
+            throw new Exception(String.format("checkPlatformAppData FAIL : platformId is blank"));
+        }
+        Map<String, String> params = new HashMap<>();
+        params.put("platformId", platformId);
+        if(StringUtils.isNotBlank(domainName))
+        {
+            params.put("domainName", domainName);
+        }
+        if(StringUtils.isNotBlank(hostIp))
+        {
+            params.put("hostIp", hostIp);
+        }
+        if(StringUtils.isNotBlank(appName))
+        {
+            params.put("appName", appName);
+        }
+        if(StringUtils.isNotBlank(version))
+        {
+            params.put("version", version);
+        }
+        logger.debug(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
+        connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
+        Connection connection = connectionFactory.createConnection();
+        connection.setClientID(this.serverName);
+        connection.start();
+        List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
+        return modules;
+    }
 
     @PostConstruct
     void init() throws Exception
     {
-//        connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
+        connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
 //        connection.setClientID(this.serverName);
 //        connection.start();
     }
 
 
     @Override
-    public List<PlatformAppModuleVo> collectPlatformApp(String platformId) throws Exception {
-        logger.debug(String.format("begin to collect %s platform app infos", platformId));
-        connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
-        connection.setClientID(this.serverName);
-        connection.start();
+    public List<PlatformAppModuleVo> collectPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception {
+        if(StringUtils.isBlank(platformId))
+        {
+            logger.error(String.format("collectPlatformAppData FAIL : platformId is blank"));
+            throw new Exception(String.format("collectPlatformAppData FAIL : platformId is blank"));
+        }
         Map<String, String> params = new HashMap<>();
         params.put("platformId", platformId);
+        if(StringUtils.isNotBlank(domainName))
+        {
+            params.put("domainName", domainName);
+        }
+        if(StringUtils.isNotBlank(hostIp))
+        {
+            params.put("hostIp", hostIp);
+        }
+        if(StringUtils.isNotBlank(appName))
+        {
+            params.put("appName", appName);
+        }
+        if(StringUtils.isNotBlank(version))
+        {
+            params.put("version", version);
+        }
+        logger.debug(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
+        connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
+        Connection connection = connectionFactory.createConnection();
+        connection.setClientID(this.serverName);
+        connection.start();
         List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
         params = new HashMap<>();
         params.put("platformId", platformId);
@@ -257,7 +309,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     instructionVo.getInstruction(), resultVo.getData()));
             throw new Exception(String.format("%s", resultVo.getData()));
         }
-        modules = receiveFileFromQueue(modules, recvFileQueue, this.transferFileTimeout);
+        modules = receiveFileFromQueue(connection, modules, recvFileQueue, this.transferFileTimeout);
         return modules;
     }
 
@@ -305,7 +357,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
      * @return 接受到的安装包和配置文件
      * @throws Exception
      */
-    private List<PlatformAppModuleVo> receiveFileFromQueue(List<PlatformAppModuleVo> modules, String queueName, long timeout) throws Exception
+    private List<PlatformAppModuleVo> receiveFileFromQueue(Connection connection, List<PlatformAppModuleVo> modules, String queueName, long timeout) throws Exception
     {
         Map<String, List<DeployFileInfo>> cfgMap = new HashMap<>();
         Map<String, List<DeployFileInfo>> installPackageMap = new HashMap<>();
