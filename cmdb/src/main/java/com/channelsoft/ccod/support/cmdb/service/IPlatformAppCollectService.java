@@ -1,6 +1,9 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.vo.CcodPlatformAppVo;
+import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
+
+import java.util.List;
 
 /**
  * @ClassName: IPlatformAppCollectService
@@ -11,5 +14,5 @@ import com.channelsoft.ccod.support.cmdb.vo.CcodPlatformAppVo;
  */
 public interface IPlatformAppCollectService {
 
-    CcodPlatformAppVo collectPlatformApp(String platformId) throws Exception;
+    List<PlatformAppModuleVo> collectPlatformApp(String platformId) throws Exception;
 }

@@ -3,6 +3,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.alibaba.fastjson.JSONObject;
 import org.springframework.util.DigestUtils;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,16 +14,21 @@ import java.util.Map;
  * @Date: 2019/11/18 18:37
  * @Version: 1.0
  */
-public class ActiveMQInstructionVo {
-    private String instruction;
+public class ActiveMQInstructionVo implements Serializable {
 
-    private Map<String, String> params;
+    private static final long serialVersionUID = -4148768233381252389L;
 
-    private int timestamp;
+    private String instruction;  //指令
 
-    private int nonce;
+    private Map<String, String> params; //执行指令相关参数
 
-    private int clientNonce;
+    private int timestamp; //时间戳
+
+    private int nonce; //服务端生成的随机nonce
+
+    private int clientNonce; //如果该指令是多次交互的一部分clientNonce是客户端生成的随机nonce,否则为0
+
+    private String signature;  //服务端对指令消息的签名
 
     public ActiveMQInstructionVo(String instruction, Map<String, String>params, int timestamp, int nonce)
     {
@@ -61,17 +67,17 @@ public class ActiveMQInstructionVo {
     {
         String plainText = String.format("%s%s%s%d%d%d", instruction, JSONObject.toJSONString(params), shareSecret,
                 timestamp, nonce, clientNonce);
-        return DigestUtils.md5DigestAsHex(plainText.getBytes());
+        this.signature = DigestUtils.md5DigestAsHex(plainText.getBytes());
+        return signature;
     }
 
-    public boolean verifySignature(String signature, String shareSecret)
+    public boolean verifySignature(String shareSecret)
     {
         String plainText = String.format("%s%s%s%d%d%d", instruction, JSONObject.toJSONString(params), shareSecret,
                 timestamp, nonce, clientNonce);
         String sig = DigestUtils.md5DigestAsHex(plainText.getBytes());
-        return sig.equals(signature) ? true : false;
+        return sig.equals(this.signature) ? true : false;
     }
-
 
     public String getInstruction() {
         return instruction;
@@ -113,4 +119,7 @@ public class ActiveMQInstructionVo {
         this.clientNonce = clientNonce;
     }
 
+    public String getSignature() {
+        return signature;
+    }
 }

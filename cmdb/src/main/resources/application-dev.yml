@@ -91,7 +91,8 @@ cmdb:
     collect_data_timeout: 432000
     transfer_file_timeout: 432000
     instruction_topic: CMDB_TO_{platformId}_INSTRUCTION
-    start_instruction: START_{platformId}_APP_COLLECT
+    start_data_collect_instruction: START_APP_DATA_COLLECT
+    start_file_transfer_instruction: START_APP_DATA_COLLECT
     client_receipt_topic: RECEIPT_OF_{platformId}_TO_CMDB
     client_report_collect_data_queue: CLIENT_REPORT_COLLECT_DATA_{sig}
     receive_file_queue: FILE_REC_{sig}

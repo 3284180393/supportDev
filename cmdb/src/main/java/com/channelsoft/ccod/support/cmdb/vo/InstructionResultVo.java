@@ -12,7 +12,7 @@ import java.io.Serializable;
  * @Version: 1.0
  */
 public class InstructionResultVo implements Serializable {
-    private static final long serialVersionUID = -4148768233386711389L;
+    private static final long serialVersionUID = -4148768233386671389L;
 
     private String instruction;  //对客户端发出的指令
 
@@ -25,6 +25,8 @@ public class InstructionResultVo implements Serializable {
     private int nonce; //服务器生成的随机数
 
     private int clientNonce; //客户端生成的随机数
+
+    private String signature; //客户端对返回结果的签名
 
     public String getInstruction() {
         return instruction;
@@ -74,19 +76,24 @@ public class InstructionResultVo implements Serializable {
         this.clientNonce = clientNonce;
     }
 
+    public String getSignature() {
+        return signature;
+    }
+
     public String generateSignature(String shareSecret)
     {
         String plainText = String.format("%s%b%s%s%d%d%d", instruction, success, data, shareSecret, timestamp,
                 nonce, clientNonce);
-        return DigestUtils.md5DigestAsHex(plainText.getBytes());
+        this.signature = DigestUtils.md5DigestAsHex(plainText.getBytes());
+        return signature;
     }
 
-    public boolean verifySignature(String signature, String shareSecret)
+    public boolean verifySignature(String shareSecret)
     {
         String plainText = String.format("%s%b%s%s%d%d%d", instruction, success, data, shareSecret, timestamp,
                 nonce, clientNonce);
         String sig = DigestUtils.md5DigestAsHex(plainText.getBytes());
-        return sig.equals(signature) ? true : false;
+        return sig.equals(this.signature) ? true : false;
     }
 
 }

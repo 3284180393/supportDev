@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.service.IActiveMQService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
@@ -42,8 +43,11 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${cmdb.app_collect.instruction_topic}")
     private String instructionTopic;
 
-    @Value("${cmdb.app_collect.start_instruction}")
-    private String startInstruction;
+    @Value("${cmdb.app_collect.start_data_collect_instruction}")
+    private String startCollectDataInstruction;
+
+    @Value("${cmdb.app_collect.start_file_transfer_instruction}")
+    private String startAppFileTransferInstruction;
 
     @Value("${cmdb.app_collect.client_receipt_topic}")
     private String receiptTopic;
@@ -116,8 +120,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
     private Random random = new Random();
 
-    private String instructionFmt = "{\"serverName\": \"%s\", \"instruction\": \"%s\", \"params\": %s, \"timestamp\": %d, \"nonce\": %d, \"signature\": \"%s\"}";
-
     private ConnectionFactory connectionFactory = null;
 
     private Connection connection = null;
@@ -143,84 +145,135 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
 
     @Override
-    public CcodPlatformAppVo collectPlatformApp(String platformId) throws Exception {
+    public List<PlatformAppModuleVo> collectPlatformApp(String platformId) throws Exception {
         logger.debug(String.format("begin to collect %s platform app infos", platformId));
         connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
         connection.setClientID(this.serverName);
         connection.start();
-        String startInstr = this.startInstruction.replace("\\{platformId\\}", platformId);
+        Map<String, String> params = new HashMap<>();
+        params.put("platformId", platformId);
+        List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
+        params = new HashMap<>();
+        params.put("platformId", platformId);
+        modules = getPlatformAppInstallPackageAndCfg(platformId, modules, params, connection);
+        return modules;
+    }
+
+
+    /**
+     * 收集平台模块数据
+     * @param platformId 平台id
+     * @param params 相关参数,如果需要指定域名、host ip或是模块名可以在params中添加,其中platformId为必须
+     * @param connection 到activeMQ的连接
+     * @return 收集到的指定条件的模块信息
+     * @throws Exception
+     */
+    private List<PlatformAppModuleVo> collectPlatformAppData(String platformId, Map<String, String> params, Connection connection) throws Exception
+    {
+        logger.debug(String.format("begin to collect %s platform app data : params=%s", platformId, JSONObject.toJSONString(params)));
         Date now = new Date();
         int timestamp = (int)(now.getTime() / 1000);
         int nonce = random.nextInt(1000000);
         String md5 = DigestUtils.md5DigestAsHex(String.format("%d:%d", timestamp, nonce).getBytes());
         String collectDataQueue = this.reportCollectDataQueue + "-" + md5;
-        ActiveMQInstructionVo instructionVo = notifyPlatformStartCollect(connection, platformId, collectDataQueue, timestamp, nonce);
-        InstructionResultVo  resultVo = null;
-        try
+        ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startCollectDataInstruction, params,
+                timestamp, nonce);
+        String signature = instructionVo.generateSignature(this.shareSecret);
+        logger.debug(String.format("start platform app collect instruction msg is %s and signature=%s",
+                JSONObject.toJSONString(instructionVo), signature));
+        this.activeMQService.sendTopicMsg(connection, this.instructionTopic, JSONObject.toJSONString(instructionVo));
+        String clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.receiptTimeout);
+        InstructionResultVo resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
+        boolean verifySucc = verifyInstructionResult(resultVo, instructionVo);
+        if(!verifySucc)
         {
-            String clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.receiptTimeout);
-            resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
-            if(!instructionVo.getInstruction().equals(resultVo.getInstruction()))
-            {
-                String errMsg = String.format("receipt of platform=%s app collect receipt error, wanted=%s and receive=%s",
-                        platformId, platformId + "_APP_COLLECT_RECEIPT", tag);
-                logger.error(errMsg);
-                throw new Exception(errMsg);
-            }
-            clientNonce = jsonObject.getInteger("clientNonce");
-            String signature = jsonObject.getString("signature");
-            md5 = DigestUtils.md5DigestAsHex(String.format("%s%d%d%d", tag, timestamp, nonce, clientNonce).getBytes());
-            if(!md5.equals(signature))
-            {
-                String errorMsg = String.format("verify signature FAIL, wanted=%s and receive=%s", md5, signature);
-                logger.error(errorMsg);
-                throw new Exception(errorMsg);
-            }
+            String errMsg = String.format("verify receipt message from %s at %s FAIL", collectDataQueue, this.activeMqBrokeUrl);
+            logger.error(errMsg);
+            throw new Exception(errMsg);
         }
-        catch (Exception ex)
+        if(!resultVo.isSuccess())
         {
-            logger.error(String.format("handle %s app collect receipt exception", platformId), ex);
-            throw new Exception(String.format("handle %s app collect receipt exception", platformId), ex);
+            logger.error(String.format("client return execute instruction=%s FAIL : %s", instructionVo.getInstruction(), resultVo.getData()));
+            throw new Exception(String.format("%s", resultVo.getData()));
         }
-        PlatformAppModuleVo platformAppModuleVo = null;
-        try
+        clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.collectDataTimeout);
+        resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
+        verifySucc = verifyInstructionResult(resultVo, instructionVo);
+        if(!verifySucc)
         {
-            clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.collectDataTimeout);
-            JSONObject jsonObject = JSONObject.parseObject(clientRet);
-            String receipt = jsonObject.getString("receipt");
-            if(receipt != platformId + "_APP_COLLECT_RECEIPT")
-            {
-                String errMsg = String.format("receipt of platform=%s app collect receipt error, wanted=%s and receive=%s",
-                        platformId, platformId + "_APP_COLLECT_RECEIPT", receipt);
-                logger.error(errMsg);
-                throw new Exception(errMsg);
-            }
-            clientNonce = jsonObject.getInteger("clientNonce");
-            String signature = jsonObject.getString("signature");
-            md5 = DigestUtils.md5DigestAsHex(String.format("%s%d%d%d", receipt, timestamp, nonce, clientNonce).getBytes());
-            if(!md5.equals(signature))
-            {
-                String errorMsg = String.format("verify signature FAIL, wanted=%s and receive=%s", md5, signature);
-                logger.error(errorMsg);
-                throw new Exception(errorMsg);
-            }
+            String errMsg = String.format("verify %s app collect message from %s at %s FAIL",
+                    platformId, collectDataQueue, this.activeMqBrokeUrl);
+            logger.error(errMsg);
+            throw new Exception(errMsg);
         }
-        catch (Exception ex)
+        if(!resultVo.isSuccess())
         {
-            logger.error(String.format("handle %s app collect receipt exception", platformId), ex);
-            throw new Exception(String.format("handle %s app collect receipt exception", platformId), ex);
+            logger.error(String.format("client return collect %s app data FAIL : %s", platformId, resultVo.getData()));
+            throw new Exception(String.format("%s", resultVo.getData()));
         }
-        return null;
+        List<PlatformAppModuleVo> modules = JSONArray.parseArray(resultVo.getData(), PlatformAppModuleVo.class);
+        logger.info(String.format("%s report %d app info", platformId, modules.size()));
+        return modules;
     }
 
 
-    private boolean verifyInstructionResult(InstructionResultVo resultVo, String resultSignature, ActiveMQInstructionVo instructionVo)
+    /**
+     * get指定条件的模块的安装包和配置文件
+     * @param platformId 平台id
+     * @param modules 指定的模块
+     * @param params 相关参数,如果需要指定域名、host ip或是模块名可以在params中添加,其中platformId为必须
+     * @param connection 指定的activeMQ连接
+     * @return 指定条件的模块的安装包和配置文件
+     * @throws Exception
+     */
+    private List<PlatformAppModuleVo> getPlatformAppInstallPackageAndCfg(String platformId, List<PlatformAppModuleVo> modules, Map<String, String> params, Connection connection) throws Exception
     {
-        if(!resultVo.verifySignature(resultSignature, this.shareSecret))
+        logger.debug(String.format("begin to transfer %s platform app file : params=%s", platformId, JSONObject.toJSONString(params)));
+        Date now = new Date();
+        int timestamp = (int)(now.getTime() / 1000);
+        int nonce = random.nextInt(1000000);
+        String md5 = DigestUtils.md5DigestAsHex(String.format("%d:%d", timestamp, nonce).getBytes());
+        String recvFileQueue = this.receiveFileQueue + "-" + md5;
+        params.put("receiveFileQueue", recvFileQueue);
+        ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startAppFileTransferInstruction, params,
+                timestamp, nonce);
+        String signature = instructionVo.generateSignature(this.shareSecret);
+        logger.debug(String.format("start platform app file transfer instruction msg is %s and signature=%s",
+                JSONObject.toJSONString(instructionVo), signature));
+        this.activeMQService.sendTopicMsg(connection, this.instructionTopic, JSONObject.toJSONString(instructionVo));
+        String clientRet = activeMQService.receiveTextMsgFromQueue(connection, recvFileQueue, this.receiptTimeout);
+        InstructionResultVo resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
+        boolean verifySucc = verifyInstructionResult(resultVo, instructionVo);
+        if(!verifySucc)
+        {
+            String errMsg = String.format("verify file transfer receipt message from %s at %s FAIL",
+                    recvFileQueue, this.activeMqBrokeUrl);
+            logger.error(errMsg);
+            throw new Exception(errMsg);
+        }
+        if(!resultVo.isSuccess())
+        {
+            logger.error(String.format("client return execute file transfer instruction=%s FAIL : %s",
+                    instructionVo.getInstruction(), resultVo.getData()));
+            throw new Exception(String.format("%s", resultVo.getData()));
+        }
+        modules = receiveFileFromQueue(modules, recvFileQueue, this.transferFileTimeout);
+        return modules;
+    }
+
+    /**
+     * 验证activeMQ的指令以及对应的客户端返回结果是否匹配
+     * @param resultVo 客户端返回结果
+     * @param instructionVo 相关指令
+     * @return 是否验证通过
+     */
+    private boolean verifyInstructionResult(InstructionResultVo resultVo, ActiveMQInstructionVo instructionVo)
+    {
+        if(!resultVo.verifySignature(this.shareSecret))
         {
             logger.error(String.format("verify result signature FAIL, wanted=%s and receive=%s",
-                    resultVo.generateSignature(), resultSignature));
-            return false
+                    resultVo.generateSignature(this.shareSecret), resultVo.getSignature()));
+            return false;
         }
         if(!instructionVo.getInstruction().equals(resultVo.getInstruction()))
         {
@@ -244,66 +297,15 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     }
 
 
-    private ActiveMQInstructionVo notifyPlatformStartCollect(Connection connection, String platformId, String reportCollectDataQueue, int timestamp, int nonce) throws Exception
-    {
-        Map<String, String> params = new HashMap<>();
-        params.put("reportCollectDataQueue", reportCollectDataQueue);
-        String startInstr = this.startInstruction.replace("\\{platformId\\}", platformId);
-        ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(startInstr, params,
-                timestamp, nonce);
-        String signature = instructionVo.generateSignature(this.shareSecret);
-        Map<String, Object> map = new HashMap<>();
-        map.put("instruction", instructionVo);
-        map.put("signature", signature);
-        logger.debug(String.format("start platform app collect instruction msg is %s", JSONObject.toJSONString(map)));
-        this.activeMQService.sendTopicMsg(connection, this.instructionTopic, JSONObject.toJSONString(map));
-        return instructionVo;
-    }
-
-
-    private boolean verifyClientInstructionResult(String instruction, int timestamp, int nonce, InstructionResultVo resultVo)
-    {
-        if(!instruction.equals(resultVo.getInstruction()))
-        {
-            logger.error(String.format("instruction not equal : sourceInstruction=%s and resultInstruction=%s",
-                    instruction, resultVo.getInstruction()));
-            return false;
-        }
-        if(timestamp != resultVo.getTimestamp())
-        {
-            logger.error(String.format("timestamp not equal : sourceTimestamp=%d and resultTimestamp=%d",
-                    timestamp, resultVo.getTimestamp()));
-            return false;
-        }
-        if(nonce != resultVo.getNonce())
-        {
-            logger.error(String.format("nonce not equal : sourceNonce=%d and resultNonce=%d",
-                    nonce, resultVo.getNonce()));
-            return false;
-        }
-
-        String plainTxt = String.format("%s%b%s%s%d%d%d", resultVo.getInstruction(), resultVo.isSuccess(), resultVo.getData(),
-                this.shareSecret, resultVo.getTimestamp(), resultVo.getNonce(), resultVo.getClientNonce());
-        String signature = DigestUtils.md5DigestAsHex(plainTxt.getBytes());
-        if(!signature.equals(resultVo.getSignature()))
-        {
-            logger.error(String.format("verify signature fail : wantedSignature=%s and receiveSignature=%s",
-                    signature, resultVo.getSignature()));
-            return false;
-        }
-        return true;
-    }
-
-    private String generateInstructionMsg(String instruction, Map<String, String> params, int timestamp, int nonce)
-    {
-        String paramsStr = JSONObject.toJSONString(params);
-        String plainTxt = this.serverName + instruction + paramsStr + timestamp + nonce + this.shareSecret;
-        String signature = DigestUtils.md5DigestAsHex(plainTxt.getBytes());
-        String instMsg = String.format(this.instructionFmt, this.serverName, instruction, paramsStr, timestamp, nonce, signature);
-        return instMsg;
-    }
-
-    private void receiveFileFromQueue(PlatformAppModuleVo[] modules, String queueName, long timeout) throws Exception
+    /**
+     * 从指定队列接受应用的安装包和配置文件
+     * @param modules 指定的应用模块
+     * @param queueName 接受文件的queue
+     * @param timeout 超时时长
+     * @return 接受到的安装包和配置文件
+     * @throws Exception
+     */
+    private List<PlatformAppModuleVo> receiveFileFromQueue(List<PlatformAppModuleVo> modules, String queueName, long timeout) throws Exception
     {
         Map<String, List<DeployFileInfo>> cfgMap = new HashMap<>();
         Map<String, List<DeployFileInfo>> installPackageMap = new HashMap<>();
@@ -497,5 +499,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         }
         consumer.close();
         session.close();
+        return modules;
     }
 }
