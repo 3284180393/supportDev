@@ -5,8 +5,6 @@ import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
-import com.channelsoft.ccod.support.cmdb.vo.CCODAppModuleVo;
-import com.channelsoft.ccod.support.cmdb.vo.CcodPlatformAppVo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 
 /**

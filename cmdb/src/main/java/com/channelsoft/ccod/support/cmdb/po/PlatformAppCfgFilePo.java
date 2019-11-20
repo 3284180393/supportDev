@@ -1,22 +1,19 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
-import com.gitee.sunchenbin.mybatis.actable.annotation.Column;
-import com.gitee.sunchenbin.mybatis.actable.annotation.Table;
-import com.gitee.sunchenbin.mybatis.actable.command.BaseModel;
-import com.gitee.sunchenbin.mybatis.actable.constants.MySqlTypeConstant;
-
 import java.util.Date;
 
 /**
- * @ClassName: AppCfgFilePo
+ * @ClassName: PlatformAppCfgFilePo
  * @Author: lanhb
- * @Description: 用来定义app配置文件的类
- * @Date: 2019/11/12 16:46
+ * @Description: 用来定义平台配置文件信息的类
+ * @Date: 2019/11/20 10:49
  * @Version: 1.0
  */
-public class AppCfgFilePo extends BaseModel {
+public class PlatformAppCfgFilePo {
 
     private int cfgFileId; //配置文件id,数据库唯一生成
+
+    private int platformAppId; //平台app id,引用 platform_app表id为外键
 
     private int appId; //该配置文件是哪个app的配置文件,外键app表的app_id
 
@@ -26,6 +23,8 @@ public class AppCfgFilePo extends BaseModel {
 
     private String nexusRepository; //保存在nexus的仓库名
 
+    private String nexusDirectory; //保存在nexus的路径
+
     private String nexusAssetId; //在nexus中的assetId
 
     private String nexusDownloadUrl; //在nexus中的download url
@@ -34,14 +33,20 @@ public class AppCfgFilePo extends BaseModel {
 
     private String md5; //该配置文件的md5特征值
 
-    private String sourceFilePath; //上传源文件路径,不需要入库
-
     public int getCfgFileId() {
         return cfgFileId;
     }
 
     public void setCfgFileId(int cfgFileId) {
         this.cfgFileId = cfgFileId;
+    }
+
+    public int getPlatformAppId() {
+        return platformAppId;
+    }
+
+    public void setPlatformAppId(int platformAppId) {
+        this.platformAppId = platformAppId;
     }
 
     public int getAppId() {
@@ -76,20 +81,20 @@ public class AppCfgFilePo extends BaseModel {
         this.nexusRepository = nexusRepository;
     }
 
+    public String getNexusDirectory() {
+        return nexusDirectory;
+    }
+
+    public void setNexusDirectory(String nexusDirectory) {
+        this.nexusDirectory = nexusDirectory;
+    }
+
     public String getNexusAssetId() {
         return nexusAssetId;
     }
 
     public void setNexusAssetId(String nexusAssetId) {
         this.nexusAssetId = nexusAssetId;
-    }
-
-    public Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
     }
 
     public String getNexusDownloadUrl() {
@@ -100,19 +105,19 @@ public class AppCfgFilePo extends BaseModel {
         this.nexusDownloadUrl = nexusDownloadUrl;
     }
 
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
     public String getMd5() {
         return md5;
     }
 
     public void setMd5(String md5) {
         this.md5 = md5;
-    }
-
-    public String getSourceFilePath() {
-        return sourceFilePath;
-    }
-
-    public void setSourceFilePath(String sourceFilePath) {
-        this.sourceFilePath = sourceFilePath;
     }
 }

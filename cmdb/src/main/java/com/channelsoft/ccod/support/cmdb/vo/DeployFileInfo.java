@@ -20,6 +20,10 @@ public class DeployFileInfo {
 
     private String localSavePath; //该文件被传输过来后的本地存储路径
 
+    private String nexusRepository; //该文件被上传到nexus的repository
+
+    private String nexusDirectory; //该文件被上传到nexus的directory
+
     private String nexusAssetId; //在nexus库中的assetId
 
     public String getLocalSavePath() {
@@ -76,5 +80,21 @@ public class DeployFileInfo {
 
     public void setNexusAssetId(String nexusAssetId) {
         this.nexusAssetId = nexusAssetId;
+    }
+
+    public String getNexusRepository() {
+        return nexusRepository;
+    }
+
+    public void setNexusRepository(String nexusRepository) {
+        this.nexusRepository = nexusRepository;
+    }
+
+    public String getNexusDirectory() {
+        return nexusDirectory;
+    }
+
+    public void setNexusDirectory(String nexusDirectory) {
+        this.nexusDirectory = nexusDirectory;
     }
 }

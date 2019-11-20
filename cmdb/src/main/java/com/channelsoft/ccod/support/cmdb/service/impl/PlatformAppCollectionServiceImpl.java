@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.PostConstruct;
@@ -31,6 +32,7 @@ import java.util.*;
  * @Date: 2019/11/15 14:28
  * @Version: 1.0
  */
+@Service
 public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectService {
 
     private final static Logger logger = LoggerFactory.getLogger(PlatformAppCollectionServiceImpl.class);
