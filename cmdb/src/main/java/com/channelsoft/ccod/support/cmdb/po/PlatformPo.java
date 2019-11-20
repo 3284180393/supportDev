@@ -22,8 +22,6 @@ public class PlatformPo {
 
     private String comment; //平台描述
 
-    private String cfgReportBrokeUrl; //获取该平台配置的mq broke url
-
     public String getPlatformId() {
         return platformId;
     }
@@ -70,13 +68,5 @@ public class PlatformPo {
 
     public void setComment(String comment) {
         this.comment = comment;
-    }
-
-    public String getCfgReportBrokeUrl() {
-        return cfgReportBrokeUrl;
-    }
-
-    public void setCfgReportBrokeUrl(String cfgReportBrokeUrl) {
-        this.cfgReportBrokeUrl = cfgReportBrokeUrl;
     }
 }

@@ -30,14 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class AppManagerServiceImpl implements IAppManagerService {
 
-    @Value("${nexus.platform_app_cfg_directory_fmt}")
-    private String platformAppCfgDirectoryFmt;
-
     @Value("${nexus.platform_app_cfg_repository}")
     private String platformAppCfgRepository;
-
-    @Value("${nexus.app_module_component_directory_fmt}")
-    private String appDirectoryFmt;
 
     @Value("${nexus.app_module_repository}")
     private String appRepository;
@@ -107,11 +101,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             this.nexusService.addPlatformAppModule(module);
         }
+        this.isPlatformCheckOngoing = false;
         return modules.toArray(new PlatformAppModuleVo[0]);
     }
 
     @Override
     public PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception {
-        return new PlatformAppModuleVo[0];
+        if(this.isPlatformCheckOngoing)
+        {
+            logger.error(String.format("start platform=%s app data check FAIL : some collect task is ongoing", platformId));
+            throw new Exception(String.format("start platform=%s app data check FAIL : some collect task is ongoing", platformId));
+        }
+        this.isPlatformCheckOngoing = true;
+        List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, domainName, hostIp, appName, version);
+        this.isPlatformCheckOngoing = false;
+        return modules.toArray(new PlatformAppModuleVo[0]);
     }
 }

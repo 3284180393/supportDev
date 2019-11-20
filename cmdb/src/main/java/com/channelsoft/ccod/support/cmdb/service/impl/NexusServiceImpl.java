@@ -48,29 +48,23 @@ public class NexusServiceImpl implements INexusService {
     @Value("${nexus.password}")
     private String password;
 
-    @Value("${nexus.repository_name}")
-    private String repository;
+    @Value("${nexus.host_url}")
+    private String nexusHostUrl;
 
-    @Value("${nexus.query_repository_url}")
-    private String queryRepositoryUrl;
+    private String queryRepositoryUrlFmt = String.format("%s/service/rest/v1/components?repository=%%s", nexusHostUrl);
 
-    @Value("${nexus.query_component_url}")
-    private String queryComponentUrl;
+    private String queryComponentUrlFmt = String.format("%s/service/rest/v1/components/%%s", nexusHostUrl);
 
-    @Value("${nexus.query_asset_url}")
-    private String queryAssetUrl;
+    private String queryAssetUrlFmt = String.format("%s/service/rest/v1/assets/%%s", nexusHostUrl);
 
-    @Value("${nexus.upload_raw_url}")
-    private String uploadRawUrl;
+    private String uploadRawUrlFmt = String.format("%s/service/rest/v1/components?repository=%%s", nexusHostUrl);
 
-    @Value("${nexus.platform_app_cfg_directory_fmt}")
-    private String platformAppCfgDirectoryFmt;
+    private String platformAppCfgDirectoryFmt = "%s/%s/%s/%s/%s/%s/%s/%d";
 
     @Value("${nexus.platform_app_cfg_repository}")
     private String platformAppCfgRepository;
 
-    @Value("${nexus.app_module_component_directory_fmt}")
-    private String appDirectoryFmt;
+    private String appDirectoryFmt = "%s%s%s";
 
     @Value("${nexus.app_module_repository}")
     private String appRepository;
@@ -81,10 +75,11 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public boolean uploadRawFile(String repository, String sourceFilePath, String group, String fileName) throws Exception {
+        String url = String.format(this.uploadRawUrlFmt, repository);
         logger.debug(String.format("begin to upload %s to %s/%s/%s, uploadUrl=%s",
-                sourceFilePath, repository, group, fileName, this.uploadRawUrl));
+                sourceFilePath, repository, group, fileName, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
-        HttpPost httppost = new HttpPost(this.uploadRawUrl);
+        HttpPost httppost = new HttpPost(url);
         List<NameValuePair> nvps = new ArrayList<NameValuePair>();
         nvps.add(new BasicNameValuePair("raw.directory", group));
         nvps.add(new BasicNameValuePair("raw.asset1", sourceFilePath));
@@ -108,7 +103,7 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public NexusComponentPo queryComponentById(String componentId) throws Exception {
-        String url = this.queryComponentUrl.replace("\\{component_id\\}", componentId);
+        String url = String.format(this.queryComponentUrlFmt, componentId);
         logger.debug(String.format("begin to query id=%s component info, queryUrl=%s", componentId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
@@ -133,7 +128,7 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public NexusAssetInfo queryAssetById(String assetId) throws Exception {
-        String url = this.queryAssetUrl.replace("\\{asset_id\\}", assetId);
+        String url = String.format(this.queryAssetUrlFmt, assetId);
         logger.debug(String.format("begin to query id=%s asset info, queryUrl=%s", assetId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
@@ -158,15 +153,16 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public NexusComponentPo[] queryComponentFromRepository(String repository) throws Exception {
+        String url = String.format(this.queryRepositoryUrlFmt, repository);
         logger.debug(String.format("begin to query all components from repository=%s, queryUrl=%s",
-                repository, this.queryRepositoryUrl));
+                repository, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
-        HttpGet httpGet = new HttpGet(this.queryRepositoryUrl);
+        HttpGet httpGet = new HttpGet(url);
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
-            logger.error(String.format("repository=%s not exist", this.repository));
-            throw new Exception(String.format("repository=%s not exist", this.repository));
+            logger.error(String.format("repository=%s not exist", repository));
+            throw new Exception(String.format("repository=%s not exist", repository));
         }
         else if (response.getStatusLine().getStatusCode() != 200)
         {
@@ -184,7 +180,7 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public NexusComponentPo[] uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
-        String url = String.format(this.uploadRawUrl, repository);
+        String url = String.format(this.uploadRawUrlFmt, repository);
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpPost httppost = new HttpPost(url);
         List<NameValuePair> nvps = new ArrayList<NameValuePair>();
@@ -256,14 +252,15 @@ public class NexusServiceImpl implements INexusService {
      */
     private NexusComponentPo[] queryRepositoryAllComponent(String repository) throws Exception
     {
+        String url = String.format(this.queryRepositoryUrlFmt, repository);
         logger.debug(String.format("begin to query all components of repository=%s", repository));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
-        HttpGet httpGet = new HttpGet(this.queryRepositoryUrl);
+        HttpGet httpGet = new HttpGet(url);
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
-            logger.error(String.format("repository=%s not exist", this.repository));
-            throw new Exception(String.format("repository=%s not exist", this.repository));
+            logger.error(String.format("repository=%s not exist", repository));
+            throw new Exception(String.format("repository=%s not exist", repository));
         }
         else if (response.getStatusLine().getStatusCode() != 200)
         {

@@ -73,13 +73,9 @@ ccod:
 nexus:
   user : admin
   password : 123456
-  nexus_host : http://10.130.41.216:8081
+  host_url : http://10.130.41.216:8081
   app_module_repository : ccod_modules
-  app_module_component_directory_fmt : %s%s%s
   platform_app_cfg_repository : platform_app_cfgs
-  platform_app_cfg_directory_fmt : %s/%s/%s/%s/%s/%s/%s/%d
-  query_repository_url : ${nexus_host}/service/rest/v1/components?repository=%s
-  query_component_url : ${nexus_host}/service/rest/v1/components/{component_id}
   query_asset_url : ${nexus_host}/service/rest/v1/assets/{asset_id}
   upload_raw_url : ${nexus_host}/service/rest/v1/components?repository=%s
 

@@ -37,7 +37,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
     private final static Logger logger = LoggerFactory.getLogger(PlatformAppCollectionServiceImpl.class);
 
-    @Value("${cmdb.share_secrete}")
+    @Value("${cmdb.share_secret}")
     private String shareSecret;
 
     @Value("${cmdb.server_name}")
@@ -115,7 +115,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${activemq.brokerUrl}")
     private String activeMqBrokeUrl;
 
-    @Value("${activemq.brokerUrl}")
+    @Value("${activemq.receive_time_span}")
     private long activeMqReceiveTimeSpan;
 
     @Autowired
