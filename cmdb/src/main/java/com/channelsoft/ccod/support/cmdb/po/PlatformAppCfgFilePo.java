@@ -15,19 +15,13 @@ public class PlatformAppCfgFilePo {
 
     private int platformAppId; //平台app id,引用 platform_app表id为外键
 
-    private int appId; //该配置文件是哪个app的配置文件,外键app表的app_id
-
     private String fileName; //配置文件名
-
-    private String deployPath; //文件存放路径,可以是相对app的base path的相对路径,
 
     private String nexusRepository; //保存在nexus的仓库名
 
     private String nexusDirectory; //保存在nexus的路径
 
     private String nexusAssetId; //在nexus中的assetId
-
-    private String nexusDownloadUrl; //在nexus中的download url
 
     private Date createTime; //该文件在nexus的创建时间
 
@@ -49,28 +43,12 @@ public class PlatformAppCfgFilePo {
         this.platformAppId = platformAppId;
     }
 
-    public int getAppId() {
-        return appId;
-    }
-
-    public void setAppId(int appId) {
-        this.appId = appId;
-    }
-
     public String getFileName() {
         return fileName;
     }
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
-    }
-
-    public String getDeployPath() {
-        return deployPath;
-    }
-
-    public void setDeployPath(String deployPath) {
-        this.deployPath = deployPath;
     }
 
     public String getNexusRepository() {
@@ -95,14 +73,6 @@ public class PlatformAppCfgFilePo {
 
     public void setNexusAssetId(String nexusAssetId) {
         this.nexusAssetId = nexusAssetId;
-    }
-
-    public String getNexusDownloadUrl() {
-        return nexusDownloadUrl;
-    }
-
-    public void setNexusDownloadUrl(String nexusDownloadUrl) {
-        this.nexusDownloadUrl = nexusDownloadUrl;
     }
 
     public Date getCreateTime() {

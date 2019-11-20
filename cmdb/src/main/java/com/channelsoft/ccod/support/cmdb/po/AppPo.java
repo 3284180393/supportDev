@@ -11,19 +11,19 @@ import java.util.Date;
  */
 public class AppPo {
 
-    private int cfgId;    //应用配置id
-
-    private int appTemplateId; //应用对应的模板id
+    private int appId;    //应用id
 
     private String appName; //应用名
 
     private String appAlias; //应用别名
 
+    private String appType; //应用类型
+
     private String version; //应用版本
 
-    private String defaultDeployPath; //缺省安装路径
+    private String ccodVersion; //归属于哪个大版本的ccod
 
-    private String defaultBasePath; //缺省的base path
+    private String basePath; //缺省的base path
 
     private Date createTime; //应用创建时间
 
@@ -33,20 +33,28 @@ public class AppPo {
 
     private String comment; //备注
 
-    public int getCfgId() {
-        return cfgId;
+    public int getAppId() {
+        return appId;
     }
 
-    public void setCfgId(int cfgId) {
-        this.cfgId = cfgId;
+    public void setAppId(int appId) {
+        this.appId = appId;
     }
 
-    public int getAppTemplateId() {
-        return appTemplateId;
+    public String getAppType() {
+        return appType;
     }
 
-    public void setAppTemplateId(int appTemplateId) {
-        this.appTemplateId = appTemplateId;
+    public void setAppType(String appType) {
+        this.appType = appType;
+    }
+
+    public String getCcodVersion() {
+        return ccodVersion;
+    }
+
+    public void setCcodVersion(String ccodVersion) {
+        this.ccodVersion = ccodVersion;
     }
 
     public String getAppName() {
@@ -73,20 +81,12 @@ public class AppPo {
         this.version = version;
     }
 
-    public String getDefaultDeployPath() {
-        return defaultDeployPath;
+    public String getBasePath() {
+        return basePath;
     }
 
-    public void setDefaultDeployPath(String defaultDeployPath) {
-        this.defaultDeployPath = defaultDeployPath;
-    }
-
-    public String getDefaultBasePath() {
-        return defaultBasePath;
-    }
-
-    public void setDefaultBasePath(String defaultBasePath) {
-        this.defaultBasePath = defaultBasePath;
+    public void setBasePath(String basePath) {
+        this.basePath = basePath;
     }
 
     public Date getCreateTime() {

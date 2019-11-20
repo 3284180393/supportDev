@@ -275,7 +275,6 @@ public class NexusServiceImpl implements INexusService {
         return components.toArray(new NexusComponentPo[0]);
     }
 
-
     private CloseableHttpClient getBasicHttpClient(String username, String password) {
         // 创建HttpClientBuilder
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();

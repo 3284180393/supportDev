@@ -12,15 +12,15 @@ import java.util.Date;
 public class PlatformAppPo {
     private int platformAppId; //平台app部署id,数据库唯一生成
 
+    private int appId; //应用id,外键app的appId
+
     private String platformId; //平台id,外键platform的platform_id
 
     private String domainId; //应用所在的域id,外键domain的domain_id
 
     private int serverId; //应用部署所在服务器id,外键server表的server_id
 
-    private int appId; //应用id,外键app的appId
-
-    private String deployPath; //该应用的部署路径
+    private int runnerId; //应用运行用户id
 
     private String basePath; //该应用的basePath
 
@@ -66,14 +66,6 @@ public class PlatformAppPo {
         this.appId = appId;
     }
 
-    public String getDeployPath() {
-        return deployPath;
-    }
-
-    public void setDeployPath(String deployPath) {
-        this.deployPath = deployPath;
-    }
-
     public String getBasePath() {
         return basePath;
     }
@@ -88,5 +80,13 @@ public class PlatformAppPo {
 
     public void setDeployTime(Date deployTime) {
         this.deployTime = deployTime;
+    }
+
+    public int getRunnerId() {
+        return runnerId;
+    }
+
+    public void setRunnerId(int runnerId) {
+        this.runnerId = runnerId;
     }
 }

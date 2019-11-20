@@ -11,15 +11,15 @@ public class ServerPo {
 
     private int serverId;  //服务器id,数据库唯一生成主键
 
+    private String hostname; //服务器名
+
+    private String hostIp; //服务器ip
+
     private int serverType; //服务类型 1:linux,2:windows
 
     private String platformId; //服务所在平台
 
     private String domainId; //服务器所在域
-
-    private String hostIp; //服务器ip
-
-    private String hostname; //服务器名
 
     private int status; //服务器状态
 

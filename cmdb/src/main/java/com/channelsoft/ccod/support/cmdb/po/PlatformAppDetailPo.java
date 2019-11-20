@@ -10,23 +10,7 @@ package com.channelsoft.ccod.support.cmdb.po;
 public class PlatformAppDetailPo {
     private int id; //数据库唯一主键
 
-    private String platformId; //平台id
-
-    private String platformName; //平台名
-
-    private String domainId; //域id
-
-    private String domainName; //域名
-
-    private String hostIp; //主机ip
-
-    private String hostname; //主机名
-
-    private String appType; //app类型
-
-    private String appName; //app名
-
-    private String appAlias; //app别名
+    private int platformAppId; //平台应用id,外键platform_app表主键
 
     private String key; //应用详情中的key
 
@@ -38,78 +22,6 @@ public class PlatformAppDetailPo {
 
     public void setId(int id) {
         this.id = id;
-    }
-
-    public String getPlatformId() {
-        return platformId;
-    }
-
-    public void setPlatformId(String platformId) {
-        this.platformId = platformId;
-    }
-
-    public String getPlatformName() {
-        return platformName;
-    }
-
-    public void setPlatformName(String platformName) {
-        this.platformName = platformName;
-    }
-
-    public String getDomainId() {
-        return domainId;
-    }
-
-    public void setDomainId(String domainId) {
-        this.domainId = domainId;
-    }
-
-    public String getDomainName() {
-        return domainName;
-    }
-
-    public void setDomainName(String domainName) {
-        this.domainName = domainName;
-    }
-
-    public String getHostIp() {
-        return hostIp;
-    }
-
-    public void setHostIp(String hostIp) {
-        this.hostIp = hostIp;
-    }
-
-    public String getHostname() {
-        return hostname;
-    }
-
-    public void setHostname(String hostname) {
-        this.hostname = hostname;
-    }
-
-    public String getAppType() {
-        return appType;
-    }
-
-    public void setAppType(String appType) {
-        this.appType = appType;
-    }
-
-    public String getAppName() {
-        return appName;
-    }
-
-    public void setAppName(String appName) {
-        this.appName = appName;
-    }
-
-    public String getAppAlias() {
-        return appAlias;
-    }
-
-    public void setAppAlias(String appAlias) {
-        this.appAlias = appAlias;
     }
 
     public String getKey() {
@@ -126,5 +38,13 @@ public class PlatformAppDetailPo {
 
     public void setValue(String value) {
         this.value = value;
+    }
+
+    public int getPlatformAppId() {
+        return platformAppId;
+    }
+
+    public void setPlatformAppId(int platformAppId) {
+        this.platformAppId = platformAppId;
     }
 }

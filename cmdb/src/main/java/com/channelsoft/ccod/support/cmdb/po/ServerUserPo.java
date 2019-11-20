@@ -17,7 +17,7 @@ public class ServerUserPo {
 
     private int serverId; //用户所在服务器的id
 
-    private int loginMethod; //登录方式, 1:ssh
+    private int loginMethod; //服务器登录方式, 1:ssh
 
     private String comment; //备注
 

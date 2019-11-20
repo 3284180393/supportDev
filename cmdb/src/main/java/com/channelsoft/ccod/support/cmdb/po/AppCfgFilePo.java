@@ -22,19 +22,17 @@ public class AppCfgFilePo extends BaseModel {
 
     private String fileName; //配置文件名
 
-    private String deployPath; //文件存放路径,可以是相对app的base path的相对路径,
+    private String deployPath; //文件存放路径,可以是相对app的base path的相对路径也可以是绝对路径
 
     private String nexusRepository; //保存在nexus的仓库名
 
-    private String nexusAssetId; //在nexus中的assetId
+    private String nexusDirectory; //在nexus的保存路径
 
-    private String nexusDownloadUrl; //在nexus中的download url
+    private String nexusAssetId; //在nexus中的assetId
 
     private Date createTime; //该文件在nexus的创建时间
 
     private String md5; //该配置文件的md5特征值
-
-    private String sourceFilePath; //上传源文件路径,不需要入库
 
     public int getCfgFileId() {
         return cfgFileId;
@@ -92,12 +90,12 @@ public class AppCfgFilePo extends BaseModel {
         this.createTime = createTime;
     }
 
-    public String getNexusDownloadUrl() {
-        return nexusDownloadUrl;
+    public String getNexusDirectory() {
+        return nexusDirectory;
     }
 
-    public void setNexusDownloadUrl(String nexusDownloadUrl) {
-        this.nexusDownloadUrl = nexusDownloadUrl;
+    public void setNexusDirectory(String nexusDirectory) {
+        this.nexusDirectory = nexusDirectory;
     }
 
     public String getMd5() {
@@ -108,11 +106,4 @@ public class AppCfgFilePo extends BaseModel {
         this.md5 = md5;
     }
 
-    public String getSourceFilePath() {
-        return sourceFilePath;
-    }
-
-    public void setSourceFilePath(String sourceFilePath) {
-        this.sourceFilePath = sourceFilePath;
-    }
 }

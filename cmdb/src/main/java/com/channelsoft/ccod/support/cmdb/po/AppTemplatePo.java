@@ -48,10 +48,6 @@ public class AppTemplatePo {
 
     private String ignoreExt; // 忽略文件扩展名
 
-    private String runShell; // 同应用相关脚本
-
-    private String dependences; // 依赖的其它应用
-
     private Date createTime; // 模板创建时间
 
     private Date updateTime; // 最后一次修改时间
@@ -194,20 +190,20 @@ public class AppTemplatePo {
         this.ignoreExt = ignoreExt;
     }
 
-    public String getRunShell() {
-        return runShell;
+    public String getBinPath() {
+        return binPath;
     }
 
-    public void setRunShell(String runShell) {
-        this.runShell = runShell;
+    public void setBinPath(String binPath) {
+        this.binPath = binPath;
     }
 
-    public String getDependences() {
-        return dependences;
+    public String getBinName() {
+        return binName;
     }
 
-    public void setDependences(String dependences) {
-        this.dependences = dependences;
+    public void setBinName(String binName) {
+        this.binName = binName;
     }
 
     public Date getCreateTime() {
