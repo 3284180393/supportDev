@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformMapper" >
+    <resultMap id="PlatformMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformPo" >
+        <id column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="platform_name" property="platformName" jdbcType="VARCHAR" />
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+        <result column="status" property="status" jdbcType="INTEGER" />
+        <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
+        <result column="comment" property="comment" jdbcType="VARCHAR" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+        pf.platform_id, pf.platform_name, pf.create_time, pf.update_time, pf.`status`, pf.`comment`
+    </sql>
+    <select id="selectByPrimaryKey" resultMap="PlatformMap" parameterType="java.lang.String">
+        select
+        <include refid="Base_Column_List" />
+        from platform pf
+        where pf.platform_id=#{platformId,jdbcType=VARCHAR}
+    </select>
+    <select id="select" resultMap="PlatformMap" >
+        select
+        <include refid="Base_Column_List" />
+        from platform pf
+        where 1=1
+        <if test="status!=null">
+            And pf.status=#{status,jdbcType=INTEGER}
+        </if>
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformPo">
+        insert into platform(platform_id, platform_name, create_time, update_time, `status`, ccod_version, `comment`)
+        values (#{platformId,jdbcType=VARCHAR}, #{platformName,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{ccodVersion,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR})
+    </insert>
+    <delete id="delete" parameterType="java.lang.String">
+        delete
+        from platform
+        where platform_id = #{platformId,jdbcType=VARCHAR}
+    </delete>
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformPo" >
+        update platform set
+            platform_name = #{platformName,jdbcType=VARCHAR},
+            status = #{status,jdbcType=INTEGER},
+            ccod_version = #{ccodVersion,jdbcType=VARCHAR},
+            comment = #{comment,jdbcType=VARCHAR},
+            update_time = #{updateTime,jdbcType=TIMESTAMP}
+        where platform_id = #{platformId,jdbcType=VARCHAR}
+  </update>
+</mapper>

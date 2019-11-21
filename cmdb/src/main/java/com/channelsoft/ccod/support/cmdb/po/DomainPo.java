@@ -20,9 +20,9 @@ public class DomainPo {
 
     private Date updateTime; //修改时间
 
-    private String comment; //备注
-
     private int status; //域状态
+
+    private String comment; //备注
 
     public String getDomainId() {
         return domainId;

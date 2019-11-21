@@ -30,6 +30,11 @@ public class ActiveMQInstructionVo implements Serializable {
 
     private String signature;  //服务端对指令消息的签名
 
+    public ActiveMQInstructionVo()
+    {
+
+    }
+
     public ActiveMQInstructionVo(String instruction, Map<String, String>params, int timestamp, int nonce)
     {
         if(params == null)

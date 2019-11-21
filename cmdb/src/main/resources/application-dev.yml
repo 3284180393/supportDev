@@ -1,19 +1,13 @@
 spring:
   datasource:
     username : root
-    password : 1234
-    url : jdbc:mysql://10.130.44.108:3306/cmdb?useUnicode=true&amp;characterEncoding=utf8
-    driver-class-name : com.mysql.jdbc.Driver
+    password :
+    url: jdbc:mysql://10.130.44.108:3306/cmdb
+    driver-class-name : com.mysql.cj.jdbc.Driver
 
 mybatis:
-  mapper-locations : classpath:mapping/*Mapper.xml
+  mapper-locations : classpath:mapper/*Mapper.xml
   type-aliases-package : com.example.entity
-  table:
-    auto : update
-  model:
-    pack : com.example.entity
-  database:
-    type : mysqls
 
 ccod:
   ccod_kernel_module:
@@ -92,7 +86,7 @@ cmdb:
     transfer_file_timeout: 432000
     instruction_topic: CMDB_TO_{platformId}_INSTRUCTION
     start_data_collect_instruction: START_APP_DATA_COLLECT
-    start_file_transfer_instruction: START_APP_DATA_COLLECT
+    start_file_transfer_instruction: START_APP_DATA_TRANSFER
     client_receipt_topic: RECEIPT_OF_{platformId}_TO_CMDB
     client_report_collect_data_queue: CLIENT_REPORT_COLLECT_DATA_{sig}
     receive_file_queue: FILE_REC_{sig}
@@ -110,5 +104,7 @@ cmdb:
     file_name: FILENAME
     file_size: FILESIZE
     file_md5: FILEMD5
+
+
 
 

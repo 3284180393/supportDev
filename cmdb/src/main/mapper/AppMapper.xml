@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.AppMapper" >
+    <resultMap id="AppMap" type="com.channelsoft.ccod.support.cmdb.po.AppPo" >
+        <id column="app_id" property="appId" jdbcType="INTEGER" />
+        <result column="app_name" property="appName" jdbcType="VARCHAR" />
+        <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
+        <result column="app_type" property="appType" jdbcType="VARCHAR" />
+        <result column="version" property="version" jdbcType="VARCHAR" />
+        <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
+        <result column="base_path" property="basePath" jdbcType="VARCHAR" />
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+        <result column="create_reason" property="createReason" jdbcType="VARCHAR" />
+        <result column="comment" property="comment" jdbcType="VARCHAR" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+        a.app_id, a.app_name, a.app_alias, a.app_type, a.version, a.ccod_version, a.base_path, a.create_time, a.update_time, a.create_reason, a.`comment`
+    </sql>
+    <select id="selectByPrimaryKey" resultMap="AppMap" parameterType="java.lang.Integer">
+        select
+        <include refid="Base_Column_List" />
+        from app a
+        where a.app_id=#{appId,jdbcType=Integer}
+    </select>
+    <select id="select" resultMap="AppMap" >
+        select
+        <include refid="Base_Column_List" />
+        from app a
+        where 1=1
+        <if test="appType!=null">
+            And a.app_type=#{appName,jdbcType=VARCHAR}
+        </if>
+        <if test="appName!=null">
+            And a.app_name=#{appName,jdbcType=VARCHAR}
+        </if>
+        <if test="appAlias!=null">
+            And a.app_alias=#{appAlias,jdbcType=VARCHAR}
+        </if>
+        <if test="version!=null">
+            And a.version=#{version,jdbcType=VARCHAR}
+        </if>
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppPo"
+            useGeneratedKeys="true" keyProperty="appId">
+        insert into app(app_name, app_alias, app_type, version, ccod_version, base_path, create_time, update_time, create_reason, `comment`)
+        values (#{appName,jdbcType=VARCHAR}, #{appAlias,jdbcType=VARCHAR}, #{appType,jdbcType=VARCHAR}, #{version,jdbcType=VARCHAR}, #{ccodVersion,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{createReason,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR})
+    </insert>
+    <delete id="delete" parameterType="java.lang.Integer">
+        delete
+        from app_cfg_file acf
+        where app_id = #{appId,jdbcType=INTEGER}
+    </delete>
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.AppPo" >
+    update app set
+        version = #{version,jdbcType=VARCHAR},
+        ccod_version = #{ccodVersion,jdbcType=VARCHAR},
+        base_path = #{basePath,jdbcType=VARCHAR},
+        comment = #{comment,jdbcType=VARCHAR},
+        update_time = #{updateTime,jdbcType=TIMESTAMP}
+    where app_id = #{appId,jdbcType=INTEGER}
+  </update>
+</mapper>

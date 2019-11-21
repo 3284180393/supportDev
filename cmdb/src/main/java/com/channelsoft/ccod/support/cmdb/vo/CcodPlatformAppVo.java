@@ -40,7 +40,7 @@ public class CcodPlatformAppVo {
 
     private ServerUserPo appRunner; //app的运行用户
 
-    private AppPackagePo packageInfo; //app的部署安装包
+    private AppInstallPackagePo packageInfo; //app的部署安装包
 
     private AppCfgFilePo[] cfgFiles; //应用的配置文件
 
@@ -156,11 +156,11 @@ public class CcodPlatformAppVo {
         this.appRunner = appRunner;
     }
 
-    public AppPackagePo getPackageInfo() {
+    public AppInstallPackagePo getPackageInfo() {
         return packageInfo;
     }
 
-    public void setPackageInfo(AppPackagePo packageInfo) {
+    public void setPackageInfo(AppInstallPackagePo packageInfo) {
         this.packageInfo = packageInfo;
     }
 

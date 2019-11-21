@@ -9,7 +9,6 @@ import org.apache.activemq.ActiveMQConnectionFactory;
 
 import javax.jms.*;
 
-import org.apache.activemq.BlobMessage;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.PostConstruct;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -43,8 +39,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${cmdb.server_name}")
     private String serverName;
 
-    @Value("${cmdb.app_collect.instruction_topic}")
-    private String instructionTopic;
+    private String instructionTopicFmt = "CMDB_TO_%s_INSTRUCTION";
 
     @Value("${cmdb.app_collect.start_data_collect_instruction}")
     private String startCollectDataInstruction;
@@ -230,12 +225,14 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         int nonce = random.nextInt(1000000);
         String md5 = DigestUtils.md5DigestAsHex(String.format("%d:%d", timestamp, nonce).getBytes());
         String collectDataQueue = this.reportCollectDataQueue + "-" + md5;
+        params.put("collectDataQueue", collectDataQueue);
         ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startCollectDataInstruction, params,
                 timestamp, nonce);
         String signature = instructionVo.generateSignature(this.shareSecret);
         logger.debug(String.format("start platform app collect instruction msg is %s and signature=%s",
                 JSONObject.toJSONString(instructionVo), signature));
-        this.activeMQService.sendTopicMsg(connection, this.instructionTopic, JSONObject.toJSONString(instructionVo));
+        String instructionTopic = String.format(this.instructionTopicFmt, platformId);
+        this.activeMQService.sendTopicMsg(connection, instructionTopic, JSONObject.toJSONString(instructionVo));
         String clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.receiptTimeout);
         InstructionResultVo resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
         boolean verifySucc = verifyInstructionResult(resultVo, instructionVo);
@@ -294,7 +291,8 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         String signature = instructionVo.generateSignature(this.shareSecret);
         logger.debug(String.format("start platform app file transfer instruction msg is %s and signature=%s",
                 JSONObject.toJSONString(instructionVo), signature));
-        this.activeMQService.sendTopicMsg(connection, this.instructionTopic, JSONObject.toJSONString(instructionVo));
+        String instructionTopic = String.format(this.instructionTopicFmt, platformId);
+        this.activeMQService.sendTopicMsg(connection, instructionTopic, JSONObject.toJSONString(instructionVo));
         String clientRet = activeMQService.receiveTextMsgFromQueue(connection, recvFileQueue, this.receiptTimeout);
         InstructionResultVo resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
         boolean verifySucc = verifyInstructionResult(resultVo, instructionVo);
@@ -311,7 +309,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     instructionVo.getInstruction(), resultVo.getData()));
             throw new Exception(String.format("%s", resultVo.getData()));
         }
-        modules = receiveFileFromQueue(connection, modules, recvFileQueue, this.transferFileTimeout);
+        modules = receiveFileFromQueue(connection, platformId, modules, recvFileQueue, this.transferFileTimeout);
         return modules;
     }
 
@@ -359,7 +357,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
      * @return 接受到的安装包和配置文件
      * @throws Exception
      */
-    private List<PlatformAppModuleVo> receiveFileFromQueue(Connection connection, List<PlatformAppModuleVo> modules, String queueName, long timeout) throws Exception
+    private List<PlatformAppModuleVo> receiveFileFromQueue(Connection connection, String platformId, List<PlatformAppModuleVo> modules, String queueName, long timeout) throws Exception
     {
         Map<String, List<DeployFileInfo>> cfgMap = new HashMap<>();
         Map<String, List<DeployFileInfo>> installPackageMap = new HashMap<>();
@@ -395,12 +393,16 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         do
         {
             Message message = consumer.receive(this.activeMqReceiveTimeSpan);
-            if(message != null && message instanceof BlobMessage)
+            if(message == null)
+                continue;
+            if(message instanceof BytesMessage)
             {
+                BytesMessage bytesMessage = (BytesMessage) message;
+                FileOutputStream out = null;
                 try
                 {
                     String fileType = message.getStringProperty(this.transferFileType);
-                    String platformId = message.getStringProperty(this.transferPlatformId);
+                    String pfId = message.getStringProperty(this.transferPlatformId);
                     String domainName = message.getStringProperty(this.transferDomainName);
                     String hostIp = message.getStringProperty(this.transferHostIp);
                     String appName = message.getStringProperty(this.transferAppName);
@@ -411,7 +413,27 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     String fileName = message.getStringProperty(this.transferFileName);
                     String fileMd5 = message.getStringProperty(this.transferFileMd5);
                     long fileSize = message.getLongProperty(this.transferFileSize);
-                    String md5 = DigestUtils.md5DigestAsHex(((BlobMessage) message).getInputStream());
+                    if(!this.transferInstallPackage.equals(fileType) && !this.transferCfg.equals(fileType))
+                    {
+                        logger.error(String.format("unknown transfer file type %s", fileType));
+                        throw new Exception(String.format("unknown transfer file type %s", fileType));
+                    }
+                    String tmpSaveDir = String.format(this.tmpSaveDirFmt, System.getProperty("user.dir"), fileMd5);
+                    File saveDir = new File(tmpSaveDir);
+                    if(!saveDir.exists())
+                    {
+                        saveDir.mkdirs();
+                    }
+                    String savePath = String.format(this.tmpSavePathFmt, tmpSaveDir, fileName);
+                    out = new FileOutputStream(savePath);
+                    fileSize = 0;
+                    int len = 2048;
+                    byte[] bytes = new byte[len];
+                    while ((len=bytesMessage.readBytes(bytes))!=-1){
+                        out.write(bytes,0,len);
+                        fileSize += len;
+                    }
+                    String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePath));
                     if(fileMd5.equals(md5))
                     {
                         String errMsg = String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
@@ -425,41 +447,12 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     logger.info(String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
                                     "appAlias=%s and version=%s and fileType=%s and basePath=%s and deployPath=%s " +
                                     "and fileName=%s and fileSize=%d transfer SUCCESS : md5=%s",
-                            platformId, domainName, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
+                            pfId, domainName, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
                             fileName, fileSize, md5));
-                    if(!this.transferInstallPackage.equals(fileType) && !this.transferCfg.equals(fileType))
-                    {
-                        logger.error(String.format("unknown transfer file type %s", fileType));
-                        throw new Exception(String.format("unknown transfer file type %s", fileType));
-                    }
-                    String tmpSaveDir = String.format(this.tmpSaveDirFmt, System.getProperty("user.dir"), md5);
-                    File saveDir = new File(tmpSaveDir);
-                    if(!saveDir.exists())
-                    {
-                        saveDir.mkdirs();
-                    }
-                    String savePath = String.format(this.tmpSavePathFmt, tmpSaveDir, fileName);
-                    File file = new File(savePath);// 创建新文件
-                    if (file != null && !file.exists())
-                    {
-                        file.createNewFile();
-                    }
-                    BufferedInputStream bis = new BufferedInputStream(((BlobMessage) message).getInputStream());
-                    BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
-                    fileSize = 0;
-                    int len = 2048;
-                    byte[] b = new byte[len];
-                    while ((len = bis.read(b)) != -1)
-                    {
-                        bos.write(b, 0, len);
-                        fileSize += len;
-                    }
-                    bis.close();
-                    bos.close();
                     logger.info(String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
                                     "appAlias=%s and version=%s and fileType=%s and basePath=%s and deployPath=%s " +
                                     "and fileName=%s and fileSize=%d save SUCCESS : savePath=%s",
-                            platformId, domainName, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
+                            pfId, domainName, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
                             fileName, fileSize, savePath));
                     if(fileType.equals(this.transferInstallPackage))
                     {
@@ -494,7 +487,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                         if(cfgMap.containsKey(cfgKey))
                         {
                             logger.debug(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is at wanted list",
-                                    platformId, domainName, hostIp, basePath, deployPath, fileName)));
+                                    pfId, domainName, hostIp, basePath, deployPath, fileName)));
                             for(DeployFileInfo info : cfgMap.get(cfgKey))
                             {
                                 if(md5.equals(info.getFileMd5())) {
@@ -504,7 +497,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                                 else
                                 {
                                     logger.error(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not wanted cfg : receive file md5=%s and wanted file md5=%s",
-                                            platformId, domainName, hostIp, basePath, deployPath, fileName, md5, info.getFileMd5())));
+                                            pfId, domainName, hostIp, basePath, deployPath, fileName, md5, info.getFileMd5())));
                                 }
                             }
                             cfgMap.remove(cfgKey);
@@ -512,19 +505,59 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                         else
                         {
                             logger.error(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not at wanted list",
-                                    platformId, domainName, hostIp, basePath, deployPath, fileName)));
+                                    pfId, domainName, hostIp, basePath, deployPath, fileName)));
                         }
                     }
                 }
                 catch (Exception ex)
                 {
                     logger.error(String.format("handle transfered install package or cfg file exception ", ex));
+                    try
+                    {
+                        if(out != null)
+                        {
+                            out.close();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        logger.error("close FileOutputStream Exception", e);
+                    }
                 }
                 if(cfgMap.size() == 0 && installPackageMap.size() == 0)
                 {
                     logger.info(String.format("all wanted cfg and install package receive"));
                     isSucc = true;
                     break;
+                }
+            }
+            else if(message instanceof TextMessage)
+            {
+                String text = ((TextMessage) message).getText();
+                try
+                {
+                    InstructionResultVo resultVo = JSONObject.parseObject(text, InstructionResultVo.class);
+                    boolean verifySucc = resultVo.verifySignature(this.shareSecret);
+                    if(verifySucc)
+                    {
+                        if(resultVo.isSuccess() && resultVo.getInstruction().equals(this.startCollectDataInstruction) && "TRANSFER_FINISH".equals(resultVo.getData()))
+                        {
+                            logger.info(String.format("platformId=%s client notify file transfer finish", platformId));
+                            break;
+                        }
+                        else
+                        {
+                            logger.error(String.format("receive not wanted messge[%s] from queue=%s", text, queueName));
+                        }
+                    }
+                    else
+                    {
+                        logger.error(String.format("receive verify signature fail messge[%s] from queue=%s", text, queueName));
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.error(String.format("receive illegal messge[%s] from queue=%s", text, queueName));
                 }
             }
         }

@@ -22,6 +22,8 @@ public class AppCfgFilePo extends BaseModel {
 
     private String fileName; //配置文件名
 
+    private String fileType; //配置文件类型，例如zip,tar,war,binary等,由FileType枚举预定义
+
     private String deployPath; //文件存放路径,可以是相对app的base path的相对路径也可以是绝对路径
 
     private String nexusRepository; //保存在nexus的仓库名
@@ -106,4 +108,11 @@ public class AppCfgFilePo extends BaseModel {
         this.md5 = md5;
     }
 
+    public String getFileType() {
+        return fileType;
+    }
+
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
+    }
 }

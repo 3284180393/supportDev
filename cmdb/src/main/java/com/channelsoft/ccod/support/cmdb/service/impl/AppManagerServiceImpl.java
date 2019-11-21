@@ -1,8 +1,9 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
+import com.channelsoft.ccod.support.cmdb.dao.AppMapper;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
-import com.channelsoft.ccod.support.cmdb.po.AppPackagePo;
+import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,6 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Service
 public class AppManagerServiceImpl implements IAppManagerService {
+
+    @Autowired
+    AppMapper appMapper;
 
     @Value("${nexus.platform_app_cfg_repository}")
     private String platformAppCfgRepository;
@@ -48,6 +53,21 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     private final static Logger logger = LoggerFactory.getLogger(AppManagerServiceImpl.class);
 
+    @PostConstruct
+    void init() throws  Exception
+    {
+        try
+        {
+            System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
+            System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
     @Override
     public AppPo[] queryAllApp() throws Exception {
         return new AppPo[0];
@@ -59,7 +79,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public AppModuleVo createNewAppModule(String appName, String appAlias, String version, VersionControl versionControl, String versionControlUrl, AppPackagePo installPackage, AppCfgFilePo[] cfgs, String basePath) throws Exception {
+    public AppModuleVo createNewAppModule(String appName, String appAlias, String version, VersionControl versionControl, String versionControlUrl, AppInstallPackagePo installPackage, AppCfgFilePo[] cfgs, String basePath) throws Exception {
         return null;
     }
 

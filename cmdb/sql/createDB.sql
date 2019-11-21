@@ -14,25 +14,12 @@ CREATE TABLE `app` (
   PRIMARY KEY (`app_id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 
-DROP TABLE IF EXISTS `install_package`;
-CREATE TABLE `install_package` (
-  `package_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '应用配置文件id,主键数据库自动生成',
-  `app_id` int(11) NOT NULL COMMENT '应用id,外键app表主键',
-  `file_name` varchar(40) NOT NULL COMMENT '安装包文件名',
-  `deploy_path` varchar(128) NOT NULL COMMENT '安装包部署路径,可以是相对app的base path的相对路径也可以是绝对路径',
-  `nexus_repository` varchar(20) NOT NULL COMMENT '保存在nexus的仓库名',
-  `nexus_directory` varchar(255) NOT NULL COMMENT '在nexus的保存路径',
-  `nexus_asset_id` varchar(64) NOT NULL COMMENT '保存在nexus的asset id',
-  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
-  `md5` varchar(40) NOT NULL COMMENT '该安装包文件的md5',
-  PRIMARY KEY (`package_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
-
 DROP TABLE IF EXISTS `app_cfg_file`;
 CREATE TABLE `app_cfg_file` (
   `cfg_file_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '应用配置文件id,主键数据库自动生成',
   `app_id` int(11) NOT NULL COMMENT '应用id,外键app表主键',
   `file_name` varchar(40) NOT NULL COMMENT '文件名',
+  `file_type` varchar(10) NOT NULL COMMENT '文件类型,例如binary,zip,war,ini,yml等',
   `deploy_path` varchar(128) NOT NULL COMMENT '文件存放路径,可以是相对app的base path的相对路径也可以是绝对路径',
   `nexus_repository` varchar(20) NOT NULL COMMENT '保存在nexus的仓库名',
   `nexus_directory` varchar(255) NOT NULL COMMENT '在nexus的保存路径',
@@ -42,21 +29,38 @@ CREATE TABLE `app_cfg_file` (
   PRIMARY KEY (`cfg_file_id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS `app_install_package`;
+CREATE TABLE `app_install_package` (
+  `package_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '应用配置文件id,主键数据库自动生成',
+  `app_id` int(11) NOT NULL COMMENT '应用id,外键app表主键',
+  `file_name` varchar(40) NOT NULL COMMENT '安装包文件名',
+  `file_type` varchar(10) NOT NULL COMMENT '文件类型,例如binary,zip,war,ini,yml等',
+  `deploy_path` varchar(128) NOT NULL COMMENT '安装包部署路径,可以是相对app的base path的相对路径也可以是绝对路径',
+  `nexus_repository` varchar(20) NOT NULL COMMENT '保存在nexus的仓库名',
+  `nexus_directory` varchar(255) NOT NULL COMMENT '在nexus的保存路径',
+  `nexus_asset_id` varchar(64) NOT NULL COMMENT '保存在nexus的asset id',
+  `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+  `md5` varchar(40) NOT NULL COMMENT '该安装包文件的md5',
+  PRIMARY KEY (`package_id`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+
 DROP TABLE IF EXISTS `platform`;
 CREATE TABLE `platform` (
   `platform_id` varchar(40) NOT NULL COMMENT '平台id',
   `platform_name` varchar(40) NOT NULL COMMENT '平台名',
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   `update_time` datetime DEFAULT NULL COMMENT '修改时间',
-  `status` tinyint(2) not null default 1 COMMENT '平台当前状态1、运行中,2、已撤销,3、停运中',
+  `status` tinyint(2) default 1 COMMENT '平台当前状态1、运行中,2、已撤销,3、停运中',
+  `ccod_version` varchar(40) NOT NULL COMMENT '该平台采用的ccod版本',
   `comment` varchar(255) DEFAULT NULL COMMENT '备注',
   PRIMARY KEY (`platform_id`)
-) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `domain`;
 CREATE TABLE `domain` (
   `domain_id` varchar(40) NOT NULL COMMENT '域id',
   `domain_name` varchar(40) NOT NULL COMMENT '域名',
+  `platform_id` varchar(40) NOT NULL COMMENT '平台id,外键platform表主键',
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   `update_time` datetime DEFAULT NULL COMMENT '修改时间',
   `status` tinyint(2) not null default 1 COMMENT '平台当前状态1、运行中,2、已撤销,3、停运中',

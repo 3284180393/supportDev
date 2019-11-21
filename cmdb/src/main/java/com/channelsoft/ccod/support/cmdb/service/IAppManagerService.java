@@ -2,7 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
-import com.channelsoft.ccod.support.cmdb.po.AppPackagePo;
+import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
@@ -45,7 +45,7 @@ public interface IAppManagerService {
      * @throws Exception
      */
     AppModuleVo createNewAppModule(String appName, String appAlias, String version, VersionControl versionControl,
-                                   String versionControlUrl, AppPackagePo installPackage, AppCfgFilePo[] cfgs,
+                                   String versionControlUrl, AppInstallPackagePo installPackage, AppCfgFilePo[] cfgs,
                                    String basePath) throws Exception;
 
     /**

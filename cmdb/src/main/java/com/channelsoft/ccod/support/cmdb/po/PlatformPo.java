@@ -20,6 +20,8 @@ public class PlatformPo {
 
     private int status; //平台当前状态
 
+    private String ccodVersion; //该平台采用的ccod版本
+
     private String comment; //平台描述
 
     public String getPlatformId() {
@@ -68,5 +70,13 @@ public class PlatformPo {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public String getCcodVersion() {
+        return ccodVersion;
+    }
+
+    public void setCcodVersion(String ccodVersion) {
+        this.ccodVersion = ccodVersion;
     }
 }

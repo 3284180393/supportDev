@@ -28,6 +28,11 @@ public class InstructionResultVo implements Serializable {
 
     private String signature; //客户端对返回结果的签名
 
+    public InstructionResultVo()
+    {
+
+    }
+
     public String getInstruction() {
         return instruction;
     }
