@@ -85,6 +85,10 @@ public class InstructionResultVo implements Serializable {
         return signature;
     }
 
+    public void setSignature(String signature) {
+        this.signature = signature;
+    }
+
     public String generateSignature(String shareSecret)
     {
         String plainText = String.format("%s%b%s%s%d%d%d", instruction, success, data, shareSecret, timestamp,

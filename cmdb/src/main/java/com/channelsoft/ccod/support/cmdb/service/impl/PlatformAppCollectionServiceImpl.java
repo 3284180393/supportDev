@@ -50,11 +50,9 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${cmdb.app_collect.client_receipt_topic}")
     private String receiptTopic;
 
-    @Value("${cmdb.app_collect.client_report_collect_data_queue}")
-    private String reportCollectDataQueue;
+    private String reportCollectDataQueueFmt = "CLIENT_REPORT_COLLECT_DATA_%s";
 
-    @Value("${cmdb.app_collect.receive_file_queue}")
-    private String receiveFileQueue;
+    private String receiveFileQueueFmt = "FILE_REC_%s";
 
     @Value("${cmdb.app_collect.receipt_timeout}")
     private long receiptTimeout;
@@ -224,7 +222,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         int timestamp = (int)(now.getTime() / 1000);
         int nonce = random.nextInt(1000000);
         String md5 = DigestUtils.md5DigestAsHex(String.format("%d:%d", timestamp, nonce).getBytes());
-        String collectDataQueue = this.reportCollectDataQueue + "-" + md5;
+        String collectDataQueue = String.format(this.reportCollectDataQueueFmt, md5);
         params.put("collectDataQueue", collectDataQueue);
         ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startCollectDataInstruction, JSONObject.toJSONString(params),
                 timestamp, nonce);
@@ -290,7 +288,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         int timestamp = (int)(now.getTime() / 1000);
         int nonce = random.nextInt(1000000);
         String md5 = DigestUtils.md5DigestAsHex(String.format("%d:%d", timestamp, nonce).getBytes());
-        String recvFileQueue = this.receiveFileQueue + "-" + md5;
+        String recvFileQueue = String.format(this.receiveFileQueueFmt, md5);
         params.put("receiveFileQueue", recvFileQueue);
         ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startAppFileTransferInstruction, JSONObject.toJSONString(params),
                 timestamp, nonce);
@@ -327,10 +325,11 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
      */
     private boolean verifyInstructionResult(InstructionResultVo resultVo, ActiveMQInstructionVo instructionVo)
     {
+        String receiveSig = resultVo.getSignature();
         if(!resultVo.verifySignature(this.shareSecret))
         {
             logger.error(String.format("verify result signature FAIL, wanted=%s and receive=%s",
-                    resultVo.generateSignature(this.shareSecret), resultVo.getSignature()));
+                    resultVo.generateSignature(this.shareSecret), receiveSig));
             return false;
         }
         if(!instructionVo.getInstruction().equals(resultVo.getInstruction()))
