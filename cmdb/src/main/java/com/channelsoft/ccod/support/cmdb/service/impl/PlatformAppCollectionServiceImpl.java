@@ -226,9 +226,15 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         String md5 = DigestUtils.md5DigestAsHex(String.format("%d:%d", timestamp, nonce).getBytes());
         String collectDataQueue = this.reportCollectDataQueue + "-" + md5;
         params.put("collectDataQueue", collectDataQueue);
-        ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startCollectDataInstruction, params,
+        ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startCollectDataInstruction, JSONObject.toJSONString(params),
                 timestamp, nonce);
         String signature = instructionVo.generateSignature(this.shareSecret);
+        boolean verify = instructionVo.verifySignature(this.shareSecret);
+        System.out.println("##########self verfify=" + verify + "#####################");
+        String jsonStr = JSONObject.toJSONString(instructionVo);
+        ActiveMQInstructionVo instrVo = JSONObject.parseObject(jsonStr, ActiveMQInstructionVo.class);
+        verify = instrVo.verifySignature(this.shareSecret);
+        System.out.println("&&&&&&&&&&&&&&&self verfify=" + verify + "&&&&&&&&&&&&&&&&&&&&");
         logger.debug(String.format("start platform app collect instruction msg is %s and signature=%s",
                 JSONObject.toJSONString(instructionVo), signature));
         String instructionTopic = String.format(this.instructionTopicFmt, platformId);
@@ -286,7 +292,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         String md5 = DigestUtils.md5DigestAsHex(String.format("%d:%d", timestamp, nonce).getBytes());
         String recvFileQueue = this.receiveFileQueue + "-" + md5;
         params.put("receiveFileQueue", recvFileQueue);
-        ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startAppFileTransferInstruction, params,
+        ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startAppFileTransferInstruction, JSONObject.toJSONString(params),
                 timestamp, nonce);
         String signature = instructionVo.generateSignature(this.shareSecret);
         logger.debug(String.format("start platform app file transfer instruction msg is %s and signature=%s",

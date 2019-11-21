@@ -20,7 +20,7 @@ public class ActiveMQInstructionVo implements Serializable {
 
     private String instruction;  //指令
 
-    private Map<String, String> params; //执行指令相关参数
+    private String params; //执行指令相关参数
 
     private int timestamp; //时间戳
 
@@ -35,32 +35,18 @@ public class ActiveMQInstructionVo implements Serializable {
 
     }
 
-    public ActiveMQInstructionVo(String instruction, Map<String, String>params, int timestamp, int nonce)
+    public ActiveMQInstructionVo(String instruction, String params, int timestamp, int nonce)
     {
-        if(params == null)
-        {
-            this.params = new HashMap<>();
-        }
-        else
-        {
-            this.params = params;
-        }
+        this.params = params;
         this.instruction = instruction;
         this.timestamp = timestamp;
         this.nonce = nonce;
         this.clientNonce = 0;
     }
 
-    public ActiveMQInstructionVo(String instruction, Map<String, String>params, int timestamp, int nonce, int clientNonce)
+    public ActiveMQInstructionVo(String instruction, String params, int timestamp, int nonce, int clientNonce)
     {
-        if(params == null)
-        {
-            this.params = new HashMap<>();
-        }
-        else
-        {
-            this.params = params;
-        }
+        this.params = params;
         this.instruction = instruction;
         this.timestamp = timestamp;
         this.nonce = nonce;
@@ -70,7 +56,7 @@ public class ActiveMQInstructionVo implements Serializable {
 
     public String generateSignature(String shareSecret)
     {
-        String plainText = String.format("%s%s%s%d%d%d", instruction, JSONObject.toJSONString(params), shareSecret,
+        String plainText = String.format("%s%s%s%d%d%d", instruction, params, shareSecret,
                 timestamp, nonce, clientNonce);
         this.signature = DigestUtils.md5DigestAsHex(plainText.getBytes());
         return signature;
@@ -78,7 +64,7 @@ public class ActiveMQInstructionVo implements Serializable {
 
     public boolean verifySignature(String shareSecret)
     {
-        String plainText = String.format("%s%s%s%d%d%d", instruction, JSONObject.toJSONString(params), shareSecret,
+        String plainText = String.format("%s%s%s%d%d%d", instruction, params, shareSecret,
                 timestamp, nonce, clientNonce);
         String sig = DigestUtils.md5DigestAsHex(plainText.getBytes());
         return sig.equals(this.signature) ? true : false;
@@ -92,11 +78,11 @@ public class ActiveMQInstructionVo implements Serializable {
         this.instruction = instruction;
     }
 
-    public Map<String, String> getParams() {
+    public String getParams() {
         return params;
     }
 
-    public void setParams(Map<String, String> params) {
+    public void setParams(String params) {
         this.params = params;
     }
 
@@ -126,5 +112,9 @@ public class ActiveMQInstructionVo implements Serializable {
 
     public String getSignature() {
         return signature;
+    }
+
+    public void setSignature(String signature) {
+        this.signature = signature;
     }
 }
