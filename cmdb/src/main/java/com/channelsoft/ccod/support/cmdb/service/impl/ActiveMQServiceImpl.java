@@ -86,7 +86,7 @@ public class ActiveMQServiceImpl implements IActiveMQService {
     @Override
     public String receiveTextMsgFromQueue(Connection connection, String queueName, long timeout) throws Exception {
         logger.debug(String.format("begin to receive text msg from queue=%s with timeout=%d", queueName, timeout));
-        Session session = connection.createSession(Boolean.TRUE,
+        Session session = connection.createSession(Boolean.FALSE,
                 Session.AUTO_ACKNOWLEDGE);
         Destination destination = session.createQueue(queueName);
         MessageConsumer consumer = session.createConsumer(destination);
@@ -107,6 +107,8 @@ public class ActiveMQServiceImpl implements IActiveMQService {
             timeUsage += 100;
         }
         while (timeUsage < timeout);
+        consumer.close();
+        session.close();
         if(isSucc)
         {
             logger.debug(String.format("success receive msg=[%s] from queue=%s", textMessage, queueName));
