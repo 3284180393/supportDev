@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.DomainMapper" >
-    <resultMap id="DomainMap" type="com.channelsoft.ccod.support.cmdb.po.DomainPo" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.ServerUserMapper" >
+    <resultMap id="ServerUserMap" type="com.channelsoft.ccod.support.cmdb.po.ServerUserPo" >
         <id column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
@@ -11,15 +11,15 @@
         <result column="comment" property="comment" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        dm.domain_id, dm.domain_name, dm.platform_id, dm.create_time, dm.update_time, dm.`status`, dm.`comment`
+        sur.user_id, sur.user_name, sur.`password`, sur.server_id, sur.login_method, sur.`comment`, sur.ssh_port
     </sql>
-    <select id="selectByPrimaryKey" resultMap="DomainMap" parameterType="java.lang.String">
+    <select id="selectByPrimaryKey" resultMap="serverServerUserMap" parameterType="java.lang.String">
         select
         <include refid="Base_Column_List" />
         from domain dm
         where dm.domain_id=#{domainId,jdbcType=VARCHAR}
     </select>
-    <select id="select" resultMap="DomainMap" >
+    <select id="select" resultMap="serverServerUserMap" >
         select
         <include refid="Base_Column_List" />
         from domain dm
@@ -31,7 +31,7 @@
             And dm.status=#{status,jdbcType=INTEGER}
         </if>
     </select>
-    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.DomainPo">
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.ServerUserPo">
         insert into domain(domain_id, domain_name, platform_id, create_time, update_time, `status`, `comment`)
         values (#{domainId,jdbcType=VARCHAR}, #{domainName,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{comment,jdbcType=VARCHAR})
     </insert>
@@ -48,7 +48,7 @@
             platform_id=#{platformId,jdbcType=VARCHAR}
         </if>
     </delete>
-    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.DomainPo" >
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.ServerUserPo" >
         update domain set
             domain_name = #{domainName,jdbcType=VARCHAR},
             status = #{status,jdbcType=INTEGER},

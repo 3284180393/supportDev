@@ -85,16 +85,14 @@ cmdb:
     collect_data_timeout: 7200000
     transfer_file_timeout: 7200000
     start_data_collect_instruction: START_APP_DATA_COLLECT
-    start_file_transfer_instruction: START_APP_DATA_TRANSFER
+    start_file_transfer_instruction: START_APP_FILE_TRANSFER
     client_receipt_topic: RECEIPT_OF_{platformId}_TO_CMDB
     file_type: FILE.TYPE
-    install_package: INSTALLPACKAGE
-    cfg: CFG
     app_name: APP.NAME
     app_alias: APP.ALIAS
     app_version: APP.VERSION
     platformId: PLATFORMID
-    domainName: DOMAINNAME
+    domainId: DOMAINID
     host_ip: HOSTIP
     base_path: BASEPATH
     deploy_path: DEPLOYPATH

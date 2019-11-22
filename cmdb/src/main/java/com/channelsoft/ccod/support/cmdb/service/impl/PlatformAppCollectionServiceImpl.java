@@ -78,8 +78,8 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${cmdb.app_collect.platformId}")
     private String transferPlatformId;
 
-    @Value("${cmdb.app_collect.domainName}")
-    private String transferDomainName;
+    @Value("${cmdb.app_collect.domainId}")
+    private String transferDomainId;
 
     @Value("${cmdb.app_collect.host_ip}")
     private String transferHostIp;
@@ -99,11 +99,9 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${cmdb.app_collect.file_md5}")
     private String transferFileMd5;
 
-    @Value("${cmdb.app_collect.install_package}")
-    private String transferInstallPackage;
+    private String transferInstallPackage = "Install_Package";
 
-    @Value("${cmdb.app_collect.cfg}")
-    private String transferCfg;
+    private String transferCfg = "CFG_FILE";
 
     @Value("${activemq.brokerUrl}")
     private String activeMqBrokeUrl;
@@ -313,7 +311,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     instructionVo.getInstruction(), resultVo.getData()));
             throw new Exception(String.format("%s", resultVo.getData()));
         }
-        modules = receiveFileFromQueue(connection, platformId, modules, recvFileQueue, this.transferFileTimeout);
+        modules = receiveFileFromQueue(connection, platformId, instructionVo, modules, recvFileQueue, this.transferFileTimeout);
         return modules;
     }
 
@@ -356,45 +354,53 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
     /**
      * 从指定队列接受应用的安装包和配置文件
+     * @param connection activemq连接
+     * @param platformId 需要传输文件的平台
+     * @param receiveInstruction 接收指令
      * @param modules 指定的应用模块
      * @param queueName 接受文件的queue
      * @param timeout 超时时长
      * @return 接受到的安装包和配置文件
      * @throws Exception
      */
-    private List<PlatformAppModuleVo> receiveFileFromQueue(Connection connection, String platformId, List<PlatformAppModuleVo> modules, String queueName, long timeout) throws Exception
+    private List<PlatformAppModuleVo> receiveFileFromQueue(Connection connection, String platformId, ActiveMQInstructionVo receiveInstruction, List<PlatformAppModuleVo> modules, String queueName, long timeout) throws Exception
     {
         Map<String, List<DeployFileInfo>> cfgMap = new HashMap<>();
         Map<String, List<DeployFileInfo>> installPackageMap = new HashMap<>();
         for(PlatformAppModuleVo vo : modules)
         {
-            for(DeployFileInfo info : vo.getCfgs())
+            if(vo.getCfgs() != null && vo.getCfgs().length > 0)
             {
-                String cfgKey = String.format(this.cfgKeyFmt, vo.getPlatformId(), vo.getDomainName(), vo.getHostIp(),
-                        info.getBasePath(), info.getDeployPath(), info.getFileName());
-                if(!cfgMap.containsKey(cfgKey))
+                for(DeployFileInfo info : vo.getCfgs())
                 {
-                    cfgMap.put(cfgKey, new ArrayList<>());
+                    String cfgKey = String.format(this.cfgKeyFmt, vo.getPlatformId(), vo.getDomainId(), vo.getHostIp(),
+                            info.getBasePath(), info.getDeployPath(), info.getFileName());
+                    if(!cfgMap.containsKey(cfgKey))
+                    {
+                        cfgMap.put(cfgKey, new ArrayList<>());
+                    }
+                    cfgMap.get(cfgKey).add(info);
                 }
-                cfgMap.get(cfgKey).add(info);
             }
-            String installPackageKey = String.format(this.packageKeyFmt, vo.getModuleName(), vo.getModuleAliasName(), vo.getVersion());
-            if(!installPackageMap.containsKey(installPackageKey))
+            if(vo.getInstallPackage() != null)
             {
-                installPackageMap.put(installPackageKey, new ArrayList<>());
+                String installPackageKey = String.format(this.packageKeyFmt, vo.getModuleName(), vo.getModuleAliasName(), vo.getVersion());
+                if(!installPackageMap.containsKey(installPackageKey))
+                {
+                    installPackageMap.put(installPackageKey, new ArrayList<>());
+                }
+                installPackageMap.get(installPackageKey).add(vo.getInstallPackage());
             }
-            installPackageMap.get(installPackageKey).add(vo.getInstallPackage());
         }
         logger.info(String.format("prepare to receive %d install package and %d cfg file from brokerUrl=%s and queueName=%s",
                 installPackageMap.size(), cfgMap.size(), this.activeMqBrokeUrl, queueName));
-        Session session = connection.createSession(Boolean.TRUE, Session.AUTO_ACKNOWLEDGE);
+        Session session = connection.createSession(Boolean.FALSE, Session.AUTO_ACKNOWLEDGE);
         // 创建 Destinatione
         Destination destination = session.createQueue(queueName);
 
         // 创建 Consumer
         MessageConsumer consumer = session.createConsumer(destination);
         long timeUsage = 0;
-        boolean isSucc = false;
         do
         {
             Message message = consumer.receive(this.activeMqReceiveTimeSpan);
@@ -408,7 +414,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                 {
                     String fileType = message.getStringProperty(this.transferFileType);
                     String pfId = message.getStringProperty(this.transferPlatformId);
-                    String domainName = message.getStringProperty(this.transferDomainName);
+                    String domainId = message.getStringProperty(this.transferDomainId);
                     String hostIp = message.getStringProperty(this.transferHostIp);
                     String appName = message.getStringProperty(this.transferAppName);
                     String appAlias = message.getStringProperty(this.transferAppAlias);
@@ -444,7 +450,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                         String errMsg = String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
                                         "appAlias=%s and version=%s and fileType=%s and basePath=%s and deployPath=%s " +
                                         "and fileName=%s and fileSize=%d transfer FAIL : srcMd5=%s and dstMd5=%s, not equal",
-                                platformId, domainName, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
+                                platformId, domainId, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
                                 fileName, fileSize, fileMd5, md5);
                         logger.error(errMsg);
                         throw new Exception(errMsg);
@@ -452,12 +458,12 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     logger.info(String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
                                     "appAlias=%s and version=%s and fileType=%s and basePath=%s and deployPath=%s " +
                                     "and fileName=%s and fileSize=%d transfer SUCCESS : md5=%s",
-                            pfId, domainName, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
+                            pfId, domainId, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
                             fileName, fileSize, md5));
                     logger.info(String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
                                     "appAlias=%s and version=%s and fileType=%s and basePath=%s and deployPath=%s " +
                                     "and fileName=%s and fileSize=%d save SUCCESS : savePath=%s",
-                            pfId, domainName, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
+                            pfId, domainId, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
                             fileName, fileSize, savePath));
                     if(fileType.equals(this.transferInstallPackage))
                     {
@@ -488,11 +494,11 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     }
                     else
                     {
-                        String cfgKey = String.format(this.cfgKeyFmt, platformId, domainName, hostIp, basePath, deployPath, fileName);
+                        String cfgKey = String.format(this.cfgKeyFmt, platformId, domainId, hostIp, basePath, deployPath, fileName);
                         if(cfgMap.containsKey(cfgKey))
                         {
                             logger.debug(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is at wanted list",
-                                    pfId, domainName, hostIp, basePath, deployPath, fileName)));
+                                    pfId, domainId, hostIp, basePath, deployPath, fileName)));
                             for(DeployFileInfo info : cfgMap.get(cfgKey))
                             {
                                 if(md5.equals(info.getFileMd5())) {
@@ -502,7 +508,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                                 else
                                 {
                                     logger.error(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not wanted cfg : receive file md5=%s and wanted file md5=%s",
-                                            pfId, domainName, hostIp, basePath, deployPath, fileName, md5, info.getFileMd5())));
+                                            pfId, domainId, hostIp, basePath, deployPath, fileName, md5, info.getFileMd5())));
                                 }
                             }
                             cfgMap.remove(cfgKey);
@@ -510,7 +516,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                         else
                         {
                             logger.error(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not at wanted list",
-                                    pfId, domainName, hostIp, basePath, deployPath, fileName)));
+                                    pfId, domainId, hostIp, basePath, deployPath, fileName)));
                         }
                     }
                 }
@@ -529,12 +535,11 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                         logger.error("close FileOutputStream Exception", e);
                     }
                 }
-                if(cfgMap.size() == 0 && installPackageMap.size() == 0)
-                {
-                    logger.info(String.format("all wanted cfg and install package receive"));
-                    isSucc = true;
-                    break;
-                }
+//                if(cfgMap.size() == 0 && installPackageMap.size() == 0)
+//                {
+//                    logger.info(String.format("all wanted cfg and install package receive"));
+//                    break;
+//                }
             }
             else if(message instanceof TextMessage)
             {
@@ -542,51 +547,54 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                 try
                 {
                     InstructionResultVo resultVo = JSONObject.parseObject(text, InstructionResultVo.class);
-                    boolean verifySucc = resultVo.verifySignature(this.shareSecret);
+                    boolean verifySucc = verifyInstructionResult(resultVo, receiveInstruction);
                     if(verifySucc)
                     {
-                        if(resultVo.isSuccess() && resultVo.getInstruction().equals(this.startCollectDataInstruction) && "TRANSFER_FINISH".equals(resultVo.getData()))
+                        if(resultVo.isSuccess() && "TRANSFER_FINISH".equals(resultVo.getData()))
                         {
                             logger.info(String.format("platformId=%s client notify file transfer finish", platformId));
-                            break;
+                        }
+                        else if(resultVo.isSuccess())
+                        {
+                            logger.error(String.format("receive instruction return Date=%s is unknown", resultVo.getData()));
                         }
                         else
                         {
-                            logger.error(String.format("receive not wanted messge[%s] from queue=%s", text, queueName));
+                            logger.error(String.format("client return transfer file FAIL : %s", resultVo.getData()));
                         }
+                        break;
                     }
                     else
                     {
-                        logger.error(String.format("receive verify signature fail messge[%s] from queue=%s", text, queueName));
+                        logger.error(String.format("verify receive instruction result message[%s] FAIL  from queue=%s", text, queueName));
                     }
                 }
                 catch (Exception e)
                 {
-                    logger.error(String.format("receive illegal messge[%s] from queue=%s", text, queueName));
+                    logger.error(String.format("receive illegal messge[%s] from queue=%s exception", text, queueName), e);
                 }
             }
         }
         while (timeUsage < this.transferFileTimeout);
-        if(!isSucc)
+        if(timeUsage >= this.transferFileTimeout)
         {
             logger.error(String.format("receive install package and cfg timeout : timeUsage=%d(min)", timeout/60/60));
-            if(installPackageMap.size() > 0)
+        }
+        if(installPackageMap.size() > 0)
+        {
+            for(String instKey : installPackageMap.keySet())
             {
-                for(String instKey : installPackageMap.keySet())
-                {
-                    String[] arr = instKey.split(";");
-                    logger.error(String.format("not successfully receive appName=%s and appAlias=%s and version=%s install package"),
-                            arr[0], arr[1], arr[2]);
-                }
+                String[] arr = instKey.split(";");
+                logger.error(String.format("not successfully receive appName=%s and appAlias=%s and version=%s install package", arr[0], arr[1], arr[2]));
             }
-            if(cfgMap.size() > 0)
+        }
+        if(cfgMap.size() > 0)
+        {
+            for(String cfgKey : cfgMap.keySet())
             {
-                for(String cfgKey : cfgMap.keySet())
-                {
-                    String[] arr = cfgKey.split(";");
-                    logger.error(String.format("not successfully receive platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s cfg file"),
-                            arr[0], arr[1], arr[2], arr[3], arr[4], arr[5]);
-                }
+                String[] arr = cfgKey.split(";");
+                logger.error(String.format("not successfully receive platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s cfg file",
+                        arr[0], arr[1], arr[2], arr[3], arr[4], arr[5]));
             }
         }
         consumer.close();
