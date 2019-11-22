@@ -7,6 +7,8 @@ import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
+import org.apache.commons.lang3.builder.ToStringExclude;
+import org.apache.http.Consts;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
@@ -16,16 +18,25 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,13 +62,13 @@ public class NexusServiceImpl implements INexusService {
     @Value("${nexus.host_url}")
     private String nexusHostUrl;
 
-    private String queryRepositoryUrlFmt = String.format("%s/service/rest/v1/components?repository=%%s", nexusHostUrl);
+    private String queryRepositoryUrlFmt = "%s/service/rest/v1/components?repository=%s";
 
-    private String queryComponentUrlFmt = String.format("%s/service/rest/v1/components/%%s", nexusHostUrl);
+    private String queryComponentUrlFmt = "%s/service/rest/v1/components/%s";
 
-    private String queryAssetUrlFmt = String.format("%s/service/rest/v1/assets/%%s", nexusHostUrl);
+    private String queryAssetUrlFmt = "%s/service/rest/v1/assets/%s";
 
-    private String uploadRawUrlFmt = String.format("%s/service/rest/v1/components?repository=%%s", nexusHostUrl);
+    private String uploadRawUrlFmt = "%s/service/rest/v1/components?repository=%s";
 
     private String platformAppCfgDirectoryFmt = "%s/%s/%s/%s/%s/%s/%s/%d";
 
@@ -75,11 +86,12 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public boolean uploadRawFile(String repository, String sourceFilePath, String group, String fileName) throws Exception {
-        String url = String.format(this.uploadRawUrlFmt, repository);
+        String url = String.format(this.uploadRawUrlFmt, this.nexusHostUrl, repository);
         logger.debug(String.format("begin to upload %s to %s/%s/%s, uploadUrl=%s",
                 sourceFilePath, repository, group, fileName, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpPost httppost = new HttpPost(url);
+        httppost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
         List<NameValuePair> nvps = new ArrayList<NameValuePair>();
         nvps.add(new BasicNameValuePair("raw.directory", group));
         nvps.add(new BasicNameValuePair("raw.asset1", sourceFilePath));
@@ -103,10 +115,11 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public NexusComponentPo queryComponentById(String componentId) throws Exception {
-        String url = String.format(this.queryComponentUrlFmt, componentId);
+        String url = String.format(this.queryComponentUrlFmt, this.nexusHostUrl, componentId);
         logger.debug(String.format("begin to query id=%s component info, queryUrl=%s", componentId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
+        httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -128,10 +141,11 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public NexusAssetInfo queryAssetById(String assetId) throws Exception {
-        String url = String.format(this.queryAssetUrlFmt, assetId);
+        String url = String.format(this.queryAssetUrlFmt, this.nexusHostUrl, assetId);
         logger.debug(String.format("begin to query id=%s asset info, queryUrl=%s", assetId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
+        httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 422)
         {
@@ -153,11 +167,12 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public NexusComponentPo[] queryComponentFromRepository(String repository) throws Exception {
-        String url = String.format(this.queryRepositoryUrlFmt, repository);
+        String url = String.format(this.queryRepositoryUrlFmt, this.nexusHostUrl, repository);
         logger.debug(String.format("begin to query all components from repository=%s, queryUrl=%s",
                 repository, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
+        httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -183,6 +198,7 @@ public class NexusServiceImpl implements INexusService {
         String url = String.format(this.uploadRawUrlFmt, repository);
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpPost httppost = new HttpPost(url);
+        httppost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
         List<NameValuePair> nvps = new ArrayList<NameValuePair>();
         nvps.add(new BasicNameValuePair("raw.directory", directory));
         for(int i = 1; i <= componentFiles.length; i++)
@@ -252,10 +268,11 @@ public class NexusServiceImpl implements INexusService {
      */
     private NexusComponentPo[] queryRepositoryAllComponent(String repository) throws Exception
     {
-        String url = String.format(this.queryRepositoryUrlFmt, repository);
+        String url = String.format(this.queryRepositoryUrlFmt, this.nexusHostUrl, repository);
         logger.debug(String.format("begin to query all components of repository=%s", repository));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
+        httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -270,7 +287,8 @@ public class NexusServiceImpl implements INexusService {
                     repository, response.getStatusLine().getStatusCode()));
         }
         String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        List<NexusComponentPo> components = JSONArray.parseArray(conResult, NexusComponentPo.class);
+        JSONObject jsonObject = JSONObject.parseObject(conResult);
+        List<NexusComponentPo> components = JSONArray.parseArray(jsonObject.get("items").toString(), NexusComponentPo.class);
         logger.info(String.format("repository=%s has %d components", repository, components.size()));
         return components.toArray(new NexusComponentPo[0]);
     }
@@ -371,4 +389,80 @@ public class NexusServiceImpl implements INexusService {
                 module.getPlatformId(), module.getDomainName(), module.getHostName(), module.getHostIp(), module.getBasePath());
         this.uploadRawComponent(this.platformAppCfgRepository, cfgDirectory, module.getCfgs());
     }
+
+    @Test
+    public void nexusHttpTest()
+    {
+        try
+        {
+            String url = "http://10.130.41.216:8081/service/rest/v1/components?repository=ccod_modules";
+            CloseableHttpClient httpclient = getBasicHttpClient("admin", "123456");
+            HttpGet httpGet = new HttpGet(url);
+            httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+//            httpGet.addHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS ***");
+            HttpResponse response = httpclient.execute(httpGet);
+            System.out.println(response.getStatusLine().getStatusCode());
+            String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+            System.out.println(conResult);
+            JSONObject jsonObject = JSONObject.parseObject(conResult);
+
+            List<NexusComponentPo> components = JSONArray.parseArray(jsonObject.get("items").toString(), NexusComponentPo.class);
+            System.out.println(JSONObject.toJSONString(components));
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
+    @Test
+    public void uploadTest()
+    {
+        try {
+            String url = "http://10.130.41.216:8081/service/rest/v1/components?repository=CCOD";
+            CloseableHttpClient httpclient = getBasicHttpClient("admin", "123456");
+            HttpPost httpPost = new HttpPost(url);
+            httpPost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+//            httpPost.addHeader("X-Content-Type-Options", "nosniff");
+//            httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
+//            httpPost.addHeader("content-type", "multipart/form-data; boundary=----------------------------e3407fbc6f02");
+            String directory = "/CCOD/MONITOR_MODULE/ivr/1.0.0.0/";
+            List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+            nvps.add(new BasicNameValuePair("raw.directory", directory));
+            nvps.add(new BasicNameValuePair("raw.asset1", "@D:\\temp\\ivr.jar"));
+            nvps.add(new BasicNameValuePair("raw.asset1.filename", "cfg1.ini"));
+//            nvps.add(new BasicNameValuePair("raw.asset1", "D:\\My Work\\Java\\idea\\supportDev\\downloads\\9ae8046f6b55f4114d8337bed35660b7\\config.ucx"));
+//            nvps.add(new BasicNameValuePair("raw.asset1.filename", "cfg1.ini"));
+//            nvps.add(new BasicNameValuePair("raw.asset2", "D:\\My Work\\Java\\idea\\supportDev\\downloads\\9ae8046f6b55f4114d8337bed35660b7\\config.ucx"));
+//            nvps.add(new BasicNameValuePair("raw.asset2.filename", "cfg2.ini"));
+//            nvps.add(new BasicNameValuePair("raw.asset3", "D:\\My Work\\Java\\idea\\supportDev\\downloads\\9ae8046f6b55f4114d8337bed35660b7\\config.ucx"));
+//            nvps.add(new BasicNameValuePair("raw.asset3.filename", "ucx.zip"));
+//            UrlEncodedFormEntity refe = new UrlEncodedFormEntity(nvps, Consts.UTF_8);
+//            System.out.println(JSONObject.toJSONString(refe));
+//            JSONObject postData = new JSONObject();
+//            postData.put("raw.directory", directory);
+//            postData.put("raw.asset1", "@D:\\temp\\ivr.jar");
+//            postData.put("raw.asset1.filename", "cfg1.ini");
+//            httpPost.setEntity(refe);
+            MultipartEntity httpEntity = new MultipartEntity();
+            httpEntity.addPart("raw.directory", new StringBody(directory, Charset.forName("UTF-8")));
+            httpEntity.addPart("raw.asset1", new FileBody(new File("D:\\temp\\ivr.jar")));
+            httpEntity.addPart("raw.asset1.filename", new StringBody("cfg1.ini", Charset.forName("UTF-8")));
+//            System.out.println(JSONObject.toJSONString(new StringEntity(postData.toString())));
+//            StringEntity paramEntity = new StringEntity(postData.toString(), "UTF-8");
+//            paramEntity.setContentType("application/json; charset=utf-8");;
+//            httpPost.setEntity(paramEntity);
+            httpPost.setEntity(httpEntity);
+//            System.out.println(JSONObject.toJSONString(httpPost.getEntity()));
+            HttpResponse response = httpclient.execute(httpPost);
+//            String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+            System.out.println(response.getStatusLine().getStatusCode());
+//            System.out.println(conResult);
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
 }

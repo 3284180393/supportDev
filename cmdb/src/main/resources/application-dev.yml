@@ -87,19 +87,7 @@ cmdb:
     start_data_collect_instruction: START_APP_DATA_COLLECT
     start_file_transfer_instruction: START_APP_FILE_TRANSFER
     client_receipt_topic: RECEIPT_OF_{platformId}_TO_CMDB
-    file_type: FILE.TYPE
-    app_name: APP.NAME
-    app_alias: APP.ALIAS
-    app_version: APP.VERSION
-    platformId: PLATFORMID
-    domainId: DOMAINID
-    host_ip: HOSTIP
-    base_path: BASEPATH
-    deploy_path: DEPLOYPATH
-    file_name: FILENAME
-    file_size: FILESIZE
-    file_md5: FILEMD5
+    app_file_attribute_key: FILE_ATTRIBUTE
 
 
-
-
+windows: true

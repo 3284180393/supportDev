@@ -10,7 +10,9 @@ import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
+import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,8 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class AppManagerServiceImpl implements IAppManagerService {
 
-    @Autowired
-    AppMapper appMapper;
+//    @Autowired
+//    AppMapper appMapper;
 
     @Value("${nexus.platform_app_cfg_repository}")
     private String platformAppCfgRepository;
@@ -59,7 +61,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         try
         {
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
+//            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
+            this.startCollectPlatformAppData("shltPA", null, null, null, null);
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         }
         catch (Exception ex)
@@ -117,10 +120,39 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         this.isPlatformCheckOngoing = true;
         List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, domainName, hostIp, appName, version);
+        this.nexusService.reloadRepositoryComponent(this.appRepository);
         for(PlatformAppModuleVo module : modules)
         {
-            this.nexusService.addPlatformAppModule(module);
+            boolean isGetFile = true;
+            if(StringUtils.isBlank(module.getInstallPackage().getLocalSavePath()))
+            {
+                logger.error(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s do not get install package=%s",
+                        module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
+                        module.getModuleAliasName(), module.getVersion(), module.getBasePath(), module.getInstallPackage().getFileName()));
+                isGetFile = false;
+            }
+            else
+            {
+                for(DeployFileInfo cfg : module.getCfgs())
+                {
+                    if(StringUtils.isBlank(cfg.getLocalSavePath()))
+                    {
+                        logger.error(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s do not get cfg=%s",
+                                module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
+                                module.getModuleAliasName(), module.getVersion(), module.getBasePath(), cfg.getFileName()));
+                        isGetFile = false;
+                    }
+                }
+            }
+            if(isGetFile)
+            {
+                logger.info(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s get install package and cfgs SUCCESS, so upload to nexus",
+                        module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
+                        module.getModuleAliasName(), module.getVersion(), module.getBasePath()));
+                this.nexusService.addPlatformAppModule(module);
+            }
         }
+        this.nexusService.releaseRepositoryComponent(this.appRepository);
         this.isPlatformCheckOngoing = false;
         return modules.toArray(new PlatformAppModuleVo[0]);
     }

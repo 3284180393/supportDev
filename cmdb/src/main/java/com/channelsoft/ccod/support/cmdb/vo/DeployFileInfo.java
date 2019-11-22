@@ -26,6 +26,16 @@ public class DeployFileInfo {
 
     private String nexusAssetId; //在nexus库中的assetId
 
+    private String ext; //文件扩展类型
+
+    public String getExt() {
+        return ext;
+    }
+
+    public void setExt(String ext) {
+        this.ext = ext;
+    }
+
     public String getLocalSavePath() {
         return localSavePath;
     }

@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.po.AppFileAttribute;
 import com.channelsoft.ccod.support.cmdb.service.IActiveMQService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -33,6 +34,9 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
     private final static Logger logger = LoggerFactory.getLogger(PlatformAppCollectionServiceImpl.class);
 
+    @Value("${windows}")
+    private boolean isWindows;
+
     @Value("${cmdb.share_secret}")
     private String shareSecret;
 
@@ -63,45 +67,12 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${cmdb.app_collect.transfer_file_timeout}")
     private long transferFileTimeout;
 
-    @Value("${cmdb.app_collect.file_type}")
-    private String transferFileType;
+    @Value("${cmdb.app_collect.app_file_attribute_key}")
+    private String appFileAttributeKey;
 
-    @Value("${cmdb.app_collect.app_name}")
-    private String transferAppName;
+    private String installPackage = "Install_Package";
 
-    @Value("${cmdb.app_collect.app_alias}")
-    private String transferAppAlias;
-
-    @Value("${cmdb.app_collect.app_version}")
-    private String transferAppVersion;
-
-    @Value("${cmdb.app_collect.platformId}")
-    private String transferPlatformId;
-
-    @Value("${cmdb.app_collect.domainId}")
-    private String transferDomainId;
-
-    @Value("${cmdb.app_collect.host_ip}")
-    private String transferHostIp;
-
-    @Value("${cmdb.app_collect.base_path}")
-    private String transferBasePath;
-
-    @Value("${cmdb.app_collect.deploy_path}")
-    private String transferDeployPath;
-
-    @Value("${cmdb.app_collect.file_name}")
-    private String transferFileName;
-
-    @Value("${cmdb.app_collect.file_size}")
-    private String transferFileSize;
-
-    @Value("${cmdb.app_collect.file_md5}")
-    private String transferFileMd5;
-
-    private String transferInstallPackage = "Install_Package";
-
-    private String transferCfg = "CFG_FILE";
+    private String cfgFile = "CFG_FILE";
 
     @Value("${activemq.brokerUrl}")
     private String activeMqBrokeUrl;
@@ -363,7 +334,8 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
      * @return 接受到的安装包和配置文件
      * @throws Exception
      */
-    private List<PlatformAppModuleVo> receiveFileFromQueue(Connection connection, String platformId, ActiveMQInstructionVo receiveInstruction, List<PlatformAppModuleVo> modules, String queueName, long timeout) throws Exception
+    private List<PlatformAppModuleVo> receiveFileFromQueue(Connection connection, String platformId, ActiveMQInstructionVo receiveInstruction, List<PlatformAppModuleVo> modules, String queueName, long timeout)
+            throws JMSException, IOException
     {
         Map<String, List<DeployFileInfo>> cfgMap = new HashMap<>();
         Map<String, List<DeployFileInfo>> installPackageMap = new HashMap<>();
@@ -400,42 +372,71 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
         // 创建 Consumer
         MessageConsumer consumer = session.createConsumer(destination);
-        long timeUsage = 0;
-        do
+        long timeUsage;
+        long startTime = System.currentTimeMillis();
+        while (true)
         {
+            timeUsage = System.currentTimeMillis() - startTime;
+            if(timeUsage >= this.transferFileTimeout)
+            {
+                logger.error(String.format("receive file timeout : timeUsage=%d >= %d", timeUsage, this.transferFileTimeout));
+                break;
+            }
             Message message = consumer.receive(this.activeMqReceiveTimeSpan);
             if(message == null)
                 continue;
             if(message instanceof BytesMessage)
             {
                 BytesMessage bytesMessage = (BytesMessage) message;
+                String attrStr;
+                AppFileAttribute attr;
+                try
+                {
+                    attrStr = bytesMessage.getStringProperty(this.appFileAttributeKey);
+                    attr = JSONObject.parseObject(attrStr, AppFileAttribute.class);
+                }
+                catch (Exception ex)
+                {
+                    logger.error("parse app file attribue exception", ex);
+                    continue;
+                }
+                if(!verifyFileAttribute(attr))
+                {
+                    logger.error(String.format("receive app file attribute[%s] is illegal", attrStr));
+                    continue;
+                }
+                String fileType = attr.fileType;
+                String pfId = attr.platformId;
+                String domainId = attr.domainId;
+                String hostIp = attr.hostIp;
+                String appName = attr.appName;
+                String appAlias = attr.appAlias;
+                String version = attr.version;
+                String basePath = attr.basePath;
+                String deployPath = attr.deployPath;
+                String fileName = attr.fileName;
+                String fileMd5 = attr.md5;
+                long fileSize = attr.fileSize;
+                String ext = attr.ext;
+                if(!this.installPackage.equals(fileType) && !this.cfgFile.equals(fileType))
+                {
+                    logger.error(String.format("unknown transfer file type %s", fileType));
+                    continue;
+                }
+                String tmpSaveDir = String.format(this.tmpSaveDirFmt, System.getProperty("user.dir"), fileMd5);
+                File saveDir = new File(tmpSaveDir);
+                if(!saveDir.exists())
+                {
+                    saveDir.mkdirs();
+                }
+                String savePath = String.format(this.tmpSavePathFmt, tmpSaveDir, fileName);
+                if(this.isWindows)
+                {
+                    savePath = savePath.replace("/", "\\");
+                }
                 FileOutputStream out = null;
                 try
                 {
-                    String fileType = message.getStringProperty(this.transferFileType);
-                    String pfId = message.getStringProperty(this.transferPlatformId);
-                    String domainId = message.getStringProperty(this.transferDomainId);
-                    String hostIp = message.getStringProperty(this.transferHostIp);
-                    String appName = message.getStringProperty(this.transferAppName);
-                    String appAlias = message.getStringProperty(this.transferAppAlias);
-                    String version = message.getStringProperty(this.transferAppVersion);
-                    String basePath = message.getStringProperty(this.transferBasePath);
-                    String deployPath = message.getStringProperty(this.transferDeployPath);
-                    String fileName = message.getStringProperty(this.transferFileName);
-                    String fileMd5 = message.getStringProperty(this.transferFileMd5);
-                    long fileSize = message.getLongProperty(this.transferFileSize);
-                    if(!this.transferInstallPackage.equals(fileType) && !this.transferCfg.equals(fileType))
-                    {
-                        logger.error(String.format("unknown transfer file type %s", fileType));
-                        throw new Exception(String.format("unknown transfer file type %s", fileType));
-                    }
-                    String tmpSaveDir = String.format(this.tmpSaveDirFmt, System.getProperty("user.dir"), fileMd5);
-                    File saveDir = new File(tmpSaveDir);
-                    if(!saveDir.exists())
-                    {
-                        saveDir.mkdirs();
-                    }
-                    String savePath = String.format(this.tmpSavePathFmt, tmpSaveDir, fileName);
                     out = new FileOutputStream(savePath);
                     fileSize = 0;
                     int len = 2048;
@@ -444,95 +445,77 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                         out.write(bytes,0,len);
                         fileSize += len;
                     }
-                    String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePath));
-                    if(fileMd5.equals(md5))
-                    {
-                        String errMsg = String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
-                                        "appAlias=%s and version=%s and fileType=%s and basePath=%s and deployPath=%s " +
-                                        "and fileName=%s and fileSize=%d transfer FAIL : srcMd5=%s and dstMd5=%s, not equal",
-                                platformId, domainId, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
-                                fileName, fileSize, fileMd5, md5);
-                        logger.error(errMsg);
-                        throw new Exception(errMsg);
-                    }
-                    logger.info(String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
-                                    "appAlias=%s and version=%s and fileType=%s and basePath=%s and deployPath=%s " +
-                                    "and fileName=%s and fileSize=%d transfer SUCCESS : md5=%s",
-                            pfId, domainId, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
-                            fileName, fileSize, md5));
-                    logger.info(String.format("platformId=%s and domainName=%s and hostIp=%s and appName=%s and " +
-                                    "appAlias=%s and version=%s and fileType=%s and basePath=%s and deployPath=%s " +
-                                    "and fileName=%s and fileSize=%d save SUCCESS : savePath=%s",
-                            pfId, domainId, hostIp, appName, appAlias, version, fileType, basePath, deployPath,
-                            fileName, fileSize, savePath));
-                    if(fileType.equals(this.transferInstallPackage))
-                    {
-                        String pkgKey = String.format(this.packageKeyFmt, appName, appAlias, version);
-                        if(installPackageMap.containsKey(pkgKey))
-                        {
-                            logger.debug(String.format(String.format("appName=%s and appAlias=%s and version=%s app's install package is at wanted list",
-                                    appName, appAlias, version)));
-                            for(DeployFileInfo info : installPackageMap.get(pkgKey))
-                            {
-                                if(md5.equals(info.getFileMd5())) {
-                                    info.setLocalSavePath(savePath);
-                                    info.setFileSize(fileSize);
-                                }
-                                else
-                                {
-                                    logger.error(String.format("received appName=%s and appAlias=%s and version=%s app's install package is not wanted install package : wanted file md5=%s, receive file md5=%s",
-                                            appName, appAlias, version, info.getFileMd5(), md5));
-                                }
-                            }
-                            installPackageMap.remove(pkgKey);
-                        }
-                        else
-                        {
-                            logger.error(String.format("appName=%s and appAlias=%s and version=%s app's install package is not at wanted list",
-                                    appName, appAlias, version));
-                        }
-                    }
-                    else
-                    {
-                        String cfgKey = String.format(this.cfgKeyFmt, platformId, domainId, hostIp, basePath, deployPath, fileName);
-                        if(cfgMap.containsKey(cfgKey))
-                        {
-                            logger.debug(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is at wanted list",
-                                    pfId, domainId, hostIp, basePath, deployPath, fileName)));
-                            for(DeployFileInfo info : cfgMap.get(cfgKey))
-                            {
-                                if(md5.equals(info.getFileMd5())) {
-                                    info.setLocalSavePath(savePath);
-                                    info.setFileSize(fileSize);
-                                }
-                                else
-                                {
-                                    logger.error(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not wanted cfg : receive file md5=%s and wanted file md5=%s",
-                                            pfId, domainId, hostIp, basePath, deployPath, fileName, md5, info.getFileMd5())));
-                                }
-                            }
-                            cfgMap.remove(cfgKey);
-                        }
-                        else
-                        {
-                            logger.error(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not at wanted list",
-                                    pfId, domainId, hostIp, basePath, deployPath, fileName)));
-                        }
-                    }
                 }
                 catch (Exception ex)
                 {
                     logger.error(String.format("handle transfered install package or cfg file exception ", ex));
-                    try
+                    if(out != null)
                     {
-                        if(out != null)
+                        out.close();
+                    }
+                }
+                String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePath));
+                if(!fileMd5.equals(md5))
+                {
+                    logger.error(String.format("receive [%s] file FAIL : md5 not equal, wanted=%s and receive=%s",
+                            attrStr, fileMd5, md5));
+                    continue;
+                }
+                logger.info(String.format("receive [%s] file SUCCESS and save to %s", attrStr, savePath));
+                if(fileType.equals(this.installPackage))
+                {
+                    String pkgKey = String.format(this.packageKeyFmt, appName, appAlias, version);
+                    if(installPackageMap.containsKey(pkgKey))
+                    {
+                        logger.debug(String.format(String.format("appName=%s and appAlias=%s and version=%s app's install package is in list",
+                                appName, appAlias, version)));
+                        for(DeployFileInfo info : installPackageMap.get(pkgKey))
                         {
-                            out.close();
+                            if(md5.equals(info.getFileMd5())) {
+                                info.setLocalSavePath(savePath);
+                                info.setFileSize(fileSize);
+                                info.setExt(ext);
+                            }
+                            else
+                            {
+                                logger.error(String.format("received appName=%s and appAlias=%s and version=%s app's install package is not wanted install package : wanted file md5=%s and receive file md5=%s",
+                                        appName, appAlias, version, info.getFileMd5(), md5));
+                            }
+                            installPackageMap.remove(pkgKey);
                         }
                     }
-                    catch (Exception e)
+                    else
                     {
-                        logger.error("close FileOutputStream Exception", e);
+                        logger.error(String.format("appName=%s and appAlias=%s and version=%s app's install package is not in list",
+                                appName, appAlias, version));
+                    }
+                }
+                else
+                {
+                    String cfgKey = String.format(this.cfgKeyFmt, pfId, domainId, hostIp, basePath, deployPath, fileName);
+                    if(cfgMap.containsKey(cfgKey))
+                    {
+                        logger.debug(String.format(String.format("platformId=%s and domainId=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is in wanted list",
+                                pfId, domainId, hostIp, basePath, deployPath, fileName)));
+                        for(DeployFileInfo info : cfgMap.get(cfgKey))
+                        {
+                            if(md5.equals(info.getFileMd5())) {
+                                info.setLocalSavePath(savePath);
+                                info.setFileSize(fileSize);
+                                info.setExt(ext);
+                            }
+                            else
+                            {
+                                logger.error(String.format(String.format("platformId=%s and domainId=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not wanted cfg : receive file md5=%s and wanted file md5=%s",
+                                        pfId, domainId, hostIp, basePath, deployPath, fileName, md5, info.getFileMd5())));
+                            }
+                        }
+                        cfgMap.remove(cfgKey);
+                    }
+                    else
+                    {
+                        logger.error(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not at wanted list",
+                                pfId, domainId, hostIp, basePath, deployPath, fileName)));
                     }
                 }
 //                if(cfgMap.size() == 0 && installPackageMap.size() == 0)
@@ -575,11 +558,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                 }
             }
         }
-        while (timeUsage < this.transferFileTimeout);
-        if(timeUsage >= this.transferFileTimeout)
-        {
-            logger.error(String.format("receive install package and cfg timeout : timeUsage=%d(min)", timeout/60/60));
-        }
         if(installPackageMap.size() > 0)
         {
             for(String instKey : installPackageMap.keySet())
@@ -601,4 +579,70 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         session.close();
         return modules;
     }
+
+    private boolean verifyFileAttribute(AppFileAttribute attr)
+    {
+        if(!this.installPackage.equals(attr.fileType) && !this.cfgFile.equals(attr.fileType))
+        {
+            logger.error(String.format("unknown file type %s", attr.fileType));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.platformId))
+        {
+            logger.error(String.format("%s is blank", "platformId"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.domainId))
+        {
+            logger.error(String.format("%s is blank", "domainId"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.hostIp))
+        {
+            logger.error(String.format("%s is blank", "hostIp"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.appName))
+        {
+            logger.error(String.format("%s is blank", "appName"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.appAlias))
+        {
+            logger.error(String.format("%s is blank", "appAlias"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.version))
+        {
+            logger.error(String.format("%s is blank", "version"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.basePath))
+        {
+            logger.error(String.format("%s is blank", "basePath"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.deployPath))
+        {
+            logger.error(String.format("%s is blank", "deployPath"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.fileName))
+        {
+            logger.error(String.format("%s is blank", "fileName"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.ext))
+        {
+            logger.error(String.format("%s is blank", "ext"));
+            return false;
+        }
+        else if(StringUtils.isBlank(attr.md5))
+        {
+            logger.error(String.format("%s is blank", "md5"));
+            return false;
+        }
+        return true;
+    }
+
 }
