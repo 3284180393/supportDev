@@ -9,6 +9,7 @@ import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 import org.apache.commons.lang3.builder.ToStringExclude;
 import org.apache.http.Consts;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
@@ -20,7 +21,9 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 
+import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.entity.mime.content.FileBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.BasicCredentialsProvider;
@@ -194,70 +197,36 @@ public class NexusServiceImpl implements INexusService {
     }
 
     @Override
-    public NexusComponentPo[] uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
+    public Map<String, Map<String, NexusAssetInfo>> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
         String url = String.format(this.uploadRawUrlFmt, repository);
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
-        HttpPost httppost = new HttpPost(url);
-        httppost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
-        List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-        nvps.add(new BasicNameValuePair("raw.directory", directory));
+        HttpPost httpPost = new HttpPost(url);
+        httpPost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.setCharset(java.nio.charset.Charset.forName("UTF-8"));
+        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+        builder.addTextBody("raw.directory", directory);
         for(int i = 1; i <= componentFiles.length; i++)
         {
-            nvps.add(new BasicNameValuePair("raw.asset" + i, componentFiles[i-1].getLocalSavePath()));
-            nvps.add(new BasicNameValuePair("raw.asset" + i + ".filename", componentFiles[i-1].getFileName()));
+            builder.addTextBody("raw.asset" + i + ".filename", componentFiles[i-1].getFileName());
+            builder.addBinaryBody("raw.asset" + i, new File(componentFiles[i-1].getLocalSavePath()));
         }
-        httppost.setEntity(new UrlEncodedFormEntity(nvps));
-        HttpResponse response = httpclient.execute(httppost);
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+        HttpEntity entity = builder.build();
+        httpPost.setEntity(entity);
+        HttpResponse response = httpclient.execute(httpPost);
         if (response.getStatusLine().getStatusCode() != 204)
         {
-            logger.debug(String.format("upload %s to %s/%s FAIL : %s and return code=%d",
-                    repository, directory, conResult, response.getStatusLine().getStatusCode()));
-            throw new Exception(String.format("upload %s to %s/%s FAIL : %s and return code=%d",
-                    repository, directory, conResult, response.getStatusLine().getStatusCode()));
+            String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+            logger.error(String.format("upload component to %s/%s FAIL : return code=%d and errMsg=%s ",
+                    repository, directory, response.getStatusLine().getStatusCode(), conResult));
         }
-        NexusComponentPo[] nexusComps = queryRepositoryAllComponent(repository);
-        Map<String, NexusAssetInfo> assetMap = new HashMap<>();
-        for(NexusComponentPo componentPo : nexusComps)
+        else
         {
-            for(NexusAssetInfo assetInfo : componentPo.getAssets())
-            {
-                assetMap.put(assetInfo.getPath(), assetInfo);
-            }
+            logger.debug(String.format("upload component to %s/%s SUCCESS : return code=%d",
+                    repository, directory, response.getStatusLine().getStatusCode()));
         }
-        boolean isUploadSuccess = true;
-        for(DeployFileInfo info : componentFiles)
-        {
-            String path = directory + "/" + info.getFileName();
-            if(!assetMap.containsKey(path))
-            {
-                logger.error(String.format("upload %s to %s/%s FAIL",
-                        info.getLocalSavePath(), directory, info.getFileName()));
-                isUploadSuccess = false;
-            }
-            else
-            {
-                NexusAssetInfo assetInfo = assetMap.get(path);
-                if(!info.getFileMd5().equals(assetInfo.getMd5()))
-                {
-                    logger.error(String.format("upload %s to %s/%s FAIL : wanted md5=%s and receive md5=%s",
-                            info.getLocalSavePath(), directory, info.getFileName(), info.getFileMd5(), assetInfo.getMd5()));
-                    isUploadSuccess = false;
-                }
-                else
-                {
-                    info.setNexusAssetId(assetInfo.getId());
-                    info.setNexusDirectory(directory);
-                    info.setNexusRepository(repository);
-                }
-            }
-        }
-        if(!isUploadSuccess)
-        {
-            logger.error(String.format("upload component to %s/%s FAIL", repository, directory));
-            throw new Exception(String.format("upload component to %s/%s FAIL", repository, directory));
-        }
-        return nexusComps;
+        Map<String, Map<String, NexusAssetInfo>> assetRelationMap = loadRepositoryAssetRelationMap(repository);
+        return assetRelationMap;
     }
 
     /**
@@ -390,6 +359,50 @@ public class NexusServiceImpl implements INexusService {
         this.uploadRawComponent(this.platformAppCfgRepository, cfgDirectory, module.getCfgs());
     }
 
+    @Override
+    public void uploadPlatformAppModules(String appRepository, String cfgRepository, PlatformAppModuleVo[] modules) throws Exception {
+        NexusComponentPo[] storeComps = this.queryRepositoryAllComponent(appRepository);
+        Map<String, Map<String, NexusAssetInfo>> storeAssetMap = new HashMap<>();
+        for(NexusComponentPo component : storeComps)
+        {
+            for(NexusAssetInfo assetInfo : component.getAssets())
+            {
+                String[] arr = assetInfo.getPath().split("/");
+                String fileName = arr[arr.length - 1];
+                String directory = "/" + assetInfo.getPath().replace(fileName, "");
+                if(!storeAssetMap.containsKey(directory))
+                {
+                    storeAssetMap.put(directory, new HashMap<>());
+                }
+                storeAssetMap.get(directory).put(fileName, assetInfo);
+            }
+        }
+    }
+
+
+    @Override
+    public Map<String, Map<String, NexusAssetInfo>> queryRepositoryAssetRelationMap(String repository) throws Exception
+    {
+        NexusComponentPo[] components = this.queryRepositoryAllComponent(repository);
+        Map<String, Map<String, NexusAssetInfo>> storeAssetMap = new HashMap<>();
+        for(NexusComponentPo component : components)
+        {
+            for(NexusAssetInfo assetInfo : component.getAssets())
+            {
+                String[] arr = assetInfo.getPath().split("/");
+                String fileName = arr[arr.length - 1];
+                String directory = "/" + assetInfo.getPath().replace(fileName, "");
+                if(!storeAssetMap.containsKey(directory))
+                {
+                    storeAssetMap.put(directory, new HashMap<>());
+                }
+                storeAssetMap.get(directory).put(fileName, assetInfo);
+            }
+        }
+        return storeAssetMap;
+    }
+
+
     @Test
     public void nexusHttpTest()
     {
@@ -458,6 +471,38 @@ public class NexusServiceImpl implements INexusService {
 //            String conResult = EntityUtils.toString(response.getEntity(), "utf8");
             System.out.println(response.getStatusLine().getStatusCode());
 //            System.out.println(conResult);
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
+    @Test
+    public void uploadTest45()
+    {
+        try
+        {
+            String directory = "/CCOD/MONITOR_MODULE/ivr/3.0.0.0/";
+            String url = "http://10.130.41.216:8081/service/rest/v1/components?repository=CCOD";
+            CloseableHttpClient httpclient = getBasicHttpClient("admin", "123456");
+            HttpPost httpPost = new HttpPost(url);
+            httpPost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.setCharset(java.nio.charset.Charset.forName("UTF-8"));
+            builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            builder.addTextBody("raw.directory", directory);
+            builder.addTextBody("raw.asset1.filename", "test1.ini");
+            builder.addBinaryBody("raw.asset1", new File("D:\\temp\\ivr.jar"));
+            builder.addTextBody("raw.asset2.filename", "ivr.zip");
+            builder.addBinaryBody("raw.asset2", new File("D:\\temp\\temp.zip"));
+            builder.addTextBody("raw.asset3.filename", "test2.xml");
+            builder.addBinaryBody("raw.asset3", new File("D:\\temp\\config.xml"));
+            HttpEntity entity = builder.build();
+            httpPost.setEntity(entity);
+            HttpResponse response = httpclient.execute(httpPost);
+            System.out.println(response.getStatusLine().getStatusCode());
+
         }
         catch (Exception ex)
         {

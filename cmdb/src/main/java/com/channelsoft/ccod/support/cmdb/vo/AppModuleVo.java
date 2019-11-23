@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
+import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 
 import java.util.Date;
@@ -36,9 +37,9 @@ public class AppModuleVo {
 
     private String cfgPath; //配置文件路径
 
-    private NexusComponentPo installPackage; //发布包在nexus的存储信息
+    private NexusAssetInfo installPackage; //发布包在nexus的存储信息
 
-    private NexusComponentPo[] cfgs; //配置文件在nexus的存储信息
+    private NexusAssetInfo[] cfgs; //配置文件在nexus的存储信息
 
     public int getAppId() {
         return appId;
@@ -128,19 +129,19 @@ public class AppModuleVo {
         this.cfgPath = cfgPath;
     }
 
-    public NexusComponentPo getInstallPackage() {
+    public NexusAssetInfo getInstallPackage() {
         return installPackage;
     }
 
-    public void setInstallPackage(NexusComponentPo installPackage) {
+    public void setInstallPackage(NexusAssetInfo installPackage) {
         this.installPackage = installPackage;
     }
 
-    public NexusComponentPo[] getCfgs() {
+    public NexusAssetInfo[] getCfgs() {
         return cfgs;
     }
 
-    public void setCfgs(NexusComponentPo[] cfgs) {
+    public void setCfgs(NexusAssetInfo[] cfgs) {
         this.cfgs = cfgs;
     }
 }
