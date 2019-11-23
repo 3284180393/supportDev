@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
+import com.channelsoft.ccod.support.cmdb.po.ServerPo;
+import com.channelsoft.ccod.support.cmdb.po.ServerUserPo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
@@ -219,13 +221,45 @@ public class NexusServiceImpl implements INexusService {
             String conResult = EntityUtils.toString(response.getEntity(), "utf8");
             logger.error(String.format("upload component to %s/%s FAIL : return code=%d and errMsg=%s ",
                     repository, directory, response.getStatusLine().getStatusCode(), conResult));
+            throw new Exception(String.format("upload component to %s/%s FAIL : return code=%d and errMsg=%s ",
+                    repository, directory, response.getStatusLine().getStatusCode(), conResult));
+        }
+        Map<String, Map<String, NexusAssetInfo>> assetRelationMap = queryRepositoryAssetRelationMap(repository);
+        if(!assetRelationMap.containsKey(directory))
+        {
+            logger.error(String.format("files up to repository=%s and directory=%s FAIL : not find such directory at repository",
+                    repository, directory));
+            throw new Exception(String.format("files up to repository=%s and directory=%s FAIL : not find such directory at repository",
+                repository, directory));
         }
         else
         {
-            logger.debug(String.format("upload component to %s/%s SUCCESS : return code=%d",
-                    repository, directory, response.getStatusLine().getStatusCode()));
+            Map<String, NexusAssetInfo> fileAssetMap = assetRelationMap.get(directory);
+            for(DeployFileInfo fileInfo : componentFiles)
+            {
+                if(!fileAssetMap.containsKey(fileInfo.getFileName()))
+                {
+                    logger.error(String.format("%s up to repository=%s and directory=%s FAIL : not find such file at nexus",
+                            fileInfo.getFileName(), repository, directory));
+                    throw new Exception(String.format("%s up to repository=%s and directory=%s FAIL : not find such file at nexus",
+                            fileInfo.getFileName(), repository, directory));
+                }
+                else
+                {
+                    NexusAssetInfo assetInfo = fileAssetMap.get(fileInfo.getFileName());
+                    if(!assetInfo.getMd5().equals(fileInfo.getFileMd5()))
+                    {
+                        logger.error(String.format("%s up to repository=%s and directory=%s FAIL : srcMd5=%s and nexusMd5=%s",
+                                fileInfo.getFileName(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
+                        throw new Exception(String.format("%s up to repository=%s and directory=%s FAIL : srcMd5=%s and nexusMd5=%s",
+                                fileInfo.getFileName(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
+                    }
+                    fileInfo.setNexusRepository(repository);
+                    fileInfo.setNexusDirectory(directory);
+                    fileInfo.setNexusAssetId(assetInfo.getId());
+                }
+            }
         }
-        Map<String, Map<String, NexusAssetInfo>> assetRelationMap = loadRepositoryAssetRelationMap(repository);
         return assetRelationMap;
     }
 

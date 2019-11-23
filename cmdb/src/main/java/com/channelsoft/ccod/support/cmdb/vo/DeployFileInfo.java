@@ -8,6 +8,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
  * @Version: 1.0
  */
 public class DeployFileInfo {
+
     private String basePath; //文件的base path
 
     private String deployPath; //文件的部署路径

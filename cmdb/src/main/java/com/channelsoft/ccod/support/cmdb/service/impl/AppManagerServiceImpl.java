@@ -1,9 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
-import com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper;
-import com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper;
-import com.channelsoft.ccod.support.cmdb.dao.AppMapper;
+import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
@@ -56,6 +54,21 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Autowired
     AppInstallPackageMapper appInstallPackageMapper;
 
+    @Autowired
+    ServerMapper serverMapper;
+
+    @Autowired
+    ServerUserMapper serverUserMapper;
+
+    @Autowired
+    PlatformMapper platformMapper;
+
+    @Autowired
+    DomainMapper domainMapper;
+
+    @Autowired
+    PlatformAppMapper platformAppMapper
+
     private boolean isPlatformCheckOngoing = false;
 
     private Map<String, NexusComponentPo> appNexusComponentMap = new ConcurrentHashMap<>();
@@ -65,6 +78,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
     private String appDirectoryFmt = "/%s/%s/%s/";
 
     private String appCfgDirectoryFmt = "/%s/%s/%s/%s/%s/%s/";
+
+    private String domainKeyFmt = "%s/%s";
+
+    private String serverKeyFmt = "%s/%s/%s";
+
+    private String serverUserkeyFmt = "%s/%s/%s/%d/%s";
 
     @PostConstruct
     void init() throws  Exception
@@ -263,7 +282,107 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     }
 
-
+    private boolean addNewPlatformAppModule(PlatformAppModuleVo module, Map<String, AppPo> appMap, Map<String, Map<String, NexusAssetInfo>> appFileAssetMap, Map<String, PlatformPo> platformMap, Map<String, DomainPo> domainMap, Map<String, ServerPo> serverMap, Map<String, ServerUserPo> userMap, Map<String, NexusAssetInfo> cfgAssetMap) throws Exception
+    {
+        String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
+        String cfgDirectory = String.format(this.appCfgDirectoryFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
+                module.getModuleName(), module.getModuleAliasName(), module.getBasePath());
+        if(appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory)) {
+            AppPo appPo = appMap.get(appDirectory);
+            Map<String, NexusAssetInfo> fileAssetMap = appFileAssetMap.get(appDirectory);
+            //检查应用的配置文件数是否和保存的同版本相同
+            if (fileAssetMap.size() != module.getCfgs().length + 1) {
+                logger.error(String.format("handle [%s] module FAIL : reported cfg count=%d not equal the same version app=%d",
+                        module.toString(), module.getCfgs().length, fileAssetMap.size() - 1));
+                return false;
+            }
+            //检查应用的安装包文件名是否和保存的同版本相同
+            DeployFileInfo installPackage = module.getInstallPackage();
+            if (!fileAssetMap.containsKey(installPackage.getFileName())) {
+                logger.error(String.format("handle [%s] module FAIL : reported install package=%s not equal the saved same version",
+                        module.toString(), installPackage.getFileName()));
+                return false;
+            }
+            //检查应用的安装包的md5是否和保存的同版本相同
+            if (!fileAssetMap.get(installPackage.getFileName()).getMd5().equals(installPackage.getFileMd5())) {
+                logger.error(String.format("handle [%s] module FAIL : reported install package md5=%s not equal the saved same version md5=%s",
+                        module.toString(), module.getInstallPackage().getFileMd5(), fileAssetMap.get(module.getInstallPackage().getFileName()).getMd5()));
+                return false;
+            }
+            //检查应用的配置文件名是否和保存的相同
+            for (DeployFileInfo cfg : module.getCfgs()) {
+                if (!fileAssetMap.containsKey(cfg.getFileName())) {
+                    logger.error(String.format("handle [%s] module FAIL : reported cfg=%s not in the saved same version list",
+                            module.toString(), cfg.getFileName()));
+                    return false;
+                }
+            }
+        }
+        else if(!appMap.containsKey(appDirectory) && !appFileAssetMap.containsKey(appDirectory))
+        {
+            //上传应用安装包以及配置文件到nexus
+            List<DeployFileInfo> files = new ArrayList<>();
+            files.add(module.getInstallPackage());
+            files.addAll(Arrays.asList(module.getCfgs()));
+            this.nexusService.uploadRawComponent(this.appRepository, appDirectory, files.toArray(new DeployFileInfo[0]));
+        }
+        else
+        {
+            logger.error("data of db not mush as nexus");
+            throw new Exception("data of db not much as nexus");
+        }
+        //上传平台应用配置文件到nexus
+        this.nexusService.uploadRawComponent(this.platformAppCfgRepository, cfgDirectory, module.getCfgs());
+        String platformId = module.getPlatformId();
+        String domainKey = String.format(this.domainKeyFmt, module.getPlatformId(), module.getDomainId());
+        String serverKey = String.format(this.serverKeyFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp());
+        String serverUserKey = String.format(this.serverUserkeyFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
+                1, module.getLoginUser());
+        if(!platformMap.containsKey(platformId))
+        {
+            PlatformPo platformPo = module.getPlatform();
+            this.platformMapper.insert(platformPo);
+            platformMap.put(platformId, platformPo);
+        }
+        if(!domainMap.containsKey(domainKey))
+        {
+            DomainPo domainPo = module.getDomain();
+            this.domainMapper.insert(domainPo);
+            domainMap.put(domainKey, domainPo);
+        }
+        ServerPo serverPo;
+        if(!serverMap.containsKey(serverKey))
+        {
+            serverPo = module.getServerInfo();
+            this.serverMapper.insert(serverPo);
+        }
+        else
+        {
+            serverPo = serverMap.get(serverKey);
+        }
+        ServerUserPo userPo =  module.getServerUser();;
+        if(userMap.containsKey(serverUserKey))
+        {
+            ServerUserPo savedUser = userMap.get(serverUserKey);
+            userPo.setUserId(savedUser.getUserId());
+            if(savedUser.getLoginMethod() != userPo.getLoginMethod() || savedUser.getSshPort() != userPo.getSshPort()
+                    ||savedUser.getPassword().equals(userPo.getPassword()))
+            {
+                this.serverUserMapper.update(userPo);
+            }
+        }
+        else
+        {
+            userPo = module.getServerUser();
+            userPo.setServerId(serverPo.getServerId());
+            this.serverUserMapper.insert(userPo);
+        }
+        PlatformAppPo appPo = module.getPlatformApp();
+        appPo.setAppId(appPo.getAppId());
+        appPo.setServerId(serverPo.getServerId());
+        appPo.setRunnerId(userPo.getUserId());
+        this.platformAppMapper.insert(appPo);
+    }
 
     private Map<String, Map<String, NexusAssetInfo>> uploadAppComponent(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception
     {

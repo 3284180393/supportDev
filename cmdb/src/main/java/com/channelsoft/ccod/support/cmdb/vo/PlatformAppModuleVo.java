@@ -1,10 +1,10 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
-import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
-import com.channelsoft.ccod.support.cmdb.po.ServerPo;
-import com.channelsoft.ccod.support.cmdb.po.ServerUserPo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -55,6 +55,7 @@ public class PlatformAppModuleVo {
     private Date checkTime; //什么时间检查的
 
     private int sshPort; //ssh登录端口
+
 
     public Date getCheckTime() {
         return checkTime;
@@ -216,6 +217,32 @@ public class PlatformAppModuleVo {
         this.ccodVersion = ccodVersion;
     }
 
+    public PlatformPo getPlatform()
+    {
+        PlatformPo po = new PlatformPo();
+        po.setCcodVersion(this.ccodVersion);
+        po.setComment("");
+        po.setCreateTime(this.checkTime);
+        po.setPlatformId(this.platformId);
+        po.setPlatformName(this.platformName);
+        po.setStatus(1);
+        po.setUpdateTime(new Date());
+        return po;
+    }
+
+    public DomainPo getDomain()
+    {
+        DomainPo po = new DomainPo();
+        po.setComment("");
+        po.setCreateTime(this.checkTime);
+        po.setDomainId(this.domainId);
+        po.setDomainName(this.domainName);
+        po.setPlatformId(platformId);
+        po.setStatus(1);
+        po.setUpdateTime(new Date());
+        return po;
+    }
+
     public PlatformAppPo getPlatformApp()
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -249,6 +276,56 @@ public class PlatformAppModuleVo {
         po.setUserName(this.loginUser);
         return po;
     }
+
+    public AppPo getAppInfo()
+    {
+        AppPo po = new AppPo();
+        po.setVersion(this.version);
+        po.setUpdateTime(new Date());
+        po.setCreateTime(this.checkTime);
+        po.setCreateReason("client report");
+        po.setComment("");
+        po.setCcodVersion(this.ccodVersion);
+        po.setBasePath(this.basePath);
+        po.setAppType(this.moduleType);
+        po.setAppName(this.moduleName);
+        po.setAppAlias(this.moduleAliasName);
+        return po;
+    }
+
+    public AppInstallPackagePo getAppInstallPackage()
+    {
+        AppInstallPackagePo packagePo = new AppInstallPackagePo();
+        packagePo.setNexusRepository(installPackage.getNexusRepository());
+        packagePo.setNexusAssetId(installPackage.getNexusAssetId());
+        packagePo.setMd5(installPackage.getFileMd5());
+        packagePo.setFileName(installPackage.getFileName());
+        packagePo.setDeployPath(installPackage.getDeployPath());
+        packagePo.setCreateTime(new Date());
+        packagePo.setFileType(installPackage.getExt());
+        packagePo.setNexusDirectory(installPackage.getNexusDirectory());
+        return packagePo;
+    }
+
+    public AppCfgFilePo[] getAppCfgs()
+    {
+        List<AppCfgFilePo> list = new ArrayList<>();
+        for(DeployFileInfo cfg : this.cfgs)
+        {
+            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
+            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
+            cfgFilePo.setMd5(cfg.getFileMd5());
+            cfgFilePo.setFileName(cfg.getFileName());
+            cfgFilePo.setDeployPath(cfg.getDeployPath());
+            cfgFilePo.setCreateTime(new Date());
+            cfgFilePo.setFileType(cfg.getExt());
+            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
+            list.add(cfgFilePo);
+        }
+        return list.toArray(new AppCfgFilePo[0]);
+    }
+
+
 
     @Override
     public String toString()
