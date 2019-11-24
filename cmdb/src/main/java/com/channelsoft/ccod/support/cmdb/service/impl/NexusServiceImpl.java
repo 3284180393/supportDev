@@ -40,7 +40,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,6 +80,8 @@ public class NexusServiceImpl implements INexusService {
 
     private String uploadRawUrlFmt = "%s/service/rest/v1/components?repository=%s";
 
+    private String downloadUrlFmt = "%s/%s/%s";
+
     private String platformAppCfgDirectoryFmt = "%s/%s/%s/%s/%s/%s/%s/%d";
 
     @Value("${nexus.platform_app_cfg_repository}")
@@ -84,6 +91,9 @@ public class NexusServiceImpl implements INexusService {
 
     @Value("${nexus.app_module_repository}")
     private String appRepository;
+
+    @Value("${windows}")
+    private boolean isWindows;
 
     private final Map<String, Map<String, NexusComponentPo>> repositoryComponentMap = new ConcurrentHashMap<>();
 
@@ -437,6 +447,78 @@ public class NexusServiceImpl implements INexusService {
     }
 
 
+    @Override
+    public void downloadComponent(NexusAssetInfo[] componentAssets, String savePath) throws Exception {
+        for(NexusAssetInfo assetInfo : componentAssets)
+        {
+            downloadAsset(assetInfo, savePath);
+        }
+    }
+
+    private void downloadAsset(NexusAssetInfo assetInfo, String savePath) throws Exception
+    {
+        BufferedInputStream bis = null;
+        BufferedOutputStream bos = null;
+        HttpURLConnection uc = null;
+        try
+        {
+            String downloadUrl = String.format(this.downloadUrlFmt, this.nexusHostUrl, assetInfo.getRepository(), assetInfo.getPath()).replace("//", "/");
+            String[] arr = downloadUrl.split("/");
+            String fileName = arr[arr.length - 1];
+            String savedFullPath = savePath;
+            if(isWindows)
+            {
+                savedFullPath = "/" + savedFullPath.replace("\\", "/");
+            }
+            savedFullPath += savedFullPath + "/" + fileName;
+            URL url = new URL(downloadUrl);
+            uc = (HttpURLConnection) url.openConnection();
+            String input = this.userName + ":" + this.password;
+            String encoding = new sun.misc.BASE64Encoder().encode(input.getBytes());
+            uc.setRequestProperty("Authorization", "Basic " + encoding);
+//            uc.connect();
+            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
+            uc.connect();
+            String message = uc.getHeaderField(0);
+            if (message != null && !"".equals(message.trim())
+                    && message.startsWith("HTTP/1.1 404"))
+            {
+                logger.error("查询到的录音" + downloadUrl + "不存在");
+
+                throw new Exception("录音文件不存在");
+            }
+            File file = new File(savedFullPath);// 创建新文件
+            if (file != null && !file.exists())
+            {
+                file.createNewFile();
+            }
+            long fileSize = uc.getContentLength();
+            logger.info(downloadUrl + "录音文件长度:" + uc.getContentLength());// 打印文件长度
+            // 读取文件
+            bis = new BufferedInputStream(uc.getInputStream());
+            bos = new BufferedOutputStream(new FileOutputStream(file));
+            int len = 2048;
+            byte[] b = new byte[len];
+            while ((len = bis.read(b)) != -1)
+            {
+                bos.write(b, 0, len);
+            }
+            logger.info("下载保存成功");
+            bos.flush();
+        }
+        finally {
+            if(bis != null)
+            {
+                bis.close();
+            }
+            if(bos != null)
+            {
+                bos.close();
+            }
+        }
+
+    }
+
     @Test
     public void nexusHttpTest()
     {
@@ -537,6 +619,59 @@ public class NexusServiceImpl implements INexusService {
             HttpResponse response = httpclient.execute(httpPost);
             System.out.println(response.getStatusLine().getStatusCode());
 
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
+    @Test
+    public void downloadTest()
+    {
+        BufferedInputStream bis = null;
+        BufferedOutputStream bos = null;
+        HttpURLConnection uc = null;
+        String downloadUrl = "http://10.130.41.216:8081/repository/CCOD/CCOD/MONITOR_MODULE/ivr/3.0.0.0/ivr1.zip";
+        String savedFullPath = "d:\\temp\\helloTest.zip";
+        try
+        {
+            URL url = new URL(downloadUrl);
+            uc = (HttpURLConnection) url.openConnection();
+            String username = "admin";
+            String password = "123456";
+            String input = username + ":" + password;
+            String encoding = new sun.misc.BASE64Encoder().encode(input.getBytes());
+            uc.setRequestProperty("Authorization", "Basic " + encoding);
+//            uc.connect();
+            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
+            uc.connect();
+            String message = uc.getHeaderField(0);
+            if (message != null && !"".equals(message.trim())
+                    && message.startsWith("HTTP/1.1 404"))
+            {
+                logger.error("查询到的录音" + downloadUrl + "不存在");
+
+                throw new Exception("录音文件不存在");
+            }
+            File file = new File(savedFullPath);// 创建新文件
+            if (file != null && !file.exists())
+            {
+                file.createNewFile();
+            }
+            long fileSize = uc.getContentLength();
+            logger.info(downloadUrl + "录音文件长度:" + uc.getContentLength());// 打印文件长度
+            // 读取文件
+            bis = new BufferedInputStream(uc.getInputStream());
+            bos = new BufferedOutputStream(new FileOutputStream(file));
+            int len = 2048;
+            byte[] b = new byte[len];
+            while ((len = bis.read(b)) != -1)
+            {
+                bos.write(b, 0, len);
+            }
+            logger.info("下载保存成功");
+            bos.flush();
         }
         catch (Exception ex)
         {

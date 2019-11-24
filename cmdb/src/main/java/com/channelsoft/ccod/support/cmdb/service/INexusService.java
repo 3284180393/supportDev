@@ -97,4 +97,12 @@ public interface INexusService {
      */
     Map<String, Map<String, NexusAssetInfo>> queryRepositoryAssetRelationMap(String repository) throws Exception;
 
+    /**
+     * 下载一组文件到指定目录
+     * @param componentAssets 需要下载的文件
+     * @param savePath 保存目录
+     * @throws Exception
+     */
+    void downloadComponent(NexusAssetInfo[] componentAssets, String savePath) throws Exception;
+
 }
