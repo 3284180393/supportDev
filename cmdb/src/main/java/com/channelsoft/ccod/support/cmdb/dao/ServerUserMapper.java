@@ -35,7 +35,7 @@ public interface ServerUserMapper {
      * @return 查询结果
      * @throws DataAccessException
      */
-    List<ServerUserPo> select(int serverId) throws DataAccessException;
+    List<ServerUserPo> select(@Param("serverId")Integer serverId) throws DataAccessException;
 
     /**
      * 更新已有的服务器用户信息

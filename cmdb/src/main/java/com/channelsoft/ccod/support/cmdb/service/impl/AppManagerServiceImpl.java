@@ -67,7 +67,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     DomainMapper domainMapper;
 
     @Autowired
-    PlatformAppMapper platformAppMapper
+    PlatformAppMapper platformAppMapper;
 
     private boolean isPlatformCheckOngoing = false;
 
@@ -83,7 +83,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     private String serverKeyFmt = "%s/%s/%s";
 
-    private String serverUserkeyFmt = "%s/%s/%s/%d/%s";
+    private String serverUserkeyFmt = "/%d/%d/%s";
 
     @PostConstruct
     void init() throws  Exception
@@ -179,7 +179,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.info(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s get install package and cfgs SUCCESS, so upload to nexus",
                         module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
                         module.getModuleAliasName(), module.getVersion(), module.getBasePath()));
-                this.nexusService.addPlatformAppModule(module);
+//                this.nexusService.addPlatformAppModule(module);
             }
         }
         this.nexusService.releaseRepositoryComponent(this.appRepository);
@@ -207,7 +207,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param modules 需要上传的模块
      * @throws Exception
      */
-    void uploadPlatformAppModules(PlatformAppModuleVo[] modules) throws Exception
+    void handleCollectedPlatformAppModules(PlatformAppModuleVo[] modules) throws Exception
     {
         List<AppPo> appList = appMapper.select(null, null, null, null);
         Map<String, AppPo> appMap = new HashMap<>();
@@ -215,74 +215,47 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             appMap.put(String.format(this.appDirectoryFmt, appPo.getAppName(), appPo.getAppAlias(), appPo.getVersion()), appPo);
         }
+        List<PlatformPo> platformList = this.platformMapper.select(null);
+        Map<String, PlatformPo> platformMap = new HashMap<>();
+        for(PlatformPo po : platformList)
+        {
+            platformMap.put(po.getPlatformId(), po);
+        }
+        List<DomainPo> domainList = this.domainMapper.select(null, null);
+        Map<String, DomainPo> domainMap = new HashMap<>();
+        for(DomainPo po : domainList)
+        {
+            domainMap.put(String.format(this.domainKeyFmt, po.getPlatformId(), po.getDomainId()), po);
+        }
+        List<ServerPo> severList = this.serverMapper.select(null, null, null);
+        Map<String, ServerPo> serverMap = new HashMap<>();
+        for(ServerPo po : severList)
+        {
+            serverMap.put(String.format(this.serverKeyFmt, po.getPlatformId(), po.getDomainId(), po.getHostIp()), po);
+        }
+        List<ServerUserPo> serverUserList = this.serverUserMapper.select(null);
+        Map<String, ServerUserPo> serverUserMap = new HashMap<>();
+        for(ServerUserPo po : serverUserList)
+        {
+            serverUserMap.put(String.format(this.serverUserkeyFmt, po.getServerId(), 1, po.getUserName()), po);
+        }
         Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.queryRepositoryAssetRelationMap(this.appRepository);
         for(PlatformAppModuleVo module : modules)
         {
-            String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
-            String cfgDirectory = String.format(this.appCfgDirectoryFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
-                    module.getModuleName(), module.getModuleAliasName(), module.getBasePath());
-            if(appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory))
+            boolean handleSucc = handlePlatformAppModule(module, appMap, appFileAssetMap, platformMap, domainMap, serverMap,
+                    serverUserMap);
+            if(!handleSucc)
             {
-                AppPo appPo = appMap.get(appDirectory);
-                Map<String, NexusAssetInfo> fileAssetMap = appFileAssetMap.get(appDirectory);
-                //检查应用的配置文件数是否和保存的同版本相同
-                if(fileAssetMap.size() != module.getCfgs().length+1)
-                {
-                    logger.error(String.format("handle [%s] module FAIL : reported cfg count=%d not equal the same version app=%d",
-                            module.toString(), module.getCfgs().length, fileAssetMap.size()-1));
-                    continue;
-                }
-                //检查应用的安装包文件名是否和保存的同版本相同
-                DeployFileInfo installPackage = module.getInstallPackage();
-                if(!fileAssetMap.containsKey(installPackage.getFileName()))
-                {
-                    logger.error(String.format("handle [%s] module FAIL : reported install package=%s not equal the saved same version",
-                            module.toString(), installPackage.getFileName()));
-                    continue;
-                }
-                //检查应用的安装包的md5是否和保存的同版本相同
-                if(!fileAssetMap.get(installPackage.getFileName()).getMd5().equals(installPackage.getFileMd5()))
-                {
-                    logger.error(String.format("handle [%s] module FAIL : reported install package md5=%s not equal the saved same version md5=%s",
-                            module.toString(), module.getInstallPackage().getFileMd5(), fileAssetMap.get(module.getInstallPackage().getFileName()).getMd5()));
-                    continue;
-                }
-                //检查应用的配置文件名是否和保存的相同
-                boolean isSame = true;
-                for(DeployFileInfo cfg : module.getCfgs())
-                {
-                    if(!fileAssetMap.containsKey(cfg.getFileName()))
-                    {
-                        logger.error(String.format("handle [%s] module FAIL : reported cfg=%s not in the saved same version list",
-                                module.toString(), cfg.getFileName()));
-                        isSame = false;
-                        break;
-                    }
-                }
-                if(!isSame)
-                    continue;
-                //上传平台应用配置文件到nexus
-                this.nexusService.uploadRawComponent(this.platformAppCfgRepository, cfgDirectory, module.getCfgs());
-
-
-            }
-            else if(appMap.containsKey(appDirectory) && !appFileAssetMap.containsKey(appDirectory))
-            {
-
-            }
-            else if(!appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory))
-            {
-
-            }
-            else
-            {
-
+                logger.error(String.format("handle FAIL"));
             }
         }
 
     }
 
-    private boolean addNewPlatformAppModule(PlatformAppModuleVo module, Map<String, AppPo> appMap, Map<String, Map<String, NexusAssetInfo>> appFileAssetMap, Map<String, PlatformPo> platformMap, Map<String, DomainPo> domainMap, Map<String, ServerPo> serverMap, Map<String, ServerUserPo> userMap, Map<String, NexusAssetInfo> cfgAssetMap) throws Exception
+    private boolean handlePlatformAppModule(PlatformAppModuleVo module, Map<String, AppPo> appMap,
+                                            Map<String, Map<String, NexusAssetInfo>> appFileAssetMap,
+                                            Map<String, PlatformPo> platformMap, Map<String, DomainPo> domainMap,
+                                            Map<String, ServerPo> serverMap, Map<String, ServerUserPo> userMap) throws Exception
     {
         String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
         String cfgDirectory = String.format(this.appCfgDirectoryFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
@@ -324,51 +297,61 @@ public class AppManagerServiceImpl implements IAppManagerService {
             List<DeployFileInfo> files = new ArrayList<>();
             files.add(module.getInstallPackage());
             files.addAll(Arrays.asList(module.getCfgs()));
-            this.nexusService.uploadRawComponent(this.appRepository, appDirectory, files.toArray(new DeployFileInfo[0]));
+            try
+            {
+                Map<String, Map<String, NexusAssetInfo>> theMap = this.nexusService.uploadRawComponent(this.appRepository, appDirectory, files.toArray(new DeployFileInfo[0]));
+                appFileAssetMap.clear();
+                for(String key : theMap.keySet())
+                {
+                    appFileAssetMap.put(key, theMap.get(key));
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.error(String.format("upload files to %s at %s FAIL", appDirectory, appRepository), ex);
+                return false;
+            }
         }
         else
         {
             logger.error("data of db not mush as nexus");
-            throw new Exception("data of db not much as nexus");
+            return false;
         }
         //上传平台应用配置文件到nexus
         this.nexusService.uploadRawComponent(this.platformAppCfgRepository, cfgDirectory, module.getCfgs());
-        String platformId = module.getPlatformId();
-        String domainKey = String.format(this.domainKeyFmt, module.getPlatformId(), module.getDomainId());
-        String serverKey = String.format(this.serverKeyFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp());
-        String serverUserKey = String.format(this.serverUserkeyFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
-                1, module.getLoginUser());
+        PlatformPo platformPo = module.getPlatform();
+        String platformId = platformPo.getPlatformId();
         if(!platformMap.containsKey(platformId))
         {
-            PlatformPo platformPo = module.getPlatform();
             this.platformMapper.insert(platformPo);
             platformMap.put(platformId, platformPo);
         }
+        DomainPo domainPo = module.getDomain();
+        String domainKey = String.format(this.domainKeyFmt, domainPo.getPlatformId(), domainPo.getDomainId());
         if(!domainMap.containsKey(domainKey))
         {
-            DomainPo domainPo = module.getDomain();
             this.domainMapper.insert(domainPo);
             domainMap.put(domainKey, domainPo);
         }
-        ServerPo serverPo;
+        ServerPo serverPo = module.getServerInfo();
+        String serverKey = String.format(this.serverKeyFmt, serverPo.getPlatformId(), serverPo.getDomainId(), serverPo.getHostIp());
         if(!serverMap.containsKey(serverKey))
         {
-            serverPo = module.getServerInfo();
             this.serverMapper.insert(serverPo);
+            serverMap.put(serverKey, serverPo);
         }
-        else
-        {
-            serverPo = serverMap.get(serverKey);
-        }
-        ServerUserPo userPo =  module.getServerUser();;
+        serverPo = serverMap.get(serverKey);
+        ServerUserPo userPo =  module.getServerUser();
+        String serverUserKey = String.format(this.serverUserkeyFmt, serverPo.getServerId(),
+                1, module.getLoginUser());
         if(userMap.containsKey(serverUserKey))
         {
-            ServerUserPo savedUser = userMap.get(serverUserKey);
-            userPo.setUserId(savedUser.getUserId());
-            if(savedUser.getLoginMethod() != userPo.getLoginMethod() || savedUser.getSshPort() != userPo.getSshPort()
-                    ||savedUser.getPassword().equals(userPo.getPassword()))
+            if(userMap.get(serverUserKey).getLoginMethod() != userPo.getLoginMethod() || userMap.get(serverUserKey).getSshPort() != userPo.getSshPort()
+                    || !userMap.get(serverUserKey).getPassword().equals(userPo.getPassword()))
             {
+                userPo.setUserId(userMap.get(serverUserKey).getUserId());
                 this.serverUserMapper.update(userPo);
+                userMap.put(serverUserKey, userPo);
             }
         }
         else
@@ -376,12 +359,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
             userPo = module.getServerUser();
             userPo.setServerId(serverPo.getServerId());
             this.serverUserMapper.insert(userPo);
+            userMap.put(serverUserKey, userPo);
         }
+        userPo = userMap.get(serverUserKey);
         PlatformAppPo appPo = module.getPlatformApp();
-        appPo.setAppId(appPo.getAppId());
+        appPo.setAppId(appMap.get(appDirectory).getAppId());
         appPo.setServerId(serverPo.getServerId());
         appPo.setRunnerId(userPo.getUserId());
         this.platformAppMapper.insert(appPo);
+        return true;
     }
 
     private Map<String, Map<String, NexusAssetInfo>> uploadAppComponent(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception

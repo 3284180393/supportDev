@@ -71,12 +71,12 @@ public interface INexusService {
      */
     void releaseRepositoryComponent(String repository);
 
-    /**
-     * 如果module对应app以及版本在nexus仓库没有，则创建
-     * @param module
-     * @throws Exception
-     */
-    void addPlatformAppModule(PlatformAppModuleVo module) throws Exception;
+//    /**
+//     * 如果module对应app以及版本在nexus仓库没有，则创建
+//     * @param module
+//     * @throws Exception
+//     */
+//    void addPlatformAppModule(PlatformAppModuleVo module) throws Exception;
 
     /**
      * 将一组平台应用模块上传到nexus
