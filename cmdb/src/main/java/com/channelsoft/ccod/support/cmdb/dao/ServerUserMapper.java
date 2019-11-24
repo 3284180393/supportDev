@@ -3,6 +3,7 @@ package com.channelsoft.ccod.support.cmdb.dao;
 import com.channelsoft.ccod.support.cmdb.po.ServerUserPo;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -13,6 +14,7 @@ import java.util.List;
  * @Date: 2019/11/22 11:36
  * @Version: 1.0
  */
+@Component
 public interface ServerUserMapper {
     /**
      * 向数据库添加一条新的服务器用户记录

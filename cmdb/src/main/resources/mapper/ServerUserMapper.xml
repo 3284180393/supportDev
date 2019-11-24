@@ -13,13 +13,13 @@
     <sql id="Base_Column_List" >
         sur.user_id, sur.user_name, sur.`password`, sur.server_id, sur.login_method, sur.`comment`, sur.ssh_port
     </sql>
-    <select id="selectByPrimaryKey" resultMap="serverServerUserMap" parameterType="java.lang.String">
+    <select id="selectByPrimaryKey" resultMap="ServerUserMap" parameterType="java.lang.String">
         select
         <include refid="Base_Column_List" />
         from domain dm
         where dm.domain_id=#{domainId,jdbcType=VARCHAR}
     </select>
-    <select id="select" resultMap="serverServerUserMap" >
+    <select id="select" resultMap="ServerUserMap" >
         select
         <include refid="Base_Column_List" />
         from domain dm

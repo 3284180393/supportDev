@@ -3,7 +3,7 @@ spring:
     username : root
     password :
     url: jdbc:mysql://10.130.44.108:3306/cmdb
-    driver-class-name : com.mysql.cj.jdbc.Driver
+    driver-class-name : com.mysql.jdbc.Driver
 
 mybatis:
   mapper-locations : classpath:mapper/*Mapper.xml

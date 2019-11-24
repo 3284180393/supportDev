@@ -1,8 +1,10 @@
 package com.channelsoft.ccod.support.cmdb.dao;
 
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -13,6 +15,8 @@ import java.util.List;
  * @Date: 2019/11/21 9:24
  * @Version: 1.0
  */
+@Component
+@Mapper
 public interface AppMapper {
     /**
      * 添加一条新的app记录

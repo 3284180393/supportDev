@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Component;
 
 /**
  * @ClassName: AppInstallPackageMapper
@@ -12,6 +13,7 @@ import org.springframework.dao.DataAccessException;
  * @Date: 2019/11/21 14:07
  * @Version: 1.0
  */
+@Component
 public interface AppInstallPackageMapper {
     /**
      * 向数据库添加一条新的应用安装包记录

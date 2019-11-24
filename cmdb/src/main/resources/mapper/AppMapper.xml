@@ -21,7 +21,7 @@
         select
         <include refid="Base_Column_List" />
         from app a
-        where a.app_id=#{appId,jdbcType=Integer}
+        where a.app_id=#{appId,jdbcType=INTEGER}
     </select>
     <select id="select" resultMap="AppMap" >
         select
@@ -29,7 +29,7 @@
         from app a
         where 1=1
         <if test="appType!=null">
-            And a.app_type=#{appName,jdbcType=VARCHAR}
+            And a.app_type=#{appType,jdbcType=VARCHAR}
         </if>
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}

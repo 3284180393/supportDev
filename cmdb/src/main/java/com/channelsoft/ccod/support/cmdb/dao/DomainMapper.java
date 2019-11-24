@@ -3,6 +3,7 @@ package com.channelsoft.ccod.support.cmdb.dao;
 import com.channelsoft.ccod.support.cmdb.po.DomainPo;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -13,6 +14,7 @@ import java.util.List;
  * @Date: 2019/11/21 15:18
  * @Version: 1.0
  */
+@Component
 public interface DomainMapper {
     /**
      * 添加一条新的域记录

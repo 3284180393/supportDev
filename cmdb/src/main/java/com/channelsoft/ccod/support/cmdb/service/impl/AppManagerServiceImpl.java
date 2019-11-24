@@ -91,8 +91,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
         try
         {
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            this.appMapper.selectByPrimaryKey(1);
+            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
-            this.startCollectPlatformAppData("shltPA", null, null, null, null);
+//            this.startCollectPlatformAppData("shltPA", null, null, null, null);
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         }
         catch (Exception ex)
@@ -150,39 +152,40 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         this.isPlatformCheckOngoing = true;
         List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, domainName, hostIp, appName, version);
-        this.nexusService.reloadRepositoryComponent(this.appRepository);
-        for(PlatformAppModuleVo module : modules)
-        {
-            boolean isGetFile = true;
-            if(StringUtils.isBlank(module.getInstallPackage().getLocalSavePath()))
-            {
-                logger.error(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s do not get install package=%s",
-                        module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
-                        module.getModuleAliasName(), module.getVersion(), module.getBasePath(), module.getInstallPackage().getFileName()));
-                isGetFile = false;
-            }
-            else
-            {
-                for(DeployFileInfo cfg : module.getCfgs())
-                {
-                    if(StringUtils.isBlank(cfg.getLocalSavePath()))
-                    {
-                        logger.error(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s do not get cfg=%s",
-                                module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
-                                module.getModuleAliasName(), module.getVersion(), module.getBasePath(), cfg.getFileName()));
-                        isGetFile = false;
-                    }
-                }
-            }
-            if(isGetFile)
-            {
-                logger.info(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s get install package and cfgs SUCCESS, so upload to nexus",
-                        module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
-                        module.getModuleAliasName(), module.getVersion(), module.getBasePath()));
-//                this.nexusService.addPlatformAppModule(module);
-            }
-        }
-        this.nexusService.releaseRepositoryComponent(this.appRepository);
+        handleCollectedPlatformAppModules(modules.toArray(new PlatformAppModuleVo[0]));
+//        this.nexusService.reloadRepositoryComponent(this.appRepository);
+//        for(PlatformAppModuleVo module : modules)
+//        {
+//            boolean isGetFile = true;
+//            if(StringUtils.isBlank(module.getInstallPackage().getLocalSavePath()))
+//            {
+//                logger.error(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s do not get install package=%s",
+//                        module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
+//                        module.getModuleAliasName(), module.getVersion(), module.getBasePath(), module.getInstallPackage().getFileName()));
+//                isGetFile = false;
+//            }
+//            else
+//            {
+//                for(DeployFileInfo cfg : module.getCfgs())
+//                {
+//                    if(StringUtils.isBlank(cfg.getLocalSavePath()))
+//                    {
+//                        logger.error(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s do not get cfg=%s",
+//                                module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
+//                                module.getModuleAliasName(), module.getVersion(), module.getBasePath(), cfg.getFileName()));
+//                        isGetFile = false;
+//                    }
+//                }
+//            }
+//            if(isGetFile)
+//            {
+//                logger.info(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s get install package and cfgs SUCCESS, so upload to nexus",
+//                        module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
+//                        module.getModuleAliasName(), module.getVersion(), module.getBasePath()));
+////                this.nexusService.addPlatformAppModule(module);
+//            }
+//        }
+//        this.nexusService.releaseRepositoryComponent(this.appRepository);
         this.isPlatformCheckOngoing = false;
         return modules.toArray(new PlatformAppModuleVo[0]);
     }
