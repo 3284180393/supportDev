@@ -6,11 +6,13 @@ CREATE TABLE `app` (
   `app_type` varchar(20) NOT NULL COMMENT '应用类型',
   `version` varchar(40) NOT NULL COMMENT '版本',
   `ccod_version` varchar(40) NOT NULL COMMENT '归属于哪个大版本的ccod',
-  `app_base` varchar(100) NOT NULL COMMENT '应用的base路径',
+  `base_path` varchar(100) NOT NULL COMMENT '应用的base路径',
   `create_time` datetime DEFAULT NULL COMMENT '创建时间',
   `update_time` datetime DEFAULT NULL COMMENT '修改时间',
   `create_reason` varchar(255) DEFAULT NULL COMMENT '创建原因',
   `comment` varchar(255) DEFAULT NULL COMMENT '备注',
+  `version_control` varchar(20) DEFAULT 'git' COMMENT '版本控制方式',
+  `version_control_url` varchar(255) DEFAULT NULL COMMENT '同版本控制相关的url',
   PRIMARY KEY (`app_id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 

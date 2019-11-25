@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.dao;
 
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import java.util.List;
  * @Version: 1.0
  */
 @Component
+@Mapper
 public interface PlatformAppMapper {
     /**
      * 添加一条平台模块记录
@@ -30,7 +32,6 @@ public interface PlatformAppMapper {
      * @throws DataAccessException
      */
     PlatformAppPo selectByPrimaryKey(int platformAppId) throws DataAccessException;
-
 
     /**
      * 根据指定条件查询平台应用部署记录,如果某个参数为空,查询时忽略该参数
@@ -50,4 +51,14 @@ public interface PlatformAppMapper {
             throws DataAccessException;
 
     void update(PlatformAppPo app) throws DataAccessException;
+
+    /**
+     * 删除指定条件的平台应用配置,如果某个参数为空则忽略该参数
+     * @param platformAppId 平台应用id
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param serverId 服务器id
+     * @throws DataAccessException
+     */
+    void delete(@Param("platformAppId")Integer platformAppId, @Param("platformId")String platformId, @Param("domainId")String domainId, @Param("serverId")Integer serverId) throws DataAccessException;
 }

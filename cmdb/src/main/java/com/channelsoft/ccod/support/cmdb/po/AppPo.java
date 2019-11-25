@@ -33,6 +33,10 @@ public class AppPo {
 
     private String comment; //备注
 
+    private String versionControl; //版本控制方式
+
+    private String versionControlUrl; //版本控制的连接url
+
     public int getAppId() {
         return appId;
     }
@@ -121,4 +125,19 @@ public class AppPo {
         this.comment = comment;
     }
 
+    public String getVersionControl() {
+        return versionControl;
+    }
+
+    public void setVersionControl(String versionControl) {
+        this.versionControl = versionControl;
+    }
+
+    public String getVersionControlUrl() {
+        return versionControlUrl;
+    }
+
+    public void setVersionControlUrl(String versionControlUrl) {
+        this.versionControlUrl = versionControlUrl;
+    }
 }

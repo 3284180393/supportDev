@@ -56,6 +56,25 @@ public class PlatformAppModuleVo {
 
     private int sshPort; //ssh登录端口
 
+    private String versionControl; //版本控制方式
+
+    private String versionControlUrl; //版本控制的连接url
+
+    public String getVersionControl() {
+        return versionControl;
+    }
+
+    public void setVersionControl(String versionControl) {
+        this.versionControl = versionControl;
+    }
+
+    public String getVersionControlUrl() {
+        return versionControlUrl;
+    }
+
+    public void setVersionControlUrl(String versionControlUrl) {
+        this.versionControlUrl = versionControlUrl;
+    }
 
     public Date getCheckTime() {
         return checkTime;
@@ -249,7 +268,8 @@ public class PlatformAppModuleVo {
         po.setBasePath(this.basePath);
         po.setDeployTime(this.checkTime);
         po.setDomainId(this.platformId);
-        po.setPlatformId(this.platformId);
+        po.setPlatformId(this.domainId);
+        po.setDeployTime(new Date());
         return po;
     }
 
@@ -290,6 +310,8 @@ public class PlatformAppModuleVo {
         po.setAppType(this.moduleType);
         po.setAppName(this.moduleName);
         po.setAppAlias(this.moduleAliasName);
+        po.setVersionControl(this.versionControl);
+        po.setVersionControlUrl(this.versionControlUrl);
         return po;
     }
 

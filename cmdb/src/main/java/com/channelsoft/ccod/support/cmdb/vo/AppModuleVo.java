@@ -2,6 +2,8 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
+import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
+import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 
@@ -33,13 +35,9 @@ public class AppModuleVo {
 
     private String basePath; //应用的base path
 
-    private String deployPath; //应用的部署路径
+    private AppInstallPackagePo installPackage; //应用部署包
 
-    private String cfgPath; //配置文件路径
-
-    private NexusAssetInfo installPackage; //发布包在nexus的存储信息
-
-    private NexusAssetInfo[] cfgs; //配置文件在nexus的存储信息
+    private AppCfgFilePo[] cfgs; //应用配置文件
 
     public int getAppId() {
         return appId;
@@ -113,35 +111,19 @@ public class AppModuleVo {
         this.basePath = basePath;
     }
 
-    public String getDeployPath() {
-        return deployPath;
-    }
-
-    public void setDeployPath(String deployPath) {
-        this.deployPath = deployPath;
-    }
-
-    public String getCfgPath() {
-        return cfgPath;
-    }
-
-    public void setCfgPath(String cfgPath) {
-        this.cfgPath = cfgPath;
-    }
-
-    public NexusAssetInfo getInstallPackage() {
+    public AppInstallPackagePo getInstallPackage() {
         return installPackage;
     }
 
-    public void setInstallPackage(NexusAssetInfo installPackage) {
+    public void setInstallPackage(AppInstallPackagePo installPackage) {
         this.installPackage = installPackage;
     }
 
-    public NexusAssetInfo[] getCfgs() {
+    public AppCfgFilePo[] getCfgs() {
         return cfgs;
     }
 
-    public void setCfgs(NexusAssetInfo[] cfgs) {
+    public void setCfgs(AppCfgFilePo[] cfgs) {
         this.cfgs = cfgs;
     }
 }

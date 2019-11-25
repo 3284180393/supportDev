@@ -305,7 +305,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         else
         {
-            logger.error("data of db not mush as nexus");
+            logger.error("data of db not much as nexus");
             return false;
         }
         appPo = appMap.get(appDirectory);

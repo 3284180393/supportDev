@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.dao;
 
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import java.util.List;
  * @Version: 1.0
  */
 @Component
+@Mapper
 public interface AppModuleMapper {
 
     /**
@@ -25,5 +27,5 @@ public interface AppModuleMapper {
      * @return 查询结果
      * @throws DataAccessException
      */
-    List<AppModuleVo> select(@Param("platformId")String appName, @Param("appAlias")String appAlias, @Param("version")String version) throws DataAccessException;
+    List<AppModuleVo> select(@Param("appName")String appName, @Param("appAlias")String appAlias, @Param("version")String version) throws DataAccessException;
 }
