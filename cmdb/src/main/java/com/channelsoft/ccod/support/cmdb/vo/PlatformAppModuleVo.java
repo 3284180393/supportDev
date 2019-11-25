@@ -324,7 +324,7 @@ public class PlatformAppModuleVo {
         packagePo.setFileName(installPackage.getFileName());
         packagePo.setDeployPath(installPackage.getDeployPath());
         packagePo.setCreateTime(new Date());
-        packagePo.setFileType(installPackage.getExt());
+        packagePo.setExt(installPackage.getExt());
         packagePo.setNexusDirectory(installPackage.getNexusDirectory());
         return packagePo;
     }

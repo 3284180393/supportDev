@@ -34,7 +34,7 @@
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
             useGeneratedKeys="true" keyProperty="cfgFileId">
         insert into app_cfg_file(app_id, file_name, ext, deploy_path, nexus_repository, nexus_directory, nexus_asset_id, create_time, md5)
-        values (#{appId,jdbcType=VARCHAR}, #{fileName,jdbcType=VARCHAR}, #{ext,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{nexusRepository,jdbcType=VARCHAR}, #{nexusDirectory,jdbcType=VARCHAR}, #{nexusAssetId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{md5,jdbcType=VARCHAR})
+        values (#{appId,jdbcType=INTEGER}, #{fileName,jdbcType=VARCHAR}, #{ext,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{nexusRepository,jdbcType=VARCHAR}, #{nexusDirectory,jdbcType=VARCHAR}, #{nexusAssetId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{md5,jdbcType=VARCHAR})
     </insert>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo" >
         update app_cfg_file set
@@ -44,7 +44,7 @@
         nexus_directory = #{nexusDirectory,jdbcType=VARCHAR},
         nexus_asset_id = #{nexusAssetId,jdbcType=VARCHAR},
         md5 = #{md5,jdbcType=VARCHAR}
-        where app_cfg_file = #{cfgFileId,jdbcType=INTEGER}
+        where cfg_file_id = #{cfgFileId,jdbcType=INTEGER}
     </update>
     <delete id="delete">
         delete

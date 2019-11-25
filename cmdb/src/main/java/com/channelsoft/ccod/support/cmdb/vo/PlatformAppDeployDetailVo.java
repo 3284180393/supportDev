@@ -23,17 +23,21 @@ public class PlatformAppDeployDetailVo {
 
     private String platformId; //平台id,外键platform的platform_id
 
-    private String domainId; //应用所在的域id,外键domain的domain_id
-
-    private int serverId; //应用部署所在服务器id,外键server表的server_id
-
-    private int runnerId; //应用运行用户id
-
     private String platformName; //部署平台名
+
+    private String domainId; //应用所在的域id,外键domain的domain_id
 
     private String domainName; //部署域名
 
+    private int serverId; //应用部署所在服务器id,外键server表的server_id
+
     private String hostname; //部署服务器名
+
+    private String hostIp; //服务器ip
+
+    private int runnerId; //应用运行用户id
+
+    private String runnerName; //运行用户名
 
     private String basePath; //该应用的basePath
 
@@ -225,5 +229,13 @@ public class PlatformAppDeployDetailVo {
 
     public void setCfgs(PlatformAppCfgFilePo[] cfgs) {
         this.cfgs = cfgs;
+    }
+
+    public String getRunnerName() {
+        return runnerName;
+    }
+
+    public void setRunnerName(String runnerName) {
+        this.runnerName = runnerName;
     }
 }

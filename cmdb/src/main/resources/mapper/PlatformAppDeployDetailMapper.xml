@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper" >
+    <resultMap id="AppModuleMap" type="com.channelsoft.ccod.support.cmdb.vo.PlatformAppDeployDetailVo" >
+        <id column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
+        <result column="app_id" property="appId" jdbcType="INTEGER" />
+        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="platform_name" property="platformName" jdbcType="VARCHAR" />
+        <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
+        <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
+        <result column="server_id" property="serverId" jdbcType="INTEGER" />
+        <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="host_name" property="hostname" jdbcType="VARCHAR" />
+        <result column="runner_id" property="runnerId" jdbcType="INTEGER" />
+        <result column="runner_name" property="runnerName" jdbcType="VARCHAR" />
+        <result column="app_name" property="appName" jdbcType="VARCHAR" />
+        <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
+        <result column="app_type" property="appType" jdbcType="VARCHAR" />
+        <result column="version" property="version" jdbcType="VARCHAR" />
+        <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
+        <result column="base_path" property="basePath" jdbcType="VARCHAR" />
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+        <result column="create_reason" property="createReason" jdbcType="VARCHAR" />
+        <result column="comment" property="comment" jdbcType="VARCHAR" />
+        <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
+        <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
+        <association property="installPackage"
+                     javaType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
+                     resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
+                     columnPrefix="aip_">
+        </association>
+        <collection property="srcCfgs"
+                    ofType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
+                    columnPrefix="acf_">
+        </collection>
+        <collection property="cfgs"
+                    ofType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.PlatformAppCfgFileMapper.PlatformAppCfgFileMap"
+                    columnPrefix="pacf_">
+        </collection>
+    </resultMap>
+    <select id="select" resultMap="AppModuleMap" >
+        SELECT
+        pacf.platform_app_id AS platform_app_id,
+        pf.platform_name,
+        pf.platform_id,
+        dm.domain_id,
+        dm.domain_name,
+        svr.server_id,
+        svr.host_ip,
+        svr.host_name,
+        sur.user_id AS runner_id,
+        sur.user_name AS runner_name,
+        a.app_id,
+        a.app_name,
+        a.app_alias,
+        a.app_type,
+        a.version,
+        a.ccod_version,
+        a.base_path,
+        a.create_time,
+        a.update_time,
+        a.create_reason,
+        a.`comment`,
+        a.version_control,
+        a.version_control_url,
+        aip.app_id AS aip_app_id,
+        aip.create_time AS aip_create_time,
+        aip.deploy_path AS aip_deploy_path,
+        aip.file_name AS aip_file_name,
+        aip.ext AS aip_ext,
+        aip.md5 AS aip_md5,
+        aip.nexus_asset_id AS aip_nexus_asset_id,
+        aip.nexus_directory AS aip_nexus_directory,
+        aip.nexus_repository AS aip_nexus_repository,
+        aip.package_id AS aip_package_id,
+        acf.app_id AS acf_app_id,
+        acf.create_time AS acf_create_time,
+        acf.deploy_path AS acf_deploy_path,
+        acf.file_name AS acf_file_name,
+        acf.ext AS acf_ext,
+        acf.md5 AS acf_md5,
+        acf.nexus_asset_id AS acf_nexus_asset_id,
+        acf.nexus_directory AS acf_nexus_directory,
+        acf.nexus_repository AS acf_nexus_repository,
+        acf.cfg_file_id AS acf_cfg_file_id,
+        pacf.platform_app_id AS pacf_platform_app_id,
+        pacf.create_time AS pacf_create_time,
+        pacf.deploy_path AS pacf_deploy_path,
+        pacf.file_name AS pacf_file_name,
+        pacf.ext AS pacf_ext,
+        pacf.md5 AS pacf_md5,
+        pacf.nexus_asset_id AS pacf_nexus_asset_id,
+        pacf.nexus_directory AS pacf_nexus_directory,
+        pacf.nexus_repository AS pacf_nexus_repository,
+        pacf.cfg_file_id AS pacf_cfg_file_id
+        FROM
+        platform_app pa
+        INNER JOIN platform pf ON pa.platform_id = pf.platform_id and pf.`status` = 1
+        INNER JOIN domain dm ON pa.domain_id = dm.domain_id and dm.`status` = 1
+        INNER JOIN SERVER svr ON pa.server_id = svr.server_id and svr.`status` = 1
+        INNER JOIN server_user sur ON pa.runner_id = sur.user_id
+        INNER JOIN app a ON pa.app_id = a.app_id
+        INNER JOIN app_install_package aip ON a.app_id = aip.app_id
+        INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
+        INNER JOIN platform_app_cfg_file pacf ON pacf.platform_app_id = pa.platform_app_id
+        where 1=1
+        <if test="appType!=null">
+            And a.app_type=#{appType,jdbcType=VARCHAR}
+        </if>
+        <if test="appName!=null">
+            And a.app_name=#{appName,jdbcType=VARCHAR}
+        </if>
+        <if test="appAlias!=null">
+            And a.app_alias=#{appAlias,jdbcType=VARCHAR}
+        </if>
+        <if test="version!=null">
+            And a.version=#{version,jdbcType=VARCHAR}
+        </if>
+    </select>
+</mapper>

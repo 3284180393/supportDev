@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformAppCfgFileMapper" >
-    <resultMap id="AppCfgFileMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo" >
+    <resultMap id="PlatformAppCfgFileMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo" >
         <id column="cfg_file_id" property="cfgFileId" jdbcType="INTEGER" />
         <result column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="file_name" property="fileName" jdbcType="VARCHAR" />
@@ -14,49 +14,49 @@
         <result column="md5" property="md5" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        acf.cfg_file_id, acf.app_id, acf.file_name, acf.ext, acf.deploy_path, acf.nexus_repository, acf.nexus_directory, acf.nexus_asset_id, acf.create_time, acf.md5
+        pacf.cfg_file_id, pacf.platform_app_id, pacf.file_name, pacf.ext, pacf.deploy_path, pacf.nexus_repository, pacf.nexus_directory, pacf.nexus_asset_id, pacf.create_time, pacf.md5
     </sql>
-    <select id="selectByPrimaryKey" resultMap="AppCfgFileMap" parameterType="java.lang.Integer">
+    <select id="selectByPrimaryKey" resultMap="PlatformAppCfgFileMap" parameterType="java.lang.Integer">
         select
         <include refid="Base_Column_List" />
-        from app_cfg_file acf
-        where acf.cfg_file_id=#{cfgFileId,jdbcType=INTEGER}
+        from platform_app_cfg_file pacf
+        where pacf.cfg_file_id=#{cfgFileId,jdbcType=INTEGER}
     </select>
-    <select id="select" resultMap="AppCfgFileMap" >
+    <select id="select" resultMap="PlatformAppCfgFileMap" >
         select
         <include refid="Base_Column_List" />
-        from app_cfg_file acf
+        from platform_app_cfg_file pacf
         where 1=1
-        <if test="appId!=null">
-            And acf.app_id=#{appId,jdbcType=INTEGER}
+        <if test="platformAppId!=null">
+            And pacf.platform_app_id=#{platformAppId,jdbcType=INTEGER}
         </if>
     </select>
-    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo"
             useGeneratedKeys="true" keyProperty="cfgFileId">
-        insert into app_cfg_file(app_id, file_name, ext, deploy_path, nexus_repository, nexus_directory, nexus_asset_id, create_time, md5)
-        values (#{appId,jdbcType=VARCHAR}, #{fileName,jdbcType=VARCHAR}, #{ext,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{nexusRepository,jdbcType=VARCHAR}, #{nexusDirectory,jdbcType=VARCHAR}, #{nexusAssetId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{md5,jdbcType=VARCHAR})
+        insert into platform_app_cfg_file(platform_app_id, file_name, ext, deploy_path, nexus_repository, nexus_directory, nexus_asset_id, create_time, md5)
+        values (#{platformAppId,jdbcType=VARCHAR}, #{fileName,jdbcType=VARCHAR}, #{ext,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{nexusRepository,jdbcType=VARCHAR}, #{nexusDirectory,jdbcType=VARCHAR}, #{nexusAssetId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{md5,jdbcType=VARCHAR})
     </insert>
-    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo" >
-        update app_cfg_file set
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo" >
+        update platform_app_cfg_file set
         ext = #{ext,jdbcType=VARCHAR},
         deploy_path = #{deployPath,jdbcType=VARCHAR},
         nexus_repository = #{nexusRepository,jdbcType=VARCHAR},
         nexus_directory = #{nexusDirectory,jdbcType=VARCHAR},
         nexus_asset_id = #{nexusAssetId,jdbcType=VARCHAR},
         md5 = #{md5,jdbcType=VARCHAR}
-        where app_cfg_file = #{cfgFileId,jdbcType=INTEGER}
+        where cfg_file_id = #{cfgFileId,jdbcType=INTEGER}
     </update>
     <delete id="delete">
         delete
-        from app_cfg_file acf
+        from platform_app_cfg_file
         where 1=1
         <if test="cfgFileId!=null">
             And
-            acf.cfg_file_id=#{cfgFileId,jdbcType=INTEGER}
+            cfg_file_id=#{cfgFileId,jdbcType=INTEGER}
         </if>
-        <if test="appId!=null">
+        <if test="platformAppId!=null">
             And
-            acf.app_id=#{appId,jdbcType=INTEGER}
+            platform_app_id=#{platformAppId,jdbcType=INTEGER}
         </if>
     </delete>
 </mapper>

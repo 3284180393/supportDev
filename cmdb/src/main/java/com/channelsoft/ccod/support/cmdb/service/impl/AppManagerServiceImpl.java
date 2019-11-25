@@ -73,6 +73,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Autowired
     AppModuleMapper appModuleMapper;
 
+    @Autowired
+    PlatformAppDeployDetailMapper platformAppDeployDetailMapper;
+
     private boolean isPlatformCheckOngoing = false;
 
     private Map<String, NexusComponentPo> appNexusComponentMap = new ConcurrentHashMap<>();
