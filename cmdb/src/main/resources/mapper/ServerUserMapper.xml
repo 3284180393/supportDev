@@ -2,13 +2,13 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.channelsoft.ccod.support.cmdb.dao.ServerUserMapper" >
     <resultMap id="ServerUserMap" type="com.channelsoft.ccod.support.cmdb.po.ServerUserPo" >
-        <id column="domain_id" property="domainId" jdbcType="VARCHAR" />
-        <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
-        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
-        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
-        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
-        <result column="status" property="status" jdbcType="INTEGER" />
+        <id column="user_id" property="userId" jdbcType="INTEGER" />
+        <result column="user_name" property="userName" jdbcType="VARCHAR" />
+        <result column="password" property="password" jdbcType="VARCHAR" />
+        <result column="server_id" property="serverId" jdbcType="INTEGER" />
+        <result column="login_method" property="loginMethod" jdbcType="INTEGER" />
         <result column="comment" property="comment" jdbcType="VARCHAR" />
+        <result column="ssh_port" property="sshPort" jdbcType="INTEGER" />
     </resultMap>
     <sql id="Base_Column_List" >
         sur.user_id, sur.user_name, sur.`password`, sur.server_id, sur.login_method, sur.`comment`, sur.ssh_port
@@ -16,44 +16,39 @@
     <select id="selectByPrimaryKey" resultMap="ServerUserMap" parameterType="java.lang.String">
         select
         <include refid="Base_Column_List" />
-        from domain dm
-        where dm.domain_id=#{domainId,jdbcType=VARCHAR}
+        from server_user sur
+        where sur.user_id=#{userId,jdbcType=INTEGER}
     </select>
     <select id="select" resultMap="ServerUserMap" >
         select
         <include refid="Base_Column_List" />
-        from domain dm
+        from server_user sur
         where 1=1
-        <if test="platformId!=null">
-            And dm.platform_id=#{platformId,jdbcType=INTEGER}
-        </if>
-        <if test="status!=null">
-            And dm.status=#{status,jdbcType=INTEGER}
+        <if test="serverId!=null">
+            And sur.server_id=#{serverId,jdbcType=INTEGER}
         </if>
     </select>
-    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.ServerUserPo">
-        insert into domain(domain_id, domain_name, platform_id, create_time, update_time, `status`, `comment`)
-        values (#{domainId,jdbcType=VARCHAR}, #{domainName,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{comment,jdbcType=VARCHAR})
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.ServerUserPo"
+            useGeneratedKeys="true" keyProperty="userId">
+        insert into server_user(user_name, `password`, server_id, login_method, `comment`, ssh_port)
+        values (#{userName,jdbcType=VARCHAR}, #{password,jdbcType=VARCHAR}, #{serverId,jdbcType=INTEGER}, #{loginMethod,jdbcType=INTEGER}, #{comment,jdbcType=VARCHAR}, #{sshPort,jdbcType=INTEGER})
     </insert>
     <delete id="delete">
         delete
         from domain
         where 1=1
-        <if test="domainId!=VARCHAR">
+        <if test="userId!=null">
             And
-            domain_id=#{domainId,jdbcType=VARCHAR}
+            user_id=#{domainId,jdbcType=INTEGER}
         </if>
-        <if test="platformId!=VARCHAR">
+        <if test="serverId!=null">
             And
-            platform_id=#{platformId,jdbcType=VARCHAR}
+            server_id=#{serverId,jdbcType=INTEGER}
         </if>
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.ServerUserPo" >
-        update domain set
-            domain_name = #{domainName,jdbcType=VARCHAR},
-            status = #{status,jdbcType=INTEGER},
-            comment = #{comment,jdbcType=VARCHAR},
-            update_time = #{updateTime,jdbcType=TIMESTAMP}
-        where domain_id = #{domainId,jdbcType=VARCHAR}
+        update server_user set
+            password = #{password,jdbcType=VARCHAR}
+        where user_id = #{userId,jdbcType=VARCHAR}
   </update>
 </mapper>

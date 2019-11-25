@@ -120,4 +120,5 @@ public class AppPo {
     public void setComment(String comment) {
         this.comment = comment;
     }
+
 }

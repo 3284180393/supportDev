@@ -83,14 +83,11 @@ CREATE TABLE `server` (
 
 DROP TABLE IF EXISTS `server_user`;
 CREATE TABLE `server_user` (
-	`user_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '服务器用户id,主键数据库自动生成',
+    `user_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '服务器用户id,主键数据库自动生成',
   `user_name` varchar(40) NOT NULL COMMENT '用户名',
   `password` varchar(40) NOT NULL COMMENT '登录密码',
   `server_id` int(11) NOT NULL COMMENT '服务器id,外键server表主键',
   `login_method` tinyint(2) not null default 1 COMMENT '登录方式,1、ssh',
-  `server_type` tinyint(2) not null default 1 COMMENT '服务器类型,1、linux服务器,2、windows服务器',
-  `platform_id` varchar(40) NOT NULL COMMENT '平台id,外键platform表主键',
-  `domain_id` varchar(40) NOT NULL COMMENT '域id,外键domain表主键',
   `comment` varchar(255) DEFAULT NULL COMMENT '备注',
   `ssh_port` int(11) COMMENT '如果登录方式为ssh对应的ssh端口',
   PRIMARY KEY (`user_id`)

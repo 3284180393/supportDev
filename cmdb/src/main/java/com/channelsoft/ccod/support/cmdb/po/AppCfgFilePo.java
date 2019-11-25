@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import com.gitee.sunchenbin.mybatis.actable.annotation.Column;
 import com.gitee.sunchenbin.mybatis.actable.annotation.Table;
 import com.gitee.sunchenbin.mybatis.actable.command.BaseModel;
@@ -35,6 +36,23 @@ public class AppCfgFilePo extends BaseModel {
     private Date createTime; //该文件在nexus的创建时间
 
     private String md5; //该配置文件的md5特征值
+
+    public AppCfgFilePo()
+    {}
+
+    public AppCfgFilePo(int appId, DeployFileInfo cfgFileInfo)
+    {
+        this.appId = appId;
+        this.nexusAssetId = cfgFileInfo.getNexusAssetId();
+        this.fileName = cfgFileInfo.getFileName();
+        this.fileType = cfgFileInfo.getExt();
+        this.deployPath = cfgFileInfo.getDeployPath();
+        this.nexusAssetId = cfgFileInfo.getNexusAssetId();
+        this.nexusDirectory = cfgFileInfo.getNexusDirectory();
+        this.nexusRepository = cfgFileInfo.getNexusRepository();
+        this.createTime = new Date();
+        this.md5 = cfgFileInfo.getFileMd5();
+    }
 
     public int getCfgFileId() {
         return cfgFileId;

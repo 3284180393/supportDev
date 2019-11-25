@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
+import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
@@ -77,7 +78,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     private String appDirectoryFmt = "/%s/%s/%s/";
 
-    private String appCfgDirectoryFmt = "/%s/%s/%s/%s/%s/%s/";
+    private String appCfgDirectoryFmt = "/%s/%s/%s/%s/%s%s/";
 
     private String domainKeyFmt = "%s/%s";
 
@@ -91,10 +92,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
         try
         {
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-            this.appMapper.selectByPrimaryKey(1);
-            this.appMapper.select(null, null, null, null);
+//            this.appMapper.selectByPrimaryKey(1);
+//            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
-//            this.startCollectPlatformAppData("shltPA", null, null, null, null);
+            this.startCollectPlatformAppData("shltPA", null, null, null, null);
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         }
         catch (Exception ex)
@@ -263,8 +264,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
         String cfgDirectory = String.format(this.appCfgDirectoryFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
                 module.getModuleName(), module.getModuleAliasName(), module.getBasePath());
+        logger.debug(String.format("handle [%s] platform app module : appDirectory=%s and cfgDirectory=%s",
+                module.toString(), appDirectory, cfgDirectory));
+        AppPo appPo = module.getAppInfo();
         if(appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory)) {
-            AppPo appPo = appMap.get(appDirectory);
             Map<String, NexusAssetInfo> fileAssetMap = appFileAssetMap.get(appDirectory);
             //检查应用的配置文件数是否和保存的同版本相同
             if (fileAssetMap.size() != module.getCfgs().length + 1) {
@@ -297,35 +300,22 @@ public class AppManagerServiceImpl implements IAppManagerService {
         else if(!appMap.containsKey(appDirectory) && !appFileAssetMap.containsKey(appDirectory))
         {
             //上传应用安装包以及配置文件到nexus
-            List<DeployFileInfo> files = new ArrayList<>();
-            files.add(module.getInstallPackage());
-            files.addAll(Arrays.asList(module.getCfgs()));
-            try
-            {
-                Map<String, Map<String, NexusAssetInfo>> theMap = this.nexusService.uploadRawComponent(this.appRepository, appDirectory, files.toArray(new DeployFileInfo[0]));
-                appFileAssetMap.clear();
-                for(String key : theMap.keySet())
-                {
-                    appFileAssetMap.put(key, theMap.get(key));
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.error(String.format("upload files to %s at %s FAIL", appDirectory, appRepository), ex);
-                return false;
-            }
+            addAppToNexusAndDB(appPo, module.getInstallPackage(), module.getCfgs(), appRepository, appDirectory);
+            appMap.put(appDirectory, appPo);
         }
         else
         {
             logger.error("data of db not mush as nexus");
             return false;
         }
+        appPo = appMap.get(appDirectory);
         //上传平台应用配置文件到nexus
         this.nexusService.uploadRawComponent(this.platformAppCfgRepository, cfgDirectory, module.getCfgs());
         PlatformPo platformPo = module.getPlatform();
         String platformId = platformPo.getPlatformId();
         if(!platformMap.containsKey(platformId))
         {
+            platformPo.setCcodVersion("4.5");
             this.platformMapper.insert(platformPo);
             platformMap.put(platformId, platformPo);
         }
@@ -365,13 +355,38 @@ public class AppManagerServiceImpl implements IAppManagerService {
             userMap.put(serverUserKey, userPo);
         }
         userPo = userMap.get(serverUserKey);
-        PlatformAppPo appPo = module.getPlatformApp();
-        appPo.setAppId(appMap.get(appDirectory).getAppId());
-        appPo.setServerId(serverPo.getServerId());
-        appPo.setRunnerId(userPo.getUserId());
-        this.platformAppMapper.insert(appPo);
+        PlatformAppPo platformApp = module.getPlatformApp();
+        platformApp.setAppId(appPo.getAppId());
+        platformApp.setServerId(serverPo.getServerId());
+        platformApp.setRunnerId(userPo.getUserId());
+        this.platformAppMapper.insert(platformApp);
+        logger.debug(String.format("[%s] platform app module handle SUCCES", module.toString()));
         return true;
     }
+
+
+    private void addAppToNexusAndDB(AppPo app, DeployFileInfo installPackage, DeployFileInfo[] cfgs, String repository, String directory) throws Exception
+    {
+        logger.debug(String.format("prepare to upload appName=%s and appAlias=%s and version=%s app upload to directory=%s at repository=%s",
+                app.getAppName(), app.getAppAlias(), app.getVersion(), directory, repository));
+        List<DeployFileInfo> uploadFiles = new ArrayList<>();
+        uploadFiles.add(installPackage);
+        uploadFiles.addAll(Arrays.asList(cfgs));
+        this.nexusService.uploadRawComponent(repository, directory, uploadFiles.toArray(new DeployFileInfo[0]));
+        logger.debug(String.format("prepare to add appName=%s and appAlias=%s and version=%s app info to database",
+                app.getAppName(), app.getAppAlias(), app.getVersion()));
+        app.setAppType(AppType.CCOD_KERNEL_MODULE.name);
+        app.setCcodVersion("4.5");
+        this.appMapper.insert(app);
+        AppInstallPackagePo instPkgPo = new AppInstallPackagePo(app.getAppId(), installPackage);
+        this.appInstallPackageMapper.insert(instPkgPo);
+        for(DeployFileInfo cfg : cfgs)
+        {
+            AppCfgFilePo cfgFilePo = new AppCfgFilePo(app.getAppId(), cfg);
+            this.appCfgFileMapper.insert(cfgFilePo);
+        }
+    }
+
 
     private Map<String, Map<String, NexusAssetInfo>> uploadAppComponent(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception
     {

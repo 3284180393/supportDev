@@ -18,9 +18,15 @@ public class NexusAssetInfo {
 
     private String format; //nexus api返回的asset信息中的format
 
-    private String md5; //nexus api返回的asset信息中的md5
+    private Checksum checksum; //文件特征值
 
-    private String sha1; //nexus api返回的asset信息中的sha1
+    public Checksum getChecksum() {
+        return checksum;
+    }
+
+    public void setChecksum(Checksum checksum) {
+        this.checksum = checksum;
+    }
 
     public String getDownloadUrl() {
         return downloadUrl;
@@ -63,18 +69,8 @@ public class NexusAssetInfo {
     }
 
     public String getMd5() {
-        return md5;
+        return this.checksum != null ? this.checksum.md5 : null;
     }
 
-    public void setMd5(String md5) {
-        this.md5 = md5;
-    }
 
-    public String getSha1() {
-        return sha1;
-    }
-
-    public void setSha1(String sha1) {
-        this.sha1 = sha1;
-    }
 }

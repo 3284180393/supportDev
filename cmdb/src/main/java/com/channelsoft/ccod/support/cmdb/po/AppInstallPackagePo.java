@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
+
 import java.util.Date;
 
 /**
@@ -29,6 +31,23 @@ public class AppInstallPackagePo {
     private Date createTime; //该文件在nexus的创建时间
 
     private String md5; //该安装包的md5特征值
+
+    public AppInstallPackagePo()
+    {}
+
+    public AppInstallPackagePo(int appId, DeployFileInfo packageInfo)
+    {
+        this.appId = appId;
+        this.nexusAssetId = packageInfo.getNexusAssetId();
+        this.fileName = packageInfo.getFileName();
+        this.fileType = packageInfo.getExt();
+        this.deployPath = packageInfo.getDeployPath();
+        this.nexusAssetId = packageInfo.getNexusAssetId();
+        this.nexusDirectory = packageInfo.getNexusDirectory();
+        this.nexusRepository = packageInfo.getNexusRepository();
+        this.createTime = new Date();
+        this.md5 = packageInfo.getFileMd5();
+    }
 
     public int getPackageId() {
         return packageId;

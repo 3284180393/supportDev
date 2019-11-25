@@ -82,8 +82,6 @@ public class NexusServiceImpl implements INexusService {
 
     private String downloadUrlFmt = "%s/%s/%s";
 
-    private String platformAppCfgDirectoryFmt = "%s/%s/%s/%s/%s/%s/%s/%d";
-
     @Value("${nexus.platform_app_cfg_repository}")
     private String platformAppCfgRepository;
 
@@ -106,7 +104,7 @@ public class NexusServiceImpl implements INexusService {
                 sourceFilePath, repository, group, fileName, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpPost httppost = new HttpPost(url);
-        httppost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+        httppost.addHeader("Authorization", getBasicAuthPropValue());
         List<NameValuePair> nvps = new ArrayList<NameValuePair>();
         nvps.add(new BasicNameValuePair("raw.directory", group));
         nvps.add(new BasicNameValuePair("raw.asset1", sourceFilePath));
@@ -134,7 +132,7 @@ public class NexusServiceImpl implements INexusService {
         logger.debug(String.format("begin to query id=%s component info, queryUrl=%s", componentId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+        httpGet.addHeader("Authorization", getBasicAuthPropValue());
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -160,7 +158,7 @@ public class NexusServiceImpl implements INexusService {
         logger.debug(String.format("begin to query id=%s asset info, queryUrl=%s", assetId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+        httpGet.addHeader("Authorization", getBasicAuthPropValue());
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 422)
         {
@@ -187,7 +185,7 @@ public class NexusServiceImpl implements INexusService {
                 repository, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+        httpGet.addHeader("Authorization", getBasicAuthPropValue());
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -210,10 +208,10 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public Map<String, Map<String, NexusAssetInfo>> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
-        String url = String.format(this.uploadRawUrlFmt, repository);
+        String url = String.format(this.uploadRawUrlFmt, this.nexusHostUrl, repository);
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpPost httpPost = new HttpPost(url);
-        httpPost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+        httpPost.addHeader("Authorization", getBasicAuthPropValue());
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.setCharset(java.nio.charset.Charset.forName("UTF-8"));
         builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
@@ -285,7 +283,7 @@ public class NexusServiceImpl implements INexusService {
         logger.debug(String.format("begin to query all components of repository=%s", repository));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
+        httpGet.addHeader("Authorization", getBasicAuthPropValue());
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -435,7 +433,7 @@ public class NexusServiceImpl implements INexusService {
             {
                 String[] arr = assetInfo.getPath().split("/");
                 String fileName = arr[arr.length - 1];
-                String directory = "/" + assetInfo.getPath().replace(fileName, "");
+                String directory = "/" + assetInfo.getPath().replaceAll(fileName + "$", "");
                 if(!storeAssetMap.containsKey(directory))
                 {
                     storeAssetMap.put(directory, new HashMap<>());
@@ -473,9 +471,7 @@ public class NexusServiceImpl implements INexusService {
             savedFullPath += savedFullPath + "/" + fileName;
             URL url = new URL(downloadUrl);
             uc = (HttpURLConnection) url.openConnection();
-            String input = this.userName + ":" + this.password;
-            String encoding = new sun.misc.BASE64Encoder().encode(input.getBytes());
-            uc.setRequestProperty("Authorization", "Basic " + encoding);
+            uc.setRequestProperty("Authorization", getBasicAuthPropValue());
 //            uc.connect();
             uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
             uc.connect();
@@ -517,6 +513,12 @@ public class NexusServiceImpl implements INexusService {
             }
         }
 
+    }
+
+    private String getBasicAuthPropValue()
+    {
+        String input = this.userName + ":" + this.password;
+        return "Basic " + (new sun.misc.BASE64Encoder().encode(input.getBytes()));
     }
 
     @Test
@@ -679,4 +681,20 @@ public class NexusServiceImpl implements INexusService {
         }
     }
 
+    @Test
+    public void queryMapTest()
+    {
+        try
+        {
+            String repository = "ccod_modules";
+            this.nexusHostUrl = "http://10.130.41.216:8081";
+            this.userName = "admin";
+            this.password = "123456";
+            this.queryRepositoryAssetRelationMap(repository);
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
 }

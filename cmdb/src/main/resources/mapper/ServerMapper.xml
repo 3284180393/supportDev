@@ -35,7 +35,8 @@
             And dm.status=#{status,jdbcType=INTEGER}
         </if>
     </select>
-    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.ServerPo">
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.ServerPo"
+            useGeneratedKeys="true" keyProperty="serverId">
         insert into server(host_name, host_ip, server_type, platform_id, domain_id, `status`, `comment`)
         values (#{hostname,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{serverType,jdbcType=INTEGER}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{status,jdbcType=INTEGER}, #{comment,jdbcType=VARCHAR})
     </insert>
