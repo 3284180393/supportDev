@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.dao.*;
@@ -7,9 +8,7 @@ import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
-import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
-import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
-import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
+import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +101,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
 //            this.startCollectPlatformAppData("shltPA", null, null, null, null);
-            this.appModuleMapper.select("jj","aa", "bb", "kk");
+//            this.appModuleMapper.select("jj","aa", "bb", "kk");
+            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
+                    "55", "66", "77", "88");
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -479,4 +480,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
         return appFileAssetMap;
     }
 
+    @Override
+    public PlatformAppDeployDetailVo[] queryPlatformAppDeploy(QueryEntity queryEntity) throws Exception {
+        logger.debug(String.format("begin to query queryPlatformAppDeploy, queryEntity=%s",
+                JSONObject.toJSONString(queryEntity)));
+        List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.select(queryEntity.platformId, queryEntity.domainId,
+                queryEntity.hostIP, queryEntity.hostname, queryEntity.appType, queryEntity.appName, queryEntity.appAlias, queryEntity.version);
+        return list.toArray(new PlatformAppDeployDetailVo[0]);
+    }
 }

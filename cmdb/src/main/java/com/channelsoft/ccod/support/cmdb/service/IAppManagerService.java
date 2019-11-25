@@ -5,7 +5,9 @@ import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
+import com.channelsoft.ccod.support.cmdb.vo.PlatformAppDeployDetailVo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
+import com.channelsoft.ccod.support.cmdb.vo.QueryEntity;
 
 /**
  * @ClassName: IAppManagerService
@@ -117,5 +119,13 @@ public interface IAppManagerService {
      * @throws Exception
      */
     PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception;
+
+    /**
+     * 查询平台应用部署情况
+     * @param queryEntity 查询条件实体类
+     * @return 查询结果
+     * @throws Exception
+     */
+    PlatformAppDeployDetailVo[] queryPlatformAppDeploy(QueryEntity queryEntity) throws Exception;
 
 }
