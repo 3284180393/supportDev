@@ -17,6 +17,10 @@ public class PlatformAppCfgFilePo {
 
     private String fileName; //配置文件名
 
+    private String ext; //安装包类型，例如zip,tar,war,binary等,由FileType枚举预定义
+
+    private String deployPath; //文件存放路径,可以是相对app的base path的相对路径,
+
     private String nexusRepository; //保存在nexus的仓库名
 
     private String nexusDirectory; //保存在nexus的路径
@@ -89,5 +93,21 @@ public class PlatformAppCfgFilePo {
 
     public void setMd5(String md5) {
         this.md5 = md5;
+    }
+
+    public String getExt() {
+        return ext;
+    }
+
+    public void setExt(String ext) {
+        this.ext = ext;
+    }
+
+    public String getDeployPath() {
+        return deployPath;
+    }
+
+    public void setDeployPath(String deployPath) {
+        this.deployPath = deployPath;
     }
 }

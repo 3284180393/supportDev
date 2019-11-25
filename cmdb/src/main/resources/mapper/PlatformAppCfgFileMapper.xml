@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper" >
-    <resultMap id="AppInstallPackageMap" type="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo" >
-        <id column="package_id" property="packageId" jdbcType="INTEGER" />
-        <result column="app_id" property="appId" jdbcType="INTEGER" />
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformAppCfgFileMapper" >
+    <resultMap id="AppCfgFileMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo" >
+        <id column="cfg_file_id" property="cfgFileId" jdbcType="INTEGER" />
+        <result column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="file_name" property="fileName" jdbcType="VARCHAR" />
         <result column="ext" property="ext" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
@@ -14,40 +14,49 @@
         <result column="md5" property="md5" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        aip.package_id, aip.app_id, aip.file_name, aip.ext, aip.deploy_path, aip.nexus_repository, aip.nexus_directory, aip.nexus_asset_id, aip.create_time, aip.md5
+        acf.cfg_file_id, acf.app_id, acf.file_name, acf.ext, acf.deploy_path, acf.nexus_repository, acf.nexus_directory, acf.nexus_asset_id, acf.create_time, acf.md5
     </sql>
-    <select id="selectByPrimaryKey" resultMap="AppInstallPackageMap" parameterType="java.lang.Integer">
+    <select id="selectByPrimaryKey" resultMap="AppCfgFileMap" parameterType="java.lang.Integer">
         select
         <include refid="Base_Column_List" />
-        from app_install_package aip
-        where aip.package_id=#{packageId,jdbcType=INTEGER}
+        from app_cfg_file acf
+        where acf.cfg_file_id=#{cfgFileId,jdbcType=INTEGER}
     </select>
-    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
-            useGeneratedKeys="true" keyProperty="packageId">
-        insert into app_install_package(app_id, file_name, ext, deploy_path, nexus_repository, nexus_directory, nexus_asset_id, create_time, md5)
+    <select id="select" resultMap="AppCfgFileMap" >
+        select
+        <include refid="Base_Column_List" />
+        from app_cfg_file acf
+        where 1=1
+        <if test="appId!=null">
+            And acf.app_id=#{appId,jdbcType=INTEGER}
+        </if>
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
+            useGeneratedKeys="true" keyProperty="cfgFileId">
+        insert into app_cfg_file(app_id, file_name, ext, deploy_path, nexus_repository, nexus_directory, nexus_asset_id, create_time, md5)
         values (#{appId,jdbcType=VARCHAR}, #{fileName,jdbcType=VARCHAR}, #{ext,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{nexusRepository,jdbcType=VARCHAR}, #{nexusDirectory,jdbcType=VARCHAR}, #{nexusAssetId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{md5,jdbcType=VARCHAR})
     </insert>
-    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo" >
-        update app_install_package set
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo" >
+        update app_cfg_file set
         ext = #{ext,jdbcType=VARCHAR},
         deploy_path = #{deployPath,jdbcType=VARCHAR},
         nexus_repository = #{nexusRepository,jdbcType=VARCHAR},
         nexus_directory = #{nexusDirectory,jdbcType=VARCHAR},
         nexus_asset_id = #{nexusAssetId,jdbcType=VARCHAR},
         md5 = #{md5,jdbcType=VARCHAR}
-        where package_id = #{packageId,jdbcType=INTEGER}
+        where app_cfg_file = #{cfgFileId,jdbcType=INTEGER}
     </update>
     <delete id="delete">
         delete
-        from app_install_package aip
+        from app_cfg_file acf
         where 1=1
-        <if test="packageId!=null">
+        <if test="cfgFileId!=null">
             And
-            aip.packageId=#{packageId,jdbcType=INTEGER}
+            acf.cfg_file_id=#{cfgFileId,jdbcType=INTEGER}
         </if>
         <if test="appId!=null">
             And
-            aip.appId=#{appId,jdbcType=INTEGER}
+            acf.app_id=#{appId,jdbcType=INTEGER}
         </if>
     </delete>
 </mapper>

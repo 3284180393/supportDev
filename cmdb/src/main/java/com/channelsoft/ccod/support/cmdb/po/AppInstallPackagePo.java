@@ -18,7 +18,7 @@ public class AppInstallPackagePo {
 
     private String fileName; //安装包文件名
 
-    private String fileType; //安装包类型，例如zip,tar,war,binary等,由FileType枚举预定义
+    private String ext; //安装包类型，例如zip,tar,war,binary等,由FileType枚举预定义
 
     private String deployPath; //文件存放路径,可以是相对app的base path的相对路径,
 
@@ -40,7 +40,7 @@ public class AppInstallPackagePo {
         this.appId = appId;
         this.nexusAssetId = packageInfo.getNexusAssetId();
         this.fileName = packageInfo.getFileName();
-        this.fileType = packageInfo.getExt();
+        this.ext = packageInfo.getExt();
         this.deployPath = packageInfo.getDeployPath();
         this.nexusAssetId = packageInfo.getNexusAssetId();
         this.nexusDirectory = packageInfo.getNexusDirectory();
@@ -73,12 +73,12 @@ public class AppInstallPackagePo {
         this.fileName = fileName;
     }
 
-    public String getFileType() {
-        return fileType;
+    public String getExt() {
+        return ext;
     }
 
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
+    public void setExt(String ext) {
+        this.ext = ext;
     }
 
     public String getDeployPath() {

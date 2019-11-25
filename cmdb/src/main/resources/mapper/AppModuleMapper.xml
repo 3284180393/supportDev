@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.channelsoft.ccod.support.cmdb.dao.AppModuleMapper" >
-    <resultMap id="AppMap" type="com.channelsoft.ccod.support.cmdb.vo.AppModuleVo" >
+    <resultMap id="AppModuleMap" type="com.channelsoft.ccod.support.cmdb.vo.AppModuleVo" >
         <id column="app_id" property="appId" jdbcType="INTEGER" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
         <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
@@ -15,8 +15,18 @@
         <result column="comment" property="comment" jdbcType="VARCHAR" />
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
+        <association property="installPackage"
+                    javaType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
+                    columnPrefix="aip_">
+        </association>
+        <collection property="cfgs"
+                    ofType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
+                    columnPrefix="acf_">
+        </collection>
     </resultMap>
-    <select id="select" resultMap="AppMap" >
+    <select id="select" resultMap="AppModuleMap" >
         SELECT
             a.app_id,
             a.app_name,
@@ -35,7 +45,7 @@
             aip.create_time AS aip_create_time,
             aip.deploy_path AS aip_deploy_path,
             aip.file_name AS aip_file_name,
-            aip.file_type AS aip_file_type,
+            aip.ext AS aip_ext,
             aip.md5 AS aip_md5,
             aip.nexus_asset_id AS aip_nexus_asset_id,
             aip.nexus_directory AS aip_nexus_directory,
@@ -45,7 +55,7 @@
             acf.create_time AS acf_create_time,
             acf.deploy_path AS acf_deploy_path,
             acf.file_name AS acf_file_name,
-            acf.file_type AS acf_file_type,
+            acf.ext AS acf_ext,
             acf.md5 AS acf_md5,
             acf.nexus_asset_id AS acf_nexus_asset_id,
             acf.nexus_directory AS acf_nexus_directory,

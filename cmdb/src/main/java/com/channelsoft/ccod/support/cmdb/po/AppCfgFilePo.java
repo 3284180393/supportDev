@@ -23,7 +23,7 @@ public class AppCfgFilePo extends BaseModel {
 
     private String fileName; //配置文件名
 
-    private String fileType; //配置文件类型，例如zip,tar,war,binary等,由FileType枚举预定义
+    private String ext; //配置文件类型，例如zip,tar,war,binary等,由FileType枚举预定义
 
     private String deployPath; //文件存放路径,可以是相对app的base path的相对路径也可以是绝对路径
 
@@ -45,7 +45,7 @@ public class AppCfgFilePo extends BaseModel {
         this.appId = appId;
         this.nexusAssetId = cfgFileInfo.getNexusAssetId();
         this.fileName = cfgFileInfo.getFileName();
-        this.fileType = cfgFileInfo.getExt();
+        this.ext = cfgFileInfo.getExt();
         this.deployPath = cfgFileInfo.getDeployPath();
         this.nexusAssetId = cfgFileInfo.getNexusAssetId();
         this.nexusDirectory = cfgFileInfo.getNexusDirectory();
@@ -126,11 +126,11 @@ public class AppCfgFilePo extends BaseModel {
         this.md5 = md5;
     }
 
-    public String getFileType() {
-        return fileType;
+    public String getExt() {
+        return ext;
     }
 
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
+    public void setExt(String ext) {
+        this.ext = ext;
     }
 }

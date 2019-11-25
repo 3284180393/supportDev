@@ -340,7 +340,7 @@ public class PlatformAppModuleVo {
             cfgFilePo.setFileName(cfg.getFileName());
             cfgFilePo.setDeployPath(cfg.getDeployPath());
             cfgFilePo.setCreateTime(new Date());
-            cfgFilePo.setFileType(cfg.getExt());
+            cfgFilePo.setExt(cfg.getExt());
             cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
             list.add(cfgFilePo);
         }

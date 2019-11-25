@@ -70,6 +70,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Autowired
     PlatformAppMapper platformAppMapper;
 
+    @Autowired
+    AppModuleMapper appModuleMapper;
+
     private boolean isPlatformCheckOngoing = false;
 
     private Map<String, NexusComponentPo> appNexusComponentMap = new ConcurrentHashMap<>();
@@ -95,8 +98,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            this.appMapper.selectByPrimaryKey(1);
 //            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
-            this.startCollectPlatformAppData("shltPA", null, null, null, null);
+//            this.startCollectPlatformAppData("shltPA", null, null, null, null);
+            this.appModuleMapper.select("jj","aa", "bb", "kk");
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+
         }
         catch (Exception ex)
         {

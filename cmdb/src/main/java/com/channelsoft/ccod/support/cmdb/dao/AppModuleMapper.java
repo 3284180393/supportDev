@@ -21,11 +21,12 @@ public interface AppModuleMapper {
 
     /**
      * 查询指定条件的AppModule，如果某个参数为空,则忽略该参数
+     * @param appType 应用类型
      * @param appName 应用名
      * @param appAlias 应用别名
      * @param version 版本号
      * @return 查询结果
      * @throws DataAccessException
      */
-    List<AppModuleVo> select(@Param("appName")String appName, @Param("appAlias")String appAlias, @Param("version")String version) throws DataAccessException;
+    List<AppModuleVo> select(@Param("appType")String appType, @Param("appName")String appName, @Param("appAlias")String appAlias, @Param("version")String version) throws DataAccessException;
 }
