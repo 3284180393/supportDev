@@ -27,7 +27,13 @@ public class AppModuleVo {
 
     private String version; //应用版本
 
+    private String ccodVersion; //对应的ccod大版本
+
     private Date createTime; //创建时间
+
+    private String createReason; //创建原因
+
+    private Date updateTime; //最后一次修改时间
 
     private VersionControl versionControl; //版本控制方式
 
@@ -38,6 +44,8 @@ public class AppModuleVo {
     private AppInstallPackagePo installPackage; //应用部署包
 
     private AppCfgFilePo[] cfgs; //应用配置文件
+
+    private String comment; //备注
 
     public int getAppId() {
         return appId;
@@ -125,5 +133,38 @@ public class AppModuleVo {
 
     public void setCfgs(AppCfgFilePo[] cfgs) {
         this.cfgs = cfgs;
+    }
+
+
+    public String getCcodVersion() {
+        return ccodVersion;
+    }
+
+    public void setCcodVersion(String ccodVersion) {
+        this.ccodVersion = ccodVersion;
+    }
+
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    public String getCreateReason() {
+        return createReason;
+    }
+
+    public void setCreateReason(String createReason) {
+        this.createReason = createReason;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
     }
 }

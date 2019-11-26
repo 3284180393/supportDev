@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
@@ -70,6 +71,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     PlatformAppMapper platformAppMapper;
 
     @Autowired
+    PlatformAppCfgFileMapper platformAppCfgFileMapper;
+
+    @Autowired
     AppModuleMapper appModuleMapper;
 
     @Autowired
@@ -102,8 +106,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
 //            this.startCollectPlatformAppData("shltPA", null, null, null, null);
 //            this.appModuleMapper.select("jj","aa", "bb", "kk");
-            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
-                    "55", "66", "77", "88");
+//            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
+//                    "55", "66", "77", "88");
+            List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
+            System.out.println(JSONArray.toJSONString(appList));
+            List<PlatformAppDeployDetailVo> deployList = this.platformAppDeployDetailMapper.select(null, null, null,
+                    null, null, null, null, null);
+            System.out.println(JSONArray.toJSONString(deployList));
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -262,7 +271,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.error(String.format("handle FAIL"));
             }
         }
-
     }
 
     private boolean handlePlatformAppModule(PlatformAppModuleVo module, Map<String, AppPo> appMap,
@@ -325,6 +333,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         if(!platformMap.containsKey(platformId))
         {
             platformPo.setCcodVersion("4.5");
+            platformPo.setCreateTime(new Date());
             this.platformMapper.insert(platformPo);
             platformMap.put(platformId, platformPo);
         }
@@ -332,6 +341,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String domainKey = String.format(this.domainKeyFmt, domainPo.getPlatformId(), domainPo.getDomainId());
         if(!domainMap.containsKey(domainKey))
         {
+            domainPo.setCreateTime(new Date());
             this.domainMapper.insert(domainPo);
             domainMap.put(domainKey, domainPo);
         }
@@ -369,7 +379,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
         platformApp.setServerId(serverPo.getServerId());
         platformApp.setRunnerId(userPo.getUserId());
         this.platformAppMapper.insert(platformApp);
-        logger.debug(String.format("[%s] platform app module handle SUCCES", module.toString()));
+        for(DeployFileInfo cfgFilePo : module.getCfgs())
+        {
+            PlatformAppCfgFilePo po = new PlatformAppCfgFilePo(platformApp.getPlatformAppId(), cfgFilePo);
+            System.out.println("asset_id=" + po.getNexusAssetId());
+            this.platformAppCfgFileMapper.insert(po);
+        }
+        logger.debug(String.format("[%s] platform app module handle SUCCESS", module.toString()));
         return true;
     }
 

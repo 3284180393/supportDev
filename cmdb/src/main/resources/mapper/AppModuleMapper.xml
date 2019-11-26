@@ -16,8 +16,8 @@
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
         <association property="installPackage"
-                    javaType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
-                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
+                    javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppInstallPackageMap"
                     columnPrefix="aip_">
         </association>
         <collection property="cfgs"

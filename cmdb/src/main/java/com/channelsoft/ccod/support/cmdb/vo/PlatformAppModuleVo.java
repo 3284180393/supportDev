@@ -348,6 +348,24 @@ public class PlatformAppModuleVo {
     }
 
 
+    public PlatformAppCfgFilePo[] getPlatformAppCfgFiles()
+    {
+        List<PlatformAppCfgFilePo> list = new ArrayList<>();
+        for(DeployFileInfo cfg : this.cfgs)
+        {
+            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
+            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
+            cfgFilePo.setMd5(cfg.getFileMd5());
+            cfgFilePo.setFileName(cfg.getFileName());
+            cfgFilePo.setDeployPath(cfg.getDeployPath());
+            cfgFilePo.setCreateTime(new Date());
+            cfgFilePo.setExt(cfg.getExt());
+            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
+            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
+            list.add(cfgFilePo);
+        }
+        return list.toArray(new PlatformAppCfgFilePo[0]);
+    }
 
     @Override
     public String toString()
