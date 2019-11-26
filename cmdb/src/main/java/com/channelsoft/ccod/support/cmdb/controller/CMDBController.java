@@ -70,4 +70,21 @@ public class CMDBController {
         }
         return resultPo;
     }
+
+    @RequestMapping("/createPlatformAppDataCollectTask")
+    public AjaxResultPo queryPlatformAppDeploy(String platformId)
+    {
+        AjaxResultPo resultPo;
+        try
+        {
+            this.appManagerService.createNewPlatformAppDataCollectTask(platformId, null,null, null, null);
+            resultPo = new AjaxResultPo(true, "app data task create success");
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("create %s app data collect task exception", platformId), ex);
+            resultPo = AjaxResultPo.failed(ex);
+        }
+        return resultPo;
+    }
 }

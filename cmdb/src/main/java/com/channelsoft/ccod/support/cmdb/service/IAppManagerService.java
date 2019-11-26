@@ -136,4 +136,15 @@ public interface IAppManagerService {
      */
     PlatformAppDeployDetailVo[] queryPlatformAppDeploy(QueryEntity queryEntity) throws Exception;
 
+    /**
+     * 创建一个新的平台应用收集任务
+     * @param platformId 平台id，不能为空
+     * @param domainId 域名，可以为空
+     * @param hostIp 主机名，可以为空
+     * @param appName 应用名，可以为空
+     * @param version 版本号，可以为空
+     * @throws Exception
+     */
+    void createNewPlatformAppDataCollectTask(String platformId, String domainId, String hostIp, String appName, String version) throws Exception;
+
 }

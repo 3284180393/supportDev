@@ -196,12 +196,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startCollectDataInstruction, JSONObject.toJSONString(params),
                 timestamp, nonce);
         String signature = instructionVo.generateSignature(this.shareSecret);
-        boolean verify = instructionVo.verifySignature(this.shareSecret);
-        System.out.println("##########self verfify=" + verify + "#####################");
-        String jsonStr = JSONObject.toJSONString(instructionVo);
-        ActiveMQInstructionVo instrVo = JSONObject.parseObject(jsonStr, ActiveMQInstructionVo.class);
-        verify = instrVo.verifySignature(this.shareSecret);
-        System.out.println("&&&&&&&&&&&&&&&self verfify=" + verify + "&&&&&&&&&&&&&&&&&&&&");
         logger.debug(String.format("start platform app collect instruction msg is %s and signature=%s",
                 JSONObject.toJSONString(instructionVo), signature));
         String instructionTopic = String.format(this.instructionTopicFmt, platformId);

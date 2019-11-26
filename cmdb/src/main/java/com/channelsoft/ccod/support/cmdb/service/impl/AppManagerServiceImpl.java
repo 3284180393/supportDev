@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * @ClassName: AppManagerServiceImpl
@@ -531,5 +533,28 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 queryEntity.appAlias, queryEntity.version);
         logger.debug(String.format("query %d App Module record", list.size()));
         return list.toArray(new AppModuleVo[0]);
+    }
+
+    @Override
+    public void createNewPlatformAppDataCollectTask(String platformId, String domainId, String hostIp, String appName, String version) throws Exception {
+        logger.debug(String.format("begin to create platformId=%s, domainId=%s, hostIp=%s, appName=%s, version=%s app collect task",
+                platformId, domainId, hostIp, appName, version));
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        Thread taskThread = new Thread(new Runnable(){
+            @Override
+            public void run() {
+                try
+                {
+                    startCollectPlatformAppData(platformId, domainId, hostIp, appName, version);
+                }
+                catch (Exception ex)
+                {
+                    logger.error(String.format("start platformId=%s, domainId=%s, hostIp=%s, appName=%s, version=%s app collect task exception",
+                            platformId, domainId, hostIp, appName, version), ex);
+                }
+            }
+        });
+        executor.execute(taskThread);
+        executor.shutdown();
     }
 }
