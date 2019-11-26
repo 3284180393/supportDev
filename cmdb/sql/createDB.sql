@@ -67,7 +67,7 @@ CREATE TABLE `domain` (
   `update_time` datetime DEFAULT NULL COMMENT '修改时间',
   `status` tinyint(2) not null default 1 COMMENT '平台当前状态1、运行中,2、已撤销,3、停运中',
   `comment` varchar(255) DEFAULT NULL COMMENT '备注',
-  PRIMARY KEY (`domain_id`)
+  PRIMARY KEY (`domain_id`, `platform_id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `server`;

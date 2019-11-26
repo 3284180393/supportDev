@@ -25,16 +25,16 @@
                      resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"
                      columnPrefix="aip_">
         </association>
-<!--        <collection property="srcCfgs"-->
-<!--                    ofType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"-->
-<!--                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"-->
-<!--                    columnPrefix="acf_">-->
-<!--        </collection>-->
-<!--        <collection property="cfgs"-->
-<!--                    ofType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo"-->
-<!--                    resultMap="com.channelsoft.ccod.support.cmdb.dao.PlatformAppCfgFileMapper.PlatformAppCfgFileMap"-->
-<!--                    columnPrefix="pacf_">-->
-<!--        </collection>-->
+        <collection property="srcCfgs"
+                    ofType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
+                    columnPrefix="acf_">
+        </collection>
+        <collection property="cfgs"
+                    ofType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.PlatformAppCfgFileMapper.PlatformAppCfgFileMap"
+                    columnPrefix="pacf_">
+        </collection>
     </resultMap>
     <select id="select" resultMap="AppModuleMap" >
         SELECT

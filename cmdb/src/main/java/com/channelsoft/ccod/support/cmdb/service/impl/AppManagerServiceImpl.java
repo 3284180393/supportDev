@@ -40,6 +40,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${nexus.app_module_repository}")
     private String appRepository;
 
+    @Value("${debug}")
+    private boolean debug;
+
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
 
@@ -85,9 +88,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     private final static Logger logger = LoggerFactory.getLogger(AppManagerServiceImpl.class);
 
-    private String appDirectoryFmt = "/%s/%s/%s/";
+    private String appDirectoryFmt = "/%s/%s/%s";
 
-    private String appCfgDirectoryFmt = "/%s/%s/%s/%s/%s%s/";
+    private String appCfgDirectoryFmt = "/%s/%s/%s/%s/%s%s";
 
     private String domainKeyFmt = "%s/%s";
 
@@ -104,15 +107,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            this.appMapper.selectByPrimaryKey(1);
 //            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
-//            this.startCollectPlatformAppData("shltPA", null, null, null, null);
+            this.startCollectPlatformAppData("shltPA", null, null, null, null);
 //            this.appModuleMapper.select("jj","aa", "bb", "kk");
 //            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
 //                    "55", "66", "77", "88");
-            List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
-            System.out.println(JSONArray.toJSONString(appList));
-            List<PlatformAppDeployDetailVo> deployList = this.platformAppDeployDetailMapper.select(null, null, null,
-                    null, null, null, null, null);
-            System.out.println(JSONArray.toJSONString(deployList));
+//            List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
+//            System.out.println(JSONArray.toJSONString(appList));
+//            List<PlatformAppDeployDetailVo> deployList = this.platformAppDeployDetailMapper.select(null, null, null,
+//                    null, null, null, null, null);
+//            System.out.println(JSONArray.toJSONString(deployList));
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -171,6 +174,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         this.isPlatformCheckOngoing = true;
         List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, domainName, hostIp, appName, version);
+        if(debug)
+        {
+            for(PlatformAppModuleVo module : modules)
+            {
+                module.setPlatformId("yg");
+                module.setPlatformName("阳光保险");
+            }
+        }
         handleCollectedPlatformAppModules(modules.toArray(new PlatformAppModuleVo[0]));
 //        this.nexusService.reloadRepositoryComponent(this.appRepository);
 //        for(PlatformAppModuleVo module : modules)
@@ -264,12 +275,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.queryRepositoryAssetRelationMap(this.appRepository);
         for(PlatformAppModuleVo module : modules)
         {
-            boolean handleSucc = handlePlatformAppModule(module, appMap, appFileAssetMap, platformMap, domainMap, serverMap,
-                    serverUserMap);
-            if(!handleSucc)
+            try
             {
-                logger.error(String.format("handle FAIL"));
+                boolean handleSucc = handlePlatformAppModule(module, appMap, appFileAssetMap, platformMap, domainMap, serverMap,
+                        serverUserMap);
+                if(!handleSucc)
+                {
+                    logger.error(String.format("handle [%s] FAIL", module.toString()));
+                }
             }
+            catch (Exception ex)
+            {
+                logger.error(String.format("handle [%s] exception", module.toString()), ex);
+            }
+
         }
     }
 
@@ -503,5 +522,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.select(queryEntity.platformId, queryEntity.domainId,
                 queryEntity.hostIP, queryEntity.hostname, queryEntity.appType, queryEntity.appName, queryEntity.appAlias, queryEntity.version);
         return list.toArray(new PlatformAppDeployDetailVo[0]);
+    }
+
+    @Override
+    public AppModuleVo[] queryAppModules(QueryEntity queryEntity) throws Exception {
+        logger.debug(String.format("begin to queryAppModules : queryEntity=%s", JSONObject.toJSONString(queryEntity)));
+        List<AppModuleVo> list = this.appModuleMapper.select(queryEntity.appType, queryEntity.appName,
+                queryEntity.appAlias, queryEntity.version);
+        logger.debug(String.format("query %d App Module record", list.size()));
+        return list.toArray(new AppModuleVo[0]);
     }
 }

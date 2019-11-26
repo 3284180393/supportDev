@@ -121,6 +121,14 @@ public interface IAppManagerService {
     PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception;
 
     /**
+     * 查询指定条件的应用模块
+     * @param queryEntity 查询条件到的封装集合
+     * @return 查询结果
+     * @throws Exception
+     */
+    AppModuleVo[] queryAppModules(QueryEntity queryEntity) throws Exception;
+
+    /**
      * 查询平台应用部署情况
      * @param queryEntity 查询条件实体类
      * @return 查询结果

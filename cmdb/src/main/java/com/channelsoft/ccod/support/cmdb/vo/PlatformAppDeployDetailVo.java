@@ -7,6 +7,7 @@ import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * @ClassName: PlatformAppDeployDetailVo
@@ -61,9 +62,9 @@ public class PlatformAppDeployDetailVo {
 
     private AppInstallPackagePo installPackage; //应用部署包
 
-    private AppCfgFilePo[] srcCfgs; //原始配置文件
+    private List<AppCfgFilePo> srcCfgs; //原始配置文件
 
-    private PlatformAppCfgFilePo[] cfgs; //应用部署后的配置文件
+    private List<PlatformAppCfgFilePo> cfgs; //应用部署后的配置文件
 
     public int getPlatformAppId() {
         return platformAppId;
@@ -217,19 +218,19 @@ public class PlatformAppDeployDetailVo {
         this.installPackage = installPackage;
     }
 
-    public AppCfgFilePo[] getSrcCfgs() {
+    public List<AppCfgFilePo> getSrcCfgs() {
         return srcCfgs;
     }
 
-    public void setSrcCfgs(AppCfgFilePo[] srcCfgs) {
+    public void setSrcCfgs(List<AppCfgFilePo> srcCfgs) {
         this.srcCfgs = srcCfgs;
     }
 
-    public PlatformAppCfgFilePo[] getCfgs() {
+    public List<PlatformAppCfgFilePo> getCfgs() {
         return cfgs;
     }
 
-    public void setCfgs(PlatformAppCfgFilePo[] cfgs) {
+    public void setCfgs(List<PlatformAppCfgFilePo> cfgs) {
         this.cfgs = cfgs;
     }
 

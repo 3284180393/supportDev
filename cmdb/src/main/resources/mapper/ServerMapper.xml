@@ -3,8 +3,8 @@
 <mapper namespace="com.channelsoft.ccod.support.cmdb.dao.ServerMapper" >
     <resultMap id="ServerMap" type="com.channelsoft.ccod.support.cmdb.po.ServerPo" >
         <id column="server_id" property="serverId" jdbcType="INTEGER" />
-        <result column="host_name" property="domainName" jdbcType="VARCHAR" />
-        <result column="host_ip" property="domainName" jdbcType="VARCHAR" />
+        <result column="host_name" property="hostname" jdbcType="VARCHAR" />
+        <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
         <result column="server_type" property="serverType" jdbcType="INTEGER" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />

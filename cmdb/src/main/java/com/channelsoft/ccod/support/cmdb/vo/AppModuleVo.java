@@ -8,6 +8,7 @@ import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * @ClassName: AppModuleVo
@@ -45,7 +46,7 @@ public class AppModuleVo {
 
     private AppInstallPackagePo installPackage; //应用部署包
 
-    private AppCfgFilePo[] cfgs; //应用配置文件
+    private List<AppCfgFilePo> cfgs; //应用配置文件
 
     public int getAppId() {
         return appId;
@@ -127,14 +128,13 @@ public class AppModuleVo {
         this.installPackage = installPackage;
     }
 
-    public AppCfgFilePo[] getCfgs() {
+    public List<AppCfgFilePo> getCfgs() {
         return cfgs;
     }
 
-    public void setCfgs(AppCfgFilePo[] cfgs) {
+    public void setCfgs(List<AppCfgFilePo> cfgs) {
         this.cfgs = cfgs;
     }
-
 
     public String getCcodVersion() {
         return ccodVersion;

@@ -82,8 +82,8 @@ cmdb:
   share_secret: ae12139afadabde12345r
   app_collect:
     receipt_timeout: 5000
-    collect_data_timeout: 7200000
-    transfer_file_timeout: 7200000
+    collect_data_timeout: 28800000
+    transfer_file_timeout: 28800000
     start_data_collect_instruction: START_APP_DATA_COLLECT
     start_file_transfer_instruction: START_APP_FILE_TRANSFER
     client_receipt_topic: RECEIPT_OF_{platformId}_TO_CMDB
@@ -91,3 +91,5 @@ cmdb:
 
 
 windows: true
+
+debug: false
