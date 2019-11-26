@@ -41,11 +41,11 @@ public class AppModuleVo {
 
     private String basePath; //应用的base path
 
+    private String comment; //备注
+
     private AppInstallPackagePo installPackage; //应用部署包
 
     private AppCfgFilePo[] cfgs; //应用配置文件
-
-    private String comment; //备注
 
     public int getAppId() {
         return appId;

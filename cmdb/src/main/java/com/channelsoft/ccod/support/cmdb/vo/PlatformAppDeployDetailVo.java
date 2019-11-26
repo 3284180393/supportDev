@@ -39,6 +39,8 @@ public class PlatformAppDeployDetailVo {
 
     private String runnerName; //运行用户名
 
+    private String ccodVersion; //ccod版本
+
     private String basePath; //该应用的basePath
 
     private Date deployTime; //该应用的部署路径
@@ -237,5 +239,21 @@ public class PlatformAppDeployDetailVo {
 
     public void setRunnerName(String runnerName) {
         this.runnerName = runnerName;
+    }
+
+    public String getHostIp() {
+        return hostIp;
+    }
+
+    public void setHostIp(String hostIp) {
+        this.hostIp = hostIp;
+    }
+
+    public String getCcodVersion() {
+        return ccodVersion;
+    }
+
+    public void setCcodVersion(String ccodVersion) {
+        this.ccodVersion = ccodVersion;
     }
 }

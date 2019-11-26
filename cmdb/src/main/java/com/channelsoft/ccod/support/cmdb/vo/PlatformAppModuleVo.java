@@ -267,8 +267,8 @@ public class PlatformAppModuleVo {
         PlatformAppPo po = new PlatformAppPo();
         po.setBasePath(this.basePath);
         po.setDeployTime(this.checkTime);
-        po.setDomainId(this.platformId);
-        po.setPlatformId(this.domainId);
+        po.setPlatformId(this.platformId);
+        po.setDomainId(this.domainId);
         po.setDeployTime(new Date());
         return po;
     }

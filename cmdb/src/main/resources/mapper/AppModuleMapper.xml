@@ -3,21 +3,21 @@
 <mapper namespace="com.channelsoft.ccod.support.cmdb.dao.AppModuleMapper" >
     <resultMap id="AppModuleMap" type="com.channelsoft.ccod.support.cmdb.vo.AppModuleVo" >
         <id column="app_id" property="appId" jdbcType="INTEGER" />
+        <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
         <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
-        <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="version" property="version" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
-        <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
-        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
         <result column="create_reason" property="createReason" jdbcType="VARCHAR" />
-        <result column="comment" property="comment" jdbcType="VARCHAR" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
+        <result column="base_path" property="basePath" jdbcType="VARCHAR" />
+        <result column="comment" property="comment" jdbcType="VARCHAR" />
         <association property="installPackage"
                     javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
-                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppInstallPackageMap"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"
                     columnPrefix="aip_">
         </association>
         <collection property="cfgs"
@@ -28,44 +28,45 @@
     </resultMap>
     <select id="select" resultMap="AppModuleMap" >
         SELECT
-            a.app_id,
-            a.app_name,
-            a.app_alias,
-            a.app_type,
-            a.version,
-            a.ccod_version,
-            a.base_path,
-            a.create_time,
-            a.update_time,
-            a.create_reason,
-            a.`comment`,
-            a.version_control,
-            a.version_control_url,
-            aip.app_id AS aip_app_id,
-            aip.create_time AS aip_create_time,
-            aip.deploy_path AS aip_deploy_path,
-            aip.file_name AS aip_file_name,
-            aip.ext AS aip_ext,
-            aip.md5 AS aip_md5,
-            aip.nexus_asset_id AS aip_nexus_asset_id,
-            aip.nexus_directory AS aip_nexus_directory,
-            aip.nexus_repository AS aip_nexus_repository,
-            aip.package_id AS aip_package_id,
-            acf.app_id AS acf_app_id,
-            acf.create_time AS acf_create_time,
-            acf.deploy_path AS acf_deploy_path,
-            acf.file_name AS acf_file_name,
-            acf.ext AS acf_ext,
-            acf.md5 AS acf_md5,
-            acf.nexus_asset_id AS acf_nexus_asset_id,
-            acf.nexus_directory AS acf_nexus_directory,
-            acf.nexus_repository AS acf_nexus_repository,
-            acf.cfg_file_id AS acf_cfg_file_id
+        a.app_id,
+        a.app_type,
+        a.app_name,
+        a.app_alias,
+        a.version,
+        a.ccod_version,
+        a.create_time,
+        a.create_reason,
+        a.update_time,
+        a.version_control,
+        a.version_control_url,
+        a.base_path,
+        a.`comment`,
+        aip.app_id AS aip_app_id,
+        aip.create_time AS aip_create_time,
+        aip.deploy_path AS aip_deploy_path,
+        aip.file_name AS aip_file_name,
+        aip.ext AS aip_ext,
+        aip.md5 AS aip_md5,
+        aip.nexus_asset_id AS aip_nexus_asset_id,
+        aip.nexus_directory AS aip_nexus_directory,
+        aip.nexus_repository AS aip_nexus_repository,
+        aip.package_id AS aip_package_id,
+        acf.app_id AS acf_app_id,
+        acf.create_time AS acf_create_time,
+        acf.deploy_path AS acf_deploy_path,
+        acf.file_name AS acf_file_name,
+        acf.ext AS acf_ext,
+        acf.md5 AS acf_md5,
+        acf.nexus_asset_id AS acf_nexus_asset_id,
+        acf.nexus_directory AS acf_nexus_directory,
+        acf.nexus_repository AS acf_nexus_repository,
+        acf.cfg_file_id AS acf_cfg_file_id
         FROM
-            app a
+        app a
         INNER JOIN app_install_package aip ON a.app_id = aip.app_id
         INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
-        where 1=1
+        WHERE
+        1 = 1
         <if test="appType!=null">
             And a.app_type=#{appType,jdbcType=VARCHAR}
         </if>

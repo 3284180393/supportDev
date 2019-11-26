@@ -19,27 +19,22 @@
         <result column="version" property="version" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
-        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
-        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
-        <result column="create_reason" property="createReason" jdbcType="VARCHAR" />
-        <result column="comment" property="comment" jdbcType="VARCHAR" />
-        <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
-        <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
+        <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
         <association property="installPackage"
-                     javaType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
-                     resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
+                     javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
+                     resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"
                      columnPrefix="aip_">
         </association>
-        <collection property="srcCfgs"
-                    ofType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
-                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
-                    columnPrefix="acf_">
-        </collection>
-        <collection property="cfgs"
-                    ofType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo"
-                    resultMap="com.channelsoft.ccod.support.cmdb.dao.PlatformAppCfgFileMapper.PlatformAppCfgFileMap"
-                    columnPrefix="pacf_">
-        </collection>
+<!--        <collection property="srcCfgs"-->
+<!--                    ofType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"-->
+<!--                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"-->
+<!--                    columnPrefix="acf_">-->
+<!--        </collection>-->
+<!--        <collection property="cfgs"-->
+<!--                    ofType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo"-->
+<!--                    resultMap="com.channelsoft.ccod.support.cmdb.dao.PlatformAppCfgFileMapper.PlatformAppCfgFileMap"-->
+<!--                    columnPrefix="pacf_">-->
+<!--        </collection>-->
     </resultMap>
     <select id="select" resultMap="AppModuleMap" >
         SELECT
@@ -59,13 +54,8 @@
         a.app_type,
         a.version,
         a.ccod_version,
-        a.base_path,
-        a.create_time,
-        a.update_time,
-        a.create_reason,
-        a.`comment`,
-        a.version_control,
-        a.version_control_url,
+        pa.base_path,
+        pa.deploy_time,
         aip.app_id AS aip_app_id,
         aip.create_time AS aip_create_time,
         aip.deploy_path AS aip_deploy_path,
@@ -98,15 +88,19 @@
         pacf.cfg_file_id AS pacf_cfg_file_id
         FROM
         platform_app pa
-        INNER JOIN platform pf ON pa.platform_id = pf.platform_id and pf.`status` = 1
-        INNER JOIN domain dm ON pa.domain_id = dm.domain_id and dm.`status` = 1
-        INNER JOIN SERVER svr ON pa.server_id = svr.server_id and svr.`status` = 1
+        INNER JOIN platform pf ON pa.platform_id = pf.platform_id
+        AND pf.`status` = 1
+        INNER JOIN domain dm ON pa.domain_id = dm.domain_id
+        AND dm.`status` = 1
+        INNER JOIN SERVER svr ON pa.server_id = svr.server_id
+        AND svr.`status` = 1
         INNER JOIN server_user sur ON pa.runner_id = sur.user_id
         INNER JOIN app a ON pa.app_id = a.app_id
         INNER JOIN app_install_package aip ON a.app_id = aip.app_id
         INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
         INNER JOIN platform_app_cfg_file pacf ON pacf.platform_app_id = pa.platform_app_id
-        where 1=1
+        WHERE
+        1 = 1
         <if test="appType!=null">
             And a.app_type=#{appType,jdbcType=VARCHAR}
         </if>
