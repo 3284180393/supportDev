@@ -90,6 +90,6 @@ cmdb:
     app_file_attribute_key: FILE_ATTRIBUTE
 
 
-windows: true
+windows: false
 
 debug: false

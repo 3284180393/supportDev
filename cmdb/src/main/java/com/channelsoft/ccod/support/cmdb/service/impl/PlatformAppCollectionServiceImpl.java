@@ -120,7 +120,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         {
             params.put("version", version);
         }
-        logger.debug(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
+        logger.info(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
         connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
         Connection connection = connectionFactory.createConnection();
         connection.setClientID(this.serverName);
@@ -163,7 +163,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         {
             params.put("version", version);
         }
-        logger.debug(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
+        logger.info(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
         connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
         Connection connection = connectionFactory.createConnection();
         connection.setClientID(this.serverName);
@@ -186,7 +186,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
      */
     private List<PlatformAppModuleVo> collectPlatformAppData(String platformId, Map<String, String> params, Connection connection) throws Exception
     {
-        logger.debug(String.format("begin to collect %s platform app data : params=%s", platformId, JSONObject.toJSONString(params)));
+        logger.info(String.format("begin to collect %s platform app data : params=%s", platformId, JSONObject.toJSONString(params)));
         Date now = new Date();
         int timestamp = (int)(now.getTime() / 1000);
         int nonce = random.nextInt(1000000);
@@ -196,7 +196,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startCollectDataInstruction, JSONObject.toJSONString(params),
                 timestamp, nonce);
         String signature = instructionVo.generateSignature(this.shareSecret);
-        logger.debug(String.format("start platform app collect instruction msg is %s and signature=%s",
+        logger.info(String.format("start platform app collect instruction msg is %s and signature=%s",
                 JSONObject.toJSONString(instructionVo), signature));
         String instructionTopic = String.format(this.instructionTopicFmt, platformId);
         this.activeMQService.sendTopicMsg(connection, instructionTopic, JSONObject.toJSONString(instructionVo));
@@ -246,7 +246,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
      */
     private List<PlatformAppModuleVo> getPlatformAppInstallPackageAndCfg(String platformId, List<PlatformAppModuleVo> modules, Map<String, String> params, Connection connection) throws Exception
     {
-        logger.debug(String.format("begin to transfer %s platform app file : params=%s", platformId, JSONObject.toJSONString(params)));
+        logger.info(String.format("begin to transfer %s platform app file : params=%s", platformId, JSONObject.toJSONString(params)));
         Date now = new Date();
         int timestamp = (int)(now.getTime() / 1000);
         int nonce = random.nextInt(1000000);
@@ -256,7 +256,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         ActiveMQInstructionVo instructionVo = new ActiveMQInstructionVo(this.startAppFileTransferInstruction, JSONObject.toJSONString(params),
                 timestamp, nonce);
         String signature = instructionVo.generateSignature(this.shareSecret);
-        logger.debug(String.format("start platform app file transfer instruction msg is %s and signature=%s",
+        logger.info(String.format("start platform app file transfer instruction msg is %s and signature=%s",
                 JSONObject.toJSONString(instructionVo), signature));
         String instructionTopic = String.format(this.instructionTopicFmt, platformId);
         this.activeMQService.sendTopicMsg(connection, instructionTopic, JSONObject.toJSONString(instructionVo));
@@ -461,7 +461,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     String pkgKey = String.format(this.packageKeyFmt, appName, appAlias, version);
                     if(installPackageMap.containsKey(pkgKey))
                     {
-                        logger.debug(String.format(String.format("appName=%s and appAlias=%s and version=%s app's install package is in list",
+                        logger.info(String.format(String.format("appName=%s and appAlias=%s and version=%s app's install package is in list",
                                 appName, appAlias, version)));
                         for(DeployFileInfo info : installPackageMap.get(pkgKey))
                         {
@@ -489,7 +489,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     String cfgKey = String.format(this.cfgKeyFmt, pfId, domainId, hostIp, basePath, deployPath, fileName);
                     if(cfgMap.containsKey(cfgKey))
                     {
-                        logger.debug(String.format(String.format("platformId=%s and domainId=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is in wanted list",
+                        logger.info(String.format(String.format("platformId=%s and domainId=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is in wanted list",
                                 pfId, domainId, hostIp, basePath, deployPath, fileName)));
                         for(DeployFileInfo info : cfgMap.get(cfgKey))
                         {

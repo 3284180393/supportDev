@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformResourceMapper" >
+    <resultMap id="PlatformResourceMap" type="com.channelsoft.ccod.support.cmdb.vo.PlatformResourceVo" >
+        <id column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="platform_name" property="platformName" jdbcType="VARCHAR" />
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+        <result column="status" property="status" jdbcType="INTEGER" />
+        <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
+        <result column="comment" property="comment" jdbcType="VARCHAR" />
+        <collection property="domainList"
+                    ofType="com.channelsoft.ccod.support.cmdb.po.DomainPo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.DomainMapper.DomainMap"
+                    columnPrefix="dm_">
+        </collection>
+        <collection property="serverList"
+                    ofType="com.channelsoft.ccod.support.cmdb.po.ServerPo"
+                    resultMap="com.channelsoft.ccod.support.cmdb.dao.ServerMapper.ServerMap"
+                    columnPrefix="acf_">
+        </collection>
+    </resultMap>
+    <sql id="Base_Column_List" >
+        	pf.platform_id,
+	        pf.platform_name,
+	        pf.create_time,
+	        pf.update_time,
+	        pf.`status`,
+	        pf.`comment`,
+	        dm.domain_id AS dm_domain_id,
+	        dm.domain_name AS dm_domain_name,
+	        dm.platform_id AS dm_platform_id,
+	        dm.create_time AS dm_create_time,
+	        dm.update_time AS dm_update_time,
+	        dm.`status` AS dm_status,
+	        dm.`comment` AS dm_comment,
+	        svr.server_id AS svr_server_id,
+	        svr.host_name AS svr_host_name,
+	        svr.host_ip AS svr_host_ip,
+	        svr.server_type AS svr_server_type,
+	        svr.platform_id AS svr_platform_id,
+	        svr.domain_id AS svr_domain_id,
+	        svr.`status` AS svr_status,
+	        svr.`comment` AS svr_comment
+    FROM
+	    platform pf
+    INNER JOIN domain dm ON pf.platform_id = dm.platform_id
+    INNER JOIN `server` svr ON pf.platform_id = pf.platform_id
+    WHERE
+	    1 = 1
+    AND pf.`status` = 1
+    </sql>
+    <select id="selectByPrimaryKey" resultMap="PlatformResourceMap" parameterType="java.lang.String">
+        select
+        <include refid="Base_Column_List" />
+        AND pf.platform_id=#{platformId,jdbcType=VARCHAR}
+    </select>
+    <select id="select" resultMap="PlatformResourceMap" >
+        select
+        <include refid="Base_Column_List" />
+    </select>
+</mapper>

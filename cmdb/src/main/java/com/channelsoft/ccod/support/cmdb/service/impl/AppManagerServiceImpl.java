@@ -84,6 +84,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Autowired
     PlatformAppDeployDetailMapper platformAppDeployDetailMapper;
 
+    @Autowired
+    PlatformResourceMapper platformResourceMapper;
+
     private boolean isPlatformCheckOngoing = false;
 
     private Map<String, NexusComponentPo> appNexusComponentMap = new ConcurrentHashMap<>();
@@ -109,7 +112,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            this.appMapper.selectByPrimaryKey(1);
 //            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
-            this.startCollectPlatformAppData("shltPA", null, null, null, null);
+//            this.startCollectPlatformAppData("shltPA", null, null, null, null);
 //            this.appModuleMapper.select("jj","aa", "bb", "kk");
 //            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
 //                    "55", "66", "77", "88");
@@ -118,6 +121,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            List<PlatformAppDeployDetailVo> deployList = this.platformAppDeployDetailMapper.select(null, null, null,
 //                    null, null, null, null, null);
 //            System.out.println(JSONArray.toJSONString(deployList));
+            List<PlatformResourceVo> platformResourceList = this.platformResourceMapper.select();
+            System.out.println(JSONArray.toJSONString(platformResourceList));
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -302,7 +307,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
         String cfgDirectory = String.format(this.appCfgDirectoryFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
                 module.getModuleName(), module.getModuleAliasName(), module.getBasePath());
-        logger.debug(String.format("handle [%s] platform app module : appDirectory=%s and cfgDirectory=%s",
+        logger.info(String.format("handle [%s] platform app module : appDirectory=%s and cfgDirectory=%s",
                 module.toString(), appDirectory, cfgDirectory));
         AppPo appPo = module.getAppInfo();
         if(appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory)) {
@@ -406,20 +411,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
             System.out.println("asset_id=" + po.getNexusAssetId());
             this.platformAppCfgFileMapper.insert(po);
         }
-        logger.debug(String.format("[%s] platform app module handle SUCCESS", module.toString()));
+        logger.info(String.format("[%s] platform app module handle SUCCESS", module.toString()));
         return true;
     }
 
 
     private void addAppToNexusAndDB(AppPo app, DeployFileInfo installPackage, DeployFileInfo[] cfgs, String repository, String directory) throws Exception
     {
-        logger.debug(String.format("prepare to upload appName=%s and appAlias=%s and version=%s app upload to directory=%s at repository=%s",
+        logger.info(String.format("prepare to upload appName=%s and appAlias=%s and version=%s app upload to directory=%s at repository=%s",
                 app.getAppName(), app.getAppAlias(), app.getVersion(), directory, repository));
         List<DeployFileInfo> uploadFiles = new ArrayList<>();
         uploadFiles.add(installPackage);
         uploadFiles.addAll(Arrays.asList(cfgs));
         this.nexusService.uploadRawComponent(repository, directory, uploadFiles.toArray(new DeployFileInfo[0]));
-        logger.debug(String.format("prepare to add appName=%s and appAlias=%s and version=%s app info to database",
+        logger.info(String.format("prepare to add appName=%s and appAlias=%s and version=%s app info to database",
                 app.getAppName(), app.getAppAlias(), app.getVersion()));
         app.setAppType(AppType.CCOD_KERNEL_MODULE.name);
         app.setCcodVersion("4.5");
@@ -519,7 +524,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Override
     public PlatformAppDeployDetailVo[] queryPlatformAppDeploy(QueryEntity queryEntity) throws Exception {
-        logger.debug(String.format("begin to query queryPlatformAppDeploy, queryEntity=%s",
+        logger.info(String.format("begin to query queryPlatformAppDeploy, queryEntity=%s",
                 JSONObject.toJSONString(queryEntity)));
         List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.select(queryEntity.platformId, queryEntity.domainId,
                 queryEntity.hostIP, queryEntity.hostname, queryEntity.appType, queryEntity.appName, queryEntity.appAlias, queryEntity.version);
@@ -528,16 +533,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Override
     public AppModuleVo[] queryAppModules(QueryEntity queryEntity) throws Exception {
-        logger.debug(String.format("begin to queryAppModules : queryEntity=%s", JSONObject.toJSONString(queryEntity)));
+        logger.info(String.format("begin to queryAppModules : queryEntity=%s", JSONObject.toJSONString(queryEntity)));
         List<AppModuleVo> list = this.appModuleMapper.select(queryEntity.appType, queryEntity.appName,
                 queryEntity.appAlias, queryEntity.version);
-        logger.debug(String.format("query %d App Module record", list.size()));
+        logger.info(String.format("query %d App Module record", list.size()));
         return list.toArray(new AppModuleVo[0]);
     }
 
     @Override
     public void createNewPlatformAppDataCollectTask(String platformId, String domainId, String hostIp, String appName, String version) throws Exception {
-        logger.debug(String.format("begin to create platformId=%s, domainId=%s, hostIp=%s, appName=%s, version=%s app collect task",
+        logger.info(String.format("begin to create platformId=%s, domainId=%s, hostIp=%s, appName=%s, version=%s app collect task",
                 platformId, domainId, hostIp, appName, version));
         ExecutorService executor = Executors.newFixedThreadPool(1);
         Thread taskThread = new Thread(new Runnable(){

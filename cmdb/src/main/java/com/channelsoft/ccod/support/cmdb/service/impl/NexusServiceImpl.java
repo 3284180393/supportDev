@@ -131,7 +131,7 @@ public class NexusServiceImpl implements INexusService {
     @Override
     public NexusComponentPo queryComponentById(String componentId) throws Exception {
         String url = String.format(this.queryComponentUrlFmt, this.nexusHostUrl, componentId);
-        logger.debug(String.format("begin to query id=%s component info, queryUrl=%s", componentId, url));
+        logger.info(String.format("begin to query id=%s component info, queryUrl=%s", componentId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
         httpGet.addHeader("Authorization", getBasicAuthPropValue());
@@ -157,7 +157,7 @@ public class NexusServiceImpl implements INexusService {
     @Override
     public NexusAssetInfo queryAssetById(String assetId) throws Exception {
         String url = String.format(this.queryAssetUrlFmt, this.nexusHostUrl, assetId);
-        logger.debug(String.format("begin to query id=%s asset info, queryUrl=%s", assetId, url));
+        logger.info(String.format("begin to query id=%s asset info, queryUrl=%s", assetId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
         httpGet.addHeader("Authorization", getBasicAuthPropValue());
@@ -183,7 +183,7 @@ public class NexusServiceImpl implements INexusService {
     @Override
     public NexusComponentPo[] queryComponentFromRepository(String repository) throws Exception {
         String url = String.format(this.queryRepositoryUrlFmt, this.nexusHostUrl, repository);
-        logger.debug(String.format("begin to query all components from repository=%s, queryUrl=%s",
+        logger.info(String.format("begin to query all components from repository=%s, queryUrl=%s",
                 repository, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
@@ -267,7 +267,7 @@ public class NexusServiceImpl implements INexusService {
     private NexusComponentPo[] queryRepositoryAllComponent(String repository) throws Exception
     {
         String url = String.format(this.queryRepositoryUrlFmt, this.nexusHostUrl, repository);
-        logger.debug(String.format("begin to query all components of repository=%s", repository));
+        logger.info(String.format("begin to query all components of repository=%s", repository));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
         httpGet.addHeader("Authorization", getBasicAuthPropValue());
