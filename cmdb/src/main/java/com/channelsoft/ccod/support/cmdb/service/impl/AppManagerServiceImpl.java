@@ -1,6 +1,5 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
@@ -366,9 +365,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
             addAppToNexusAndDB(appPo, module.getInstallPackage(), module.getCfgs(), appRepository, appDirectory);
             appMap.put(appDirectory, appPo);
         }
+        else if(!appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory))
+        {
+            logger.error(String.format("appDirectory=%s in appFileAssetMap not in appMap, appSet=%s and appFileAssetSet=%s",
+                    appDirectory, JSONObject.toJSONString(appMap.keySet()), JSONObject.toJSONString(appFileAssetMap.keySet())));
+            return false;
+        }
         else
         {
-            logger.error("data of db not much as nexus");
+            logger.error(String.format("appDirectory=%s in appMap not in appFileAssetMap, appSet=%s and appFileAssetSet=%s",
+                    appDirectory, JSONObject.toJSONString(appMap.keySet()), JSONObject.toJSONString(appFileAssetMap.keySet())));
             return false;
         }
         appPo = appMap.get(appDirectory);

@@ -1,7 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.controller;
 
 import com.alibaba.fastjson.JSONObject;
-import com.channelsoft.ccod.support.cmdb.dao.PlatformResourceMapper;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformResourceService;
@@ -16,7 +15,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 
 /**
  * @ClassName: CMDBController
