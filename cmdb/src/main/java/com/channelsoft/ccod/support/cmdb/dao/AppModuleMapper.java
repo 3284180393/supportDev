@@ -29,4 +29,13 @@ public interface AppModuleMapper {
      * @throws DataAccessException
      */
     List<AppModuleVo> select(@Param("appType")String appType, @Param("appName")String appName, @Param("appAlias")String appAlias, @Param("version")String version) throws DataAccessException;
+
+    /**
+     * 查询指定条件的AppModule
+     * @param appName 应用名
+     * @param version 版本号
+     * @return 查询结果
+     * @throws DataAccessException
+     */
+    AppModuleVo selectByNameAndVersion(@Param("appName")String appName, @Param("version")String version) throws DataAccessException;
 }

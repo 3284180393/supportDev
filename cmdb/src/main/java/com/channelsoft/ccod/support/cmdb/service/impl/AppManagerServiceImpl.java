@@ -112,7 +112,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            this.appMapper.selectByPrimaryKey(1);
 //            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
-//            this.startCollectPlatformAppData("shltPA", null, null, null, null);
+//            this.startCollectPlatformAppData("shltPAhp", null, null, null, null);
 //            this.appModuleMapper.select("jj","aa", "bb", "kk");
 //            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
 //                    "55", "66", "77", "88");
@@ -121,8 +121,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            List<PlatformAppDeployDetailVo> deployList = this.platformAppDeployDetailMapper.select(null, null, null,
 //                    null, null, null, null, null);
 //            System.out.println(JSONArray.toJSONString(deployList));
-            List<PlatformResourceVo> platformResourceList = this.platformResourceMapper.select();
-            System.out.println(JSONArray.toJSONString(platformResourceList));
+//            List<PlatformResourceVo> platformResourceList = this.platformResourceMapper.select();
+//            System.out.println(JSONArray.toJSONString(platformResourceList));
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -133,32 +133,48 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public AppPo[] queryAllApp() throws Exception {
-        return new AppPo[0];
-    }
-
-    @Override
-    public AppPo[] queryAllAppByName(String appName, String appAlias) {
-        return new AppPo[0];
-    }
-
-    @Override
     public AppModuleVo createNewAppModule(String appName, String appAlias, String version, VersionControl versionControl, String versionControlUrl, AppInstallPackagePo installPackage, AppCfgFilePo[] cfgs, String basePath) throws Exception {
         return null;
     }
 
     @Override
-    public AppModuleVo queryAppModuleByVersion(String appName, String appAlias, String version) throws Exception {
-        return null;
+    public AppModuleVo[] queryApps(String appName) throws Exception {
+        logger.debug(String.format("begin to query app modules : appName=%s", appName));
+        List<AppModuleVo> list = this.appModuleMapper.select(null, appName, null, null);
+        logger.info(String.format("query %d app module record with appName=%s", list.size(), appName));
+        return list.toArray(new AppModuleVo[0]);
     }
 
     @Override
-    public AppModuleVo[] queryAppModules(String appName, String appAlias) throws Exception {
-        return new AppModuleVo[0];
+    public AppModuleVo queryAppByVersion(String appName, String version) throws Exception {
+        logger.debug(String.format("begin to query appName=%s and version=%s app module record", appName, version));
+        if(StringUtils.isBlank(appName))
+        {
+            logger.error("query FAIL : appName is blank");
+            throw new Exception("appName is blank");
+        }
+        if(StringUtils.isBlank(version))
+        {
+            logger.error("query FAIL : version is blank");
+            throw new Exception("version is blank");
+        }
+        AppModuleVo moduleVo = this.appModuleMapper.selectByNameAndVersion(appName, version);
+        if(moduleVo == null)
+        {
+            logger.warn(String.format("not find app module with appName=%s and version=%s", appName, version));
+        }
+        else
+        {
+            logger.info(String.format("query app module[%s] with appName=%s and version=%s",
+                    JSONObject.toJSONString(moduleVo), appName, version));
+        }
+        return moduleVo;
     }
 
     @Override
-    public PlatformAppModuleVo[] queryPlatformApps(String platformId) throws Exception {
+    public PlatformAppModuleVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws Exception {
+        logger.debug(String.format("begin to query platform apps : platformId=%s, domainId=%s, hostIp=%s",
+                platformId, domainId, hostIp));
         return new PlatformAppModuleVo[0];
     }
 
@@ -181,14 +197,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         this.isPlatformCheckOngoing = true;
         List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, domainName, hostIp, appName, version);
-        if(debug)
-        {
-            for(PlatformAppModuleVo module : modules)
-            {
-                module.setPlatformId("yg");
-                module.setPlatformName("阳光保险");
-            }
-        }
+//        if(debug)
+//        {
+//            for(PlatformAppModuleVo module : modules)
+//            {
+//                module.setPlatformId("yg");
+//                module.setPlatformName("阳光保险");
+//            }
+//        }
         handleCollectedPlatformAppModules(modules.toArray(new PlatformAppModuleVo[0]));
 //        this.nexusService.reloadRepositoryComponent(this.appRepository);
 //        for(PlatformAppModuleVo module : modules)

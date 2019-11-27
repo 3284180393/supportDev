@@ -51,9 +51,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${cmdb.app_collect.start_file_transfer_instruction}")
     private String startAppFileTransferInstruction;
 
-    @Value("${cmdb.app_collect.client_receipt_topic}")
-    private String receiptTopic;
-
     private String reportCollectDataQueueFmt = "CLIENT_REPORT_COLLECT_DATA_%s";
 
     private String receiveFileQueueFmt = "FILE_REC_%s";

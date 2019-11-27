@@ -26,8 +26,7 @@
                     columnPrefix="acf_">
         </collection>
     </resultMap>
-    <select id="select" resultMap="AppModuleMap" >
-        SELECT
+    <sql id="Base_Column_List" >
         a.app_id,
         a.app_type,
         a.app_name,
@@ -67,6 +66,10 @@
         INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
         WHERE
         1 = 1
+    </sql>
+    <select id="select" resultMap="AppModuleMap" >
+        SELECT
+            <include refid="Base_Column_List" />
         <if test="appType!=null">
             And a.app_type=#{appType,jdbcType=VARCHAR}
         </if>
@@ -79,5 +82,11 @@
         <if test="version!=null">
             And a.version=#{version,jdbcType=VARCHAR}
         </if>
+    </select>
+    <select id="selectByNameAndVersion" resultMap="AppModuleMap">
+        select
+            <include refid="Base_Column_List" />
+        And a.app_name=#{appName,jdbcType=VARCHAR}
+        And a.version=#{version,jdbcType=VARCHAR}
     </select>
 </mapper>

@@ -17,7 +17,7 @@
         <collection property="serverList"
                     ofType="com.channelsoft.ccod.support.cmdb.po.ServerPo"
                     resultMap="com.channelsoft.ccod.support.cmdb.dao.ServerMapper.ServerMap"
-                    columnPrefix="acf_">
+                    columnPrefix="svr_">
         </collection>
     </resultMap>
     <sql id="Base_Column_List" >
@@ -50,10 +50,16 @@
 	    1 = 1
     AND pf.`status` = 1
     </sql>
-    <select id="selectByPrimaryKey" resultMap="PlatformResourceMap" parameterType="java.lang.String">
+    <select id="selectByPlatform" resultMap="PlatformResourceMap">
         select
         <include refid="Base_Column_List" />
         AND pf.platform_id=#{platformId,jdbcType=VARCHAR}
+        <if test="domainId!=null">
+            And dm.domain_id=#{domainId,jdbcType=VARCHAR}
+        </if>
+        <if test="hostIp!=null">
+            And svr.host_ip=#{hostIp,jdbcType=VARCHAR}
+        </if>
     </select>
     <select id="select" resultMap="PlatformResourceMap" >
         select
