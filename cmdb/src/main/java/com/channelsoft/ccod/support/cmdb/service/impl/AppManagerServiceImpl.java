@@ -172,20 +172,24 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public PlatformAppModuleVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws Exception {
+    public PlatformAppDeployDetailVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws Exception {
         logger.debug(String.format("begin to query platform apps : platformId=%s, domainId=%s, hostIp=%s",
                 platformId, domainId, hostIp));
-        return new PlatformAppModuleVo[0];
+        List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, domainId, hostIp, null);
+        logger.info(String.format("query %d record with platformId=%s and domainId=%s and hostIp=%s",
+                list.size(), platformId, domainId, hostIp));
+        return list.toArray(new PlatformAppDeployDetailVo[0]);
     }
 
-    @Override
-    public PlatformAppModuleVo[] queryDomainApps(String platformId, String domainId) throws Exception {
-        return new PlatformAppModuleVo[0];
-    }
 
     @Override
-    public PlatformAppModuleVo[] queryAppsForHostIp(String platformId, String domainId, String hostIp) throws Exception {
-        return new PlatformAppModuleVo[0];
+    public PlatformAppDeployDetailVo[] queryAppDeployDetails(String appName, String platformId, String domainId, String hostIp) throws Exception {
+        logger.debug(String.format("begin to query platform apps : appName=%s, platformId=%s, domainId=%s, hostIp=%s",
+                appName, platformId, domainId, hostIp));
+        List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.selectAppDeployDetails(appName, platformId, domainId, hostIp);
+        logger.info(String.format("query %d record with appName=%s and platformId=%s and domainId=%s and hostIp=%s",
+                list.size(), appName, platformId, domainId, hostIp));
+        return list.toArray(new PlatformAppDeployDetailVo[0]);
     }
 
     @Override
@@ -542,8 +546,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
     public PlatformAppDeployDetailVo[] queryPlatformAppDeploy(QueryEntity queryEntity) throws Exception {
         logger.info(String.format("begin to query queryPlatformAppDeploy, queryEntity=%s",
                 JSONObject.toJSONString(queryEntity)));
-        List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.select(queryEntity.platformId, queryEntity.domainId,
-                queryEntity.hostIP, queryEntity.hostname, queryEntity.appType, queryEntity.appName, queryEntity.appAlias, queryEntity.version);
+        List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.selectPlatformApps(queryEntity.platformId, queryEntity.domainId,
+                queryEntity.hostIP, queryEntity.hostname);
         return list.toArray(new PlatformAppDeployDetailVo[0]);
     }
 

@@ -147,6 +147,86 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping("/platformApps")
+    public AjaxResultPo queryAllPlatformApps()
+    {
+        String uri = String.format("%s/platformApps", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryPlatformApps(null, null, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/platformApps/{platformId}")
+    public AjaxResultPo queryPlatformAppsByPlatformId(@PathVariable String platformId)
+    {
+        String uri = String.format("%s/platformApps/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryPlatformApps(platformId, null, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/platformApps/{platformId}/{domainId}")
+    public AjaxResultPo queryPlatformAppsByDomainId(@PathVariable String platformId, @PathVariable String domainId)
+    {
+        String uri = String.format("%s/platformApps/%s/%s", this.apiBasePath, platformId, domainId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryPlatformApps(platformId, domainId, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/platformApps/{platformId}/{domainId}/{hostIp}")
+    public AjaxResultPo queryPlatformAppsByHostIp(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String hostIp)
+    {
+        String uri = String.format("%s/platformApps/%s/%s/%s", this.apiBasePath, platformId, domainId, hostIp);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryPlatformApps(platformId, domainId, hostIp);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping("/platformResources")
     public AjaxResultPo queryAllPlatformResources()
     {
@@ -251,6 +331,106 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("query platform resource exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/appDeployDetails")
+    public AjaxResultPo queryAllAppsDeployDetails()
+    {
+        String uri = String.format("%s/appDeployDetails", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryAppDeployDetails(null, null, null, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query apps deploy details exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/appDeployDetails/{appName}")
+    public AjaxResultPo queryAppDeployDetailByAppName(@PathVariable String appName)
+    {
+        String uri = String.format("%s/appDeployDetails/%s", this.apiBasePath, appName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryAppDeployDetails(appName, null, null, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query apps deploy details exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/appDeployDetails/{appName}/{platformId}")
+    public AjaxResultPo queryAppDeployDetailByPlatformId(@PathVariable String appName, @PathVariable String platformId)
+    {
+        String uri = String.format("%s/appDeployDetails/%s/%s", this.apiBasePath, appName, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryAppDeployDetails(appName, platformId, null, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query apps deploy details exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/appDeployDetails/{appName}/{platformId}/{domainId}")
+    public AjaxResultPo queryAppDeployDetailsByDomainId(@PathVariable String appName, @PathVariable String platformId, @PathVariable String domainId)
+    {
+        String uri = String.format("%s/appDeployDetails/%s/%s/%s", this.apiBasePath, appName, platformId, domainId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryAppDeployDetails(appName, platformId, domainId, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query apps deploy details exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/appDeployDetails/{appName}/{platformId}/{domainId}/{hostIp}")
+    public AjaxResultPo queryAppDeployDetailsByHostIp(@PathVariable String appName, @PathVariable String platformId, @PathVariable String domainId, @PathVariable String hostIp)
+    {
+        String uri = String.format("%s/appDeployDetails/%s/%s/%s/%s", this.apiBasePath, appName, platformId, domainId, hostIp);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo[] details = this.appManagerService.queryAppDeployDetails(appName, platformId, domainId, hostIp);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query apps deploy details exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;

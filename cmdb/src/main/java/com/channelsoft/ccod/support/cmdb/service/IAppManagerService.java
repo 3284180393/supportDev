@@ -57,26 +57,18 @@ public interface IAppManagerService {
      * @return 查询结果
      * @throws Exception
      */
-    PlatformAppModuleVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws Exception;
+    PlatformAppDeployDetailVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws Exception;
 
     /**
-     * 查询指定平台指定域下的所有模块部署情况
+     * 查询应用在平台的部署情况,条件可以为空,如果为空则忽略该参数
+     * @param appName 应用名
      * @param platformId 平台id
      * @param domainId 域id
+     * @param hostIp 主机ip
      * @return 查询结果
      * @throws Exception
      */
-    PlatformAppModuleVo[] queryDomainApps(String platformId, String domainId) throws Exception;
-
-    /**
-     * 查询指定平台指定域下某个ip的服务器的所有模块部署情况
-     * @param platformId 平台id
-     * @param domainId 域id
-     * @param hostIp 服务器ip
-     * @return 查询结果
-     * @throws Exception
-     */
-    PlatformAppModuleVo[] queryAppsForHostIp(String platformId, String domainId, String hostIp) throws Exception;
+    PlatformAppDeployDetailVo[] queryAppDeployDetails(String appName, String platformId, String domainId, String hostIp) throws Exception;
 
     /**
      * 检查指定条件的平台的应用部署情况，并上传对应的安装包和配置文件

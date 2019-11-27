@@ -18,5 +18,33 @@ import java.util.List;
 @Component
 @Mapper
 public interface PlatformAppDeployDetailMapper {
-    List<PlatformAppDeployDetailVo> select(@Param("platformId")String platformId, @Param("domainId")String domainId, @Param("hostIp")String hostIp, @Param("hostname")String hostname, @Param("appType")String appType, @Param("appName")String appName, @Param("appAlias")String appAlias, @Param("version")String version) throws DataAccessException;
+    /**
+     * 查询指定条件的平台应用部署详情,如果某个条件为空则忽略该参数
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param hostIp 主机ip
+     * @param hostname 主机名
+     * @return 查询结果
+     * @throws DataAccessException
+     */
+    List<PlatformAppDeployDetailVo> selectPlatformApps(
+            @Param("platformId")String platformId,
+            @Param("domainId")String domainId,
+            @Param("hostIp")String hostIp,
+            @Param("hostname")String hostname) throws DataAccessException;
+
+    /**
+     * 查询应用在平台的部署详情
+     * @param appName 应用名
+     * @param platformId 平台名
+     * @param domainId 域名
+     * @param hostIp 服务器ip
+     * @return 查询结果
+     * @throws DataAccessException
+     */
+    List<PlatformAppDeployDetailVo> selectAppDeployDetails(
+            @Param("appName")String appName,
+            @Param("platformId")String platformId,
+            @Param("domainId")String domainId,
+            @Param("hostIp")String hostIp) throws DataAccessException;
 }
