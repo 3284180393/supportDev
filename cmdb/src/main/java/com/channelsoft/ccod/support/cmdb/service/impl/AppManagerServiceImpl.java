@@ -111,7 +111,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            this.appMapper.selectByPrimaryKey(1);
 //            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
-//            this.startCollectPlatformAppData("shltPAhp", null, null, null, null);
+            this.startCollectPlatformAppData("tool", null, null, null, null);
 //            this.appModuleMapper.select("jj","aa", "bb", "kk");
 //            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
 //                    "55", "66", "77", "88");
@@ -362,7 +362,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
         else if(!appMap.containsKey(appDirectory) && !appFileAssetMap.containsKey(appDirectory))
         {
             //上传应用安装包以及配置文件到nexus
-            addAppToNexusAndDB(appPo, module.getInstallPackage(), module.getCfgs(), appRepository, appDirectory);
+            Map<String, NexusAssetInfo> fileAssetMap = addAppToNexusAndDB(appPo, module.getInstallPackage(), module.getCfgs(), appRepository, appDirectory);
+            logger.info(String.format("%s been added to appFileAssetMap", appDirectory));
+            appFileAssetMap.put(appDirectory, fileAssetMap);
             appMap.put(appDirectory, appPo);
         }
         else if(!appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory))
@@ -442,14 +444,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
 
-    private void addAppToNexusAndDB(AppPo app, DeployFileInfo installPackage, DeployFileInfo[] cfgs, String repository, String directory) throws Exception
+    private Map<String, NexusAssetInfo> addAppToNexusAndDB(AppPo app, DeployFileInfo installPackage, DeployFileInfo[] cfgs, String repository, String directory) throws Exception
     {
         logger.info(String.format("prepare to upload appName=%s and appAlias=%s and version=%s app upload to directory=%s at repository=%s",
                 app.getAppName(), app.getAppAlias(), app.getVersion(), directory, repository));
         List<DeployFileInfo> uploadFiles = new ArrayList<>();
         uploadFiles.add(installPackage);
         uploadFiles.addAll(Arrays.asList(cfgs));
-        this.nexusService.uploadRawComponent(repository, directory, uploadFiles.toArray(new DeployFileInfo[0]));
+        Map<String, NexusAssetInfo> fileAssetMap = this.nexusService.uploadRawComponent(repository, directory, uploadFiles.toArray(new DeployFileInfo[0]));
         logger.info(String.format("prepare to add appName=%s and appAlias=%s and version=%s app info to database",
                 app.getAppName(), app.getAppAlias(), app.getVersion()));
         app.setAppType(AppType.CCOD_KERNEL_MODULE.name);
@@ -462,91 +464,92 @@ public class AppManagerServiceImpl implements IAppManagerService {
             AppCfgFilePo cfgFilePo = new AppCfgFilePo(app.getAppId(), cfg);
             this.appCfgFileMapper.insert(cfgFilePo);
         }
+        return fileAssetMap;
     }
 
 
-    private Map<String, Map<String, NexusAssetInfo>> uploadAppComponent(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception
-    {
-        List<DeployFileInfo> appFiles = new ArrayList<>();
-        appFiles.add(module.getInstallPackage());
-        appFiles.addAll(Arrays.asList(module.getCfgs()));
-        Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.uploadRawComponent(this.appRepository, appDirectory, appFiles.toArray(new DeployFileInfo[0]));
-        Date now = new Date();
-        AppPo appPo = appMap.get(appDirectory);
-        int appId = appPo.getAppId();
-        AppInstallPackagePo packagePo = new AppInstallPackagePo();
-        packagePo.setAppId(appId);
-        packagePo.setCreateTime(now);
-        packagePo.setDeployPath(module.getInstallPackage().getDeployPath());
-        packagePo.setFileName(module.getInstallPackage().getExt());
-        packagePo.setMd5(module.getInstallPackage().getFileMd5());
-        NexusAssetInfo ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
-        packagePo.setNexusAssetId(ipAsset.getId());
-        packagePo.setNexusRepository(this.appRepository);
-        this.appInstallPackageMapper.insert(packagePo);
-        for(DeployFileInfo cfg : module.getCfgs())
-        {
-            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
-            cfgFilePo.setAppId(appId);
-            cfgFilePo.setCreateTime(now);
-            cfgFilePo.setDeployPath(module.getInstallPackage().getDeployPath());
-            cfgFilePo.setFileName(module.getInstallPackage().getExt());
-            cfgFilePo.setMd5(module.getInstallPackage().getFileMd5());
-            ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
-            cfgFilePo.setNexusAssetId(ipAsset.getId());
-            cfgFilePo.setNexusRepository(this.appRepository);
-            this.appCfgFileMapper.insert(cfgFilePo);
-        }
-        return appFileAssetMap;
-    }
-
-    private Map<String, Map<String, NexusAssetInfo>> addNewApp(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception
-    {
-        Date now = new Date();
-//        String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
-        List<DeployFileInfo> appFiles = new ArrayList<>();
-        appFiles.add(module.getInstallPackage());
-        appFiles.addAll(Arrays.asList(module.getCfgs()));
-        Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.uploadRawComponent(this.appRepository, appDirectory, appFiles.toArray(new DeployFileInfo[0]));
-        AppPo appPo = new AppPo();
-        appPo.setAppAlias(module.getModuleAliasName());
-        appPo.setAppName(module.getModuleName());
-        appPo.setAppType(module.getModuleType());
-        appPo.setBasePath(module.getBasePath());
-        appPo.setCcodVersion(module.getCcodVersion());
-        appPo.setComment("");
-        appPo.setCreateReason("client collect");
-        appPo.setCreateTime(now);
-        appPo.setUpdateTime(now);
-        appPo.setVersion(module.getVersion());
-        this.appMapper.insert(appPo);
-        int appId = appPo.getAppId();
-        AppInstallPackagePo packagePo = new AppInstallPackagePo();
-        packagePo.setAppId(appId);
-        packagePo.setCreateTime(now);
-        packagePo.setDeployPath(module.getInstallPackage().getDeployPath());
-        packagePo.setFileName(module.getInstallPackage().getExt());
-        packagePo.setMd5(module.getInstallPackage().getFileMd5());
-        NexusAssetInfo ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
-        packagePo.setNexusAssetId(ipAsset.getId());
-        packagePo.setNexusRepository(this.appRepository);
-        this.appInstallPackageMapper.insert(packagePo);
-        for(DeployFileInfo cfg : module.getCfgs())
-        {
-            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
-            cfgFilePo.setAppId(appId);
-            cfgFilePo.setCreateTime(now);
-            cfgFilePo.setDeployPath(module.getInstallPackage().getDeployPath());
-            cfgFilePo.setFileName(module.getInstallPackage().getExt());
-            cfgFilePo.setMd5(module.getInstallPackage().getFileMd5());
-            ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
-            cfgFilePo.setNexusAssetId(ipAsset.getId());
-            cfgFilePo.setNexusRepository(this.appRepository);
-            this.appCfgFileMapper.insert(cfgFilePo);
-        }
-        appMap.put(appDirectory, appPo);
-        return appFileAssetMap;
-    }
+//    private Map<String, Map<String, NexusAssetInfo>> uploadAppComponent(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception
+//    {
+//        List<DeployFileInfo> appFiles = new ArrayList<>();
+//        appFiles.add(module.getInstallPackage());
+//        appFiles.addAll(Arrays.asList(module.getCfgs()));
+//        Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.uploadRawComponent(this.appRepository, appDirectory, appFiles.toArray(new DeployFileInfo[0]));
+//        Date now = new Date();
+//        AppPo appPo = appMap.get(appDirectory);
+//        int appId = appPo.getAppId();
+//        AppInstallPackagePo packagePo = new AppInstallPackagePo();
+//        packagePo.setAppId(appId);
+//        packagePo.setCreateTime(now);
+//        packagePo.setDeployPath(module.getInstallPackage().getDeployPath());
+//        packagePo.setFileName(module.getInstallPackage().getExt());
+//        packagePo.setMd5(module.getInstallPackage().getFileMd5());
+//        NexusAssetInfo ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
+//        packagePo.setNexusAssetId(ipAsset.getId());
+//        packagePo.setNexusRepository(this.appRepository);
+//        this.appInstallPackageMapper.insert(packagePo);
+//        for(DeployFileInfo cfg : module.getCfgs())
+//        {
+//            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
+//            cfgFilePo.setAppId(appId);
+//            cfgFilePo.setCreateTime(now);
+//            cfgFilePo.setDeployPath(module.getInstallPackage().getDeployPath());
+//            cfgFilePo.setFileName(module.getInstallPackage().getExt());
+//            cfgFilePo.setMd5(module.getInstallPackage().getFileMd5());
+//            ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
+//            cfgFilePo.setNexusAssetId(ipAsset.getId());
+//            cfgFilePo.setNexusRepository(this.appRepository);
+//            this.appCfgFileMapper.insert(cfgFilePo);
+//        }
+//        return appFileAssetMap;
+//    }
+//
+//    private Map<String, Map<String, NexusAssetInfo>> addNewApp(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception
+//    {
+//        Date now = new Date();
+////        String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
+//        List<DeployFileInfo> appFiles = new ArrayList<>();
+//        appFiles.add(module.getInstallPackage());
+//        appFiles.addAll(Arrays.asList(module.getCfgs()));
+//        Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.uploadRawComponent(this.appRepository, appDirectory, appFiles.toArray(new DeployFileInfo[0]));
+//        AppPo appPo = new AppPo();
+//        appPo.setAppAlias(module.getModuleAliasName());
+//        appPo.setAppName(module.getModuleName());
+//        appPo.setAppType(module.getModuleType());
+//        appPo.setBasePath(module.getBasePath());
+//        appPo.setCcodVersion(module.getCcodVersion());
+//        appPo.setComment("");
+//        appPo.setCreateReason("client collect");
+//        appPo.setCreateTime(now);
+//        appPo.setUpdateTime(now);
+//        appPo.setVersion(module.getVersion());
+//        this.appMapper.insert(appPo);
+//        int appId = appPo.getAppId();
+//        AppInstallPackagePo packagePo = new AppInstallPackagePo();
+//        packagePo.setAppId(appId);
+//        packagePo.setCreateTime(now);
+//        packagePo.setDeployPath(module.getInstallPackage().getDeployPath());
+//        packagePo.setFileName(module.getInstallPackage().getExt());
+//        packagePo.setMd5(module.getInstallPackage().getFileMd5());
+//        NexusAssetInfo ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
+//        packagePo.setNexusAssetId(ipAsset.getId());
+//        packagePo.setNexusRepository(this.appRepository);
+//        this.appInstallPackageMapper.insert(packagePo);
+//        for(DeployFileInfo cfg : module.getCfgs())
+//        {
+//            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
+//            cfgFilePo.setAppId(appId);
+//            cfgFilePo.setCreateTime(now);
+//            cfgFilePo.setDeployPath(module.getInstallPackage().getDeployPath());
+//            cfgFilePo.setFileName(module.getInstallPackage().getExt());
+//            cfgFilePo.setMd5(module.getInstallPackage().getFileMd5());
+//            ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
+//            cfgFilePo.setNexusAssetId(ipAsset.getId());
+//            cfgFilePo.setNexusRepository(this.appRepository);
+//            this.appCfgFileMapper.insert(cfgFilePo);
+//        }
+//        appMap.put(appDirectory, appPo);
+//        return appFileAssetMap;
+//    }
 
     @Override
     public PlatformAppDeployDetailVo[] queryPlatformAppDeploy(QueryEntity queryEntity) throws Exception {

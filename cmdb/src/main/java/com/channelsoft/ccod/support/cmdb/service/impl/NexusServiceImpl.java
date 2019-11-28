@@ -207,7 +207,7 @@ public class NexusServiceImpl implements INexusService {
     }
 
     @Override
-    public Map<String, Map<String, NexusAssetInfo>> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
+    public  Map<String, NexusAssetInfo> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
         String url = String.format(this.uploadRawUrlFmt, this.nexusHostUrl, repository);
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpPost httpPost = new HttpPost(url);
@@ -252,7 +252,7 @@ public class NexusServiceImpl implements INexusService {
             }
         }
 //        assetRelationMap.put(directory, fileAssetMap);
-        return new HashMap<>();
+        return fileAssetMap;
     }
 
     /**

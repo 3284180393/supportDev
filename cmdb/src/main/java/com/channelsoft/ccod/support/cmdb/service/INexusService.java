@@ -57,7 +57,7 @@ public interface INexusService {
      * @return 是否上传成功
      * @throws Exception
      */
-    Map<String, Map<String, NexusAssetInfo>> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception;
+    Map<String, NexusAssetInfo> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception;
 
     /**
      * reload某个repository的component信息
