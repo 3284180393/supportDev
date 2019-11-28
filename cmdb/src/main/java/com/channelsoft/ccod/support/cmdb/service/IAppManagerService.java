@@ -4,7 +4,10 @@ import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
+import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+
+import java.util.Map;
 
 /**
  * @ClassName: IAppManagerService
@@ -120,5 +123,18 @@ public interface IAppManagerService {
      * @throws Exception
      */
     void createNewPlatformAppDataCollectTask(String platformId, String domainId, String hostIp, String appName, String version) throws Exception;
+
+    /**
+     * 通过扫描应用发布nexus仓库的方式添加新的app
+     * @param appName 应用名
+     * @param appAlias 应用别名
+     * @param version 发布版本
+     * @param installPackageNexusPath 安装包在nexus的assetId
+     * @param packageExt 按转包类型jar, binary, war, zip or war
+     * @param cfgNexusPaths 配置文件在nexus的assetId
+     * @return 添加后新的app在业务nexus的存放信息
+     * @throws Exception
+     */
+    AppPo addNewAppFromPublishNexus(String appName, String appAlias, String version, String installPackageNexusPath, String packageExt, String[] cfgNexusPaths) throws Exception;
 
 }

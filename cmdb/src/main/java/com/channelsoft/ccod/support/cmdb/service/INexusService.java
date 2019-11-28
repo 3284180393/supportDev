@@ -105,17 +105,27 @@ public interface INexusService {
      */
     Map<String, NexusAssetInfo> queryGroupAssetMap(String nexusHostUrl, String userName, String password, String repository, String group) throws Exception;
 
+
     /**
-     * 通过扫描应用发布nexus仓库的方式添加新的app
-     * @param appName 应用名
-     * @param appAlias 应用别名
-     * @param version 发布版本
-     * @param installPackageNexusAssetId 安装包在nexus的assetId
-     * @param packageExt 按转包类型jar, binary, war, zip or war
-     * @param cfgNexusAssetIds 配置文件在nexus的assetId
-     * @return 添加后新的app在业务nexus的存放信息
+     * 查询保存在nexus指定文件的asset信息
+     * @param nexusHostUrl nexus主机url
+     * @param userName nexus登录用户
+     * @param password nexus用户登录密码
+     * @param repository 仓库名
+     * @param nexusName 文件保存在nexus指定仓库中的name
+     * @return 指定文件的asset信息
      * @throws Exception
      */
-    Map<String, NexusAssetInfo> addNewAppByScanPublishNexus(String appName, String appAlias, String version, String installPackageNexusAssetId, String packageExt, String[] cfgNexusAssetIds) throws Exception;
+    NexusAssetInfo queryAssetByNexusName(String nexusHostUrl, String userName, String password, String repository, String nexusName) throws Exception;
 
+    /**
+     * 从nexus下载指定的文件
+     * @param nexusHostUrl nexus主机url
+     * @param userName nexus登录用户
+     * @param password nexus用户登录密码
+     * @param downloadUrl 文件下载地址
+     * @return 被下载的文件保存地址
+     * @throws Exception
+     */
+    String downloadFile(String nexusHostUrl, String userName, String password, String downloadUrl) throws Exception;
 }

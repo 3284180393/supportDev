@@ -74,6 +74,8 @@ public class NexusServiceImpl implements INexusService {
 
     private String queryGroupItemsUrlFmt = "%s/service/rest/v1/search?repository=%s&group=%s";
 
+    private String queryAssetByNameFmt = "%s/service/rest/v1/search?repository=%s&name=%s";
+
     @Value("${nexus.platform_app_cfg_repository}")
     private String platformAppCfgRepository;
 
@@ -376,8 +378,105 @@ public class NexusServiceImpl implements INexusService {
     }
 
     @Override
-    public Map<String, NexusAssetInfo> addNewAppByScanPublishNexus(String appName, String appAlias, String version, String installPackageNexusAssetId, String packageExt, String[] cfgNexusAssetIds) throws Exception {
-        return null;
+    public NexusAssetInfo queryAssetByNexusName(String nexusHostUrl, String userName, String password, String repository, String nexusName) throws Exception {
+        String url = String.format(this.queryAssetByNameFmt, nexusHostUrl, repository, nexusName);
+        HttpClient httpclient = getBasicHttpClient(userName, password);
+        HttpGet httpGet = new HttpGet(url);
+        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
+        HttpResponse response = httpclient.execute(httpGet);
+        if (response.getStatusLine().getStatusCode() != 200)
+        {
+            logger.error(String.format("query asset from repository=%s and name=%s FAIL : server return %d code",
+                    repository, nexusName, response.getStatusLine().getStatusCode()));
+            throw new Exception(String.format("query asset from repository=%s and name=%s FAIL : server return %d code",
+                    repository, nexusName, response.getStatusLine().getStatusCode()));
+        }
+        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+        NexusComponentPo componentPo = JSONObject.parseObject(conResult, NexusComponentPo.class);
+        NexusAssetInfo assetInfo = null;
+        for(NexusAssetInfo info : componentPo.getAssets())
+        {
+            if(info.getPath().equals(nexusName))
+            {
+                assetInfo = info;
+            }
+        }
+        if(assetInfo != null)
+        {
+            logger.info(String.format("success find [%s] at nexusHost=%s and repository=%s with name=%s",
+                    JSONObject.toJSONString(assetInfo), nexusHostUrl, repository, nexusName));
+        }
+        else
+        {
+            logger.warn(String.format("can not find file at nexusHost=%s and repository=%s with name=%s",
+                    nexusHostUrl, repository, nexusName));
+        }
+        return assetInfo;
+    }
+
+
+    @Override
+    public String downloadFile(String nexusHostUrl, String userName, String password, String downloadUrl) throws Exception {
+//        BufferedInputStream bis = null;
+//        BufferedOutputStream bos = null;
+//        HttpURLConnection uc = null;
+//        try
+//        {
+//            String[] arr = downloadUrl.split("/");
+//            String fileName = arr[arr.length - 1];
+//            String savedFullPath = savePath;
+//            if(isWindows)
+//            {
+//                savedFullPath = "/" + savedFullPath.replace("\\", "/");
+//            }
+//            savedFullPath += savedFullPath + "/" + fileName;
+//            URL url = new URL(downloadUrl);
+//            uc = (HttpURLConnection) url.openConnection();
+//            uc.setRequestProperty("Authorization", getBasicAuthPropValue(userName, password));
+////            uc.connect();
+//            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
+//            uc.connect();
+//            String message = uc.getHeaderField(0);
+//            if (message != null && !"".equals(message.trim())
+//                    && message.startsWith("HTTP/1.1 404"))
+//            {
+//                logger.error("查询到的录音" + downloadUrl + "不存在");
+//
+//                throw new Exception("录音文件不存在");
+//            }
+//            File file = new File(savedFullPath);// 创建新文件
+//            if (file != null && !file.exists())
+//            {
+//                file.createNewFile();
+//            }
+//            long fileSize = uc.getContentLength();
+//            logger.info(downloadUrl + "录音文件长度:" + uc.getContentLength());// 打印文件长度
+//            // 读取文件
+//            bis = new BufferedInputStream(uc.getInputStream());
+//            bos = new BufferedOutputStream(new FileOutputStream(file));
+//            int len = 2048;
+//            byte[] b = new byte[len];
+//            while ((len = bis.read(b)) != -1)
+//            {
+//                bos.write(b, 0, len);
+//            }
+//            logger.info("下载保存成功");
+//            bos.flush();
+//        }
+//        finally {
+//            if(uc != null)
+//            {
+//                uc.disconnect();
+//            }
+//            if(bis != null)
+//            {
+//                bis.close();
+//            }
+//            if(bos != null)
+//            {
+//                bos.close();
+//            }
+//        }
     }
 
     private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws Exception

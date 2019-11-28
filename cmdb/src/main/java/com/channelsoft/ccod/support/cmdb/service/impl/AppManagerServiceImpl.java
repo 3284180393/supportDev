@@ -578,4 +578,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
         executor.execute(taskThread);
         executor.shutdown();
     }
+
+    @Override
+    public AppPo addNewAppFromPublishNexus(String appName, String appAlias, String version, String installPackageNexusPath, String packageExt, String[] cfgNexusPaths) throws Exception {
+        return null;
+    }
 }
