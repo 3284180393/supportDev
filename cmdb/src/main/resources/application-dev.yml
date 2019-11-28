@@ -81,7 +81,7 @@ activemq:
   receive_time_span: 300
 
 cmdb:
-  server_name: support_dev_cmdb_server2
+  server_name: support_dev_cmdb_server3
   share_secret: ae12139afadabde12345r
   app_collect:
     receipt_timeout: 5000

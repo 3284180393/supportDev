@@ -60,36 +60,6 @@ public interface INexusService {
     Map<String, NexusAssetInfo> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception;
 
     /**
-     * reload某个repository的component信息
-     * @param repository 需要装载的仓库
-     */
-    void reloadRepositoryComponent(String repository) throws Exception;
-
-    /**
-     * release某个repository的component信息
-     * @param repository 需要释放信息的仓库
-     */
-    void releaseRepositoryComponent(String repository);
-
-//    /**
-//     * 如果module对应app以及版本在nexus仓库没有，则创建
-//     * @param module
-//     * @throws Exception
-//     */
-//    void addPlatformAppModule(PlatformAppModuleVo module) throws Exception;
-
-    /**
-     * 将一组平台应用模块上传到nexus
-     * 如果某个模块对应的component已经在nexus存在则对比安装包的md5,如果md5不一致则报错，该平台应用模块上传失败,否则上传该平台应用模块的配置文件
-     * 如果component不存在则创建该应用对应的component(appName/appAlias/version),并上传该平台应用的配置文件
-     * @param appRepository 保存应用component的仓库
-     * @param cfgRepository 保存平台配置文件的仓库
-     * @param modules 需要上传的模块
-     * @throws Exception
-     */
-    void uploadPlatformAppModules(String appRepository, String cfgRepository, PlatformAppModuleVo[] modules) throws Exception;
-
-    /**
      * 查询raw仓库，并生成repository : <directory, <fileName, asset>>的关系map
      * @param repository 需要查询的仓库名
      * @return 关系map
