@@ -7,21 +7,33 @@ import java.util.Map;
 /**
  * @ClassName: PlatformAppParamVo
  * @Author: lanhb
- * @Description: 同平台平台应用处理相关的参数
+ * @Description: 用来定义平台/app相关参数的类
  * @Date: 2019/11/24 10:10
  * @Version: 1.0
  */
 public class PlatformAppParamVo {
-    public String platformId;
-    public String appRepository;
-    public String cfgRepository;
-    public Map<String, AppPo> appMap;
-    public Map<String, PlatformPo> platformMap;
-    public Map<String, DomainPo> domainMap;
-    public Map<String, ServerPo> serverMap;
-    public Map<String, ServerUserPo> serverUserMap;
-    public Map<String, Map<String, NexusAssetInfo>> appFileAssetMap;
-    public Map<String, Map<String, NexusAssetInfo>> cfgFileAssetMap;
+
+    private int method; //平台应用处理方式,1、通过通知平台客户端自动扫描的方式添加,目前只支持1
+
+    private String platformId; //平台id
+
+    private String domainId; //域id
+
+    private String hostIp; //主机ip
+
+    private String appName; //应用名
+
+    private String version; //版本
+
+    private Object data; //同平台应用相关的数据,data包含的数据类型由method决定
+
+    public int getMethod() {
+        return method;
+    }
+
+    public void setMethod(int method) {
+        this.method = method;
+    }
 
     public String getPlatformId() {
         return platformId;
@@ -31,75 +43,43 @@ public class PlatformAppParamVo {
         this.platformId = platformId;
     }
 
-    public String getAppRepository() {
-        return appRepository;
+    public String getDomainId() {
+        return domainId;
     }
 
-    public void setAppRepository(String appRepository) {
-        this.appRepository = appRepository;
+    public void setDomainId(String domainId) {
+        this.domainId = domainId;
     }
 
-    public String getCfgRepository() {
-        return cfgRepository;
+    public String getHostIp() {
+        return hostIp;
     }
 
-    public void setCfgRepository(String cfgRepository) {
-        this.cfgRepository = cfgRepository;
+    public void setHostIp(String hostIp) {
+        this.hostIp = hostIp;
     }
 
-    public Map<String, AppPo> getAppMap() {
-        return appMap;
+    public String getAppName() {
+        return appName;
     }
 
-    public void setAppMap(Map<String, AppPo> appMap) {
-        this.appMap = appMap;
+    public void setAppName(String appName) {
+        this.appName = appName;
     }
 
-    public Map<String, PlatformPo> getPlatformMap() {
-        return platformMap;
+    public String getVersion() {
+        return version;
     }
 
-    public void setPlatformMap(Map<String, PlatformPo> platformMap) {
-        this.platformMap = platformMap;
+    public void setVersion(String version) {
+        this.version = version;
     }
 
-    public Map<String, DomainPo> getDomainMap() {
-        return domainMap;
+    public Object getData() {
+        return data;
     }
 
-    public void setDomainMap(Map<String, DomainPo> domainMap) {
-        this.domainMap = domainMap;
-    }
-
-    public Map<String, ServerPo> getServerMap() {
-        return serverMap;
-    }
-
-    public void setServerMap(Map<String, ServerPo> serverMap) {
-        this.serverMap = serverMap;
-    }
-
-    public Map<String, ServerUserPo> getServerUserMap() {
-        return serverUserMap;
-    }
-
-    public void setServerUserMap(Map<String, ServerUserPo> serverUserMap) {
-        this.serverUserMap = serverUserMap;
-    }
-
-    public Map<String, Map<String, NexusAssetInfo>> getAppFileAssetMap() {
-        return appFileAssetMap;
-    }
-
-    public void setAppFileAssetMap(Map<String, Map<String, NexusAssetInfo>> appFileAssetMap) {
-        this.appFileAssetMap = appFileAssetMap;
-    }
-
-    public Map<String, Map<String, NexusAssetInfo>> getCfgFileAssetMap() {
-        return cfgFileAssetMap;
-    }
-
-    public void setCfgFileAssetMap(Map<String, Map<String, NexusAssetInfo>> cfgFileAssetMap) {
-        this.cfgFileAssetMap = cfgFileAssetMap;
+    public void setData(Object data) {
+        this.data = data;
     }
 }

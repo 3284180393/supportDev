@@ -35,6 +35,7 @@ import org.apache.http.util.EntityUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -90,6 +91,15 @@ public class NexusServiceImpl implements INexusService {
     @Value("${nexus.app_module_repository}")
     private String appRepository;
 
+    @Value("${app_publish_nexus.host_url}")
+    private String appPublishNexusUrl;
+
+    @Value("${app_publish_nexus.user}")
+    private String appPublishNexusUserName;
+
+    @Value("${app_publish_nexus.password}")
+    private String getAppPublishNexusPassword;
+
     @Value("${windows}")
     private boolean isWindows;
 
@@ -104,7 +114,7 @@ public class NexusServiceImpl implements INexusService {
                 sourceFilePath, repository, group, fileName, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpPost httppost = new HttpPost(url);
-        httppost.addHeader("Authorization", getBasicAuthPropValue());
+        httppost.addHeader("Authorization", getBasicAuthPropValue(this.userName, this.password));
         List<NameValuePair> nvps = new ArrayList<NameValuePair>();
         nvps.add(new BasicNameValuePair("raw.directory", group));
         nvps.add(new BasicNameValuePair("raw.asset1", sourceFilePath));
@@ -132,7 +142,7 @@ public class NexusServiceImpl implements INexusService {
         logger.info(String.format("begin to query id=%s component info, queryUrl=%s", componentId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue());
+        httpGet.addHeader("Authorization", getBasicAuthPropValue(this.userName, this.password));
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -158,7 +168,7 @@ public class NexusServiceImpl implements INexusService {
         logger.info(String.format("begin to query id=%s asset info, queryUrl=%s", assetId, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue());
+        httpGet.addHeader("Authorization", getBasicAuthPropValue(this.userName, this.password));
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 422)
         {
@@ -185,7 +195,7 @@ public class NexusServiceImpl implements INexusService {
                 repository, url));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue());
+        httpGet.addHeader("Authorization", getBasicAuthPropValue(this.userName, this.password));
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -211,7 +221,7 @@ public class NexusServiceImpl implements INexusService {
         String url = String.format(this.uploadRawUrlFmt, this.nexusHostUrl, repository);
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpPost httpPost = new HttpPost(url);
-        httpPost.addHeader("Authorization", getBasicAuthPropValue());
+        httpPost.addHeader("Authorization", getBasicAuthPropValue(this.userName, this.password));
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.setCharset(java.nio.charset.Charset.forName("UTF-8"));
         builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
@@ -267,7 +277,7 @@ public class NexusServiceImpl implements INexusService {
         logger.info(String.format("begin to query all components of repository=%s", repository));
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue());
+        httpGet.addHeader("Authorization", getBasicAuthPropValue(this.userName, this.password));
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -406,13 +416,14 @@ public class NexusServiceImpl implements INexusService {
     }
 
 
-    private Map<String, NexusAssetInfo> queryGroupAssetMap(String repository, String group) throws Exception
+    @Override
+    public Map<String, NexusAssetInfo> queryGroupAssetMap(String repository, String group) throws Exception
     {
         Map<String, NexusAssetInfo> map = new HashMap<>();
         String url = String.format(this.queryGroupItemsUrlFmt, this.nexusHostUrl, repository, group);
         HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
         HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue());
+        httpGet.addHeader("Authorization", getBasicAuthPropValue(this.userName, this.password));
         HttpResponse response = httpclient.execute(httpGet);
         if (response.getStatusLine().getStatusCode() == 404)
         {
@@ -473,6 +484,38 @@ public class NexusServiceImpl implements INexusService {
         }
     }
 
+    @Override
+    public Map<String, NexusAssetInfo> addNewAppByScanPublishNexus(String appName, String appAlias, String version, String installPackageNexusAssetId, String packageExt, String[] cfgNexusAssetIds) throws Exception {
+        return null;
+    }
+
+    private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String user, String password) throws Exception
+    {
+        String url = String.format(this.queryAssetUrlFmt, nexusUrl, nexusAssetId);
+        CloseableHttpClient client = getBasicHttpClient(user, password);
+        HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
+        HttpGet httpGet = new HttpGet(url);
+        httpGet.addHeader("Authorization", getBasicAuthPropValue(user, password));
+        HttpResponse response = httpclient.execute(httpGet);
+        if (response.getStatusLine().getStatusCode() == 404)
+        {
+            logger.error(String.format("nexusAssetId=%s asset not exist at nexus=%s", nexusAssetId, nexusUrl));
+            throw new Exception(String.format("nexusAssetId=%s not exist at nexus=%s", nexusAssetId, nexusUrl));
+        }
+        else if (response.getStatusLine().getStatusCode() != 200)
+        {
+            logger.error(String.format("query assetId=%s from nexus=%s FAIL : server return %d code",
+                    nexusAssetId, nexusUrl, response.getStatusLine().getStatusCode()));
+            throw new Exception(String.format("query assetId=%s from nexus=%s FAIL : server return %d code",
+                    nexusAssetId, nexusUrl, response.getStatusLine().getStatusCode()));
+        }
+        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+        JSONObject jsonObject = JSONObject.parseObject(conResult);
+        List<NexusComponentPo> components = JSONArray.parseArray(jsonObject.get("items").toString(), NexusComponentPo.class);
+        logger.info(String.format("repository=%s has %d components", nexusAssetId, components.size()));
+        return null;
+    }
+
     private void downloadAsset(NexusAssetInfo assetInfo, String savePath) throws Exception
     {
         BufferedInputStream bis = null;
@@ -491,7 +534,7 @@ public class NexusServiceImpl implements INexusService {
             savedFullPath += savedFullPath + "/" + fileName;
             URL url = new URL(downloadUrl);
             uc = (HttpURLConnection) url.openConnection();
-            uc.setRequestProperty("Authorization", getBasicAuthPropValue());
+            uc.setRequestProperty("Authorization", getBasicAuthPropValue(this.userName, this.password));
 //            uc.connect();
             uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
             uc.connect();
@@ -539,9 +582,9 @@ public class NexusServiceImpl implements INexusService {
 
     }
 
-    private String getBasicAuthPropValue()
+    private String getBasicAuthPropValue(String userName, String password)
     {
-        String input = this.userName + ":" + this.password;
+        String input = userName + ":" + password;
         return "Basic " + (new sun.misc.BASE64Encoder().encode(input.getBytes()));
     }
 

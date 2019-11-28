@@ -105,4 +105,26 @@ public interface INexusService {
      */
     void downloadComponent(NexusAssetInfo[] componentAssets, String savePath) throws Exception;
 
+    /**
+     * 查询指定nexus指定repository下的指定group的存储文件
+     * @param repository 仓库名
+     * @param group 指定的group
+     * @return 查询结果
+     * @throws Exception
+     */
+    Map<String, NexusAssetInfo> queryGroupAssetMap(String repository, String group) throws Exception;
+
+    /**
+     * 通过扫描应用发布nexus仓库的方式添加新的app
+     * @param appName 应用名
+     * @param appAlias 应用别名
+     * @param version 发布版本
+     * @param installPackageNexusAssetId 安装包在nexus的assetId
+     * @param packageExt 按转包类型jar, binary, war, zip or war
+     * @param cfgNexusAssetIds 配置文件在nexus的assetId
+     * @return 添加后新的app在业务nexus的存放信息
+     * @throws Exception
+     */
+    Map<String, NexusAssetInfo> addNewAppByScanPublishNexus(String appName, String appAlias, String version, String installPackageNexusAssetId, String packageExt, String[] cfgNexusAssetIds) throws Exception;
+
 }

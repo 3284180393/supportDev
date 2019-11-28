@@ -1,19 +1,16 @@
 package com.channelsoft.ccod.support.cmdb.controller;
 
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformResourceService;
-import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
-import com.channelsoft.ccod.support.cmdb.vo.PlatformAppDeployDetailVo;
-import com.channelsoft.ccod.support.cmdb.vo.PlatformResourceVo;
-import com.channelsoft.ccod.support.cmdb.vo.QueryEntity;
+import com.channelsoft.ccod.support.cmdb.vo.*;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 
 /**
@@ -37,10 +34,11 @@ public class CMDBController {
 
     private String apiBasePath = "/cmdb/api";
 
-    @RequestMapping("/apps")
-    public AjaxResultPo queryAllApps()
+
+    @RequestMapping(value = "/apps", method = RequestMethod.POST)
+    public AjaxResultPo addNewApp(@RequestBody String id)
     {
-        String uri = String.format("%s/apps", this.apiBasePath);
+        String uri = String.format("GET %s/apps", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -57,10 +55,31 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping("/apps/{appName}")
+    @RequestMapping(value = "/apps", method = RequestMethod.GET)
+    public AjaxResultPo queryAllApps()
+    {
+        String uri = String.format("GET %s/apps", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            AppModuleVo[] apps = this.appManagerService.queryApps(null);
+            resultPo = new AjaxResultPo(true, "query SUCCESs", apps.length, apps);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query app modules exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+
+    @RequestMapping(value = "/apps/{appName}", method = RequestMethod.GET)
     public AjaxResultPo queryAppsByName(@PathVariable String appName)
     {
-        String uri = String.format("%s/apps/%s", this.apiBasePath, appName);
+        String uri = String.format("GET %s/apps/%s", this.apiBasePath, appName);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -80,7 +99,7 @@ public class CMDBController {
     @RequestMapping("/apps/{appName}/{version}")
     public AjaxResultPo queryAppByNameAndVersion(@PathVariable String appName, @PathVariable String version)
     {
-        String uri = String.format("%s/apps/%s/%s", this.apiBasePath, appName, version);
+        String uri = String.format("GET %s/apps/%s/%s", this.apiBasePath, appName, version);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -145,10 +164,10 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping("/platformApps")
+    @RequestMapping(value = "/platformApps", method = RequestMethod.GET)
     public AjaxResultPo queryAllPlatformApps()
     {
-        String uri = String.format("%s/platformApps", this.apiBasePath);
+        String uri = String.format("GET %s/platformApps", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -165,10 +184,44 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/platformApps", method = RequestMethod.POST)
+    public AjaxResultPo addPlatformApps(@RequestBody PlatformAppParamVo param)
+    {
+        String uri = String.format("POST %s/platformApps", this.apiBasePath);
+        logger.debug(String.format("enter %s controller with param=%s", uri, JSONObject.toJSONString(param)));
+        if(param.getMethod() != PlatformAppOperationMethod.ADD_BY_PLATFORM_CLIENT_COLLECT.id)
+        {
+            logger.error(String.format("not support platform app operation method=%d, quit %s controller",
+                    param.getMethod(), uri));
+            return new AjaxResultPo(false, String.format("not support platform app operation method=%d", param.getMethod()));
+        }
+        if(StringUtils.isBlank(param.getPlatformId()))
+        {
+            logger.error(String.format("platformId of app operation method=%d cannot be blank, quit %s controller",
+                    param.getMethod(), uri));
+            return new AjaxResultPo(false, String.format("platformId can not be blank"));
+        }
+        AjaxResultPo resultPo;
+        try
+        {
+            this.appManagerService.createNewPlatformAppDataCollectTask(param.getPlatformId(), param.getDomainId(),
+                    param.getHostIp(), param.getAppName(), param.getVersion());
+            logger.info(String.format("platform app collect task with param=%s create SUCCESS, quit %s controller",
+                    JSONObject.toJSONString(param), uri));
+            resultPo = new AjaxResultPo(true, "collect task create SUCCESS");
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping("/platformApps/{platformId}")
     public AjaxResultPo queryPlatformAppsByPlatformId(@PathVariable String platformId)
     {
-        String uri = String.format("%s/platformApps/%s", this.apiBasePath, platformId);
+        String uri = String.format("GET %s/platformApps/%s", this.apiBasePath, platformId);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -188,7 +241,7 @@ public class CMDBController {
     @RequestMapping("/platformApps/{platformId}/{domainId}")
     public AjaxResultPo queryPlatformAppsByDomainId(@PathVariable String platformId, @PathVariable String domainId)
     {
-        String uri = String.format("%s/platformApps/%s/%s", this.apiBasePath, platformId, domainId);
+        String uri = String.format("GET %s/platformApps/%s/%s", this.apiBasePath, platformId, domainId);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -208,7 +261,7 @@ public class CMDBController {
     @RequestMapping("/platformApps/{platformId}/{domainId}/{hostIp}")
     public AjaxResultPo queryPlatformAppsByHostIp(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String hostIp)
     {
-        String uri = String.format("%s/platformApps/%s/%s/%s", this.apiBasePath, platformId, domainId, hostIp);
+        String uri = String.format("GET %s/platformApps/%s/%s/%s", this.apiBasePath, platformId, domainId, hostIp);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -228,7 +281,7 @@ public class CMDBController {
     @RequestMapping("/platformResources")
     public AjaxResultPo queryAllPlatformResources()
     {
-        String uri = String.format("%s/platformResources", this.apiBasePath);
+        String uri = String.format("GET %s/platformResources", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -248,7 +301,7 @@ public class CMDBController {
     @RequestMapping("/platformResources/{platformId}")
     public AjaxResultPo queryPlatformResourceByPlatformId(@PathVariable String platformId)
     {
-        String uri = String.format("%s/platformResources/%s", this.apiBasePath, platformId);
+        String uri = String.format("GET %s/platformResources/%s", this.apiBasePath, platformId);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -277,7 +330,7 @@ public class CMDBController {
     @RequestMapping("/platformResources/{platformId}/{domainId}")
     public AjaxResultPo queryPlatformResourceByDomainId(@PathVariable String platformId, @PathVariable String domainId)
     {
-        String uri = String.format("%s/platformResources/%s/%s", this.apiBasePath, platformId, domainId);
+        String uri = String.format("GET %s/platformResources/%s/%s", this.apiBasePath, platformId, domainId);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -307,7 +360,7 @@ public class CMDBController {
     @RequestMapping("/platformResources/{platformId}/{domainId}/{hostIp}")
     public AjaxResultPo queryPlatformResourceByHostIp(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String hostIp)
     {
-        String uri = String.format("%s/platformResources/%s/%s/%s", this.apiBasePath, platformId, domainId, hostIp);
+        String uri = String.format("GET %s/platformResources/%s/%s/%s", this.apiBasePath, platformId, domainId, hostIp);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -337,7 +390,7 @@ public class CMDBController {
     @RequestMapping("/appDeployDetails")
     public AjaxResultPo queryAllAppsDeployDetails()
     {
-        String uri = String.format("%s/appDeployDetails", this.apiBasePath);
+        String uri = String.format("GET %s/appDeployDetails", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -357,7 +410,7 @@ public class CMDBController {
     @RequestMapping("/appDeployDetails/{appName}")
     public AjaxResultPo queryAppDeployDetailByAppName(@PathVariable String appName)
     {
-        String uri = String.format("%s/appDeployDetails/%s", this.apiBasePath, appName);
+        String uri = String.format("GET %s/appDeployDetails/%s", this.apiBasePath, appName);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -377,7 +430,7 @@ public class CMDBController {
     @RequestMapping("/appDeployDetails/{appName}/{platformId}")
     public AjaxResultPo queryAppDeployDetailByPlatformId(@PathVariable String appName, @PathVariable String platformId)
     {
-        String uri = String.format("%s/appDeployDetails/%s/%s", this.apiBasePath, appName, platformId);
+        String uri = String.format("GET %s/appDeployDetails/%s/%s", this.apiBasePath, appName, platformId);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -397,7 +450,7 @@ public class CMDBController {
     @RequestMapping("/appDeployDetails/{appName}/{platformId}/{domainId}")
     public AjaxResultPo queryAppDeployDetailsByDomainId(@PathVariable String appName, @PathVariable String platformId, @PathVariable String domainId)
     {
-        String uri = String.format("%s/appDeployDetails/%s/%s/%s", this.apiBasePath, appName, platformId, domainId);
+        String uri = String.format("GET %s/appDeployDetails/%s/%s/%s", this.apiBasePath, appName, platformId, domainId);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -417,7 +470,7 @@ public class CMDBController {
     @RequestMapping("/appDeployDetails/{appName}/{platformId}/{domainId}/{hostIp}")
     public AjaxResultPo queryAppDeployDetailsByHostIp(@PathVariable String appName, @PathVariable String platformId, @PathVariable String domainId, @PathVariable String hostIp)
     {
-        String uri = String.format("%s/appDeployDetails/%s/%s/%s/%s", this.apiBasePath, appName, platformId, domainId, hostIp);
+        String uri = String.format("GET %s/appDeployDetails/%s/%s/%s/%s", this.apiBasePath, appName, platformId, domainId, hostIp);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try

@@ -122,8 +122,13 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         Connection connection = connectionFactory.createConnection();
         connection.setClientID(this.serverName);
         connection.start();
-        List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
-        return modules;
+        try {
+            List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
+            return modules;
+        }
+        finally {
+            connection.close();
+        }
     }
 
     @PostConstruct
@@ -165,11 +170,18 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         Connection connection = connectionFactory.createConnection();
         connection.setClientID(this.serverName);
         connection.start();
-        List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
-        params = new HashMap<>();
-        params.put("platformId", platformId);
-        modules = getPlatformAppInstallPackageAndCfg(platformId, modules, params, connection);
-        return modules;
+        try
+        {
+            List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
+            params = new HashMap<>();
+            params.put("platformId", platformId);
+            modules = getPlatformAppInstallPackageAndCfg(platformId, modules, params, connection);
+            return modules;
+        }
+        finally {
+            connection.close();
+        }
+
     }
 
 

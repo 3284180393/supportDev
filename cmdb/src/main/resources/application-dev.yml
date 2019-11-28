@@ -70,15 +70,18 @@ nexus:
   host_url : http://10.130.41.216:8081
   app_module_repository : ccod_modules
   platform_app_cfg_repository : platform_app_cfg
-  query_asset_url : ${nexus_host}/service/rest/v1/assets/{asset_id}
-  upload_raw_url : ${nexus_host}/service/rest/v1/components?repository=%s
+
+app_publish_nexus:
+  user: admin
+  password: 123456
+  host_url: http://10.130.41.216:8081
 
 activemq:
   brokerUrl : failover:(tcp://10.130.44.108:61616)?timeout=3000
   receive_time_span: 300
 
 cmdb:
-  server_name: support_dev_cmdb_server1
+  server_name: support_dev_cmdb_server2
   share_secret: ae12139afadabde12345r
   app_collect:
     receipt_timeout: 5000

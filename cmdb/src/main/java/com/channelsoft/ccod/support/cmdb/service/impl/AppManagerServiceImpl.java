@@ -111,7 +111,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            this.appMapper.selectByPrimaryKey(1);
 //            this.appMapper.select(null, null, null, null);
 //            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
-            this.startCollectPlatformAppData("tool", null, null, null, null);
+//            this.startCollectPlatformAppData("tool", null, null, null, null);
 //            this.appModuleMapper.select("jj","aa", "bb", "kk");
 //            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
 //                    "55", "66", "77", "88");
@@ -209,39 +209,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            }
 //        }
         handleCollectedPlatformAppModules(modules.toArray(new PlatformAppModuleVo[0]));
-//        this.nexusService.reloadRepositoryComponent(this.appRepository);
-//        for(PlatformAppModuleVo module : modules)
-//        {
-//            boolean isGetFile = true;
-//            if(StringUtils.isBlank(module.getInstallPackage().getLocalSavePath()))
-//            {
-//                logger.error(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s do not get install package=%s",
-//                        module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
-//                        module.getModuleAliasName(), module.getVersion(), module.getBasePath(), module.getInstallPackage().getFileName()));
-//                isGetFile = false;
-//            }
-//            else
-//            {
-//                for(DeployFileInfo cfg : module.getCfgs())
-//                {
-//                    if(StringUtils.isBlank(cfg.getLocalSavePath()))
-//                    {
-//                        logger.error(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s do not get cfg=%s",
-//                                module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
-//                                module.getModuleAliasName(), module.getVersion(), module.getBasePath(), cfg.getFileName()));
-//                        isGetFile = false;
-//                    }
-//                }
-//            }
-//            if(isGetFile)
-//            {
-//                logger.info(String.format("platformId=%s and domainId=%s and hostIp=%s and appName=%s and appAlias=%s and version=%s and basePath=%s get install package and cfgs SUCCESS, so upload to nexus",
-//                        module.getPlatformId(), module.getDomainId(), module.getHostIp(), module.getModuleName(),
-//                        module.getModuleAliasName(), module.getVersion(), module.getBasePath()));
-////                this.nexusService.addPlatformAppModule(module);
-//            }
-//        }
-//        this.nexusService.releaseRepositoryComponent(this.appRepository);
         this.isPlatformCheckOngoing = false;
         return modules.toArray(new PlatformAppModuleVo[0]);
     }
@@ -298,7 +265,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             serverUserMap.put(String.format(this.serverUserkeyFmt, po.getServerId(), 1, po.getUserName()), po);
         }
-        Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.queryRepositoryAssetRelationMap(this.appRepository);
+        Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = new HashMap<>();
         for(PlatformAppModuleVo module : modules)
         {
             try
@@ -329,6 +296,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.info(String.format("handle [%s] platform app module : appDirectory=%s and cfgDirectory=%s",
                 module.toString(), appDirectory, cfgDirectory));
         AppPo appPo = module.getAppInfo();
+        if(!appFileAssetMap.containsKey(appDirectory))
+        {
+            Map<String, NexusAssetInfo> fileAssetMap = this.nexusService.queryGroupAssetMap(appRepository, appDirectory);
+            if(fileAssetMap.size() > 0)
+            {
+                appFileAssetMap.put(appDirectory, fileAssetMap);
+            }
+        }
         if(appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory)) {
             Map<String, NexusAssetInfo> fileAssetMap = appFileAssetMap.get(appDirectory);
             //检查应用的配置文件数是否和保存的同版本相同
@@ -358,6 +333,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     return false;
                 }
             }
+            logger.info(String.format("collect %s app's install package and cfg files is same with nexus repository=%s",
+                    appDirectory, appRepository));
         }
         else if(!appMap.containsKey(appDirectory) && !appFileAssetMap.containsKey(appDirectory))
         {
