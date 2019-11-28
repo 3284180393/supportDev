@@ -44,6 +44,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${debug}")
     private boolean debug;
 
+    @Value("${nexus.user}")
+    private String userName;
+
+    @Value("${nexus.password}")
+    private String password;
+
+    @Value("${nexus.host_url}")
+    private String nexusHostUrl;
+
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
 
@@ -358,7 +367,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         appPo = appMap.get(appDirectory);
         //上传平台应用配置文件到nexus
-        this.nexusService.uploadRawComponent(this.platformAppCfgRepository, cfgDirectory, module.getCfgs());
+        this.nexusService.uploadRawComponent(this.nexusHostUrl, this.userName, this.password, this.platformAppCfgRepository, cfgDirectory, module.getCfgs());
         PlatformPo platformPo = module.getPlatform();
         String platformId = platformPo.getPlatformId();
         if(!platformMap.containsKey(platformId))
@@ -428,7 +437,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<DeployFileInfo> uploadFiles = new ArrayList<>();
         uploadFiles.add(installPackage);
         uploadFiles.addAll(Arrays.asList(cfgs));
-        Map<String, NexusAssetInfo> fileAssetMap = this.nexusService.uploadRawComponent(repository, directory, uploadFiles.toArray(new DeployFileInfo[0]));
+        Map<String, NexusAssetInfo> fileAssetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.userName, this.password, repository, directory, uploadFiles.toArray(new DeployFileInfo[0]));
         logger.info(String.format("prepare to add appName=%s and appAlias=%s and version=%s app info to database",
                 app.getAppName(), app.getAppAlias(), app.getVersion()));
         app.setAppType(AppType.CCOD_KERNEL_MODULE.name);

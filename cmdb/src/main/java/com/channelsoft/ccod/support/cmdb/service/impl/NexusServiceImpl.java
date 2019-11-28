@@ -217,11 +217,11 @@ public class NexusServiceImpl implements INexusService {
     }
 
     @Override
-    public  Map<String, NexusAssetInfo> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
-        String url = String.format(this.uploadRawUrlFmt, this.nexusHostUrl, repository);
-        HttpClient httpclient = getBasicHttpClient(this.userName, this.password);
+    public  Map<String, NexusAssetInfo> uploadRawComponent(String nexusHostUrl, String userName, String password, String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
+        String url = String.format(this.uploadRawUrlFmt, nexusHostUrl, repository);
+        HttpClient httpclient = getBasicHttpClient(userName, password);
         HttpPost httpPost = new HttpPost(url);
-        httpPost.addHeader("Authorization", getBasicAuthPropValue(this.userName, this.password));
+        httpPost.addHeader("Authorization", getBasicAuthPropValue(userName, password));
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.setCharset(java.nio.charset.Charset.forName("UTF-8"));
         builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);

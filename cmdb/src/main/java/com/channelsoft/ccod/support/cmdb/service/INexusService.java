@@ -51,13 +51,16 @@ public interface INexusService {
 
     /**
      * 将component的相关文件上传到指定的raw类型的repository下
+     * @param nexusHostUrl nexus主机url
+     * @param userName nexus登录用户
+     * @param password nexus用户登录密码
      * @param repository 指定的raw类型仓库
      * @param directory 在仓库的存放路径
      * @param componentFiles 需要上传的文件
      * @return 是否上传成功
      * @throws Exception
      */
-    Map<String, NexusAssetInfo> uploadRawComponent(String repository, String directory, DeployFileInfo[] componentFiles) throws Exception;
+    Map<String, NexusAssetInfo> uploadRawComponent(String nexusHostUrl, String userName, String password, String repository, String directory, DeployFileInfo[] componentFiles) throws Exception;
 
     /**
      * 查询raw仓库，并生成repository : <directory, <fileName, asset>>的关系map
