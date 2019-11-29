@@ -120,12 +120,13 @@ public interface INexusService {
 
     /**
      * 从nexus下载指定的文件
-     * @param nexusHostUrl nexus主机url
      * @param userName nexus登录用户
      * @param password nexus用户登录密码
      * @param downloadUrl 文件下载地址
-     * @return 被下载的文件保存地址
+     * @param saveDir 存储目录
+     * @param saveFileName 存储文件名
+     * @return 被下载的文件绝对保存地址
      * @throws Exception
      */
-    String downloadFile(String nexusHostUrl, String userName, String password, String downloadUrl) throws Exception;
+    String downloadFile(String userName, String password, String downloadUrl, String saveDir, String saveFileName) throws Exception;
 }

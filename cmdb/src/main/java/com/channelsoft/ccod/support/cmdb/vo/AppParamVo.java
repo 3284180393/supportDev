@@ -11,11 +11,17 @@ public class AppParamVo {
 
     private int method;   //处理方式:1、通过扫描nexus服务器自动添加，目前只支持1后续开发支持其它方式
 
+    private String appType; //应用类型
+
     private String appName; //应用名
 
     private String appAlias; //应用别名
 
     private String version; //应用版本
+
+    private String ccodVersion; //适用的ccod版本
+
+    private String basePath; //应用安装的缺省base path
 
     private Object data; //必要参数,data里面包含的数据由method绝定
 
@@ -57,5 +63,29 @@ public class AppParamVo {
 
     public void setData(Object data) {
         this.data = data;
+    }
+
+    public String getAppType() {
+        return appType;
+    }
+
+    public void setAppType(String appType) {
+        this.appType = appType;
+    }
+
+    public String getCcodVersion() {
+        return ccodVersion;
+    }
+
+    public void setCcodVersion(String ccodVersion) {
+        this.ccodVersion = ccodVersion;
+    }
+
+    public String getBasePath() {
+        return basePath;
+    }
+
+    public void setBasePath(String basePath) {
+        this.basePath = basePath;
     }
 }

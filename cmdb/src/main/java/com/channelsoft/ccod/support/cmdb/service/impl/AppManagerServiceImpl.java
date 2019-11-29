@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
@@ -9,14 +10,18 @@ import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import com.sun.javafx.binding.StringFormatter;
 import org.apache.commons.lang3.StringUtils;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
 
 import javax.annotation.PostConstruct;
+import java.io.FileInputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -52,6 +57,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Value("${nexus.host_url}")
     private String nexusHostUrl;
+
+    @Value("${app_publish_nexus.user}")
+    private String publishNexusUserName;
+
+    @Value("${app_publish_nexus.password}")
+    private String publishNexusPassword;
+
+    @Value("${app_publish_nexus.host_url}")
+    private String publishNexusHostUrl;
 
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
@@ -110,6 +124,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
     private String serverKeyFmt = "%s/%s/%s";
 
     private String serverUserkeyFmt = "/%d/%d/%s";
+
+    private String tmpSaveDirFmt = "%s/downloads/%s";
 
     @PostConstruct
     void init() throws  Exception
@@ -299,6 +315,26 @@ public class AppManagerServiceImpl implements IAppManagerService {
                                             Map<String, PlatformPo> platformMap, Map<String, DomainPo> domainMap,
                                             Map<String, ServerPo> serverMap, Map<String, ServerUserPo> userMap) throws Exception
     {
+        if(StringUtils.isBlank(module.getInstallPackage().getLocalSavePath()))
+        {
+            logger.error(String.format("handle [%s] FAIL : not receive install packag[%s]",
+                    module.toString(), module.getInstallPackage().getFileName()));
+            return false;
+        }
+        StringBuffer sb = new StringBuffer();
+        for(DeployFileInfo cfg : module.getCfgs())
+        {
+            if(StringUtils.isBlank(cfg.getLocalSavePath()))
+            {
+                sb.append(String.format("%s,", cfg.getFileName()));
+            }
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            logger.error(String.format("handle [%s] FAIL : not receive cfg[%s]",
+                    module.toString(), sb.toString()));
+            return false;
+        }
         String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
         String cfgDirectory = String.format(this.appCfgDirectoryFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
                 module.getModuleName(), module.getModuleAliasName(), module.getBasePath());
@@ -560,6 +596,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
     public void createNewPlatformAppDataCollectTask(String platformId, String domainId, String hostIp, String appName, String version) throws Exception {
         logger.info(String.format("begin to create platformId=%s, domainId=%s, hostIp=%s, appName=%s, version=%s app collect task",
                 platformId, domainId, hostIp, appName, version));
+        if(this.isPlatformCheckOngoing)
+        {
+            logger.error(String.format("create platform collect task FaIL : some collect task is ongoing"));
+            throw new Exception(String.format("create platform collect task FaIL : some collect task is ongoing"));
+        }
         ExecutorService executor = Executors.newFixedThreadPool(1);
         Thread taskThread = new Thread(new Runnable(){
             @Override
@@ -580,7 +621,142 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public AppPo addNewAppFromPublishNexus(String appName, String appAlias, String version, String installPackageNexusPath, String packageExt, String[] cfgNexusPaths) throws Exception {
-        return null;
+    public AppPo addNewAppFromPublishNexus(String appType, String appName, String appAlias, String version, String ccodVersion, AppModuleFileNexusInfo installPackage, AppModuleFileNexusInfo[] cfgs, String basePath) throws Exception {
+        logger.info(String.format("prepare to add new app version from app publish nexus %s : appName=%s, appAlias=%s, version=%s, installPackage=%s, cfgs=%s",
+                this.publishNexusHostUrl, appName, appAlias, version, JSONObject.toJSONString(installPackage),
+                JSONArray.toJSONString(cfgs)));
+        String appDirectory = String.format(this.appDirectoryFmt, appName, appAlias, version);
+        Date now = new Date();
+        List<DeployFileInfo> appFileInfoList = new ArrayList<>();
+        DeployFileInfo pkgInfo = getFileFromTargetNexus(this.publishNexusHostUrl, this.publishNexusUserName,
+                this.nexusPassword, installPackage);
+        appFileInfoList.add(pkgInfo);
+        for(AppModuleFileNexusInfo cfg : cfgs)
+        {
+            DeployFileInfo cfgInfo = getFileFromTargetNexus(this.publishNexusHostUrl, this.publishNexusUserName,
+                    this.nexusPassword, cfg);
+            appFileInfoList.add(cfgInfo);
+        }
+        Map<String, NexusAssetInfo> fileAssetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl,
+                this.nexusUserName, this.nexusPassword, this.appRepository, appDirectory, appFileInfoList.toArray(new DeployFileInfo[0]));
+        AppPo appPo = new AppPo();
+        appPo.setVersionControlUrl(installPackage.getNexusName());
+        appPo.setVersionControl("nexus");
+        appPo.setAppAlias(appAlias);
+        appPo.setCcodVersion(ccodVersion);
+        appPo.setAppType(appType);
+        appPo.setVersion(version);
+        appPo.setBasePath(basePath);
+        appPo.setComment(String.format("version %s for %s", version, appName));
+        appPo.setCreateReason("RELEASE");
+        appPo.setCreateTime(now);
+        appPo.setUpdateTime(now);
+        this.appMapper.insert(appPo);
+        AppInstallPackagePo installPackagePo = new AppInstallPackagePo();
+        installPackagePo.setAppId(appPo.getAppId());
+        installPackagePo.setExt(appFileInfoList.get(0).getExt());
+        installPackagePo.setNexusDirectory(appDirectory);
+        installPackagePo.setCreateTime(now);
+        installPackagePo.setDeployPath(appFileInfoList.get(0).getDeployPath());
+        installPackagePo.setFileName(appFileInfoList.get(0).getFileName());
+        installPackagePo.setMd5(appFileInfoList.get(0).getFileMd5());
+        installPackagePo.setNexusAssetId(appFileInfoList.get(0).getNexusAssetId());
+        installPackagePo.setNexusRepository(this.appRepository);
+        this.appInstallPackageMapper.insert(installPackagePo);
+        for(int i = 1; i < appFileInfoList.size() - 1; i++)
+        {
+            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
+            cfgFilePo.setAppId(appPo.getAppId());
+            cfgFilePo.setExt(appFileInfoList.get(i).getExt());
+            cfgFilePo.setNexusDirectory(appDirectory);
+            cfgFilePo.setCreateTime(now);
+            cfgFilePo.setDeployPath(appFileInfoList.get(i).getDeployPath());
+            cfgFilePo.setFileName(appFileInfoList.get(i).getFileName());
+            cfgFilePo.setMd5(appFileInfoList.get(i).getFileMd5());
+            cfgFilePo.setNexusAssetId(appFileInfoList.get(i).getNexusAssetId());
+            cfgFilePo.setNexusRepository(this.appRepository);
+            this.appCfgFileMapper.insert(cfgFilePo);
+        }
+        return appPo;
+    }
+
+    private DeployFileInfo getFileFromTargetNexus(String nexusUrl, String userName, String password, AppModuleFileNexusInfo nexusInfo) throws Exception
+    {
+        NexusAssetInfo assetInfo = this.nexusService.queryAssetByNexusName(nexusUrl, userName, password,
+                nexusInfo.getRepository(), nexusInfo.getNexusName());
+        String fileName = getFileNameFromDownloadUrl(assetInfo.getDownloadUrl());
+        String repository = nexusInfo.getRepository();
+        String directory = "/" + nexusInfo.getNexusName().replaceAll("/" + fileName + "$", "");
+        String key = String.format("%s/%s%s", nexusUrl, repository, directory);
+        String saveDir = String.format(this.tmpSaveDirFmt,
+                System.getProperty("user.dir"), DigestUtils.md5DigestAsHex(key.getBytes()));
+        saveDir = saveDir.replaceAll("\\\\", "/");
+        String savePath = this.nexusService.downloadFile(userName, password,
+                assetInfo.getDownloadUrl(), saveDir, fileName);
+        DeployFileInfo info = new DeployFileInfo();
+        info.setFileName(fileName);
+        info.setLocalSavePath(savePath);
+        String cfgMd5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePath));
+        String[] arr = fileName.split("\\.");
+        String ext = arr.length>1 ? arr[arr.length-1] : "binary";
+        info.setExt(ext);
+        info.setFileMd5(cfgMd5);
+        return info;
+    }
+
+    private String getFileNameFromDownloadUrl(String downloadUrl)
+    {
+        String url = downloadUrl;
+        if(url.lastIndexOf("/") == url.length() - 1)
+        {
+            url = url.substring(0, downloadUrl.length()-1);
+        }
+        String[] arr = url.split("/");
+        return arr[arr.length - 1];
+    }
+
+
+    @Test
+    public void fileNameTest()
+    {
+        String url = "http://10.130.41.216:8081/service/rest/v1/search?repository=CCOD1&name=CCOD/MONITOR_MODULE/ivr/3.0.0.0/test1.ini";
+        String fileName = getFileNameFromDownloadUrl(url);
+        System.out.println(fileName);
+    }
+
+    @Test
+    public void appParamTest()
+    {
+        AppParamVo paramVo = new AppParamVo();
+        AppModuleFileNexusInfo installPackage = new AppModuleFileNexusInfo();
+        installPackage.setDeployPath("./bin");
+        installPackage.setNexusName("CCOD_DCMS/2.0.1.0/cas/be23fd608a/cas.war");
+        installPackage.setMd5("43ce23175e26e87c8460717da6984678");
+        installPackage.setRepository("CCOD");
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("installPackage", JSONObject.toJSONString(installPackage));
+        List<AppModuleFileNexusInfo> cfgs = new ArrayList<>();
+        AppModuleFileNexusInfo cfg = new AppModuleFileNexusInfo();
+        cfg.setRepository("CCOD");
+        cfg.setNexusName("DDSServer/dds/14551:27035/dds_config.cfg");
+        cfg.setDeployPath("./cfg");
+        cfg.setMd5("6198271820863529d2b025e985c03527");
+        cfgs.add(cfg);
+        cfg = new AppModuleFileNexusInfo();
+        cfg.setRepository("CCOD");
+        cfg.setNexusName("DDSServer/dds/14551:27035/dds_logger.cfg");
+        cfg.setDeployPath("./cfg");
+        cfg.setMd5("afdc1796d7a8e3e26b87fc3235f0c6bf");
+        cfgs.add(cfg);
+        dataMap.put("cfgs", JSONArray.toJSONString(cfgs.toArray(new AppModuleFileNexusInfo[0])));
+        paramVo.setData(JSONObject.toJSONString(dataMap));
+        paramVo.setAppAlias("cas");
+        paramVo.setAppName("cas");
+        paramVo.setAppType("CCOD_KERNEL_MODULE");
+        paramVo.setBasePath("/home/platform");
+        paramVo.setCcodVersion("4.5");
+        paramVo.setMethod(1);
+        paramVo.setVersion("3434:5656");
+        System.out.println(JSONObject.toJSONString(paramVo));
     }
 }

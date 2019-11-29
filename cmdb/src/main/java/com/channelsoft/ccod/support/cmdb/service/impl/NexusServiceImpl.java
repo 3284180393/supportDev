@@ -249,6 +249,13 @@ public class NexusServiceImpl implements INexusService {
             else
             {
                 NexusAssetInfo assetInfo = fileAssetMap.get(fileInfo.getFileName());
+                if(!assetInfo.getMd5().equals(fileInfo.getFileMd5()))
+                {
+                    logger.error(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
+                            fileInfo.getLocalSavePath(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
+                    throw new Exception(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
+                            fileInfo.getLocalSavePath(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
+                }
                 fileInfo.setNexusAssetId(assetInfo.getId());
                 fileInfo.setNexusDirectory(directory);
                 fileInfo.setNexusRepository(repository);
@@ -416,67 +423,70 @@ public class NexusServiceImpl implements INexusService {
 
 
     @Override
-    public String downloadFile(String nexusHostUrl, String userName, String password, String downloadUrl) throws Exception {
-//        BufferedInputStream bis = null;
-//        BufferedOutputStream bos = null;
-//        HttpURLConnection uc = null;
-//        try
-//        {
-//            String[] arr = downloadUrl.split("/");
-//            String fileName = arr[arr.length - 1];
-//            String savedFullPath = savePath;
-//            if(isWindows)
-//            {
-//                savedFullPath = "/" + savedFullPath.replace("\\", "/");
-//            }
-//            savedFullPath += savedFullPath + "/" + fileName;
-//            URL url = new URL(downloadUrl);
-//            uc = (HttpURLConnection) url.openConnection();
-//            uc.setRequestProperty("Authorization", getBasicAuthPropValue(userName, password));
-////            uc.connect();
-//            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
+    public String downloadFile(String userName, String password, String downloadUrl, String saveDir, String saveFileName) throws Exception {
+        File dir = new File(saveDir);
+        if(!dir.exists())
+        {
+            dir.mkdirs();
+        }
+        String savePath = String.format("%s/%s", saveDir, saveFileName).replace("//", "/");
+        if(this.isWindows)
+        {
+            savePath = savePath.replaceAll("/", "\\").replace("\\\\\\\\", "\\\\");
+        }
+        logger.debug(String.format("begin to download file from %s and save to %s", downloadUrl, savePath));
+        BufferedInputStream bis = null;
+        BufferedOutputStream bos = null;
+        HttpURLConnection uc = null;
+        try
+        {
+            URL url = new URL(downloadUrl);
+            uc = (HttpURLConnection) url.openConnection();
+            uc.setRequestProperty("Authorization", getBasicAuthPropValue(userName, password));
 //            uc.connect();
-//            String message = uc.getHeaderField(0);
-//            if (message != null && !"".equals(message.trim())
-//                    && message.startsWith("HTTP/1.1 404"))
-//            {
-//                logger.error("查询到的录音" + downloadUrl + "不存在");
-//
-//                throw new Exception("录音文件不存在");
-//            }
-//            File file = new File(savedFullPath);// 创建新文件
-//            if (file != null && !file.exists())
-//            {
-//                file.createNewFile();
-//            }
-//            long fileSize = uc.getContentLength();
-//            logger.info(downloadUrl + "录音文件长度:" + uc.getContentLength());// 打印文件长度
-//            // 读取文件
-//            bis = new BufferedInputStream(uc.getInputStream());
-//            bos = new BufferedOutputStream(new FileOutputStream(file));
-//            int len = 2048;
-//            byte[] b = new byte[len];
-//            while ((len = bis.read(b)) != -1)
-//            {
-//                bos.write(b, 0, len);
-//            }
-//            logger.info("下载保存成功");
-//            bos.flush();
-//        }
-//        finally {
-//            if(uc != null)
-//            {
-//                uc.disconnect();
-//            }
-//            if(bis != null)
-//            {
-//                bis.close();
-//            }
-//            if(bos != null)
-//            {
-//                bos.close();
-//            }
-//        }
+            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
+            uc.connect();
+            String message = uc.getHeaderField(0);
+            if (message != null && !"".equals(message.trim())
+                    && message.startsWith("HTTP/1.1 404"))
+            {
+                logger.error(String.format("%s not exist", downloadUrl));
+                throw new Exception(String.format("%s not exist", downloadUrl));
+            }
+            long fileSize = uc.getContentLength();
+            logger.debug(String.format("file length of %s is %d", downloadUrl, fileSize));
+            File file = new File(savePath);// 创建新文件
+            if (file.exists())
+            {
+                file.createNewFile();
+            }
+            // 读取文件
+            bis = new BufferedInputStream(uc.getInputStream());
+            bos = new BufferedOutputStream(new FileOutputStream(file));
+            int len = 2048;
+            byte[] b = new byte[len];
+            while ((len = bis.read(b)) != -1)
+            {
+                bos.write(b, 0, len);
+            }
+            logger.info(String.format("success download %s and save to %s", downloadUrl, savePath));
+            bos.flush();
+        }
+        finally {
+            if(uc != null)
+            {
+                uc.disconnect();
+            }
+            if(bis != null)
+            {
+                bis.close();
+            }
+            if(bos != null)
+            {
+                bos.close();
+            }
+        }
+        return savePath;
     }
 
     private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws Exception

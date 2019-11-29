@@ -111,7 +111,7 @@ public class ActiveMQServiceImpl implements IActiveMQService {
         session.close();
         if(isSucc)
         {
-            logger.debug(String.format("success receive msg=[%s] from queue=%s", textMessage, queueName));
+            logger.info(String.format("success receive msg=[%s] from queue=%s", textMessage, queueName));
         }
         else if(timeUsage >= timeout)
         {

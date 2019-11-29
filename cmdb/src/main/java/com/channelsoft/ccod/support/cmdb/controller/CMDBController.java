@@ -1,8 +1,11 @@
 package com.channelsoft.ccod.support.cmdb.controller;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.constant.AppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
+import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformResourceService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -11,6 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -36,16 +42,27 @@ public class CMDBController {
 
 
     @RequestMapping(value = "/apps", method = RequestMethod.POST)
-    public AjaxResultPo addNewApp(@RequestBody String id)
+    public AjaxResultPo addNewApp(@RequestBody AppParamVo param)
     {
-        String uri = String.format("GET %s/apps", this.apiBasePath);
-        logger.debug(String.format("enter %s controller", uri));
+        String uri = String.format("POST %s/apps", this.apiBasePath);
+        logger.debug(String.format("enter %s controller and app param=%s", uri, JSONObject.toJSONString(param)));
+        if(param.getMethod() != AppOperationMethod.ADD_BY_SCAN_NEXUS_REPOSITORY.id)
+        {
+            logger.error(String.format("not not support method=%d app operation", param.getMethod()));
+            return new AjaxResultPo(false, String.format("not not support method=%d app operation", param.getMethod()));
+        }
         AjaxResultPo resultPo;
         try
         {
-            AppModuleVo[] apps = this.appManagerService.queryApps(null);
-            resultPo = new AjaxResultPo(true, "query SUCCESs", apps.length, apps);
-            logger.info(String.format("query SUCCESS, quit %s", uri));
+            String data = param.getData().toString();
+            JSONObject jsonObject = JSONObject.parseObject(param.getData().toString());
+            AppModuleFileNexusInfo instPkg = JSONObject.parseObject(jsonObject.get("installPackage").toString(), AppModuleFileNexusInfo.class);
+            List<AppModuleFileNexusInfo> cfgs = JSONArray.parseArray(jsonObject.get("cfgs").toString(), AppModuleFileNexusInfo.class);
+            AppPo appPo = this.appManagerService.addNewAppFromPublishNexus(param.getAppType(), param.getAppName(),
+                    param.getAppAlias(), param.getVersion(), param.getCcodVersion(), instPkg,
+                    cfgs.toArray(new AppModuleFileNexusInfo[0]), param.getBasePath());
+            logger.info(String.format("query SUCCESS add app=%s, quit %s", JSONObject.toJSONString(appPo), uri));
+            resultPo = new AjaxResultPo(true, "add new app SUCCESS");
         }
         catch (Exception e)
         {
