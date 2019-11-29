@@ -55,7 +55,7 @@ public class CMDBController {
         try
         {
             String data = param.getData().toString();
-            JSONObject jsonObject = JSONObject.parseObject(param.getData().toString());
+            JSONObject jsonObject = JSONObject.parseObject(data);
             AppModuleFileNexusInfo instPkg = JSONObject.parseObject(jsonObject.get("installPackage").toString(), AppModuleFileNexusInfo.class);
             List<AppModuleFileNexusInfo> cfgs = JSONArray.parseArray(jsonObject.get("cfgs").toString(), AppModuleFileNexusInfo.class);
             AppPo appPo = this.appManagerService.addNewAppFromPublishNexus(param.getAppType(), param.getAppName(),

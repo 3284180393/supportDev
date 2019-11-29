@@ -399,14 +399,23 @@ public class NexusServiceImpl implements INexusService {
                     repository, nexusName, response.getStatusLine().getStatusCode()));
         }
         String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        NexusComponentPo componentPo = JSONObject.parseObject(conResult, NexusComponentPo.class);
+        JSONObject jsonObject = JSONObject.parseObject(conResult);
         NexusAssetInfo assetInfo = null;
-        for(NexusAssetInfo info : componentPo.getAssets())
+        List<NexusComponentPo> components = JSONArray.parseArray(jsonObject.get("items").toString(), NexusComponentPo.class);
+        logger.info(String.format("repository=%s has %d components", repository, components.size()));
+        for(NexusComponentPo componentPo : components)
         {
-            if(info.getPath().equals(nexusName))
+            if(componentPo.getName().equals(nexusName))
             {
-                assetInfo = info;
+                for(NexusAssetInfo info : componentPo.getAssets())
+                {
+                    if(info.getPath().equals(nexusName))
+                    {
+                        assetInfo = info;
+                    }
+                }
             }
+
         }
         if(assetInfo != null)
         {
