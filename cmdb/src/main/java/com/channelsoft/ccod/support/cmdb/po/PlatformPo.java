@@ -14,6 +14,8 @@ public class PlatformPo {
 
     private String platformName; //平台名
 
+    private int bkBizId; //平台在蓝鲸paas平台上的唯一id,平台名应当同paas上的bkBizName相同
+
     private Date createTime; //创建时间
 
     private Date updateTime; //最后一次修改时间
@@ -78,5 +80,13 @@ public class PlatformPo {
 
     public void setCcodVersion(String ccodVersion) {
         this.ccodVersion = ccodVersion;
+    }
+
+    public int getBkBizId() {
+        return bkBizId;
+    }
+
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
     }
 }

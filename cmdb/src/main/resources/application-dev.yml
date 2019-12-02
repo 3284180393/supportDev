@@ -91,6 +91,12 @@ cmdb:
     start_file_transfer_instruction: START_APP_FILE_TRANSFER
     app_file_attribute_key: FILE_ATTRIBUTE
 
+lj_paas:
+  host_url: http://paas.ccod.com:80
+  bk_app_code: wyffirstsaas
+  bk_app_secret: 8a4c0887-ca15-462b-8804-8bedefe1f352
+  user_name: admin
+
 
 windows: false
 

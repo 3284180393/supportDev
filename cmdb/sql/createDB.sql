@@ -132,3 +132,11 @@ CREATE TABLE `platform_app_attribute` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS `cmdb_lj_relation`;
+CREATE TABLE `cmdb_lj_relation` (
+`id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'cmdb的平台和蓝鲸bk biz的关系',
+`platform_id` varchar(40) NOT NULL COMMENT '平台id外键platform表主键',
+	`bk_biz_id` int(11) NOT NULL COMMENT '蓝鲸bk biz id,从蓝鲸api接口获取',
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+
