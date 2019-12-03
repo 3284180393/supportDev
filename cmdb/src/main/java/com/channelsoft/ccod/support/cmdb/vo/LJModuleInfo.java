@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.alibaba.fastjson.annotation.JSONField;
+
 /**
  * @ClassName: LJModuleInfo
  * @Author: lanhb
@@ -12,15 +14,9 @@ public class LJModuleInfo {
 
     private int setId;
 
-    private int hostId;
-
     private int moduleId;
 
     private String moduleName;
-
-    private String version;
-
-    private String ccodVersion;
 
     private String moduleType;
 
@@ -28,6 +24,7 @@ public class LJModuleInfo {
         return bizId;
     }
 
+    @JSONField(name = "bk_biz_id")
     public void setBizId(int bizId) {
         this.bizId = bizId;
     }
@@ -36,22 +33,16 @@ public class LJModuleInfo {
         return setId;
     }
 
+    @JSONField(name = "bk_set_id")
     public void setSetId(int setId) {
         this.setId = setId;
-    }
-
-    public int getHostId() {
-        return hostId;
-    }
-
-    public void setHostId(int hostId) {
-        this.hostId = hostId;
     }
 
     public int getModuleId() {
         return moduleId;
     }
 
+    @JSONField(name = "bk_module_id")
     public void setModuleId(int moduleId) {
         this.moduleId = moduleId;
     }
@@ -60,6 +51,7 @@ public class LJModuleInfo {
         return moduleName;
     }
 
+    @JSONField(name = "bk_module_name")
     public void setModuleName(String moduleName) {
         this.moduleName = moduleName;
     }
@@ -68,23 +60,9 @@ public class LJModuleInfo {
         return moduleType;
     }
 
+    @JSONField(name = "bk_module_type")
     public void setModuleType(String moduleType) {
         this.moduleType = moduleType;
     }
 
-    public String getVersion() {
-        return version;
-    }
-
-    public void setVersion(String version) {
-        this.version = version;
-    }
-
-    public String getCcodVersion() {
-        return ccodVersion;
-    }
-
-    public void setCcodVersion(String ccodVersion) {
-        this.ccodVersion = ccodVersion;
-    }
 }

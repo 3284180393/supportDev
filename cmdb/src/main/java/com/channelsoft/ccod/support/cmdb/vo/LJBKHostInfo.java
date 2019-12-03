@@ -1,5 +1,9 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.alibaba.fastjson.annotation.JSONField;
+
+import java.util.List;
+
 /**
  * @ClassName: LJBKHostInfo
  * @Author: lanhb
@@ -8,11 +12,8 @@ package com.channelsoft.ccod.support.cmdb.vo;
  * @Version: 1.0
  */
 public class LJBKHostInfo {
-    private int id; //id在蓝鲸存储的主键
 
-    private int bizId; //host在蓝鲸paas平台的biz id
-
-    private int setId; //该空闲主机资源对应的蓝鲸setId
+    private int hostId; //id在蓝鲸存储的主键
 
     private String mac; //主机mac地址
 
@@ -36,20 +37,26 @@ public class LJBKHostInfo {
 
     private String osVersion; //操作系统版本
 
-    private LJModuleInfo[] modules; //服务器应用模块
+//    private LJBKInfo bizInfo; //host所在biz的信息
+//
+//    private List<LJSetInfo> sets; //host归属的set
+//
+//    private List<LJModuleInfo> modules; //服务器安装的应用模块
 
-    public int getId() {
-        return id;
+    public int getHostId() {
+        return hostId;
     }
 
-    public void setId(int id) {
-        this.id = id;
+    @JSONField(name = "bk_host_id")
+    public void setHostId(int hostId) {
+        this.hostId = hostId;
     }
 
     public String getMac() {
         return mac;
     }
 
+    @JSONField(name = "bk_mac")
     public void setMac(String mac) {
         this.mac = mac;
     }
@@ -58,6 +65,7 @@ public class LJBKHostInfo {
         return hostInnerIp;
     }
 
+    @JSONField(name = "bk_host_innerip")
     public void setHostInnerIp(String hostInnerIp) {
         this.hostInnerIp = hostInnerIp;
     }
@@ -66,6 +74,7 @@ public class LJBKHostInfo {
         return hostOutIp;
     }
 
+    @JSONField(name = "bk_host_outerip")
     public void setHostOutIp(String hostOutIp) {
         this.hostOutIp = hostOutIp;
     }
@@ -74,6 +83,7 @@ public class LJBKHostInfo {
         return cpu;
     }
 
+    @JSONField(name = "bk_cpu")
     public void setCpu(int cpu) {
         this.cpu = cpu;
     }
@@ -82,6 +92,7 @@ public class LJBKHostInfo {
         return cpuMHZ;
     }
 
+    @JSONField(name = "bk_cpu_mhz")
     public void setCpuMHZ(String cpuMHZ) {
         this.cpuMHZ = cpuMHZ;
     }
@@ -90,6 +101,7 @@ public class LJBKHostInfo {
         return cpuModule;
     }
 
+    @JSONField(name = "bk_cpu_module")
     public void setCpuModule(String cpuModule) {
         this.cpuModule = cpuModule;
     }
@@ -98,6 +110,7 @@ public class LJBKHostInfo {
         return disk;
     }
 
+    @JSONField(name = "bk_disk")
     public void setDisk(int disk) {
         this.disk = disk;
     }
@@ -106,6 +119,7 @@ public class LJBKHostInfo {
         return mem;
     }
 
+    @JSONField(name = "bk_mem")
     public void setMem(int mem) {
         this.mem = mem;
     }
@@ -114,6 +128,7 @@ public class LJBKHostInfo {
         return osType;
     }
 
+    @JSONField(name = "bk_os_type")
     public void setOsType(String osType) {
         this.osType = osType;
     }
@@ -122,6 +137,7 @@ public class LJBKHostInfo {
         return osName;
     }
 
+    @JSONField(name = "bk_os_name")
     public void setOsName(String osName) {
         this.osName = osName;
     }
@@ -130,31 +146,35 @@ public class LJBKHostInfo {
         return osVersion;
     }
 
+    @JSONField(name = "bk_os_version")
     public void setOsVersion(String osVersion) {
         this.osVersion = osVersion;
     }
 
-    public int getSetId() {
-        return setId;
-    }
-
-    public void setSetId(int setId) {
-        this.setId = setId;
-    }
-
-    public int getBizId() {
-        return bizId;
-    }
-
-    public void setBizId(int bizId) {
-        this.bizId = bizId;
-    }
-
-    public LJModuleInfo[] getModules() {
-        return modules;
-    }
-
-    public void setModules(LJModuleInfo[] modules) {
-        this.modules = modules;
-    }
+//    @JSONField(name = "biz")
+//    public LJBKInfo getBizInfo() {
+//        return bizInfo;
+//    }
+//
+//    public void setBizInfo(LJBKInfo bizInfo) {
+//        this.bizInfo = bizInfo;
+//    }
+//
+//    @JSONField(name = "set")
+//    public List<LJSetInfo> getSets() {
+//        return sets;
+//    }
+//
+//    public void setSets(List<LJSetInfo> sets) {
+//        this.sets = sets;
+//    }
+//
+//    @JSONField(name = "module")
+//    public List<LJModuleInfo> getModules() {
+//        return modules;
+//    }
+//
+//    public void setModules(List<LJModuleInfo> modules) {
+//        this.modules = modules;
+//    }
 }
