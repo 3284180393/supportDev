@@ -1,6 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
-import com.channelsoft.ccod.support.cmdb.vo.LJBKInfo;
+import com.channelsoft.ccod.support.cmdb.vo.LJBizInfo;
 
 /**
  * @ClassName: ILJPaasService
@@ -16,12 +16,12 @@ public interface ILJPaasService {
      * @return 查询结果
      * @throws Exception
      */
-    LJBKInfo queryBizInfoById(int bizId) throws Exception;
+    LJBizInfo queryBizInfoById(int bizId) throws Exception;
 
     /**
      * 查询蓝鲸所有的biz信息
      * @return 查询结果
      * @throws Exception
      */
-    LJBKInfo[] queryBizInfo() throws Exception;
+    LJBizInfo[] queryBizInfo() throws Exception;
 }

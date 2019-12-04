@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import java.util.List;
+
 /**
  * @ClassName: CCODPlatformInfo
  * @Author: lanhb
@@ -8,27 +10,41 @@ package com.channelsoft.ccod.support.cmdb.vo;
  * @Version: 1.0
  */
 public class CCODPlatformInfo {
-    private int bizId;
+    private String platformName; //平台名,同时对应蓝鲸paas的biz name
 
-    private String bizName;
+    private int platId; //该平台在数据库的组件
+
+    private int bizId; //该平台在蓝鲸paas的biz id
+
+    private String platformId; //平台id
 
     private int status; //该平台的状态
 
-    private LJSetInfo idlePoolSet; //空闲资源池
+    private List<CCODSetInfo> sets; //该平台下除开idle pools外所有set
 
-    private LJSetInfo healingSet; //故障自愈
+    private CCODIdlePoolInfo idlePool; //该平台的idle pools set
 
-    private LJSetInfo dataSets; //数据服务模块
+    public CCODPlatformInfo()
+    {
 
-    private LJSetInfo publicModuleSet; //公共组件
+    }
 
-    private LJSetInfo integrationSet; //集成平台
+    public CCODPlatformInfo(LJBizInfo bizInfo, int status)
+    {
+        this.bizId = bizInfo.getBizId();
+        this.platformName = bizInfo.getBizName();
+        this.status = status;
+    }
 
-    private LJSetInfo jobSet; //作业平台
 
-    private LJSetInfo cfgSet; //配置平台
-
-    private LJSetInfo controlSet; //管控平台
+    public CCODPlatformInfo(LJBizInfo bizInfo, int status, CCODIdlePoolInfo idlePool, List<CCODSetInfo> sets)
+    {
+        this.bizId = bizInfo.getBizId();
+        this.platformName = bizInfo.getBizName();
+        this.status = status;
+        this.idlePool = idlePool;
+        this.sets = sets;
+    }
 
     public int getBizId() {
         return bizId;
@@ -38,12 +54,28 @@ public class CCODPlatformInfo {
         this.bizId = bizId;
     }
 
-    public String getBizName() {
-        return bizName;
+    public String getPlatformName() {
+        return platformName;
     }
 
-    public void setBizName(String bizName) {
-        this.bizName = bizName;
+    public void setPlatformName(String platformName) {
+        this.platformName = platformName;
+    }
+
+    public int getPlatId() {
+        return platId;
+    }
+
+    public void setPlatId(int platId) {
+        this.platId = platId;
+    }
+
+    public String getPlatformId() {
+        return platformId;
+    }
+
+    public void setPlatformId(String platformId) {
+        this.platformId = platformId;
     }
 
     public int getStatus() {
@@ -54,67 +86,19 @@ public class CCODPlatformInfo {
         this.status = status;
     }
 
-    public LJSetInfo getHealingSet() {
-        return healingSet;
+    public List<CCODSetInfo> getSets() {
+        return sets;
     }
 
-    public void setHealingSet(LJSetInfo healingSet) {
-        this.healingSet = healingSet;
+    public void setSets(List<CCODSetInfo> sets) {
+        this.sets = sets;
     }
 
-    public LJSetInfo getDataSets() {
-        return dataSets;
+    public CCODIdlePoolInfo getIdlePool() {
+        return idlePool;
     }
 
-    public void setDataSets(LJSetInfo dataSets) {
-        this.dataSets = dataSets;
-    }
-
-    public LJSetInfo getPublicModuleSet() {
-        return publicModuleSet;
-    }
-
-    public void setPublicModuleSet(LJSetInfo publicModuleSet) {
-        this.publicModuleSet = publicModuleSet;
-    }
-
-    public LJSetInfo getIntegrationSet() {
-        return integrationSet;
-    }
-
-    public void setIntegrationSet(LJSetInfo integrationSet) {
-        this.integrationSet = integrationSet;
-    }
-
-    public LJSetInfo getJobSet() {
-        return jobSet;
-    }
-
-    public void setJobSet(LJSetInfo jobSet) {
-        this.jobSet = jobSet;
-    }
-
-    public LJSetInfo getCfgSet() {
-        return cfgSet;
-    }
-
-    public void setCfgSet(LJSetInfo cfgSet) {
-        this.cfgSet = cfgSet;
-    }
-
-    public LJSetInfo getControlSet() {
-        return controlSet;
-    }
-
-    public void setControlSet(LJSetInfo controlSet) {
-        this.controlSet = controlSet;
-    }
-
-    public LJSetInfo getIdlePoolSet() {
-        return idlePoolSet;
-    }
-
-    public void setIdlePoolSet(LJSetInfo idlePoolSet) {
-        this.idlePoolSet = idlePoolSet;
+    public void setIdlePool(CCODIdlePoolInfo idlePool) {
+        this.idlePool = idlePool;
     }
 }

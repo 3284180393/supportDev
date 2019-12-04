@@ -13,20 +13,20 @@ import java.util.List;
  */
 public class LJHostResourceInfo {
 
-    LJBKHostInfo host;
+    LJHostInfo host;
 
     LJSetInfo[] set;
 
-    LJBKInfo[] biz;
+    LJBizInfo[] biz;
 
     LJModuleInfo[] module;
 
     @JSONField(name = "host")
-    public LJBKHostInfo getHost() {
+    public LJHostInfo getHost() {
         return host;
     }
 
-    public void setHost(LJBKHostInfo host) {
+    public void setHost(LJHostInfo host) {
         this.host = host;
     }
 
@@ -40,11 +40,11 @@ public class LJHostResourceInfo {
     }
 
     @JSONField(name = "biz")
-    public LJBKInfo[] getBiz() {
+    public LJBizInfo[] getBiz() {
         return biz;
     }
 
-    public void setBiz(LJBKInfo[] biz) {
+    public void setBiz(LJBizInfo[] biz) {
         this.biz = biz;
     }
 

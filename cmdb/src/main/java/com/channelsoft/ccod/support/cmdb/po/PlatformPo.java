@@ -10,7 +10,10 @@ import java.util.Date;
  * @Version: 1.0
  */
 public class PlatformPo {
-    private String platformId; //平台id,数据库唯一主键
+
+    private int id; //id,该平台信息在数据存储的唯一主键
+
+    private String platformId; //平台id
 
     private String platformName; //平台名
 
@@ -88,5 +91,13 @@ public class PlatformPo {
 
     public void setBkBizId(int bkBizId) {
         this.bkBizId = bkBizId;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 }

@@ -3,13 +3,13 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.alibaba.fastjson.annotation.JSONField;
 
 /**
- * @ClassName: LJBKInfo
+ * @ClassName: LJBizInfo
  * @Author: lanhb
- * @Description: 用来定义从蓝鲸paas获取的bk信息
- * @Date: 2019/12/2 11:11
+ * @Description: 用来定义从蓝鲸paas获取的biz信息
+ * @Date: 2019/12/4 13:50
  * @Version: 1.0
  */
-public class LJBKInfo {
+public class LJBizInfo {
     private int bizId;
 
     private String bizName;

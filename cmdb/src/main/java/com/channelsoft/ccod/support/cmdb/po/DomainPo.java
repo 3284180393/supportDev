@@ -10,11 +10,18 @@ import java.util.Date;
  * @Version: 1.0
  */
 public class DomainPo {
-    private String domainId; //域id,数据库唯一主键
+
+    private int domId; //id,数据库唯一主键
+
+    private String domainId; //域id
 
     private String domainName; //域名
 
+    private int platId; //该域归属的平台id,外键platform表主键
+
     private String platformId; //域所在的平台
+
+    private int bkSetId; //该域在蓝鲸paas下的哪个set的id
 
     private Date createTime; //创建时间
 
@@ -78,5 +85,29 @@ public class DomainPo {
 
     public void setStatus(int status) {
         this.status = status;
+    }
+
+    public int getDomId() {
+        return domId;
+    }
+
+    public void setDomId(int domId) {
+        this.domId = domId;
+    }
+
+    public int getPlatId() {
+        return platId;
+    }
+
+    public void setPlatId(int platId) {
+        this.platId = platId;
+    }
+
+    public int getBkSetId() {
+        return bkSetId;
+    }
+
+    public void setBkSetId(int bkSetId) {
+        this.bkSetId = bkSetId;
     }
 }

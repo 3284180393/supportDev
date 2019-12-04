@@ -14,7 +14,11 @@ public class PlatformAppPo {
 
     private int appId; //应用id,外键app的appId
 
-    private String platformId; //平台id,外键platform的platform_id
+    private int platId; //对应的平台在数据库的唯一主键,外键平台表的id
+
+    private String platformId; //平台id
+
+    private String domId; //对应的域在数据库的唯一主键,外键域表的id
 
     private String domainId; //应用所在的域id,外键domain的domain_id
 
@@ -25,6 +29,14 @@ public class PlatformAppPo {
     private String basePath; //该应用的basePath
 
     private Date deployTime; //该应用的部署路径
+
+    private int bkBizId; //该应用在蓝鲸paas的biz的id
+
+    private int bkSetId; //该应用在蓝鲸set的id
+
+    private int bkHostId; //该应用在蓝鲸的host的id
+
+    private int bkModuleId; //该应用对应蓝鲸的module的id
 
     public int getPlatformAppId() {
         return platformAppId;
@@ -88,5 +100,53 @@ public class PlatformAppPo {
 
     public void setRunnerId(int runnerId) {
         this.runnerId = runnerId;
+    }
+
+    public int getPlatId() {
+        return platId;
+    }
+
+    public void setPlatId(int platId) {
+        this.platId = platId;
+    }
+
+    public String getDomId() {
+        return domId;
+    }
+
+    public void setDomId(String domId) {
+        this.domId = domId;
+    }
+
+    public int getBkBizId() {
+        return bkBizId;
+    }
+
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
+    }
+
+    public int getBkSetId() {
+        return bkSetId;
+    }
+
+    public void setBkSetId(int bkSetId) {
+        this.bkSetId = bkSetId;
+    }
+
+    public int getBkHostId() {
+        return bkHostId;
+    }
+
+    public void setBkHostId(int bkHostId) {
+        this.bkHostId = bkHostId;
+    }
+
+    public int getBkModuleId() {
+        return bkModuleId;
+    }
+
+    public void setBkModuleId(int bkModuleId) {
+        this.bkModuleId = bkModuleId;
     }
 }

@@ -15,6 +15,8 @@ public class ServerPo {
 
     private String hostIp; //服务器ip
 
+    private int bkHostId; //该服务器对应的蓝鲸paas的host id
+
     private int serverType; //服务类型 1:linux,2:windows
 
     private String platformId; //服务所在平台
@@ -87,5 +89,13 @@ public class ServerPo {
 
     public void setServerType(int serverType) {
         this.serverType = serverType;
+    }
+
+    public int getBkHostId() {
+        return bkHostId;
+    }
+
+    public void setBkHostId(int bkHostId) {
+        this.bkHostId = bkHostId;
     }
 }

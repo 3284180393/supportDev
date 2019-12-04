@@ -2,17 +2,14 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.alibaba.fastjson.annotation.JSONField;
 
-import java.util.List;
-
 /**
- * @ClassName: LJBKHostInfo
+ * @ClassName: LJHostInfo
  * @Author: lanhb
- * @Description: 用来定义蓝鲸存储的服务器信息
- * @Date: 2019/12/2 13:46
+ * @Description: 用来定义蓝鲸paas host相关信息
+ * @Date: 2019/12/4 13:54
  * @Version: 1.0
  */
-public class LJBKHostInfo {
-
+public class LJHostInfo {
     private int hostId; //id在蓝鲸存储的主键
 
     private String mac; //主机mac地址
@@ -150,31 +147,4 @@ public class LJBKHostInfo {
     public void setOsVersion(String osVersion) {
         this.osVersion = osVersion;
     }
-
-//    @JSONField(name = "biz")
-//    public LJBKInfo getBizInfo() {
-//        return bizInfo;
-//    }
-//
-//    public void setBizInfo(LJBKInfo bizInfo) {
-//        this.bizInfo = bizInfo;
-//    }
-//
-//    @JSONField(name = "set")
-//    public List<LJSetInfo> getSets() {
-//        return sets;
-//    }
-//
-//    public void setSets(List<LJSetInfo> sets) {
-//        this.sets = sets;
-//    }
-//
-//    @JSONField(name = "module")
-//    public List<LJModuleInfo> getModules() {
-//        return modules;
-//    }
-//
-//    public void setModules(List<LJModuleInfo> modules) {
-//        this.modules = modules;
-//    }
 }
