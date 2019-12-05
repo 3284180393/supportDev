@@ -12,6 +12,12 @@ public class DownloadFileInfo {
 
     private String md5; //文件md5
 
+    public DownloadFileInfo(String downloadUrl, String md5)
+    {
+        this.downloadUrl = downloadUrl;
+        this.md5 = md5;
+    }
+
     public String getDownloadUrl() {
         return downloadUrl;
     }

@@ -3,11 +3,12 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
+import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
-import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
@@ -29,8 +30,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
+import javax.annotation.PostConstruct;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @ClassName: LJPaasServiceImpl
@@ -44,6 +48,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Autowired
     PlatformMapper platformMapper;
 
+    @Autowired
+    PlatformAppDeployDetailMapper platformAppDeployDetailMapper;
+
     @Value("${lj_paas.host_url}")
     private String paasHostUrl;
 
@@ -56,10 +63,17 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Value("${lj_paas.user_name}")
     private String userName;
 
+    @Value("${nexus.host_url}")
+    private String nexusHostUrl;
+
     @Value("${develop}")
     private boolean isDevelop;
 
-    private String paasSetModule = "域服务:cmsserver;daengine;DataKeeper;dcproxy;dcs;ddaengine;ddcs;DDSServer;tsrecadsrv;tsr2;UCDServer;ucxserver;EAService;fpsvr;psr;slee;StatSchedule|公共组件:LicenseServer|网关接入:umg|管理门户:agentProxy;cci2;customWebservice;dcms;dcmsDialer;dcmsDialerWebservice;dcmsMonitor;dcmsNEWSG;dcmsRecord;dcmsRecordCXM;dcmssg;dcmsSG;dcmsSR;dcmsStatics;dcmsStaticsIB;dcmsStaticsReport;dcmsStaticsReportfj;dcmsStaticsReportNew;dcmsWebservice;dcmsWebservicespeed;dcmsWebservicespeednew;dcmsWebserviceucds;dcmsx;gls;httpd;IBcustomWebservice;IBsafetymonitor;interfaceAdapter;ivrprocessinterface;omsp;PADnStatistics;PADnStatisticsbilibili;PAreload;portal;safetyMonitor;safetyStatics;safetyStaticsQT;tomcat|对外接口|运营门户:gls|httpd|IBcustomWebs|IBsafetymoni|licen";
+    @Value("${lj_paas.set_module}")
+    private String paasSetModule;
+
+    @Value("${lj_paas.exclude_biz}")
+    private String excludeBiz;
 
     private String paasIdlePoolSetName = "idle pool";
 
@@ -69,7 +83,58 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     private String queryHostUrlFmt = "%s/api/c/compapi/v2/cc/search_host/";
 
+    private String downloadUrlFmt = "%s/%s/%s";
+
     private final static Logger logger = LoggerFactory.getLogger(LJPaasServiceImpl.class);
+
+    private Map<String, SetDomain> supportSetDomainMap;
+
+    private Set<Integer> exludeBizSet;
+
+
+    @PostConstruct
+    void init() throws Exception
+    {
+        supportSetDomainMap  = new ConcurrentHashMap<>();
+        String[] setArr = this.paasSetModule.split("\\|");
+        for(String str : setArr)
+        {
+            if(StringUtils.isBlank(str))
+                continue;
+            String[] arr = str.split("\\:");
+            String[] setDomArr = arr[0].split("@");
+            SetDomain setDomain = new SetDomain();
+            setDomain.setName = setArr[0];
+            if(setArr.length > 1)
+            {
+                setDomain.domainId = setDomArr[1];
+                setDomain.domainName = setDomArr[1];
+            }
+            if(arr.length > 0)
+            {
+                setDomain.moduleNameSet = new HashSet<>(Arrays.asList(arr[1].split(";")));
+            }
+            else
+            {
+                setDomain.moduleNameSet = new HashSet<>();
+            }
+            this.supportSetDomainMap.put(setDomain.setName, setDomain);
+        }
+        logger.info(String.format("ccod set, domain and app relation is : %s", JSONObject.toJSONString(this.supportSetDomainMap)));
+        this.exludeBizSet = new HashSet<>();
+        if(StringUtils.isNotBlank(this.excludeBiz))
+        {
+            String[] bizIds = this.excludeBiz.split(";");
+            for(String bizId : bizIds)
+            {
+                if(StringUtils.isNotBlank(bizId))
+                {
+                    this.exludeBizSet.add(Integer.parseInt(bizId));
+                }
+            }
+        }
+        logger.info(String.format("exclude biz=%s", JSONArray.toJSONString(this.exludeBizSet)));
+    }
 
     @Override
     public LJBizInfo queryBizInfoById(int bizId) throws Exception {
@@ -214,7 +279,89 @@ public class LJPaasServiceImpl implements ILJPaasService {
 //        return true;
 //    }
 
-    private List<LJHostResourceInfo> queryLJPaasBKBizInfo(String paasHostUrl, String bkAppCode, String bkAppSecret, String bkUserName) throws Exception
+    private List<LJBizInfo> queryLJPaasAllBiz(String paasHostUrl, String bkAppCode, String bkAppSecret, String bkUserName) throws Exception
+    {
+        String queryUrl = String.format(this.queryBizUrlFmt, paasHostUrl);
+        logger.debug(String.format("begin to query all biz info from paasUrl=%s : appCode=%s, appSecret=%s and userName=%s",
+                queryUrl, bkAppCode, bkAppSecret, bkUserName));
+        JSONObject jsonParam = new JSONObject();
+        jsonParam.put("bk_app_code", bkAppCode);
+        jsonParam.put("bk_app_secret", bkAppSecret);
+        jsonParam.put("bk_username", bkUserName);
+        String jsonStr = jsonParam.toJSONString();
+        StringEntity entity = new StringEntity(jsonParam.toString(),"utf-8");//解决中文乱码问题
+        entity.setContentEncoding("UTF-8");
+        entity.setContentType("application/json");
+        HttpPost httpPost = new HttpPost(queryUrl);
+        httpPost.setEntity(entity);
+        HttpClient httpClient = getBasicHttpClient();
+        HttpResponse response = httpClient.execute(httpPost);
+        // 解析response封装返回对象httpResult
+        if (response.getStatusLine().getStatusCode() != 200)
+        {
+            logger.error(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
+                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
+            throw new Exception(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
+                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
+        }
+        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+        JSONObject jsonObject = JSONObject.parseObject(conResult);
+        if("success".equals(jsonObject.containsKey("message")))
+        {
+            logger.error(String.format("paas return error message %s", jsonObject.containsKey("message")));
+            throw new Exception(String.format("paas return error message %s", jsonObject.containsKey("message")));
+        }
+        String data = jsonObject.getJSONObject("data").getString("info");
+        List<LJBizInfo> bizList = JSONArray.parseArray(data, LJBizInfo.class);
+        System.out.println(bizList.size());
+//        Map<Integer, LJBizInfo> bkMap = new HashMap<>();
+//        Map<Integer, LJSetInfo> setMap = new HashMap<>();
+//        Map<Integer, LJHostInfo> hostInfoMap = new HashMap<>();
+        return bizList;
+    }
+
+    private List<LJSetInfo> queryLJPaasBizSet(int bizId, String paasHostUrl, String bkAppCode, String bkAppSecret, String bkUserName) throws Exception
+    {
+        String queryUrl = String.format(this.queryBizSetUrlFmt, paasHostUrl);
+        logger.debug(String.format("begin to query all set of bizId=%d from paasUrl=%s : appCode=%s, appSecret=%s and userName=%s",
+                bizId, queryUrl, bkAppCode, bkAppSecret, bkUserName));
+        JSONObject jsonParam = new JSONObject();
+        jsonParam.put("bk_app_code", bkAppCode);
+        jsonParam.put("bk_app_secret", bkAppSecret);
+        jsonParam.put("bk_username", bkUserName);
+        jsonParam.put("bk_biz_id", bizId + "");
+        StringEntity entity = new StringEntity(jsonParam.toString(),"utf-8");//解决中文乱码问题
+        entity.setContentEncoding("UTF-8");
+        entity.setContentType("application/json");
+        HttpPost httpPost = new HttpPost(queryUrl);
+        httpPost.setEntity(entity);
+        HttpClient httpClient = getBasicHttpClient();
+        HttpResponse response = httpClient.execute(httpPost);
+        // 解析response封装返回对象httpResult
+        if (response.getStatusLine().getStatusCode() != 200)
+        {
+            logger.error(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
+                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
+            throw new Exception(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
+                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
+        }
+        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+        JSONObject jsonObject = JSONObject.parseObject(conResult);
+        if("success".equals(jsonObject.containsKey("message")))
+        {
+            logger.error(String.format("paas return error message %s", jsonObject.containsKey("message")));
+            throw new Exception(String.format("paas return error message %s", jsonObject.containsKey("message")));
+        }
+        String data = jsonObject.getJSONObject("data").getString("info");
+        List<LJSetInfo> setList = JSONArray.parseArray(data, LJSetInfo.class);
+        System.out.println(setList.size());
+//        Map<Integer, LJBizInfo> bkMap = new HashMap<>();
+//        Map<Integer, LJSetInfo> setMap = new HashMap<>();
+//        Map<Integer, LJHostInfo> hostInfoMap = new HashMap<>();
+        return setList;
+    }
+
+    private List<LJHostResourceInfo> queryLJPaasBKHostResource(String paasHostUrl, String bkAppCode, String bkAppSecret, String bkUserName) throws Exception
     {
         String queryUrl = String.format(this.queryHostUrlFmt, paasHostUrl);
         logger.debug(String.format("begin to query all bk_biz info from paasUrl=%s : appCode=%s, appSecret=%s and userName=%s",
@@ -224,10 +371,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
         jsonParam.put("bk_app_secret", bkAppSecret);
         jsonParam.put("bk_username", bkUserName);
         List<Map<String, Object>> conditionsList = new ArrayList<>();
-        conditionsList.add(generateLJObjectParam("set", new String[0], new String[0]));
-        conditionsList.add(generateLJObjectParam("biz", new String[0], new String[0]));
-        conditionsList.add(generateLJObjectParam("host", new String[0], new String[0]));
-        conditionsList.add(generateLJObjectParam("module", new String[0], new String[0]));
+        conditionsList.add(generateLJObjectParam("set", new String[0], new HashMap[0]));
+        conditionsList.add(generateLJObjectParam("biz", new String[0], new HashMap[0]));
+        conditionsList.add(generateLJObjectParam("host", new String[0], new HashMap[0]));
+        conditionsList.add(generateLJObjectParam("module", new String[0], new HashMap[0]));
         jsonParam.put("condition", conditionsList);
         String jsonStr = jsonParam.toJSONString();
         StringEntity entity = new StringEntity(jsonParam.toString(),"utf-8");//解决中文乱码问题
@@ -262,105 +409,63 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
 
-    private List<CCODPlatformInfo> handlePaasResource(List<LJBizInfo> bizList,
-                                                      Map<Integer, Map<Integer, LJSetInfo>> bizSetMap,
-                                                      List<LJHostResourceInfo> resourceList,
-                                                      Map<Integer, PlatformPo> platformMap,
-                                                      Map<Integer, PlatformAppPo> appMap)
+    private List<LJHostInfo> queryIdleHost(int bizId, int idlePoolSetId, String paasHostUrl, String bkAppCode, String bkAppSecret, String bkUserName) throws Exception
     {
-        Map<Integer, List<LJHostInfo>> setHostMap = new HashMap<>();
-        Map<Integer, List<LJModuleInfo>> setModuleMap = new HashMap<>();
-        Map<Integer, LJHostInfo> hostMap = new HashMap<>();
-        for(LJHostResourceInfo resourceInfo : resourceList)
+        String queryUrl = String.format(this.queryHostUrlFmt, paasHostUrl);
+        logger.debug(String.format("begin to query idle host for bizId=%s and idlePoolSetId=%d from paasUrl=%s : appCode=%s, appSecret=%s and userName=%s",
+                bizId, idlePoolSetId, queryUrl, bkAppCode, bkAppSecret, bkUserName));
+        JSONObject jsonParam = new JSONObject();
+        jsonParam.put("bk_app_code", bkAppCode);
+        jsonParam.put("bk_app_secret", bkAppSecret);
+        jsonParam.put("bk_username", bkUserName);
+        jsonParam.put("bk_biz_id", bizId + "");
+        List<Map<String, Object>> conditionsList = new ArrayList<>();
+        List<Map<String, Object>> setParams = new ArrayList<>();
+        Map<String, Object> setParam = new HashMap<>();
+        setParam.put("field", "bk_set_id");
+        setParam.put("operator", "$eq");
+        setParam.put("value", idlePoolSetId);
+        setParams.add(setParam);
+        conditionsList.add(generateLJObjectParam("set", new String[0], setParams.toArray(new Map[0])));
+        conditionsList.add(generateLJObjectParam("biz", new String[0], new HashMap[0]));
+        conditionsList.add(generateLJObjectParam("host", new String[0], new HashMap[0]));
+        conditionsList.add(generateLJObjectParam("module", new String[0], new HashMap[0]));
+        jsonParam.put("condition", conditionsList);
+        String jsonStr = jsonParam.toJSONString();
+        StringEntity entity = new StringEntity(jsonParam.toString(),"utf-8");//解决中文乱码问题
+        entity.setContentEncoding("UTF-8");
+        entity.setContentType("application/json");
+        HttpPost httpPost = new HttpPost(queryUrl);
+        httpPost.setEntity(entity);
+        HttpClient httpClient = getBasicHttpClient();
+        HttpResponse response = httpClient.execute(httpPost);
+        // 解析response封装返回对象httpResult
+        if (response.getStatusLine().getStatusCode() != 200)
         {
-            int hostId = resourceInfo.getHost().getHostId();
-            hostMap.put(hostId, resourceInfo.getHost());
-            if(resourceInfo.getSet() != null && resourceInfo.getSet().length > 0)
-            {
-                for(LJSetInfo setInfo : resourceInfo.getSet())
-                {
-                    if(!setHostMap.containsKey(setInfo.getSetId()))
-                    {
-                        setHostMap.put(setInfo.getSetId(), new ArrayList<>());
-                    }
-                    setHostMap.get(setInfo.getSetId()).add(resourceInfo.getHost());
-                }
-            }
-            if(resourceInfo.getModule() != null && resourceInfo.getModule().length > 0)
-            {
-                for(LJModuleInfo moduleInfo : resourceInfo.getModule())
-                {
-                    if(!setModuleMap.containsKey(moduleInfo.getSetId()))
-                    {
-                        setModuleMap.put(moduleInfo.getSetId(), new ArrayList<>());
-                    }
-                    setModuleMap.get(moduleInfo.getSetId()).add(moduleInfo);
-                }
-            }
+            logger.error(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
+                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
+            throw new Exception(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
+                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
         }
-        List<CCODPlatformInfo> platformInfoList = new ArrayList<>();
-        for(LJBizInfo bizInfo : bizList)
+        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+        JSONObject jsonObject = JSONObject.parseObject(conResult);
+        if("success".equals(jsonObject.containsKey("message")))
         {
-            CCODPlatformInfo platformInfo = new CCODPlatformInfo();
-            platformInfo.setBizId(bizInfo.getBizId());
-            platformInfo.setPlatformName(bizInfo.getBizName());
-            List<CCODSetInfo> setList = new ArrayList<>();
-            for(LJSetInfo info : bizSetMap.get(bizInfo.getBizId()).values())
-            {
-                CCODSetInfo setInfo = new CCODSetInfo(info.getSetName());
-                setInfo.setBkSetId(info.getSetId());
-                setInfo.setBkSetName(info.getSetName());
-            }
+            logger.error(String.format("paas return error message %s", jsonObject.containsKey("message")));
+            throw new Exception(String.format("paas return error message %s", jsonObject.containsKey("message")));
         }
-        if(!isDevelop)
+        String data = jsonObject.getJSONObject("data").getString("info");
+        List<LJHostResourceInfo> hostResources = JSONArray.parseArray(data, LJHostResourceInfo.class);
+        System.out.println(hostResources.size());
+//        Map<Integer, LJBizInfo> bkMap = new HashMap<>();
+//        Map<Integer, LJSetInfo> setMap = new HashMap<>();
+//        Map<Integer, LJHostInfo> hostInfoMap = new HashMap<>();
+        List<LJHostInfo> idleHosts = new ArrayList<>();
+        for(LJHostResourceInfo hostResourceInfo : hostResources)
         {
-
+            idleHosts.add(hostResourceInfo.getHost());
         }
-        else
-        {
-
-        }
-//        Map<Integer, LJBizInfo> platformMap = new HashMap<>();
-//        Map<Integer, Map<Integer, LJSetInfo>> setMap = new HashMap<>();
-//        Map<Integer, LJHostInfo> hostMap = new HashMap<>();
-//        Map<Integer, Map<Integer, LJModuleInfo>> moduleMap = new HashMap<>();
-//        for(LJHostResourceInfo resourceInfo : resourceList)
-//        {
-//            Integer hostId = resourceInfo.getHost().getHostId();
-//            hostMap.put(hostId, resourceInfo.getHost());
-//            if(resourceInfo.getBiz() != null && resourceInfo.getBiz().length > 0)
-//            {
-//                for(LJBizInfo info : resourceInfo.getBiz())
-//                {
-//                    if(!platformMap.containsKey(info.getBizId()))
-//                    {
-//                        platformMap.put(info.getBizId(), info);
-//                    }
-//                }
-//            }
-//            if(resourceInfo.getSet() != null && resourceInfo.getSet().length > 0)
-//            {
-//                for(LJSetInfo info : resourceInfo.getSet())
-//                {
-//                    if(!setMap.containsKey(info.getSetId()))
-//                    {
-//                        setMap.put(info.getSetId(), info);
-//                    }
-//                }
-//            }
-//            if(resourceInfo.getModule() != null && resourceInfo.getModule().length > 0)
-//            {
-//                for(LJModuleInfo info : resourceInfo.getModule())
-//                {
-//                    if(!moduleMap.containsKey(info.getModuleId()))
-//                    {
-//                        moduleMap.put(info.getModuleId(), info);
-//                    }
-//                }
-//            }
-//        }
-
-        return null;
+        return idleHosts;
     }
 
     private CCODPlatformInfo createNewPlatformInfo(LJBizInfo bizInfo, LJSetInfo idlePoolSet, List<LJHostInfo> idleHosts)
@@ -382,35 +487,166 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return platformInfo;
     }
 
-    private CCODPlatformInfo generatePlatformInfo( LJBizInfo bizInfo, List<LJSetInfo> bizSetList,
-                                         Map<Integer, List<LJHostInfo>> bkSetHostMap, Map<Integer, List<LJModuleInfo>> bkSetModuleMap,
-                                         Map<Integer, LJHostInfo> moduleHostMap, PlatformPo platform, List<PlatformAppPo> platformAppList)
+    private CCODPlatformInfo getCCODPlatformInfo(PlatformPo platform, LJSetInfo idlePoolSet, List<PlatformAppDeployDetailVo> deployApps, List<LJHostInfo> idleHosts)
     {
+        CCODIdlePoolInfo idlePool = new CCODIdlePoolInfo(idlePoolSet);
+        for(LJHostInfo bkHost : idleHosts)
+        {
+            CCODHostInfo host = new CCODHostInfo(bkHost);
+            idlePool.getIdleHosts().add(host);
+        }
+        Map<Integer, CCODSetInfo> setMap = new HashMap<>();
+        Map<Integer, List<PlatformAppDeployDetailVo>> setAppMap = new HashMap<>();
+        Map<Integer, List<DomainPo>> setDomainMap = new HashMap<>();
+        Map<Integer, CCODDomainInfo> domainMap = new HashMap<>();
+        for(PlatformAppDeployDetailVo deployApp : deployApps)
+        {
+            int setId = deployApp.getSetId();
+            if(!setMap.containsKey(deployApp.getSetId()))
+            {
+                LJSetInfo bkSet = new LJSetInfo();
+                bkSet.setBizId(platform.getBkBizId());
+                bkSet.setSetId(setId);
+                bkSet.setSetName(deployApp.getSetName());
+                CCODSetInfo ccodSet = new CCODSetInfo(bkSet);
+                setMap.put(setId, ccodSet);
+                setAppMap.put(bkSet.getSetId(), new ArrayList<>());
+            }
+            CCODModuleInfo module = new CCODModuleInfo(deployApp, this.nexusHostUrl, this.downloadUrlFmt);
+            if(!domainMap.containsKey(deployApp.getDomId()))
+            {
+                CCODDomainInfo domain = new CCODDomainInfo(setId, deployApp.getDomId(), deployApp.getDomainId(), deployApp.getDomainName());
+                domain.setDomId(deployApp.getDomId());
+                domain.setDomainName(deployApp.getDomainName());
+                domainMap.put(domain.getDomId(), domain);
+                setDomainMap.put(domain.getDomId(), new ArrayList<>());
+            }
+            domainMap.get(deployApp.getDomId()).getModules().add(module);
+        }
+        LJBizInfo bizInfo = new LJBizInfo();
+        bizInfo.setBizId(platform.getBkBizId());
+        bizInfo.setBizName(platform.getPlatformName());
+        CCODPlatformInfo ccodPlatformInfo = new CCODPlatformInfo(bizInfo, CCODPlatformStatus.RUNNING.id,
+                idlePool, new ArrayList<>(setMap.values()));
+        return ccodPlatformInfo;
+    }
+
+    private CCODPlatformInfo generatePlatformInfo( PlatformPo platform,
+                                                   LJBizInfo bizInfo,
+                                                   List<LJSetInfo> setList,
+                                                   List<LJHostInfo> idleHostList,
+                                                   List<PlatformAppDeployDetailVo> deloyAppList)
+    {
+        Map<Integer, List<PlatformAppDeployDetailVo>> setAppMap = deloyAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetId));
+        if(!bizInfo.getBizName().equals(platform.getPlatformName()))
+        {
+            logger.error(String.format("bizName=%s of bizId=%d not equal with platformName=%s of bizId=%d and platId=%s",
+                    bizInfo.getBizName(), bizInfo.getBizId(), platform.getBkBizId(), platform.getPlatformName()));
+            return null;
+        }
+        if(intSetCompare(moduleHostMap.keySet(), platAppMap.keySet()))
+        {
+            logger.error(String.format("modules at paas are not consistent with apps saved in cmdb database"));
+            return null;
+        }
         CCODPlatformInfo platformInfo = new CCODPlatformInfo(bizInfo, CCODPlatformStatus.RUNNING.id);
-        for(LJSetInfo setInfo : bizSetList)
+        for(LJSetInfo setInfo : setList)
         {
             if(this.paasIdlePoolSetName.equals(setInfo.getSetName()))
             {
                 for(LJHostInfo bkHost : bkSetHostMap.get(setInfo.getSetId()))
                 {
-                    CCODIdlePoolInfo idlePoolInfo = new CCODIdlePoolInfo(bizInfo.getBizId(), setInfo.getSetId(), setInfo.getSetName());
-                    CCODHostInfo host = new CCODHostInfo(bkHost);
-                    idlePoolInfo.getIdleHosts().add(host);
+                    CCODIdlePoolInfo idlePoolInfo = new CCODIdlePoolInfo(bizInfo.getBizId(), setInfo, idleHostList);
                     platformInfo.setIdlePool(idlePoolInfo);
                 }
             }
             else
             {
+                CCODSetInfo ccodSet = new CCODSetInfo(setInfo);
                 List<CCODModuleInfo> moduleList = new ArrayList<>();
-                for(LJModuleInfo moduleInfo : bkSetModuleMap.get(setInfo.getSetId()))
+                for(LJModuleInfo bkModule : bkSetModuleMap.get(setInfo.getSetId()))
                 {
-
+                    LJHostInfo bkHost = moduleHostMap.get(bkModule.getModuleId());
+                    PlatformAppDeployDetailVo detailVo = platAppMap.get(bkModule.getModuleId());
+                    CCODModuleInfo moduleInfo = new CCODModuleInfo(bkModule);
+                    moduleInfo.setPlatformAppId(detailVo.getPlatformAppId());
+                    if(!bkModule.getModuleName().equals(detailVo.getAppAlias()))
+                    {
+                        logger.error(String.format("bkModuleId=%d, bkModuleName=%s and platformAppId=%s app's bkModuleName=%s and appAlias=%s, not equal",
+                                bkModule.getModuleId(), bkModule.getModuleName(), detailVo.getPlatformAppId(), detailVo.getAppAlias()));
+                        return null;
+                    }
+                    if(bkHost.getHostInnerIp().equals(detailVo.getHostIp()))
+                    {
+                        logger.error(String.format("bkModuleId=%d, bkModuleName=%s, and platformAppId=%s app's bkHostIp=%s and appHostIp=%s, not equal",
+                                bkModule.getModuleId(), bkModule.getModuleName(), bkHost.getHostInnerIp(), detailVo.getHostIp()));
+                        return null;
+                    }
+                    moduleInfo.setHostIp(moduleHostMap.get(bkModule.getModuleId()).getHostInnerIp());
+                    moduleInfo.setVersion(detailVo.getVersion());
+                    moduleInfo.setVersionControl(detailVo.getVersionControl());
+                    String pkgUrl = String.format(this.downloadUrlFmt, this.nexusHostUrl,
+                            detailVo.getInstallPackage().getNexusRepository(),
+                            detailVo.getInstallPackage().getNexusDirectory(),
+                            detailVo.getInstallPackage().getFileName());
+                    DownloadFileInfo pkg = new DownloadFileInfo(pkgUrl, detailVo.getInstallPackage().getMd5());
+                    moduleInfo.setInstallPackage(pkg);
+                    List<DownloadFileInfo> cfgList = new ArrayList<>();
+                    for(PlatformAppCfgFilePo cfg : detailVo.getCfgs())
+                    {
+                        String downloadUrl = String.format(this.downloadUrlFmt, this.nexusHostUrl, cfg.getNexusRepository(),
+                                cfg.getNexusDirectory(), cfg.getFileName());
+                        DownloadFileInfo cfgFile = new DownloadFileInfo(downloadUrl, cfg.getMd5());
+                        cfgList.add(cfgFile);
+                    }
+                    moduleInfo.setCfgs(cfgList);
+                    moduleList.add(moduleInfo);
+                    SetDomain sd = getDomainNameForApp(detailVo.getAppName(), detailVo.getDomainId(), detailVo.getDomainName());
+                    addModuleToSetDomain(ccodSet, moduleInfo, sd);
                 }
+                platformInfo.getSets().add(ccodSet);
             }
         }
-        return null;
+        return platformInfo;
     }
 
+    private boolean intSetCompare(Set<Integer> srcSet, Set<Integer> dstSet)
+    {
+        if(srcSet.size() != dstSet.size())
+        {
+            logger.info(String.format("srcSet size=%d and dstSet size=%d, not equal",
+                    srcSet.size(), dstSet.size()));
+            return false;
+        }
+        for(Integer key : srcSet)
+        {
+            if(!dstSet.contains(key))
+            {
+                logger.info(String.format("the value of set not equal, srcSet=%s and dstSet=%s",
+                        JSONArray.toJSONString(srcSet), JSONArray.toJSONString(dstSet)));
+                return false;
+
+            }
+        }
+        logger.info(String.format("srcSet=dstSet : %s", JSONArray.toJSONString(srcSet)));
+        return true;
+    }
+
+    private boolean addModuleToSetDomain(CCODSetInfo ccodSet, CCODModuleInfo ccodModule, SetDomain sd)
+    {
+        for(CCODDomainInfo domain : ccodSet.getDomains())
+        {
+            if(domain.getDomainId().equals(sd.domainId))
+            {
+                domain.getModules().add(ccodModule);
+                return true;
+            }
+        }
+        CCODDomainInfo domainInfo = new CCODDomainInfo(ccodSet.getBkSetId(), 0, sd.domainId, sd.domainName);
+        domainInfo.getModules().add(ccodModule);
+        ccodSet.getDomains().add(domainInfo);
+        return true;
+    }
 
     /**
      * 判断蓝鲸paas平台的biz类型
@@ -491,7 +727,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return map;
     }
 
-    private Map<String, Object> generateLJObjectParam(String objId, String[] fields, String[] condition)
+    private Map<String, Object> generateLJObjectParam(String objId, String[] fields, Map<String, Object>[] condition)
     {
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("bk_obj_id", objId);
@@ -512,29 +748,72 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return closeableHttpClient;
     }
 
-    private String getDomainNameForApp(String appName, String domainName) throws Exception
+    private SetDomain getDomainNameForApp(String appName, String domainId, String domainName)
     {
-        String domainSeviceModule = "cmsserver|daengine|DataKeeper|dcproxy|dcs|ddaengine|ddcs|DDSServer|tsrecadsrv|tsr2|UCDServer|ucxserver|EAService|fpsvr|psr|slee|StatSchedule";
-        String publicModuleModule = "LicenseServer";
-        String gatewayModule = "umg";
-        String managerPortalModule = "agentProxy|cci2|customWebservice|dcms|dcmsDialer|dcmsDialerWebservice|dcmsMonitor|dcmsNEWSG|dcmsRecord|dcmsRecordCXM|dcmssg|dcmsSG|dcmsSR|dcmsStatics|dcmsStaticsIB|dcmsStaticsReport|dcmsStaticsReportfj|dcmsStaticsReportNew|dcmsWebservice|dcmsWebservicespeed|dcmsWebservicespeednew|dcmsWebserviceucds|dcmsx|gls|httpd|IBcustomWebservice|IBsafetymonitor|interfaceAdapter|ivrprocessinterface|omsp|PADnStatistics|PADnStatisticsbilibili|PAreload|portal|safetyMonitor|safetyStatics|safetyStaticsQT|tomcat";
-        String interfaceModule = "unknown";
-        String supportPortalModule = "gls|httpd|IBcustomWebs|IBsafetymoni|licen";
-        String compareStr = "|" + appName + "|";
-        if(String.format("|%s|", domainSeviceModule).indexOf(compareStr) >= 0)
-            return domainName;
-        else if(String.format("|%s|", publicModuleModule).indexOf(compareStr) >= 0)
-            return "公共组件";
-        else if(String.format("|%s|", gatewayModule).indexOf(compareStr) >= 0)
-            return "网关接入";
-        else if(String.format("|%s|", managerPortalModule).indexOf(compareStr) >= 0)
-            return "管理门户";
-        else if(String.format("|%s|", interfaceModule).indexOf(compareStr) >= 0)
-            return "对外接口";
-        else if(String.format("|%s|", supportPortalModule).indexOf(compareStr) >= 0)
-            return "运营门户";
-        logger.error(String.format("unknown appName=%s", appName));
-        throw new Exception(String.format("unknown appName=%s", appName));
+        for(SetDomain sd : this.supportSetDomainMap.values())
+        {
+            if(sd.moduleNameSet.contains(appName))
+            {
+                SetDomain setDomain = new SetDomain();
+                setDomain.setName = sd.setName;
+                if(StringUtils.isBlank(sd.domainId))
+                {
+                    setDomain.domainId = domainId;
+                    setDomain.domainName = domainName;
+                }
+                else
+                {
+                    setDomain.domainId = sd.domainId;
+                    setDomain.domainName = sd.domainName;
+                }
+                return setDomain;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public CCODPlatformInfo[] queryAllCCODBiz() throws Exception {
+        logger.info(String.format("begin to query all biz platform info for ccod"));
+        List<PlatformPo> platformList = platformMapper.select(1);
+        List<PlatformAppDeployDetailVo> deployAppList = platformAppDeployDetailMapper.selectPlatformApps(null,
+                null, null,null);
+        List<LJBizInfo> bizList = queryLJPaasAllBiz(this.paasHostUrl, this.appCode, this.appSecret, this.userName);
+        Map<Integer, List<PlatformAppDeployDetailVo>> bizAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo :: getBkBizId));
+        Map<Integer, PlatformPo> platformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getBkBizId, Function.identity()));
+        for(LJBizInfo biz : bizList)
+        {
+            if(this.exludeBizSet.contains(biz.getBizId()))
+            {
+                logger.info(String.format("bizId=%d is in exclude set", biz.getBizId()));
+                continue;
+            }
+            List<LJSetInfo> setList = this.queryLJPaasBizSet(biz.getBizId(), this.paasHostUrl, this.appCode,
+                    this.appSecret, this.userName);
+            int bizType = checkBizType(biz, setList, platformMap);
+            if(bizType == 2)
+            {
+                List<LJHostInfo> idleHostList = queryIdleHost(biz.getBizId(), setList.get(0).getSetId(),
+                        this.paasHostUrl, this.appCode, this.appSecret, this.userName);
+                CCODPlatformInfo platformInfo = createNewPlatformInfo(biz, setList.get(0), idleHostList);
+            }
+            else if(bizType == 1)
+            {
+
+            }
+        }
+        return new CCODPlatformInfo[0];
+    }
+
+    class SetDomain
+    {
+        public String setName;
+
+        public String domainName;
+
+        public String domainId;
+
+        public Set<String> moduleNameSet;
     }
 
     @Test
@@ -560,7 +839,8 @@ public class LJPaasServiceImpl implements ILJPaasService {
     {
         try
         {
-            queryLJPaasBKBizInfo("http://paas.ccod.com:80", "wyffirstsaas", "8a4c0887-ca15-462b-8804-8bedefe1f352", "admin");
+//            queryLJPaasBKHostResource("http://paas.ccod.com:80", "wyffirstsaas", "8a4c0887-ca15-462b-8804-8bedefe1f352", "admin");
+            queryIdleHost(10, 30, "http://paas.ccod.com:80", "wyffirstsaas", "8a4c0887-ca15-462b-8804-8bedefe1f352", "admin");
         }
         catch (Exception ex)
         {

@@ -24,10 +24,10 @@ public class CCODSetInfo {
         this.domains = new ArrayList<>();
     }
 
-    public CCODSetInfo(int bkSetId, String bkSetName)
+    public CCODSetInfo(LJSetInfo bkSet)
     {
-        this.bkSetId = bkSetId;
-        this.bkSetName = bkSetName;
+        this.bkSetId = bkSet.getSetId();
+        this.bkSetName = bkSet.getSetName();
         this.domains = new ArrayList<>();
     }
 
@@ -54,4 +54,5 @@ public class CCODSetInfo {
     public void setDomains(List<CCODDomainInfo> domains) {
         this.domains = domains;
     }
+
 }

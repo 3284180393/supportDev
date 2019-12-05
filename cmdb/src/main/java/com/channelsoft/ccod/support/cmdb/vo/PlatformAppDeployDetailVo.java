@@ -22,13 +22,27 @@ public class PlatformAppDeployDetailVo {
 
     private int appId; //应用id,外键app的appId
 
-    private String platformId; //平台id,外键platform的platform_id
+    private int platId; //平台id,外键platform表主键
+
+    private String platformId; //平台id
 
     private String platformName; //部署平台名
+
+    private int setId; //set id,外键set表主键
+
+    private String setName; //set名
+
+    private int domId; //域id,数外键domain表主键
 
     private String domainId; //应用所在的域id,外键domain的domain_id
 
     private String domainName; //部署域名
+
+    private String appName; //应用名
+
+    private String appAlias; //应用别名
+
+    private AppType appType; //应用类型
 
     private int serverId; //应用部署所在服务器id,外键server表的server_id
 
@@ -46,17 +60,11 @@ public class PlatformAppDeployDetailVo {
 
     private Date deployTime; //该应用的部署路径
 
-    private AppType appType; //应用类型
-
-    private String appName; //应用名
-
-    private String appAlias; //应用别名
-
     private String version; //应用版本
 
     private Date createTime; //应用创建时间
 
-    private VersionControl versionControl; //版本控制方式
+    private String versionControl; //版本控制方式
 
     private String versionControlUrl; //版本控制的连接url
 
@@ -65,6 +73,12 @@ public class PlatformAppDeployDetailVo {
     private List<AppCfgFilePo> srcCfgs; //原始配置文件
 
     private List<PlatformAppCfgFilePo> cfgs; //应用部署后的配置文件
+
+    private int bkModuleId; //该应用在蓝鲸paas的唯一id
+
+    private int bkBizId; //该应用在蓝鲸biz id
+
+    private int bkSetId; //该应用在paas的set id
 
     public int getPlatformAppId() {
         return platformAppId;
@@ -194,11 +208,11 @@ public class PlatformAppDeployDetailVo {
         this.createTime = createTime;
     }
 
-    public VersionControl getVersionControl() {
+    public String getVersionControl() {
         return versionControl;
     }
 
-    public void setVersionControl(VersionControl versionControl) {
+    public void setVersionControl(String versionControl) {
         this.versionControl = versionControl;
     }
 
@@ -256,5 +270,61 @@ public class PlatformAppDeployDetailVo {
 
     public void setCcodVersion(String ccodVersion) {
         this.ccodVersion = ccodVersion;
+    }
+
+    public int getPlatId() {
+        return platId;
+    }
+
+    public void setPlatId(int platId) {
+        this.platId = platId;
+    }
+
+    public int getSetId() {
+        return setId;
+    }
+
+    public void setSetId(int setId) {
+        this.setId = setId;
+    }
+
+    public String getSetName() {
+        return setName;
+    }
+
+    public void setSetName(String setName) {
+        this.setName = setName;
+    }
+
+    public int getDomId() {
+        return domId;
+    }
+
+    public void setDomId(int domId) {
+        this.domId = domId;
+    }
+
+    public int getBkModuleId() {
+        return bkModuleId;
+    }
+
+    public void setBkModuleId(int bkModuleId) {
+        this.bkModuleId = bkModuleId;
+    }
+
+    public int getBkBizId() {
+        return bkBizId;
+    }
+
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
+    }
+
+    public int getBkSetId() {
+        return bkSetId;
+    }
+
+    public void setBkSetId(int bkSetId) {
+        this.bkSetId = bkSetId;
     }
 }

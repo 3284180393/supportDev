@@ -19,11 +19,24 @@ public class CCODIdlePoolInfo {
 
     private List<CCODHostInfo> idleHosts; //资源池拥有的空闲host
 
-    public CCODIdlePoolInfo(int bizId, int setId, String setName)
+    public CCODIdlePoolInfo(int bizId, LJSetInfo idlePoolSet, List<LJHostInfo> idleHosts)
     {
         this.bizId = bizId;
-        this.setId = setId;
-        this.setName = setName;
+        this.setId = idlePoolSet.getSetId();
+        this.setName = idlePoolSet.getSetName();
+        this.idleHosts = new ArrayList<>();
+        for(LJHostInfo host : idleHosts)
+        {
+            CCODHostInfo idleHost = new CCODHostInfo(host);
+            this.idleHosts.add(idleHost);
+        }
+    }
+
+    public CCODIdlePoolInfo(LJSetInfo idlePoolSet)
+    {
+        this.bizId = idlePoolSet.getBizId();
+        this.setId = idlePoolSet.getSetId();
+        this.setName = idlePoolSet.getSetName();
         this.idleHosts = new ArrayList<>();
     }
 

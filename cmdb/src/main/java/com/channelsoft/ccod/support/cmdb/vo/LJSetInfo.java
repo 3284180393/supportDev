@@ -39,4 +39,8 @@ public class LJSetInfo {
     public void setSetName(String setName) {
         this.setName = setName;
     }
+
+    public int getBizId() {
+        return bizId;
+    }
 }

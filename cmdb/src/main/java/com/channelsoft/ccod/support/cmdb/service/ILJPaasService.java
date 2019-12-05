@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.vo.CCODPlatformInfo;
 import com.channelsoft.ccod.support.cmdb.vo.LJBizInfo;
 
 /**
@@ -24,4 +25,11 @@ public interface ILJPaasService {
      * @throws Exception
      */
     LJBizInfo[] queryBizInfo() throws Exception;
+
+    /**
+     * 查询所有的ccod biz平台
+     * @return 查询结果
+     * @throws Exception
+     */
+    CCODPlatformInfo[] queryAllCCODBiz() throws Exception;
 }

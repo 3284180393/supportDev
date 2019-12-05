@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,6 +21,16 @@ public class CCODDomainInfo {
     private int bkSetId; //该域归属于蓝鲸paas的set的id
 
     private List<CCODModuleInfo> modules;
+
+    public CCODDomainInfo(int bkSetId, int domId, String domainId, String domainName)
+    {
+        this.bkSetId = bkSetId;
+        this.domId = domId;
+        this.domainId = domainId;
+        this.domainName = domainName;
+        this.modules = new ArrayList<>();
+    }
+
 
     public String getDomainId() {
         return domainId;

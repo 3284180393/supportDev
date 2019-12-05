@@ -14,6 +14,8 @@ public class PlatformAppPo {
 
     private int appId; //应用id,外键app的appId
 
+    private String appAlias; //应用别名,例如在服务器上部署两个cms,appName=cmsserver,两个cms的别名可以分别取cms1和cms2用来区分
+
     private int platId; //对应的平台在数据库的唯一主键,外键平台表的id
 
     private String platformId; //平台id
@@ -148,5 +150,13 @@ public class PlatformAppPo {
 
     public void setBkModuleId(int bkModuleId) {
         this.bkModuleId = bkModuleId;
+    }
+
+    public String getAppAlias() {
+        return appAlias;
+    }
+
+    public void setAppAlias(String appAlias) {
+        this.appAlias = appAlias;
     }
 }

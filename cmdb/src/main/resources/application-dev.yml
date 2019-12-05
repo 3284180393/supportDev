@@ -92,12 +92,13 @@ cmdb:
     app_file_attribute_key: FILE_ATTRIBUTE
 
 lj_paas:
+  exclude_biz: 2;4;5;6;8
   host_url: http://paas.ccod.com:80
   bk_app_code: wyffirstsaas
   bk_app_secret: 8a4c0887-ca15-462b-8804-8bedefe1f352
   user_name: admin
   idle_pool_set_name: idle pools
-  module_set : 域服务:cmsserver;daengine;DataKeeper;dcproxy;dcs;ddaengine;ddcs;DDSServer;tsrecadsrv;tsr2;UCDServer;ucxserver;EAService;fpsvr;psr;slee;StatSchedule|公共组件:LicenseServer|网关接入:umg|管理门户:agentProxy;cci2;customWebservice;dcms;dcmsDialer;dcmsDialerWebservice;dcmsMonitor;dcmsNEWSG;dcmsRecord;dcmsRecordCXM;dcmssg;dcmsSG;dcmsSR;dcmsStatics;dcmsStaticsIB;dcmsStaticsReport;dcmsStaticsReportfj;dcmsStaticsReportNew;dcmsWebservice;dcmsWebservicespeed;dcmsWebservicespeednew;dcmsWebserviceucds;dcmsx;gls;httpd;IBcustomWebservice;IBsafetymonitor;interfaceAdapter;ivrprocessinterface;omsp;PADnStatistics;PADnStatisticsbilibili;PAreload;portal;safetyMonitor;safetyStatics;safetyStaticsQT;tomcat|对外接口|运营门户:gls|httpd|IBcustomWebs|IBsafetymoni|licen
+  set_module : 域服务:cmsserver;daengine;DataKeeper;dcproxy;dcs;ddaengine;ddcs;DDSServer;tsrecadsrv;tsr2;UCDServer;ucxserver;EAService;fpsvr;psr;slee;StatSchedule|公共组件@PblicModules:LicenseServer|网关接入@Gateway:umg|管理门户@ManagerPortal:agentProxy;cci2;customWebservice;dcms;dcmsDialer;dcmsDialerWebservice;dcmsMonitor;dcmsNEWSG;dcmsRecord;dcmsRecordCXM;dcmssg;dcmsSG;dcmsSR;dcmsStatics;dcmsStaticsIB;dcmsStaticsReport;dcmsStaticsReportfj;dcmsStaticsReportNew;dcmsWebservice;dcmsWebservicespeed;dcmsWebservicespeednew;dcmsWebserviceucds;dcmsx;gls;httpd;IBcustomWebservice;IBsafetymonitor;interfaceAdapter;ivrprocessinterface;omsp;PADnStatistics;PADnStatisticsbilibili;PAreload;portal;safetyMonitor;safetyStatics;safetyStaticsQT;tomcat|对外接口@Interface|运营门户@SupportPortal:gls|httpd|IBcustomWebs|IBsafetymoni|licen
 
 
 windows: false

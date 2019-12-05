@@ -1,5 +1,10 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * @ClassName: CCODModuleInfo
  * @Author: lanhb
@@ -25,13 +30,35 @@ public class CCODModuleInfo {
 
     private DownloadFileInfo installPackage; //安装包下载信息
 
-    private DownloadFileInfo[] cfgs; //配置文件下载信息
+    private List<DownloadFileInfo> cfgs; //配置文件下载信息
 
     public CCODModuleInfo(LJModuleInfo moduleInfo)
     {
         this.bkModuleId = moduleInfo.getModuleId();
         this.moduleAlias = moduleInfo.getModuleName();
         this.moduleName = moduleInfo.getModuleName();
+    }
+
+    public CCODModuleInfo(PlatformAppDeployDetailVo deployApp, String nexusHostUrl, String downloadUrlFmt)
+    {
+        this.setPlatformAppId(deployApp.getPlatformAppId());
+        String pkgUrl = String.format(downloadUrlFmt, nexusHostUrl, deployApp.getInstallPackage().getNexusRepository(),
+                deployApp.getInstallPackage().getNexusDirectory(), deployApp.getInstallPackage().getFileName());
+        this.installPackage = new DownloadFileInfo(pkgUrl, deployApp.getInstallPackage().getMd5());
+        this.cfgs = new ArrayList<>();
+        for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
+        {
+            String cfgDownloadUrl = String.format(downloadUrlFmt, nexusHostUrl, cfg.getNexusRepository(),
+                    cfg.getNexusDirectory(), cfg.getFileName());
+            DownloadFileInfo cfgFile = new DownloadFileInfo(cfgDownloadUrl, cfg.getMd5());
+            cfgs.add(cfgFile);
+        }
+        this.versionControl = deployApp.getVersionControl();
+        this.moduleName = deployApp.getAppName();
+        this.moduleAlias = deployApp.getAppAlias();
+        this.bkModuleId = deployApp.getBkModuleId();
+        this.version = deployApp.getVersion();
+        this.hostIp = deployApp.getHostIp();
     }
 
     public String getModuleName() {
@@ -83,11 +110,11 @@ public class CCODModuleInfo {
         this.installPackage = installPackage;
     }
 
-    public DownloadFileInfo[] getCfgs() {
+    public List<DownloadFileInfo> getCfgs() {
         return cfgs;
     }
 
-    public void setCfgs(DownloadFileInfo[] cfgs) {
+    public void setCfgs(List<DownloadFileInfo> cfgs) {
         this.cfgs = cfgs;
     }
 
