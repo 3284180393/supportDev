@@ -1,72 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-
-<!-- monitorInterval，配置为120，单位为秒。即在服务运行过程中发生了log4j2配置文件的修改，log4j2能够在monitorInterval时间范围重新加载配置，无需重启应用。-->
-<Configuration status="WARN" monitorInterval="120">
-
-
-    <properties>
-        <!--当输出到文件中的时候使用LOG_HOME替代输出到的文件夹,类似于配置java环境的时候的JAVA_HOME的做法-->
-        <!--最好是填写相对路径,基路径是当前项目也就是src的上一级别-->
-        <!--如果写成testlog/mylog,即使没有testlog,也会在src同级目录下新建出testlog文件夹以及其下的mylog文件夹-->
-        <property name="LOG_HOME">/home/logs/glsserver</property>
-    </properties>
-
-    <!--翻译：附加器,记录方式-->
-    <Appenders>
-
-        <!--appenders里的两个属性,分别为name=Console和name=log(两个名字是自己起的)-->
-        <!--appenders属性同级的loggers中的root的level的值控制输出信息的严格级别,一般是info-->
-        <!--root中的AppenderRef的ref写appenders中的name,在这里也就是添Console或log-->
-
-        <!--name是自己命名的,target=SYSTEM_OUT表示输出到控制台-->
-        <Console name="Console" target="SYSTEM_OUT">
-            <!--pattern控制格式化输出的格式-->
-            <!--例子:在代码中写入logger.info("info级别信息");-->
-            <!--输出:12:8:34.501 [main] INFO  com.selton.Log4jTest - info级别信息-->
-            <PatternLayout pattern="%d{H:m:s.S} [%t] %-5level %logger{36} - %msg%n"/>
-        </Console>
-
-        <!--临时日志生成-->
-        <!--<File name="log" fileName="log/test.log" append="true">
-            <PatternLayout pattern="%d{H:m:s.S} [%t] %-5level %logger{36} - %msg%n"/>
-        </File>-->
-
-        <!--fileName：日志存储路径,
-        filePattern：历史日志封存路径。其中%d{yyyyMMddHH}表示了封存历史日志的时间单位（目前单位为小时，yyyy表示年，MM表示月，dd表示天，HH表示小时，mm表示分钟，ss表示秒，SS表示毫秒）。
-        注意后缀，log4j2自动识别zip等后缀，表示历史日志需要压缩。-->
-        <RollingRandomAccessFile name="File" immediateFlush="true" fileName="${LOG_HOME}/today.log"
-                                 filePattern="${LOG_HOME}/history-%d{yyyy-MM-dd}.log">
-
-            <!-- level，表示最低接受的日志级别，配置为INFO，即我们期望打印INFO级别以上的日志。-->
-            <!--onMatch，表示当日志事件的日志级别与level一致时，应怎么做。一般为ACCEPT，表示接受。-->
-            <!--onMismatch，表示日志事件的日志级别与level不一致时，应怎么做。一般为DENY，表示拒绝。也可以为NEUTRAL表示中立。-->
-            <Filters>
-
-                <!--最下方的Root level="debug",如果不设置这句的话,4个级别信息都会打印,设置后,就会只打印INFO以及之上-->
-                <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
-            </Filters>
-
-            <!--输出到文件夹中去-->
-            <PatternLayout pattern="%d{y-M-d H:m:s.S} [%t] %-5level %logger{36} - %msg%n" />
-            <!--<HTMLLayout pattern="%d{y-M-d H:m:s.S} [%t] %-5level %logger{36} - %msg%n" />-->
-
-            <!--必配项,TriggeringPolicy(触发策略) -->
+<!--日志级别以及优先级排序: OFF > FATAL > ERROR > WARN > INFO > DEBUG > TRACE > ALL -->
+<!--status="WARN" :用于设置log4j2自身内部日志的信息输出级别，默认是OFF-->
+<!--monitorInterval="30"  :间隔秒数,自动检测配置文件的变更和重新配置本身-->
+<configuration status="WARN" monitorInterval="30">
+    <Properties>
+        <!--自定义一些常量，之后使用${变量名}引用-->
+        <Property name="logFilePath">log</Property>
+        <Property name="logFileName">test.log</Property>
+    </Properties>
+    <!--appenders:定义输出内容,输出格式,输出方式,日志保存策略等,常用其下三种标签[console,File,RollingFile]-->
+    <appenders>
+        <!--console :控制台输出的配置-->
+        <console name="Console" target="SYSTEM_OUT">
+            <!--PatternLayout :输出日志的格式,LOG4J2定义了输出代码,详见第二部分-->
+            <PatternLayout pattern="[%d{HH:mm:ss:SSS}] [%p] - %l - %m%n"/>
+        </console>
+        <!--File :同步输出日志到本地文件-->
+        <!--append="false" :根据其下日志策略,每次清空文件重新输入日志,可用于测试-->
+        <File name="log" fileName="${logFilePath}/${logFileName}" append="false">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} %-5level %class{36} %L %M - %msg%xEx%n"/>
+        </File>
+        <!--SMTP :邮件发送日志-->
+        <SMTP name="Mail" subject="****SaaS系统正式版异常信息" to="message@message.info" from="message@lengjing.info" smtpUsername="message@message.info" smtpPassword="LENG****1234" smtpHost="mail.lengjing.info" smtpDebug="false" smtpPort="25" bufferSize="10">
+            <PatternLayout pattern="[%-5p]:%d{YYYY-MM-dd HH:mm:ss} [%t] %c{1}:%L - %msg%n" />
+        </SMTP>
+        <!-- /home :项目路径 -->
+        <RollingFile name="RollingFileInfo" fileName="/home/logs/info.log"
+                     filePattern="/home/logs/$${date:yyyy-MM}/info-%d{yyyy-MM-dd}-%i.log">
+            <!--ThresholdFilter :日志输出过滤-->
+            <!--level="info" :日志级别,onMatch="ACCEPT" :级别在info之上则接受,onMismatch="DENY" :级别在info之下则拒绝-->
+            <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="[%d{HH:mm:ss:SSS}] [%p] - %l - %m%n"/>
+            <!-- Policies :日志滚动策略-->
             <Policies>
-                <!--按天,划分日志文件-->
-                <TimeBasedTriggeringPolicy interval="1" modulate="true" />
+                <!-- TimeBasedTriggeringPolicy :时间滚动策略,默认0点小时产生新的文件,interval="6" : 自定义文件滚动时间间隔,每隔6小时产生新文件, modulate="true" : 产生文件是否以0点偏移时间,即6点,12点,18点,0点-->
+                <TimeBasedTriggeringPolicy interval="6" modulate="true"/>
+                <!-- SizeBasedTriggeringPolicy :文件大小滚动策略-->
+                <SizeBasedTriggeringPolicy size="100 MB"/>
             </Policies>
+            <!-- DefaultRolloverStrategy属性如不设置，则默认为最多同一文件夹下7个文件，这里设置了20 -->
+            <DefaultRolloverStrategy max="20"/>
+        </RollingFile>
 
-            <!--必配项,RolloverStrategy(覆盖策略)-->
-            <!--<DefaultRolloverStrategy max="20"/>-->
-        </RollingRandomAccessFile>
-
-    </Appenders>
-
-    <Loggers>
-        <Root level="debug">
-            <AppenderRef ref="File"/>
-        </Root>
-    </Loggers>
-
-</Configuration>
+        <RollingFile name="RollingFileWarn" fileName="/home/logs/warn.log"
+                     filePattern="/home/logs/$${date:yyyy-MM}/warn-%d{yyyy-MM-dd}-%i.log">
+            <ThresholdFilter level="warn" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="[%d{HH:mm:ss:SSS}] [%p] - %l - %m%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="100 MB"/>
+            </Policies>
+        </RollingFile>
+        <RollingFile name="RollingFileError" fileName="/home/logs/error.log"
+                     filePattern="/home/logs/$${date:yyyy-MM}/error-%d{yyyy-MM-dd}-%i.log">
+            <ThresholdFilter level="error" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="[%d{HH:mm:ss:SSS}] [%p] - %l - %m%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="100 MB"/>
+            </Policies>
+        </RollingFile>
+    </appenders>
+    <!--然后定义logger，只有定义了logger并引入的appender，appender才会生效-->
+    <loggers>
+        <!--过滤掉spring和mybatis的一些无用的DEBUG信息-->
+        <!--Logger节点用来单独指定日志的形式，name为包路径,比如要为org.springframework包下所有日志指定为INFO级别等。 -->
+        <logger name="org.springframework" level="INFO"></logger>
+        <logger name="org.mybatis" level="INFO"></logger>
+        <!-- Root节点用来指定项目的根日志，如果没有单独指定Logger，那么就会默认使用该Root日志输出 -->
+        <root level="all">
+            <appender-ref ref="Console"/>
+            <appender-ref ref="RollingFileInfo"/>
+            <appender-ref ref="RollingFileWarn"/>
+            <appender-ref ref="RollingFileError"/>
+        </root>
+        <!--AsyncLogger :异步日志,LOG4J有三种日志模式,全异步日志,混合模式,同步日志,性能从高到底,线程越多效率越高,也可以避免日志卡死线程情况发生-->
+        <!--additivity="false" : additivity设置事件是否在root logger输出，为了避免重复输出，可以在Logger 标签下设置additivity为”false”-->
+        <AsyncLogger name="AsyncLogger" level="trace" includeLocation="true" additivity="false">
+            <appender-ref ref="RollingFileError"/>
+        </AsyncLogger>
+    </loggers>
+</configuration>

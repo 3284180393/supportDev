@@ -5,6 +5,8 @@ import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
+import com.channelsoft.ccod.support.cmdb.exception.DBPAASDataNotConsistentException;
+import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -29,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.util.*;
@@ -43,6 +46,7 @@ import java.util.stream.Collectors;
  * @Date: 2019/12/2 14:33
  * @Version: 1.0
  */
+@Service
 public class LJPaasServiceImpl implements ILJPaasService {
 
     @Autowired
@@ -104,13 +108,13 @@ public class LJPaasServiceImpl implements ILJPaasService {
             String[] arr = str.split("\\:");
             String[] setDomArr = arr[0].split("@");
             SetDomain setDomain = new SetDomain();
-            setDomain.setName = setArr[0];
-            if(setArr.length > 1)
+            setDomain.setName = setDomArr[0];
+            if(setDomArr.length > 1)
             {
                 setDomain.domainId = setDomArr[1];
                 setDomain.domainName = setDomArr[1];
             }
-            if(arr.length > 0)
+            if(arr.length > 1)
             {
                 setDomain.moduleNameSet = new HashSet<>(Arrays.asList(arr[1].split(";")));
             }
@@ -134,6 +138,14 @@ public class LJPaasServiceImpl implements ILJPaasService {
             }
         }
         logger.info(String.format("exclude biz=%s", JSONArray.toJSONString(this.exludeBizSet)));
+        try
+        {
+            someTest();
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
     }
 
     @Override
@@ -146,138 +158,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return new LJBizInfo[0];
     }
 
-//    private boolean generateLJBizInfo(LJBizInfo bkInfo, Map<Integer, List<LJSetInfo>> bizSetMap, Map<Integer, Map<Integer, Map<String, LJHostInfo>>> bizSetHostMap,
-//                                  Map<Integer, Map<String, LJModuleInfo>> hostModuleMap, Map<String, PlatformPo> namePlatformMap,
-//                                  Map<String, Map<String, Map<String, PlatformAppDeployDetailVo>>> platformHostAppMap)
-//    {
-//        if(bizSetMap.containsKey(bkInfo.getBizId()))
-//        {
-//            logger.error(String.format("paas data error : there is not any set for bizId=%s and bizName=%s",
-//                    bkInfo.getBizId(), bkInfo.getBizName()));
-//            return false;
-//        }
-//        boolean isNew = false;
-//        if(!namePlatformMap.containsKey(bkInfo.getBizName()))
-//        {
-//            logger.info(String.format("database not contain platformName=%s platform info, so %s is new created platform",
-//                    bkInfo.getBizName(), bkInfo.getBizName()));
-//            bkInfo.setStatus(CCODPlatformStatus.NEW_CREATE.id);
-//            isNew = true;
-//        }
-//        for(LJSetInfo setInfo : bizSetMap.get(bkInfo.getBizId()))
-//        {
-//            switch (setInfo.getSetName())
-//            {
-//                case "idle pool":
-//                    bkInfo.setIdlePoolSet(setInfo);
-//                    break;
-//                case "故障自愈":
-//                    bkInfo.setHealingSet(setInfo);
-//                    break;
-//                case "数据服务模块":
-//                    bkInfo.setDataSets(setInfo);
-//                    break;
-//                case "公共组件":
-//                    bkInfo.setPublicModuleSet(setInfo);
-//                    break;
-//                case "集成平台":
-//                    bkInfo.setIntegrationSet(setInfo);
-//                    break;
-//                case "作业平台":
-//                    bkInfo.setJobSet(setInfo);
-//                    break;
-//                case "配置平台":
-//                    bkInfo.setCfgSet(setInfo);
-//                    break;
-//                case "管控平台":
-//                    bkInfo.setControlSet(setInfo);
-//                    break;
-//                default:
-//                    logger.error(String.format("unknown biz set name=%s", setInfo.getSetName()));
-//            }
-//        }
-//        if(bkInfo.getIdlePoolSet() == null)
-//        {
-//            logger.error(String.format("%s platform has not idle pools set", bkInfo.getBizName()));
-//            return false;
-//        }
-//        if(!bizSetHostMap.containsKey(bkInfo.getBizId()))
-//        {
-//            logger.warn(String.format("%s platform has not any host resource", bkInfo.getBizName()));
-//            bkInfo.setUsedHosts(new LJHostInfo[0]);
-//            bkInfo.setIdleHosts(new LJHostInfo[0]);
-//        }
-//        else
-//        {
-//            List<LJHostInfo> idleList = new ArrayList<>();
-//            List<LJHostInfo> usedList = new ArrayList<>();
-//            Map<Integer, Map<String, LJHostInfo>> setHostMap = bizSetHostMap.get(bkInfo.getBizId());
-//            for(Map.Entry<Integer, Map<String, LJHostInfo>> entry : setHostMap.entrySet())
-//            {
-//                if(entry.getKey() != bkInfo.getIdlePoolSet().getSetId() && isNew)
-//                {
-//                    logger.error(String.format("biz=%d and bizName=%s platform is new create but found apps had been deployed",
-//                            bkInfo.getBizId(), bkInfo.getBizName()));
-//                    return false;
-//                }
-//                else if(entry.getKey() == bkInfo.getIdlePoolSet().getSetId())
-//                {
-//                    idleList.addAll(entry.getValue().values());
-//                }
-//                else
-//                {
-//                    if(!platformHostAppMap.containsKey(bkInfo.getBizName()))
-//                    {
-//                        logger.error(String.format("lj paas report bizId=%d and bizName=%s is used platform but cmdb database not such record",
-//                                bkInfo.getBizId(), bkInfo.getBizName()));
-//                        return false;
-//                    }
-//                    Map<String, Map<String, PlatformAppDeployDetailVo>> hostAppMap = platformHostAppMap.get(bkInfo.getBizName());
-//                    for(LJHostInfo hostInfo : entry.getValue().values())
-//                    {
-//                        if(!hostAppMap.containsKey(hostInfo.getHostInnerIp()))
-//                        {
-//                            logger.error(String.format("lj paas report bizId=%d and bizName=%s and hostIp=%s deploy app but cmdb database has not such record",
-//                                    bkInfo.getBizId(), bkInfo.getBizName(), hostInfo.getHostInnerIp()));
-//                            return false;
-//                        }
-//                        if(!hostModuleMap.containsKey(hostInfo.getHostInnerIp()))
-//                        {
-//                            logger.error(String.format("database report hostIp=%s deploy apps but lj paas report bizId=%d and bizName=%s and hostIp=%s has not app",
-//                                    hostInfo.getHostInnerIp(), bkInfo.getBizId(), bkInfo.getBizName(), hostInfo.getHostInnerIp()));
-//                            return false;
-//                        }
-//                        Map<String, PlatformAppDeployDetailVo> appMap = hostAppMap.get(hostInfo.getHostInnerIp());
-//                        Map<String, LJModuleInfo> ljModuleMap = hostModuleMap.get(hostInfo.getId());
-//                        if(appMap.size() != ljModuleMap.size())
-//                        {
-//                            logger.error(String.format("data error, lj paas report bizId=%s and bizName=%s and hostIp=%s deploy %d apps but database record deploy %d apps",
-//                                    bkInfo.getBizId(), bkInfo.getBizName(), hostInfo.getHostInnerIp(), ljModuleMap.size(), appMap.size()));
-//                            return false;
-//                        }
-//                        for(String appName : appMap.keySet())
-//                        {
-//                            if(!ljModuleMap.containsKey(appName))
-//                            {
-//                                logger.error(String.format("data error, lj paas report bizId=%s and bizName=%s and hostIp=%s deploy %s app but database has not such record",
-//                                        bkInfo.getBizId(), bkInfo.getBizName(), hostInfo.getHostInnerIp(), appName));
-//                                return false;
-//                            }
-//                            ljModuleMap.get(appName).setVersion(appMap.get(appName).getVersion());
-//                            ljModuleMap.get(appName).setCcodVersion(appMap.get(appName).getVersion());
-//                        }
-//                    }
-//                    usedList.addAll(entry.getValue().values());
-//                }
-//            }
-//            logger.info(String.format("bizId=%d and bizName=%s platform status is %d and have %d used host and %d idle hosts",
-//                    bkInfo.getBizId(), bkInfo.getBizName(), bkInfo.getStatus(), bkInfo.getUsedHosts().length,
-//                    bkInfo.getIdleHosts().length));
-//            bkInfo.setUsedHosts(usedList.toArray(new LJHostInfo[0]));
-//            bkInfo.setIdleHosts(idleList.toArray(new LJHostInfo[0]));
-//        }
-//        return true;
-//    }
+    private void someTest() throws Exception
+    {
+        CCODPlatformInfo[] platformInfos = queryAllCCODBiz();
+        System.out.println(JSONArray.toJSONString(platformInfos));
+    }
+
 
     private List<LJBizInfo> queryLJPaasAllBiz(String paasHostUrl, String bkAppCode, String bkAppSecret, String bkUserName) throws Exception
     {
@@ -470,16 +356,17 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     private CCODPlatformInfo createNewPlatformInfo(LJBizInfo bizInfo, LJSetInfo idlePoolSet, List<LJHostInfo> idleHosts)
     {
-        CCODIdlePoolInfo idlePoolInfo = new CCODIdlePoolInfo(bizInfo.getBizId(), idlePoolSet.getSetId(), idlePoolSet.getSetName());
+        CCODIdlePoolInfo idlePoolInfo = new CCODIdlePoolInfo(bizInfo.getBizId(), idlePoolSet, idleHosts);
         for(LJHostInfo bkHost : idleHosts)
         {
             CCODHostInfo host = new CCODHostInfo(bkHost);
             idlePoolInfo.getIdleHosts().add(host);
         }
         List<CCODSetInfo> ccodSetList = new ArrayList<>();
-        Map<String, Set<String>> paasSetMap = getAllPaasBizSetModuleMap();
-        for(String setName : paasSetMap.keySet())
+        for(String setName : this.supportSetDomainMap.keySet())
         {
+            if(setName.equals(this.paasIdlePoolSetName))
+                continue;
             CCODSetInfo setInfo = new CCODSetInfo(setName);
             ccodSetList.add(setInfo);
         }
@@ -487,8 +374,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return platformInfo;
     }
 
-    private CCODPlatformInfo getCCODPlatformInfo(PlatformPo platform, LJSetInfo idlePoolSet, List<PlatformAppDeployDetailVo> deployApps, List<LJHostInfo> idleHosts)
+    private CCODPlatformInfo getCCODPlatformInfo(LJBizInfo bizInfo, LJSetInfo idlePoolSet, List<PlatformAppDeployDetailVo> deployApps, List<LJHostInfo> idleHosts) throws NotSupportAppException
     {
+        if(this.isDevelop)
+        {
+            deployApps = makeUpBizInfoForDeployApps(bizInfo.getBizId(), deployApps);
+        }
         CCODIdlePoolInfo idlePool = new CCODIdlePoolInfo(idlePoolSet);
         for(LJHostInfo bkHost : idleHosts)
         {
@@ -505,7 +396,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             if(!setMap.containsKey(deployApp.getSetId()))
             {
                 LJSetInfo bkSet = new LJSetInfo();
-                bkSet.setBizId(platform.getBkBizId());
+                bkSet.setBizId(bizInfo.getBizId());
                 bkSet.setSetId(setId);
                 bkSet.setSetName(deployApp.getSetName());
                 CCODSetInfo ccodSet = new CCODSetInfo(bkSet);
@@ -523,9 +414,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
             }
             domainMap.get(deployApp.getDomId()).getModules().add(module);
         }
-        LJBizInfo bizInfo = new LJBizInfo();
-        bizInfo.setBizId(platform.getBkBizId());
-        bizInfo.setBizName(platform.getPlatformName());
         CCODPlatformInfo ccodPlatformInfo = new CCODPlatformInfo(bizInfo, CCODPlatformStatus.RUNNING.id,
                 idlePool, new ArrayList<>(setMap.values()));
         return ccodPlatformInfo;
@@ -533,81 +421,76 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     private CCODPlatformInfo generatePlatformInfo( PlatformPo platform,
                                                    LJBizInfo bizInfo,
-                                                   List<LJSetInfo> setList,
+                                                   List<LJSetInfo> bkSetList,
                                                    List<LJHostInfo> idleHostList,
-                                                   List<PlatformAppDeployDetailVo> deloyAppList)
+                                                   List<PlatformAppDeployDetailVo> deloyAppList) throws DBPAASDataNotConsistentException, NotSupportAppException
     {
-        Map<Integer, List<PlatformAppDeployDetailVo>> setAppMap = deloyAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetId));
+        if(this.isDevelop)
+        {
+            deloyAppList = makeUpBizInfoForDeployApps(bizInfo.getBizId(), deloyAppList);
+        }
+        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deloyAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getSetName));
+        Map<String, LJSetInfo> setMap = bkSetList.stream().collect(Collectors.toMap(LJSetInfo::getSetName, Function.identity()));
         if(!bizInfo.getBizName().equals(platform.getPlatformName()))
         {
             logger.error(String.format("bizName=%s of bizId=%d not equal with platformName=%s of bizId=%d and platId=%s",
                     bizInfo.getBizName(), bizInfo.getBizId(), platform.getBkBizId(), platform.getPlatformName()));
             return null;
         }
-        if(intSetCompare(moduleHostMap.keySet(), platAppMap.keySet()))
-        {
-            logger.error(String.format("modules at paas are not consistent with apps saved in cmdb database"));
-            return null;
-        }
         CCODPlatformInfo platformInfo = new CCODPlatformInfo(bizInfo, CCODPlatformStatus.RUNNING.id);
-        for(LJSetInfo setInfo : setList)
+        List<CCODSetInfo> setList = new ArrayList<>();
+        for(String setName : setAppMap.keySet())
         {
-            if(this.paasIdlePoolSetName.equals(setInfo.getSetName()))
+            if(setName.equals(this.paasIdlePoolSetName))
             {
-                for(LJHostInfo bkHost : bkSetHostMap.get(setInfo.getSetId()))
-                {
-                    CCODIdlePoolInfo idlePoolInfo = new CCODIdlePoolInfo(bizInfo.getBizId(), setInfo, idleHostList);
-                    platformInfo.setIdlePool(idlePoolInfo);
-                }
+                continue;
             }
-            else
+            if(!setMap.containsKey(setName))
             {
-                CCODSetInfo ccodSet = new CCODSetInfo(setInfo);
-                List<CCODModuleInfo> moduleList = new ArrayList<>();
-                for(LJModuleInfo bkModule : bkSetModuleMap.get(setInfo.getSetId()))
-                {
-                    LJHostInfo bkHost = moduleHostMap.get(bkModule.getModuleId());
-                    PlatformAppDeployDetailVo detailVo = platAppMap.get(bkModule.getModuleId());
-                    CCODModuleInfo moduleInfo = new CCODModuleInfo(bkModule);
-                    moduleInfo.setPlatformAppId(detailVo.getPlatformAppId());
-                    if(!bkModule.getModuleName().equals(detailVo.getAppAlias()))
-                    {
-                        logger.error(String.format("bkModuleId=%d, bkModuleName=%s and platformAppId=%s app's bkModuleName=%s and appAlias=%s, not equal",
-                                bkModule.getModuleId(), bkModule.getModuleName(), detailVo.getPlatformAppId(), detailVo.getAppAlias()));
-                        return null;
-                    }
-                    if(bkHost.getHostInnerIp().equals(detailVo.getHostIp()))
-                    {
-                        logger.error(String.format("bkModuleId=%d, bkModuleName=%s, and platformAppId=%s app's bkHostIp=%s and appHostIp=%s, not equal",
-                                bkModule.getModuleId(), bkModule.getModuleName(), bkHost.getHostInnerIp(), detailVo.getHostIp()));
-                        return null;
-                    }
-                    moduleInfo.setHostIp(moduleHostMap.get(bkModule.getModuleId()).getHostInnerIp());
-                    moduleInfo.setVersion(detailVo.getVersion());
-                    moduleInfo.setVersionControl(detailVo.getVersionControl());
-                    String pkgUrl = String.format(this.downloadUrlFmt, this.nexusHostUrl,
-                            detailVo.getInstallPackage().getNexusRepository(),
-                            detailVo.getInstallPackage().getNexusDirectory(),
-                            detailVo.getInstallPackage().getFileName());
-                    DownloadFileInfo pkg = new DownloadFileInfo(pkgUrl, detailVo.getInstallPackage().getMd5());
-                    moduleInfo.setInstallPackage(pkg);
-                    List<DownloadFileInfo> cfgList = new ArrayList<>();
-                    for(PlatformAppCfgFilePo cfg : detailVo.getCfgs())
-                    {
-                        String downloadUrl = String.format(this.downloadUrlFmt, this.nexusHostUrl, cfg.getNexusRepository(),
-                                cfg.getNexusDirectory(), cfg.getFileName());
-                        DownloadFileInfo cfgFile = new DownloadFileInfo(downloadUrl, cfg.getMd5());
-                        cfgList.add(cfgFile);
-                    }
-                    moduleInfo.setCfgs(cfgList);
-                    moduleList.add(moduleInfo);
-                    SetDomain sd = getDomainNameForApp(detailVo.getAppName(), detailVo.getDomainId(), detailVo.getDomainName());
-                    addModuleToSetDomain(ccodSet, moduleInfo, sd);
-                }
-                platformInfo.getSets().add(ccodSet);
+                logger.error(String.format("bizId=%d and bizName=%s biz has not setName=%s set which has been record deploy %d apps",
+                        bizInfo.getBizId(), bizInfo.getBizName(), setName, setAppMap.get(setName).size()));
+                throw new DBPAASDataNotConsistentException(String.format("bizId=%d and bizName=%s biz has not setName=%s set which has been record deploy %d apps",
+                        bizInfo.getBizId(), bizInfo.getBizName(), setName, setAppMap.get(setName).size()));
             }
+            LJSetInfo bkSet = setMap.get(setName);
+            Map<String, CCODDomainInfo> domainMap = new HashMap<>();
+            Map<String, List<PlatformAppDeployDetailVo>> domainAppMap =  setAppMap.get(setName)
+                    .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
+            List<CCODDomainInfo> domainList = new ArrayList<>();
+            for(String domainName : domainAppMap.keySet())
+            {
+                List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName);
+                CCODDomainInfo domain = new CCODDomainInfo(bkSet.getSetId(), domAppList.get(0).getDomId(),
+                        domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
+                for(PlatformAppDeployDetailVo deployApp : domAppList)
+                {
+                    CCODModuleInfo bkModule = new CCODModuleInfo(deployApp, this.nexusHostUrl, this.downloadUrlFmt);
+                    domain.getModules().add(bkModule);
+                }
+                domainList.add(domain);
+            }
+            CCODSetInfo set = new CCODSetInfo(bkSet);
+            set.setDomains(domainList);
+            setList.add(set);
         }
+        CCODIdlePoolInfo idlePool = new CCODIdlePoolInfo(bizInfo.getBizId(), setMap.get(this.paasIdlePoolSetName), idleHostList);
+        platformInfo.setIdlePool(idlePool);
+        platformInfo.setSets(setList);
+        platformInfo.setPlatId(platform.getId());
         return platformInfo;
+    }
+
+    private List<PlatformAppDeployDetailVo> makeUpBizInfoForDeployApps(int bizId, List<PlatformAppDeployDetailVo> deployApps) throws NotSupportAppException
+    {
+        for(PlatformAppDeployDetailVo deployApp : deployApps)
+        {
+            deployApp.setBkBizId(bizId);
+            SetDomain sd = getDomainNameForApp(deployApp.getAppName(), deployApp.getDomainId(), deployApp.getDomainName());
+            deployApp.setSetName(sd.setName);
+            deployApp.setDomainId(sd.domainId);
+            deployApp.setDomainName(sd.domainName);
+        }
+        return deployApps;
     }
 
     private boolean intSetCompare(Set<Integer> srcSet, Set<Integer> dstSet)
@@ -655,34 +538,46 @@ public class LJPaasServiceImpl implements ILJPaasService {
      * @param platformMap 数据库存储的已有平台信息
      * @return 0:同cmdb无关的biz,1：已有的同cmdb相关的biz,2：可能同cmdb相关的新建平台
      */
-    private int checkBizType(LJBizInfo bizInfo, List<LJSetInfo> bizSetList, Map<Integer, PlatformPo> platformMap)
+    private CCODPlatformStatus checkBizType(LJBizInfo bizInfo, List<LJSetInfo> bizSetList, List<LJHostInfo> idleHosts, Map<Integer, PlatformPo> platformMap, List<PlatformAppDeployDetailVo> deployApps)
     {
-        Map<String, Set<String>> wantSetAppMap = getAllPaasBizSetModuleMap();
-        if(bizSetList.size() != 1 && bizSetList.size() != wantSetAppMap.size())
+        if(bizSetList.size() != 1 && bizSetList.size() != this.supportSetDomainMap.size())
         {
             logger.info(String.format("bizId=%d and bizName=%s biz has %d bizSet not equal 1 or %d, so it not relative to cmdb and return 0",
-                    bizInfo.getBizId(), bizInfo.getBizName(), bizSetList.size(), wantSetAppMap.size()));
-            return 0;
+                    bizInfo.getBizId(), bizInfo.getBizName(), bizSetList.size(), this.supportSetDomainMap.size()));
+            return CCODPlatformStatus.UNKNOWN;
         }
         if(bizSetList.size() == 1)
         {
-            if(platformMap.containsKey(bizInfo.getBizId()))
-            {
-                logger.error(String.format("data error : bizId=%d and bizName=%s biz has only one set but it has been saved in database",
-                        bizInfo.getBizId(), bizInfo.getBizName()));
-                return 0;
-            }
-            else if(!this.paasIdlePoolSetName.equals(bizSetList.get(0)))
+            if(!this.paasIdlePoolSetName.equals(bizSetList.get(0).getSetName()))
             {
                 logger.warn(String.format("bizId=%d and bizName=%s biz has only one set but it's name not %s'",
                         bizInfo.getBizId(), bizInfo.getBizName(), this.paasIdlePoolSetName));
-                return 0;
+                return CCODPlatformStatus.UNKNOWN;
+            }
+            if(platformMap.containsKey(bizInfo.getBizId()))
+            {
+                if(deployApps.size() > 0 && idleHosts.size() == 0)
+                {
+                    logger.info(String.format("bizId=%d and bizName=%s biz has only one set=%s and idle host count is 0 and has %d deploy apps record in cmdb db, so it status is %s",
+                            bizInfo.getBizId(), bizInfo.getBizName(), this.paasIdlePoolSetName, deployApps.size(),
+                            CCODPlatformStatus.WAIT_SYNC_TO_PAAS.name));
+                    return CCODPlatformStatus.WAIT_SYNC_TO_PAAS;
+                }
+                logger.error(String.format("bizId=%d and bizName=%s biz has only one set=%s but idle hosts count is %d and deploy apps is %d in cmdb db, so it status is %s",
+                        bizInfo.getBizId(), bizInfo.getBizName(), this.paasIdlePoolSetName, idleHosts.size(), deployApps.size(), CCODPlatformStatus.UNKNOWN.name));
+                return CCODPlatformStatus.UNKNOWN;
+            }
+            else if(!this.paasIdlePoolSetName.equals(bizSetList.get(0).getSetName()))
+            {
+                logger.warn(String.format("bizId=%d and bizName=%s biz has only one set but it's name not %s'",
+                        bizInfo.getBizId(), bizInfo.getBizName(), this.paasIdlePoolSetName));
+                return CCODPlatformStatus.UNKNOWN;
             }
             else
             {
                 logger.info(String.format("bizId=%d and bizName=%s biz has one set with name=%s and it not saved in database so it maybe a new create biz relative to cmdb, so return 2",
                         bizInfo.getBizId(), bizInfo.getBizName(), this.paasIdlePoolSetName));
-                return 2;
+                return CCODPlatformStatus.NEW_CREATE;
             }
         }
         else
@@ -691,41 +586,64 @@ public class LJPaasServiceImpl implements ILJPaasService {
             {
                 logger.warn(String.format("bizId=%d and bizName=%s biz has %d set but it has been saved in database, so return 0'",
                         bizInfo.getBizId(), bizInfo.getBizName(), bizSetList.size()));
-                return 0;
+                return CCODPlatformStatus.UNKNOWN;
             }
             for(LJSetInfo setInfo : bizSetList)
             {
-                if(!wantSetAppMap.containsKey(setInfo.getSetName()))
+                if(!this.supportSetDomainMap.containsKey(setInfo.getSetName()))
                 {
                     logger.warn(String.format("setName=%s of bizId=%d and bizName=%s biz is not a set name for cmdb biz, so return 0",
                             setInfo.getSetName(), bizInfo.getBizId(), bizInfo.getBizName()));
-                    return 0;
+                    return CCODPlatformStatus.UNKNOWN;
                 }
             }
         }
         logger.info(String.format("bizId=%d and bizName=%s is an old biz for cmd, so return 1",
                 bizInfo.getBizId(), bizInfo.getBizName()));
-        return 1;
+        return CCODPlatformStatus.RUNNING;
     }
 
-    private Map<String, Set<String>> getAllPaasBizSetModuleMap()
+
+    private CCODPlatformInfo createSyncPlatformInfo(PlatformPo platform, LJBizInfo bizInfo, List<PlatformAppDeployDetailVo> deployApps) throws NotSupportAppException, DBPAASDataNotConsistentException
     {
-        String[] arr = this.paasSetModule.split("\\|");
-        Map<String, Set<String>> map = new HashMap<>();
-        List<String> setNameList = new ArrayList<>();
-        setNameList.add(this.paasIdlePoolSetName);
-        for(int i = 0; i < arr.length; i++)
-        {
-            String[] tmpArr = arr[i].split("\\:");
-            Set<String> moduleNameSet = new HashSet<>();
-            for(int j = 1; j < tmpArr.length; j++)
-            {
-                moduleNameSet.add(tmpArr[i]);
-            }
-            map.put(tmpArr[0], moduleNameSet);
-        }
-        return map;
+        List<PlatformAppDeployDetailVo> apps = makeUpBizInfoForDeployApps(bizInfo.getBizId(), deployApps);
+        List<LJSetInfo> setList = createDefaultSetList(bizInfo.getBizId());
+        List<LJHostInfo> idleHosts = new ArrayList<>();
+        CCODPlatformInfo platformInfo = generatePlatformInfo(platform, bizInfo, setList, idleHosts, apps);
+        return platformInfo;
     }
+
+    private List<LJSetInfo> createDefaultSetList(int bizId)
+    {
+        List<LJSetInfo> setList = new ArrayList<>();
+        for(String setName : this.supportSetDomainMap.keySet())
+        {
+            LJSetInfo set = new LJSetInfo();
+            set.setSetName(setName);
+            set.setBizId(bizId);
+            setList.add(set);
+        }
+        return setList;
+    }
+
+//    private Map<String, Set<String>> getAllPaasBizSetModuleMap()
+//    {
+//        String[] arr = this.paasSetModule.split("\\|");
+//        Map<String, Set<String>> map = new HashMap<>();
+//        List<String> setNameList = new ArrayList<>();
+//        setNameList.add(this.paasIdlePoolSetName);
+//        for(int i = 0; i < arr.length; i++)
+//        {
+//            String[] tmpArr = arr[i].split("\\:");
+//            Set<String> moduleNameSet = new HashSet<>();
+//            for(int j = 1; j < tmpArr.length; j++)
+//            {
+//                moduleNameSet.add(tmpArr[i]);
+//            }
+//            map.put(tmpArr[0], moduleNameSet);
+//        }
+//        return map;
+//    }
 
     private Map<String, Object> generateLJObjectParam(String objId, String[] fields, Map<String, Object>[] condition)
     {
@@ -748,7 +666,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return closeableHttpClient;
     }
 
-    private SetDomain getDomainNameForApp(String appName, String domainId, String domainName)
+    private SetDomain getDomainNameForApp(String appName, String domainId, String domainName) throws NotSupportAppException
     {
         for(SetDomain sd : this.supportSetDomainMap.values())
         {
@@ -769,7 +687,8 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 return setDomain;
             }
         }
-        return null;
+        logger.error(String.format("appName=%s not support", appName));
+        throw new NotSupportAppException(String.format("appName=%s not support", appName));
     }
 
     @Override
@@ -778,9 +697,35 @@ public class LJPaasServiceImpl implements ILJPaasService {
         List<PlatformPo> platformList = platformMapper.select(1);
         List<PlatformAppDeployDetailVo> deployAppList = platformAppDeployDetailMapper.selectPlatformApps(null,
                 null, null,null);
+        if(isDevelop)
+        {
+            for(PlatformPo platformPo : platformList)
+            {
+                if("shltPA".equals(platformPo.getPlatformId()))
+                {
+                    platformPo.setBkBizId(11);
+                }
+                else
+                {
+                    platformList.remove(platformPo);
+                }
+            }
+            for(PlatformAppDeployDetailVo deployApp : deployAppList)
+            {
+                if(deployApp.getPlatformId().equals("shltPA"))
+                {
+                    deployApp.setBkBizId(11);
+                }
+                else
+                {
+                    deployAppList.remove(deployApp);
+                }
+            }
+        }
         List<LJBizInfo> bizList = queryLJPaasAllBiz(this.paasHostUrl, this.appCode, this.appSecret, this.userName);
-        Map<Integer, List<PlatformAppDeployDetailVo>> bizAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo :: getBkBizId));
-        Map<Integer, PlatformPo> platformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getBkBizId, Function.identity()));
+        Map<Integer, PlatformPo> bizPlatformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getBkBizId, Function.identity()));
+        Map<Integer, List<PlatformAppDeployDetailVo>> bizAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkBizId));
+        List<CCODPlatformInfo> ccodPlatformList = new ArrayList<>();
         for(LJBizInfo biz : bizList)
         {
             if(this.exludeBizSet.contains(biz.getBizId()))
@@ -788,21 +733,90 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 logger.info(String.format("bizId=%d is in exclude set", biz.getBizId()));
                 continue;
             }
-            List<LJSetInfo> setList = this.queryLJPaasBizSet(biz.getBizId(), this.paasHostUrl, this.appCode,
-                    this.appSecret, this.userName);
-            int bizType = checkBizType(biz, setList, platformMap);
-            if(bizType == 2)
+            Map<String, LJSetInfo> setMap = this.queryLJPaasBizSet(biz.getBizId(), this.paasHostUrl, this.appCode,
+                    this.appSecret, this.userName).stream().collect(Collectors.toMap(LJSetInfo::getSetName, Function.identity()));
+            if(setMap.size() != 1 && setMap.size() != this.supportSetDomainMap.size())
             {
-                List<LJHostInfo> idleHostList = queryIdleHost(biz.getBizId(), setList.get(0).getSetId(),
-                        this.paasHostUrl, this.appCode, this.appSecret, this.userName);
-                CCODPlatformInfo platformInfo = createNewPlatformInfo(biz, setList.get(0), idleHostList);
+                logger.warn(String.format("bizId=%d and bizName=%s set count is %d, it is not a ccod biz",
+                        biz.getBizId(), biz.getBizName()));
+                continue;
             }
-            else if(bizType == 1)
+            if(!setMap.containsKey(this.paasIdlePoolSetName))
+            {
+                logger.warn(String.format("bizId=%d and bizName=%s not contain %s set, so is not a ccod biz",
+                        biz.getBizId(), biz.getBizName(), this.paasIdlePoolSetName));
+                continue;
+            }
+            List<LJHostInfo> idleHostList = queryIdleHost(biz.getBizId(), setMap.get(this.paasIdlePoolSetName).getSetId(),
+                    this.paasHostUrl, this.appCode, this.appSecret, this.userName);
+            if(setMap.size() == 1)
+            {
+                if(!bizPlatformMap.containsKey(biz.getBizId()))
+                {
+                    Map<String, List<PlatformAppDeployDetailVo>> platNameAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getPlatformName));
+                    if(idleHostList.size() == 0 && platNameAppMap.containsKey(biz.getBizName()))
+                    {
+                        logger.info(String.format("bizId=%d and bizName=%s has 0 idle host and has %d app record in cmdb db, so it status is %s",
+                                biz.getBizId(), biz.getBizName(), platNameAppMap.get(biz.getBizName()).size(), CCODPlatformStatus.WAIT_SYNC_TO_PAAS.name));
+                        Map<String, PlatformPo> namePlatMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getPlatformName, Function.identity()))
+                        CCODPlatformInfo platformInfo = createSyncPlatformInfo(namePlatMap.get(biz.getBizName()), biz, platNameAppMap.get(biz.getBizName()));
+                        ccodPlatformList.add(platformInfo);
+                    }
+                }
+            }
+            CCODPlatformStatus platformStatus = checkBizType(biz, setList, bizPlatformMap);
+            if(CCODPlatformStatus.NEW_CREATE.equals(platformStatus))
+            {
+                CCODPlatformInfo platformInfo = createNewPlatformInfo(biz, setList.get(0), idleHostList);
+                ccodPlatformList.add(platformInfo);
+            }
+            else if(CCODPlatformStatus.RUNNING.equals(platformStatus))
+            {
+                CCODPlatformInfo platformInfo = generatePlatformInfo(bizPlatformMap.get(biz.getBizId()), biz, setList,
+                        idleHostList, bizAppMap.get(biz.getBizId()));
+                ccodPlatformList.add(platformInfo);
+            }
+            else if(CCODPlatformStatus.WAIT_SYNC_TO_PAAS.equals(platformStatus))
             {
 
             }
         }
-        return new CCODPlatformInfo[0];
+        return ccodPlatformList.toArray(new CCODPlatformInfo[0]);
+    }
+
+    private boolean isCCODBiz(LJBizInfo bizInfo, List<LJSetInfo> setList)
+    {
+        if(setList.size() == 1)
+        {
+            if(setList.get(0).getSetName().equals(this.paasIdlePoolSetName))
+            {
+                logger.info(String.format("%s has only one set=%s, so it maybe a ccod biz",
+                        bizInfo.toString(), this.paasIdlePoolSetName));
+                return true;
+            }
+            else
+            {
+                logger.warn(String.format("%s has only one set=%s not equal %s, so it is not a ccod biz",
+                        bizInfo.toString(), setList.get(0).getSetName(), this.paasIdlePoolSetName));
+                return false;
+            }
+        }
+        if(setList.size() != 1 && setList.size() != this.supportSetDomainMap.size())
+        {
+            logger.warn(String.format("%s set count is %d, it is not a ccod biz", bizInfo.toString(), setList.size()));
+            return false;
+        }
+        Map<String, LJSetInfo> nameSetMap = setList.stream().collect(Collectors.toMap(LJSetInfo::getSetName, Function.identity()));
+        for(String setName : this.supportSetDomainMap.keySet())
+        {
+            if(!nameSetMap.containsKey(setName))
+            {
+                logger.warn(String.format("%s not in %s sets, so it not a ccod biz", setName, bizInfo.toString()));
+                return false;
+            }
+        }
+        logger.info(String.format("%s is a ccod biz", bizInfo.toString()));
+        return true;
     }
 
     class SetDomain

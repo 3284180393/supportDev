@@ -41,16 +41,15 @@ public class CCODModuleInfo {
 
     public CCODModuleInfo(PlatformAppDeployDetailVo deployApp, String nexusHostUrl, String downloadUrlFmt)
     {
-        this.setPlatformAppId(deployApp.getPlatformAppId());
         String pkgUrl = String.format(downloadUrlFmt, nexusHostUrl, deployApp.getInstallPackage().getNexusRepository(),
                 deployApp.getInstallPackage().getNexusDirectory(), deployApp.getInstallPackage().getFileName());
-        this.installPackage = new DownloadFileInfo(pkgUrl, deployApp.getInstallPackage().getMd5());
+        this.installPackage = new DownloadFileInfo(deployApp.getInstallPackage().getFileName(), pkgUrl, deployApp.getInstallPackage().getMd5());
         this.cfgs = new ArrayList<>();
         for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
         {
             String cfgDownloadUrl = String.format(downloadUrlFmt, nexusHostUrl, cfg.getNexusRepository(),
                     cfg.getNexusDirectory(), cfg.getFileName());
-            DownloadFileInfo cfgFile = new DownloadFileInfo(cfgDownloadUrl, cfg.getMd5());
+            DownloadFileInfo cfgFile = new DownloadFileInfo(cfg.getFileName(), cfgDownloadUrl, cfg.getMd5());
             cfgs.add(cfgFile);
         }
         this.versionControl = deployApp.getVersionControl();
@@ -59,6 +58,7 @@ public class CCODModuleInfo {
         this.bkModuleId = deployApp.getBkModuleId();
         this.version = deployApp.getVersion();
         this.hostIp = deployApp.getHostIp();
+        this.platformAppId = deployApp.getPlatformAppId();
     }
 
     public String getModuleName() {

@@ -31,4 +31,10 @@ public class LJBizInfo {
     public void setBizName(String bizName) {
         this.bizName = bizName;
     }
+
+    @Override
+    public String toString()
+    {
+        return String.format("bizId=%d and bizName=%s", bizId, bizName);
+    }
 }

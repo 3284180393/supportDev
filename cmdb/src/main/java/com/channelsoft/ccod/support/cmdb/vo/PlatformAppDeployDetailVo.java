@@ -30,7 +30,7 @@ public class PlatformAppDeployDetailVo {
 
     private int setId; //set id,外键set表主键
 
-    private String setName; //set名
+    private String setName; //set名,和蓝鲸paas平台对应的set名一致
 
     private int domId; //域id,数外键domain表主键
 
