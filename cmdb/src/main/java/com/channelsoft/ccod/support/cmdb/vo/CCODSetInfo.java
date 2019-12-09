@@ -55,4 +55,17 @@ public class CCODSetInfo {
         this.domains = domains;
     }
 
+    @Override
+    public CCODSetInfo clone()
+    {
+        CCODSetInfo setInfo = new CCODSetInfo(this.bkSetName);
+        setInfo.setBkSetId(this.bkSetId);
+        List<CCODDomainInfo> domainList = new ArrayList<>();
+        for(CCODDomainInfo domainInfo : this.domains)
+        {
+            domainList.add(domainInfo.clone());
+        }
+        setInfo.setDomains(domainList);
+        return setInfo;
+    }
 }

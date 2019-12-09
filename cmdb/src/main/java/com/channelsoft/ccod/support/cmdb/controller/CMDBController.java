@@ -3,10 +3,12 @@ package com.channelsoft.ccod.support.cmdb.controller;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.AppOperationMethod;
+import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
+import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformResourceService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
@@ -15,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +38,9 @@ public class CMDBController {
 
     @Autowired
     IPlatformResourceService platformResourceService;
+
+    @Autowired
+    ILJPaasService ljPaasService;
 
     private final static Logger logger = LoggerFactory.getLogger(CMDBController.class);
 
@@ -500,6 +506,26 @@ public class CMDBController {
         {
             logger.error(String.format("query apps deploy details exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/biz", method = RequestMethod.GET)
+    public AjaxResultPo queryAllCCODBiz()
+    {
+        String uri = String.format("GET %s/biz", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            CCODPlatformInfo[] bizPlatfomrs = this.ljPaasService.queryAllCCODBiz();
+            resultPo = new AjaxResultPo(true, "query SUCCESs", bizPlatfomrs.length, bizPlatfomrs);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return resultPo;
     }

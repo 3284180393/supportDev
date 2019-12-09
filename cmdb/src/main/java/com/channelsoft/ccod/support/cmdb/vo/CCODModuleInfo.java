@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
+import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo;
 
 import java.util.ArrayList;
@@ -22,15 +24,21 @@ public class CCODModuleInfo {
 
     private String hostIp; //部署服务器ip
 
+    private String basePath; //应用base path
+
+    private String appRunner; //应用运行用户
+
     private int platformAppId; //该模块信息在数据的id
 
     private int bkModuleId; //对应蓝鲸paas的module id
 
     private String versionControl; //版本控制方式
 
-    private DownloadFileInfo installPackage; //安装包下载信息
+    private AppInstallPackagePo installPackage; //应用安装包
 
-    private List<DownloadFileInfo> cfgs; //配置文件下载信息
+    private List<AppCfgFilePo> srcCfgs; //原始配置文件信息
+
+    private List<PlatformAppCfgFilePo> cfgs; //应用部署后的配置文件
 
     public CCODModuleInfo(LJModuleInfo moduleInfo)
     {
@@ -39,19 +47,8 @@ public class CCODModuleInfo {
         this.moduleName = moduleInfo.getModuleName();
     }
 
-    public CCODModuleInfo(PlatformAppDeployDetailVo deployApp, String nexusHostUrl, String downloadUrlFmt)
+    public CCODModuleInfo(PlatformAppDeployDetailVo deployApp)
     {
-        String pkgUrl = String.format(downloadUrlFmt, nexusHostUrl, deployApp.getInstallPackage().getNexusRepository(),
-                deployApp.getInstallPackage().getNexusDirectory(), deployApp.getInstallPackage().getFileName());
-        this.installPackage = new DownloadFileInfo(deployApp.getInstallPackage().getFileName(), pkgUrl, deployApp.getInstallPackage().getMd5());
-        this.cfgs = new ArrayList<>();
-        for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
-        {
-            String cfgDownloadUrl = String.format(downloadUrlFmt, nexusHostUrl, cfg.getNexusRepository(),
-                    cfg.getNexusDirectory(), cfg.getFileName());
-            DownloadFileInfo cfgFile = new DownloadFileInfo(cfg.getFileName(), cfgDownloadUrl, cfg.getMd5());
-            cfgs.add(cfgFile);
-        }
         this.versionControl = deployApp.getVersionControl();
         this.moduleName = deployApp.getAppName();
         this.moduleAlias = deployApp.getAppAlias();
@@ -59,6 +56,16 @@ public class CCODModuleInfo {
         this.version = deployApp.getVersion();
         this.hostIp = deployApp.getHostIp();
         this.platformAppId = deployApp.getPlatformAppId();
+        this.basePath = deployApp.getBasePath();
+        this.appRunner = deployApp.getRunnerName();
+        this.installPackage = deployApp.getInstallPackage();
+        this.srcCfgs = deployApp.getSrcCfgs();
+        this.cfgs = deployApp.getCfgs();
+    }
+
+    public CCODModuleInfo()
+    {
+
     }
 
     public String getModuleName() {
@@ -101,21 +108,12 @@ public class CCODModuleInfo {
         this.versionControl = versionControl;
     }
 
-
-    public DownloadFileInfo getInstallPackage() {
+    public AppInstallPackagePo getInstallPackage() {
         return installPackage;
     }
 
-    public void setInstallPackage(DownloadFileInfo installPackage) {
-        this.installPackage = installPackage;
-    }
-
-    public List<DownloadFileInfo> getCfgs() {
+    public List<PlatformAppCfgFilePo> getCfgs() {
         return cfgs;
-    }
-
-    public void setCfgs(List<DownloadFileInfo> cfgs) {
-        this.cfgs = cfgs;
     }
 
     public String getHostIp() {
@@ -132,5 +130,55 @@ public class CCODModuleInfo {
 
     public void setPlatformAppId(int platformAppId) {
         this.platformAppId = platformAppId;
+    }
+
+    public String getBasePath() {
+        return basePath;
+    }
+
+    public void setBasePath(String basePath) {
+        this.basePath = basePath;
+    }
+
+    public String getAppRunner() {
+        return appRunner;
+    }
+
+    public void setAppRunner(String appRunner) {
+        this.appRunner = appRunner;
+    }
+
+    public void setInstallPackage(AppInstallPackagePo installPackage) {
+        this.installPackage = installPackage;
+    }
+
+    public List<AppCfgFilePo> getSrcCfgs() {
+        return srcCfgs;
+    }
+
+    public void setSrcCfgs(List<AppCfgFilePo> srcCfgs) {
+        this.srcCfgs = srcCfgs;
+    }
+
+    public void setCfgs(List<PlatformAppCfgFilePo> cfgs) {
+        this.cfgs = cfgs;
+    }
+
+    @Override
+    public CCODModuleInfo clone()
+    {
+        CCODModuleInfo module = new CCODModuleInfo();
+        module.cfgs = this.cfgs;
+        module.srcCfgs = this.srcCfgs;
+        module.installPackage = this.installPackage;
+        module.appRunner = this.appRunner;
+        module.basePath = this.basePath;
+        module.platformAppId = this.platformAppId;
+        module.versionControl = this.versionControl;
+        module.moduleAlias = this.moduleAlias;
+        module.moduleName = this.moduleName;
+        module.hostIp = this.hostIp;
+        module.bkModuleId = bkModuleId;
+        return module;
     }
 }

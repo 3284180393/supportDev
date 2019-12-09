@@ -31,7 +31,6 @@ public class CCODDomainInfo {
         this.modules = new ArrayList<>();
     }
 
-
     public String getDomainId() {
         return domainId;
     }
@@ -70,5 +69,18 @@ public class CCODDomainInfo {
 
     public void setModules(List<CCODModuleInfo> modules) {
         this.modules = modules;
+    }
+
+    @Override
+    public CCODDomainInfo clone()
+    {
+        CCODDomainInfo domainInfo = new CCODDomainInfo(this.bkSetId, this.domId, this.domainId, this.domainName);
+        List<CCODModuleInfo> moduleList = new ArrayList<>();
+        for(CCODModuleInfo module : this.modules)
+        {
+            moduleList.add(module.clone());
+        }
+        domainInfo.setModules(moduleList);
+        return domainInfo;
     }
 }
