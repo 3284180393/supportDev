@@ -3,6 +3,8 @@ package com.channelsoft.ccod.support.cmdb.service;
 import com.channelsoft.ccod.support.cmdb.vo.CCODPlatformInfo;
 import com.channelsoft.ccod.support.cmdb.vo.LJBizInfo;
 
+import java.util.List;
+
 /**
  * @ClassName: ILJPaasService
  * @Author: lanhb
@@ -31,5 +33,15 @@ public interface ILJPaasService {
      * @return 查询结果
      * @throws Exception
      */
-    CCODPlatformInfo[] queryAllCCODBiz() throws Exception;
+    List<CCODPlatformInfo> queryAllCCODBiz() throws Exception;
+
+    /**
+     * 根据指定条件查询相关biz信息
+     * @param bizId biz id
+     * @param setId set id
+     * @param domainId 域id
+     * @return 查询结果
+     * @throws Exception
+     */
+    List<CCODPlatformInfo> queryCCODBiz(Integer bizId, Integer setId, String domainId) throws Exception;
 }

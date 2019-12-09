@@ -92,6 +92,8 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     private Random random = new Random();
 
+    private List<CCODPlatformInfo> allPlatformBiz;
+
     @PostConstruct
     void init() throws Exception
     {
@@ -103,6 +105,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         logger.info(String.format("exclude biz=%s", JSONArray.toJSONString(this.exludeBizSet)));
         this.waitSyncUpdateToPaasBiz = initWaitToSyncPaasBiz();
         logger.info(String.format("biz=%s wait to sync update detail from cmdb to paas", JSONObject.toJSONString(this.waitSyncUpdateToPaasBiz)));
+        this.allPlatformBiz = this.queryAllCCODBiz();
         try
         {
             someTest();
@@ -462,7 +465,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
                         bizInfo.getBizId(), bizInfo.getBizName(), setName, setAppMap.get(setName).size()));
             }
             LJSetInfo bkSet = setMap.get(setName);
-            Map<String, CCODDomainInfo> domainMap = new HashMap<>();
             Map<String, List<PlatformAppDeployDetailVo>> domainAppMap =  setAppMap.get(setName)
                     .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
             List<CCODDomainInfo> domainList = new ArrayList<>();
@@ -696,8 +698,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public CCODPlatformInfo[] queryAllCCODBiz() throws Exception {
+    public List<CCODPlatformInfo> queryAllCCODBiz() throws Exception {
         logger.info(String.format("begin to query all biz platform info for ccod"));
+        if(this.allPlatformBiz != null)
+            return this.allPlatformBiz;
         List<PlatformPo> platformList = platformMapper.select(1);
         List<PlatformAppDeployDetailVo> deployAppList = platformAppDeployDetailMapper.selectPlatformApps(null,
                 null, null,null);
@@ -781,7 +785,60 @@ public class LJPaasServiceImpl implements ILJPaasService {
         {
             ccodPlatformList = createDemoCCODPlatform(ccodPlatformList);
         }
-        return ccodPlatformList.toArray(new CCODPlatformInfo[0]);
+        return ccodPlatformList;
+    }
+
+    @Override
+    public List<CCODPlatformInfo> queryCCODBiz(Integer bizId, Integer setId, String domainId) throws Exception {
+        logger.info(String.format("begin to query biz info : bizId=%d, setId=%d, domainId=%s",
+                bizId, setId, domainId));
+        List<CCODPlatformInfo> platformList = new ArrayList<>();
+        if(bizId == null)
+        {
+            for(CCODPlatformInfo platformInfo : this.allPlatformBiz)
+            {
+                CCODPlatformInfo platform = platformInfo.clone();
+                platform.setSets(new ArrayList<>());
+                platformList.add(platform);
+            }
+        }
+        else if(setId == null)
+        {
+            Map<Integer, CCODPlatformInfo> bizMap = this.allPlatformBiz.stream().collect(Collectors.toMap(CCODPlatformInfo::getBizId, Function.identity()));
+            if(bizMap.containsKey(bizId))
+            {
+                CCODPlatformInfo platform = bizMap.get(bizId).clone();
+                for(CCODSetInfo set : platform.getSets())
+                {
+                    set.setDomains(new ArrayList<>());
+                }
+                platformList.add(platform);
+            }
+        }
+        else if(StringUtils.isNotBlank(domainId))
+        {
+            Map<Integer, CCODPlatformInfo> bizMap = this.allPlatformBiz.stream().collect(Collectors.toMap(CCODPlatformInfo::getBizId, Function.identity()));
+            if(bizMap.containsKey(bizId))
+            {
+                CCODPlatformInfo platform = bizMap.get(bizId).clone();
+                Map<Integer, CCODSetInfo> setMap = platform.getSets().stream().collect(Collectors.toMap(CCODSetInfo::getBkSetId, Function.identity()));
+                if(setMap.containsKey(setId))
+                {
+                    CCODSetInfo set = setMap.get(setId);
+                    Map<String, CCODDomainInfo> domainMap = set.getDomains().stream().collect(Collectors.toMap(CCODDomainInfo::getDomainId, Function.identity()));
+                    if(domainMap.containsKey(domainId))
+                    {
+                        CCODDomainInfo domain = domainMap.get(domainId);
+                        set.setDomains(new ArrayList<>());
+                        set.getDomains().add(domain);
+                        platform.setSets(new ArrayList<>());
+                        platform.getSets().add(set);
+                        platformList.add(platform);
+                    }
+                }
+            }
+        }
+        return platformList;
     }
 
     /**
@@ -834,12 +891,14 @@ public class LJPaasServiceImpl implements ILJPaasService {
         CCODPlatformInfo src = null;
         for(CCODPlatformInfo platform : srcPlatforms)
         {
-            list.add(platform);
             if(platform.getStatus() == CCODPlatformStatus.WAIT_SYNC_NEW_CREATE_PLATFORM_TO_PAAS.id
                     && "上海联通平安".equals(platform.getPlatformName()))
             {
+//                platform = reduceData(platform);
                 src = platform;
             }
+            platform.setBizId(random.nextInt(10000));
+            list.add(platform);
         }
         if(src != null)
         {
@@ -847,37 +906,48 @@ public class LJPaasServiceImpl implements ILJPaasService {
             newPlat.setStatus(CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id);
             newPlat.setPlatformName("新收集等待同步paas平台");
             newPlat.setPlatformId("newCollectPlatform");
-            list.add(src);
+            newPlat.setBizId(random.nextInt(10000));
+            list.add(newPlat);
 
             newPlat = src.clone();
             newPlat.setStatus(CCODPlatformStatus.WAIT_SYNC_PLATFORM_UPDATE_TO_PAAS.id);
             newPlat.setPlatformName("等待同步更新结果平台");
             newPlat.setPlatformId("waitSyncAppUpdatePlatform");
+            newPlat.setBizId(random.nextInt(10000));
+            boolean isAdd = false;
             for(CCODSetInfo setInfo : newPlat.getSets())
             {
+                if(isAdd)
+                    break;
                 for(CCODDomainInfo domainInfo : setInfo.getDomains())
                 {
+                    if(isAdd)
+                        break;
                     if(domainInfo.getModules().size() > 0)
                     {
                         for(CCODModuleInfo moduleInfo : domainInfo.getModules())
                         {
                             newPlat.getPlanUpdateApps().add(moduleInfo.clone());
+                            isAdd = true;
+                            break;
                         }
                     }
                 }
             }
-            list.add(src);
+            list.add(newPlat);
 
             newPlat = src.clone();
             newPlat.setStatus(CCODPlatformStatus.PLAN_CREATE_PLATFORM.id);
             newPlat.setPlatformName("计划创建新平台");
             newPlat.setPlatformId("planCreateNewPlatform");
-            list.add(src);
+            newPlat.setBizId(random.nextInt(10000));
+            list.add(newPlat);
 
             newPlat = src.clone();
             newPlat.setStatus(CCODPlatformStatus.PLAN_CREATE_DOMAIN.id);
             newPlat.setPlatformName("计划创建新域");
             newPlat.setPlatformId("planCreateNewDomain");
+            newPlat.setBizId(random.nextInt(10000));
             for(CCODSetInfo setInfo : newPlat.getSets())
             {
                 if(setInfo.getBkSetName().equals("域服务"))
@@ -885,30 +955,54 @@ public class LJPaasServiceImpl implements ILJPaasService {
                     newPlat.setPlanNewDomain(setInfo.getDomains().get(0).clone());
                     newPlat.getPlanNewDomain().setDomainName("计划新加域");
                     newPlat.getPlanNewDomain().setDomainId("planNewAddDomain");
+                    break;
                 }
             }
-            list.add(src);
+            list.add(newPlat);
 
             newPlat = src.clone();
             newPlat.setStatus(CCODPlatformStatus.PLAN_APP_UPDATE.id);
             newPlat.setPlatformName("等待应用升级平台");
             newPlat.setPlatformId("waitAppUpdatePlatform");
+            newPlat.setBizId(random.nextInt());
+            isAdd = false;
             for(CCODSetInfo setInfo : newPlat.getSets())
             {
+                if(isAdd)
+                    break;
                 for(CCODDomainInfo domainInfo : setInfo.getDomains())
                 {
+                    if(isAdd)
+                        break;
                     if(domainInfo.getModules().size() > 0)
                     {
                         for(CCODModuleInfo moduleInfo : domainInfo.getModules())
                         {
                             newPlat.getPlanUpdateApps().add(moduleInfo.clone());
+                            isAdd = true;
+                            break;
                         }
                     }
                 }
             }
-            list.add(src);
+            list.add(newPlat);
         }
         return list;
+    }
+
+    private CCODPlatformInfo reduceData(CCODPlatformInfo platformInfo)
+    {
+        CCODPlatformInfo platform = platformInfo.clone();
+        for(CCODSetInfo setInfo : platform.getSets())
+        {
+            if(setInfo.getDomains().size() > 1)
+            {
+                List<CCODDomainInfo> domainList = new ArrayList<>();
+                domainList.add(setInfo.getDomains().get(0));
+                setInfo.setDomains(domainList);
+            }
+        }
+        return platformInfo;
     }
 
     class SetDomain

@@ -510,16 +510,25 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/biz", method = RequestMethod.GET)
+    @RequestMapping(value = "/businesses", method = RequestMethod.GET)
     public AjaxResultPo queryAllCCODBiz()
     {
-        String uri = String.format("GET %s/biz", this.apiBasePath);
+        String uri = String.format("GET %s/businesses", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            CCODPlatformInfo[] bizPlatfomrs = this.ljPaasService.queryAllCCODBiz();
-            resultPo = new AjaxResultPo(true, "query SUCCESs", bizPlatfomrs.length, bizPlatfomrs);
+            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(null, null, null);
+//            String data = JSONObject.toJSONString(bizPlatforms);
+//            List<CCODPlatformInfo> resultList = new ArrayList<>();
+//            for(CCODPlatformInfo platformInfo : bizPlatforms)
+//            {
+//                resultList.add(platformInfo);
+//            }
+//            resultPo = new AjaxResultPo(true, "query SUCCESS", resultList.size(), resultList);
+//            resultPo = new AjaxResultPo(true, "query SUCESS", 1, data);
+//            resultPo = new AjaxResultPo(true, "test");
+            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -529,4 +538,65 @@ public class CMDBController {
         }
         return resultPo;
     }
+
+    @RequestMapping(value = "/businesses/{bizId}", method = RequestMethod.GET)
+    public AjaxResultPo queryCCODBizByBizId(@PathVariable int bizId)
+    {
+        String uri = String.format("GET %s/businesses/%d", this.apiBasePath, bizId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, null, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/businesses/{bizId}/{setId}", method = RequestMethod.GET)
+    public AjaxResultPo queryCCODBizBySetId(@PathVariable int bizId, @PathVariable int setId)
+    {
+        String uri = String.format("GET %s/businesses/%d/%d", this.apiBasePath, bizId, setId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, setId, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/businesses/{bizId}/{setId}/{domainId}", method = RequestMethod.GET)
+    public AjaxResultPo queryCCODBizByDomainId(@PathVariable int bizId, @PathVariable int setId, @PathVariable String domainId)
+    {
+        String uri = String.format("GET %s/businesses/%d/%d/%s", this.apiBasePath, bizId, setId, domainId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, setId, domainId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
 }
