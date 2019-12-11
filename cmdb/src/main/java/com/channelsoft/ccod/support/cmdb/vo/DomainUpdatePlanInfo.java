@@ -1,18 +1,27 @@
-package com.channelsoft.ccod.support.cmdb.po;
+package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 
 import java.util.Date;
+import java.util.List;
 
 /**
- * @ClassName: DomainUpdatePlanPo
+ * @ClassName: DomainUpdatePlanInfo
  * @Author: lanhb
- * @Description: 用来定义域升级方案的pojo类
- * @Date: 2019/12/11 9:30
+ * @Description: 用来定义域升级方案信息的类
+ * @Date: 2019/12/11 17:44
  * @Version: 1.0
  */
-public class DomainUpdatePlanPo {
+public class DomainUpdatePlanInfo {
+
+    private int domId; //对应的域id
+
+    private String domainName; //对应的域名
+
+    private String domainId; //对应的域标识
+
+    private List<AppUpdateOperationInfo> appUpdateOperationList; //应用升级操作列表
 
     private DomainUpdateType updateType; //该域升级方案类型,由DomainUpdateType枚举定义
 
@@ -25,6 +34,14 @@ public class DomainUpdatePlanPo {
     private Date executeTime; //计划执行时间
 
     private String comment; //备注
+
+    public List<AppUpdateOperationInfo> getAppUpdateOperationList() {
+        return appUpdateOperationList;
+    }
+
+    public void setAppUpdateOperationList(List<AppUpdateOperationInfo> appUpdateOperationList) {
+        this.appUpdateOperationList = appUpdateOperationList;
+    }
 
     public DomainUpdateType getUpdateType() {
         return updateType;
@@ -58,6 +75,14 @@ public class DomainUpdatePlanPo {
         this.updateTime = updateTime;
     }
 
+    public Date getExecuteTime() {
+        return executeTime;
+    }
+
+    public void setExecuteTime(Date executeTime) {
+        this.executeTime = executeTime;
+    }
+
     public String getComment() {
         return comment;
     }
@@ -66,11 +91,27 @@ public class DomainUpdatePlanPo {
         this.comment = comment;
     }
 
-    public Date getExecuteTime() {
-        return executeTime;
+    public int getDomId() {
+        return domId;
     }
 
-    public void setExecuteTime(Date executeTime) {
-        this.executeTime = executeTime;
+    public void setDomId(int domId) {
+        this.domId = domId;
+    }
+
+    public String getDomainName() {
+        return domainName;
+    }
+
+    public void setDomainName(String domainName) {
+        this.domainName = domainName;
+    }
+
+    public String getDomainId() {
+        return domainId;
+    }
+
+    public void setDomainId(String domainId) {
+        this.domainId = domainId;
     }
 }

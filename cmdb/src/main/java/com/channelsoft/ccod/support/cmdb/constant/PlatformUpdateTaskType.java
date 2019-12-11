@@ -9,7 +9,7 @@ package com.channelsoft.ccod.support.cmdb.constant;
  */
 public enum PlatformUpdateTaskType {
 
-    ADD(1, "ADD", "添加新平台"),
+    CREATE(1, "CREATE", "创建新平台"),
 
     DELETE(2, "DELETE", "下架已有平台"),
 

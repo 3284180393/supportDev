@@ -80,6 +80,8 @@ public class PlatformAppDeployDetailVo {
 
     private int bkSetId; //该应用在paas的set id
 
+    private int bkHostId; //该应用在蓝鲸paas的服务器id
+
     public int getPlatformAppId() {
         return platformAppId;
     }
@@ -326,5 +328,13 @@ public class PlatformAppDeployDetailVo {
 
     public void setBkSetId(int bkSetId) {
         this.bkSetId = bkSetId;
+    }
+
+    public int getBkHostId() {
+        return bkHostId;
+    }
+
+    public void setBkHostId(int bkHostId) {
+        this.bkHostId = bkHostId;
     }
 }

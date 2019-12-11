@@ -90,6 +90,8 @@ lj-paas:
   user-name: admin
   idle-pool-set-name: idle pool
   idle-pool-set-id: ccodIdlePool
+  update-schema-set-name: 平台升级方案
+  update-schema-set-id: platformUpdateSchema
   set-apps:
     set[0]:
       name: 域服务
@@ -194,8 +196,6 @@ lj-paas:
         - IBcustomWebs
         - IBsafetymoni
         - licen
-
-
 
 windows: false
 

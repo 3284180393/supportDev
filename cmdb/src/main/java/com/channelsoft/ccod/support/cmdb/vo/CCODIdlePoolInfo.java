@@ -34,6 +34,11 @@ public class CCODIdlePoolInfo {
         }
     }
 
+    public CCODIdlePoolInfo()
+    {
+
+    }
+
     public CCODIdlePoolInfo(LJSetInfo idlePoolSet)
     {
         this.bkBizId = idlePoolSet.getBizId();

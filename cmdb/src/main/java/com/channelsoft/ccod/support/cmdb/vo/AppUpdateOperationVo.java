@@ -1,7 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
-import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperationStatus;
+import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 
 import java.util.Date;
@@ -39,7 +39,7 @@ public class AppUpdateOperationVo {
 
     private Date executeTime; //该升级操作的执行时间
 
-    private AppUpdateOperationStatus status; //当前状态
+    private UpdateStatus status; //当前状态
 
     private String comment; //备注
 
@@ -139,11 +139,11 @@ public class AppUpdateOperationVo {
         this.executeTime = executeTime;
     }
 
-    public AppUpdateOperationStatus getStatus() {
+    public UpdateStatus getStatus() {
         return status;
     }
 
-    public void setStatus(AppUpdateOperationStatus status) {
+    public void setStatus(UpdateStatus status) {
         this.status = status;
     }
 

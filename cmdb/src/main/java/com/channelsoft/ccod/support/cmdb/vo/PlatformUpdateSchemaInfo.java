@@ -7,35 +7,27 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * @ClassName: UpdatePlatformSchemaVo
+ * @ClassName: PlatformUpdateSchemaInfo
  * @Author: lanhb
- * @Description: 用来定义升级平台的计划类
- * @Date: 2019/12/11 16:08
+ * @Description: 用来定义平台升级计划的类
+ * @Date: 2019/12/11 17:47
  * @Version: 1.0
  */
-public class UpdatePlatformSchemaVo {
+public class PlatformUpdateSchemaInfo {
 
-    private int schemaId; //schemaId
+    private List<DomainUpdatePlanInfo> domainUpdatePlanList; //域升级方案列表
 
-    private String platId; //平台id
+    private int bkBizId; //该平台对应蓝鲸的bizId
 
-    private String platformName; //平台名
+    private String platformName; //该平台的平台名,需要同蓝鲸的对应的bizName一致
 
-    private String platformId; //平台状态
+    private PlatformUpdateTaskType taskType; //升级计划的任务类型,由PlatformUpdateTaskType枚举定义
 
-    private PlatformUpdateTaskType taskType; //平台升级任务类型
-
-    private UpdateStatus status; //平台升级任务状态
-
-    private List<UpdateDomainPlanVo> updateDomainPlanList; //域升级计划列表
+    private UpdateStatus status; //任务当前状态,由PlatformUpdateTaskStatus枚举定义
 
     private Date createTime; //计划创建时间
 
     private Date updateTime; //计划最后一次修改时间
-
-    private Date startTime; //开始执行计划时间
-
-    private Date endTime; //任务结束时间
 
     private Date executeTime; //如果该时间为非空，在该时间自动执行
 
@@ -45,36 +37,12 @@ public class UpdatePlatformSchemaVo {
 
     private String comment; //备注
 
-    public int getSchemaId() {
-        return schemaId;
+    public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
+        return domainUpdatePlanList;
     }
 
-    public void setSchemaId(int schemaId) {
-        this.schemaId = schemaId;
-    }
-
-    public String getPlatId() {
-        return platId;
-    }
-
-    public void setPlatId(String platId) {
-        this.platId = platId;
-    }
-
-    public String getPlatformName() {
-        return platformName;
-    }
-
-    public void setPlatformName(String platformName) {
-        this.platformName = platformName;
-    }
-
-    public String getPlatformId() {
-        return platformId;
-    }
-
-    public void setPlatformId(String platformId) {
-        this.platformId = platformId;
+    public void setDomainUpdatePlanList(List<DomainUpdatePlanInfo> domainUpdatePlanList) {
+        this.domainUpdatePlanList = domainUpdatePlanList;
     }
 
     public PlatformUpdateTaskType getTaskType() {
@@ -93,14 +61,6 @@ public class UpdatePlatformSchemaVo {
         this.status = status;
     }
 
-    public List<UpdateDomainPlanVo> getUpdateDomainPlanList() {
-        return updateDomainPlanList;
-    }
-
-    public void setUpdateDomainPlanList(List<UpdateDomainPlanVo> updateDomainPlanList) {
-        this.updateDomainPlanList = updateDomainPlanList;
-    }
-
     public Date getCreateTime() {
         return createTime;
     }
@@ -115,22 +75,6 @@ public class UpdatePlatformSchemaVo {
 
     public void setUpdateTime(Date updateTime) {
         this.updateTime = updateTime;
-    }
-
-    public Date getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(Date startTime) {
-        this.startTime = startTime;
-    }
-
-    public Date getEndTime() {
-        return endTime;
-    }
-
-    public void setEndTime(Date endTime) {
-        this.endTime = endTime;
     }
 
     public Date getExecuteTime() {
@@ -163,5 +107,21 @@ public class UpdatePlatformSchemaVo {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public int getBkBizId() {
+        return bkBizId;
+    }
+
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
+    }
+
+    public String getPlatformName() {
+        return platformName;
+    }
+
+    public void setPlatformName(String platformName) {
+        this.platformName = platformName;
     }
 }

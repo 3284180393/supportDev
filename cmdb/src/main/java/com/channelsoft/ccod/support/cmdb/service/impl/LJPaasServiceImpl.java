@@ -2,8 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
-import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
+import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
 import com.channelsoft.ccod.support.cmdb.exception.DBPAASDataNotConsistentException;
@@ -75,6 +74,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     @Value("${lj-paas.idle-pool-set-id}")
     private String paasIdlePoolSetId;
+
+    @Value("${lj-paas.update-schema-set-name}")
+    private String updateSchemaSetName;
+
+    @Value("${lj-paas.update-schema-set-id}")
+    private String updateSchemaSetId;
 
     private String queryBizUrlFmt = "%s/api/c/compapi/v2/cc/search_business/";
 
@@ -902,7 +907,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
                     {
                         for(CCODModuleInfo moduleInfo : domainInfo.getModules())
                         {
-                            newPlat.getPlanUpdateApps().add(moduleInfo.clone());
                             isAdd = true;
                             break;
                         }
@@ -927,9 +931,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
             {
                 if(setInfo.getBkSetName().equals("域服务"))
                 {
-                    newPlat.setPlanNewDomain(setInfo.getDomains().get(0).clone());
-                    newPlat.getPlanNewDomain().setDomainName("计划新加域");
-                    newPlat.getPlanNewDomain().setDomainId("planNewAddDomain");
                     break;
                 }
             }
@@ -953,7 +954,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
                     {
                         for(CCODModuleInfo moduleInfo : domainInfo.getModules())
                         {
-                            newPlat.getPlanUpdateApps().add(moduleInfo.clone());
                             isAdd = true;
                             break;
                         }
@@ -979,6 +979,112 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
         return platformInfo;
     }
+
+    private PlatformUpdateSchemaInfo generateDemoSchema(PlatformUpdateTaskType taskType, DomainUpdateType updateType, CCODPlatformInfo src)
+    {
+        Date now = new Date();
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo();
+        schema.setBkBizId(src.getBizId());
+        schema.setPlatformName(src.getPlatformName());
+        schema.setCreateTime(now);
+        schema.setDeadline(now);
+        schema.setExecuteTime(now);
+        schema.setStatus(UpdateStatus.MODIFY);
+        schema.setTaskType(taskType);
+        schema.setUpdateTime(now);
+        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
+        schema.setDomainUpdatePlanList(planList);
+        if(PlatformUpdateTaskType.CREATE.equals(taskType))
+        {
+
+        }
+        return schema;
+    }
+
+    private DomainUpdatePlanInfo generateDomainUpdatePlan(DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, int domId, String domainName, String domainId, List<PlatformAppDeployDetailVo> deployApps, List<AppPo> appList)
+    {
+        Date now = new Date();
+        DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+        planInfo.setDomId(domId);
+        planInfo.setDomainId(domainId);
+        planInfo.setDomainName(domainName);
+        planInfo.setCreateTime(now);
+        planInfo.setUpdateTime(now);
+        planInfo.setExecuteTime(now);
+        List<AppUpdateOperationInfo> operationList = new ArrayList<>();
+        Map<String, List<AppPo>> nameAppMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
+        for(PlatformAppDeployDetailVo deployApp : deployApps)
+        {
+            Map<String, AppPo> versionAppMap = nameAppMap.get(deployApp.getAppName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity()));
+            AppPo chosenApp = versionAppMap.get(deployApp.getVersion());
+            if(!DomainUpdateType.ADD.equals(updateType))
+            {
+                for(String version : versionAppMap.keySet())
+                {
+                    if(!version.equals(deployApp.getVersion()))
+                    {
+                        chosenApp = versionAppMap.get(version);
+                        break;
+                    }
+                }
+            }
+            AppUpdateOperationInfo operationInfo = generateAppUpdateOperation(operation, deployApp, chosenApp, updateStatus);
+            operationList.add(operationInfo);
+        }
+        planInfo.setAppUpdateOperationList(operationList);
+        return planInfo;
+    }
+
+
+    private PlatformUpdateSchemaInfo generatePlatformUpdateSchema(int bkBizId, String platformName, DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, List<PlatformAppDeployDetailVo> deployApps, List<AppPo> appList)
+    {
+        return null;
+    }
+
+    private AppUpdateOperationInfo generateAppUpdateOperation(AppUpdateOperation operation, PlatformAppDeployDetailVo deployApp, AppPo targetApp, UpdateStatus updateStatus)
+    {
+        Date now = new Date();
+        AppUpdateOperationInfo info = new AppUpdateOperationInfo();
+        info.setAppRunner(deployApp.getRunnerName());
+        info.setBasePath(deployApp.getBasePath());
+        info.setBkModuleId(deployApp.getBkModuleId());
+        info.setBzHostId(deployApp.getBkHostId());
+        info.setCfgs(new ArrayList<>());
+        for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
+        {
+            NexusAssetInfo assetInfo = new NexusAssetInfo();
+            Checksum checksum = new Checksum();
+            checksum.md5 = cfg.getMd5();
+            assetInfo.setChecksum(checksum);
+            assetInfo.setId(cfg.getNexusAssetId());
+            assetInfo.setPath(cfg.getNexusDirectory());
+            assetInfo.setRepository(cfg.getNexusRepository());
+            info.getCfgs().add(assetInfo);
+        }
+        info.setOperation(operation);
+        info.setOriginalAppId(deployApp.getAppId());
+        info.setStatus(updateStatus);
+        info.setUpdateTime(now);
+        info.setTargetAppId(deployApp.getAppId());
+        switch (operation)
+        {
+            case ADD:
+                info.setBkModuleId(0);
+                info.setOriginalAppId(0);
+                break;
+            case DELETE:
+                info.setTargetAppId(0);
+                info.setCfgs(new ArrayList<>());
+                break;
+            case CFG_UPDATE:
+                info.setTargetAppId(0);
+                break;
+            default:
+                break;
+        }
+        return info;
+    }
+
 
     @Test
     public void jsonTest()

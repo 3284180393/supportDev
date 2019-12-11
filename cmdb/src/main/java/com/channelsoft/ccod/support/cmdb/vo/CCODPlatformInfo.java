@@ -25,14 +25,11 @@ public class CCODPlatformInfo {
 
     private CCODIdlePoolInfo idlePool; //该平台的idle pools set
 
-    private CCODDomainInfo planNewDomain; //计划新建的域,对应的status为9
-
-    private List<CCODModuleInfo> planUpdateApps; //计划更新的模块,对应的status为10
+    private UpdatePlatformSchemaVo updateSchema; //正在进行的平台升级计划,如果没有为空
 
     public CCODPlatformInfo()
     {
         this.sets = new ArrayList<>();
-        this.planUpdateApps = new ArrayList<>();
     }
 
     public CCODPlatformInfo(LJBizInfo bizInfo, int status)
@@ -41,7 +38,6 @@ public class CCODPlatformInfo {
         this.platformName = bizInfo.getBizName();
         this.status = status;
         this.sets = new ArrayList<>();
-        this.planUpdateApps = new ArrayList<>();
     }
 
 
@@ -52,7 +48,6 @@ public class CCODPlatformInfo {
         this.status = status;
         this.idlePool = idlePool;
         this.sets = sets;
-        this.planUpdateApps = new ArrayList<>();
     }
 
     public int getBizId() {
@@ -111,22 +106,6 @@ public class CCODPlatformInfo {
         this.idlePool = idlePool;
     }
 
-    public CCODDomainInfo getPlanNewDomain() {
-        return planNewDomain;
-    }
-
-    public void setPlanNewDomain(CCODDomainInfo planNewDomain) {
-        this.planNewDomain = planNewDomain;
-    }
-
-    public List<CCODModuleInfo> getPlanUpdateApps() {
-        return planUpdateApps;
-    }
-
-    public void setPlanUpdateApps(List<CCODModuleInfo> planUpdateApps) {
-        this.planUpdateApps = planUpdateApps;
-    }
-
     @Override
     public CCODPlatformInfo clone()
     {
@@ -143,16 +122,6 @@ public class CCODPlatformInfo {
         }
         platformInfo.sets = setList;
         platformInfo.idlePool = this.idlePool;
-        if(planNewDomain != null)
-        {
-            platformInfo.planNewDomain = this.planNewDomain.clone();
-        }
-        List<CCODModuleInfo> updateList = new ArrayList<>();
-        for(CCODModuleInfo module : this.planUpdateApps)
-        {
-            updateList.add(module.clone());
-        }
-        platformInfo.planUpdateApps = updateList;
         return platformInfo;
     }
 }

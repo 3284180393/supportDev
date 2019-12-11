@@ -1,7 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
-import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateStatus;
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
+import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 
 import java.util.Date;
 import java.util.List;
@@ -25,9 +25,11 @@ public class UpdateDomainPlanVo {
 
     private String domainId; //执行该方案的域id
 
+    private String setId; //该域归属的set的id
+
     private DomainUpdateType updateType; //升级类型
 
-    private DomainUpdateStatus updateStatus; //当前升级状态
+    private UpdateStatus status; //当前升级状态
 
     private List<AppUpdateOperationVo> appUpdateOperationList; //升级需要执行的操作列表
 
@@ -91,12 +93,12 @@ public class UpdateDomainPlanVo {
         this.updateType = updateType;
     }
 
-    public DomainUpdateStatus getUpdateStatus() {
-        return updateStatus;
+    public UpdateStatus getStatus() {
+        return status;
     }
 
-    public void setUpdateStatus(DomainUpdateStatus updateStatus) {
-        this.updateStatus = updateStatus;
+    public void setStatus(UpdateStatus status) {
+        this.status = status;
     }
 
     public List<AppUpdateOperationVo> getAppUpdateOperationList() {
@@ -153,5 +155,13 @@ public class UpdateDomainPlanVo {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public String getSetId() {
+        return setId;
+    }
+
+    public void setSetId(String setId) {
+        this.setId = setId;
     }
 }
