@@ -28,7 +28,7 @@ public class PlatformAppDeployDetailVo {
 
     private String platformName; //部署平台名
 
-    private int setId; //set id,外键set表主键
+    private String setId; //cmdb中标识该应用所属的set的id,setId在cmdb中不唯一,但platformName+setId在cmdb中唯一
 
     private String setName; //set名,和蓝鲸paas平台对应的set名一致
 
@@ -280,11 +280,11 @@ public class PlatformAppDeployDetailVo {
         this.platId = platId;
     }
 
-    public int getSetId() {
+    public String getSetId() {
         return setId;
     }
 
-    public void setSetId(int setId) {
+    public void setSetId(String setId) {
         this.setId = setId;
     }
 

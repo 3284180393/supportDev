@@ -40,10 +40,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //    @Autowired
 //    AppMapper appMapper;
 
-    @Value("${nexus.platform_app_cfg_repository}")
+    @Value("${nexus.platform-app-cfg-repository}")
     private String platformAppCfgRepository;
 
-    @Value("${nexus.app_module_repository}")
+    @Value("${nexus.app-module-repository}")
     private String appRepository;
 
     @Value("${debug}")
@@ -55,16 +55,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${nexus.password}")
     private String nexusPassword;
 
-    @Value("${nexus.host_url}")
+    @Value("${nexus.host-url}")
     private String nexusHostUrl;
 
-    @Value("${app_publish_nexus.user}")
+    @Value("${app-publish-nexus.user}")
     private String publishNexusUserName;
 
-    @Value("${app_publish_nexus.password}")
+    @Value("${app-publish-nexus.password}")
     private String publishNexusPassword;
 
-    @Value("${app_publish_nexus.host_url}")
+    @Value("${app-publish-nexus.host-url}")
     private String publishNexusHostUrl;
 
     @Autowired

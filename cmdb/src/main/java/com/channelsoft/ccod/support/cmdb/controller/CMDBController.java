@@ -3,7 +3,6 @@ package com.channelsoft.ccod.support.cmdb.controller;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.AppOperationMethod;
-import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
@@ -17,9 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 
 /**
@@ -560,9 +557,9 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/businesses/{bizId}/{setId}", method = RequestMethod.GET)
-    public AjaxResultPo queryCCODBizBySetId(@PathVariable int bizId, @PathVariable int setId)
+    public AjaxResultPo queryCCODBizBySetId(@PathVariable int bizId, @PathVariable String setId)
     {
-        String uri = String.format("GET %s/businesses/%d/%d", this.apiBasePath, bizId, setId);
+        String uri = String.format("GET %s/businesses/%d/%s", this.apiBasePath, bizId, setId);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -580,9 +577,9 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/businesses/{bizId}/{setId}/{domainId}", method = RequestMethod.GET)
-    public AjaxResultPo queryCCODBizByDomainId(@PathVariable int bizId, @PathVariable int setId, @PathVariable String domainId)
+    public AjaxResultPo queryCCODBizByDomainId(@PathVariable int bizId, @PathVariable String setId, @PathVariable String domainId)
     {
-        String uri = String.format("GET %s/businesses/%d/%d/%s", this.apiBasePath, bizId, setId, domainId);
+        String uri = String.format("GET %s/businesses/%d/%s/%s", this.apiBasePath, bizId, setId, domainId);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try

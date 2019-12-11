@@ -13,17 +13,20 @@ import java.util.List;
 public class LJIdlePoolInfo {
     private int bizId;   //资源池所属的蓝鲸 paas biz id
 
-    private int setId; //资源池对应的蓝鲸paas set id
+    private int bkSetId; //资源池对应的蓝鲸paas set id
+
+    private String setId; //对应的cmdb中的set id
 
     private String setName; //资源池对应的蓝鲸 paas set名
 
     private List<LJHostInfo> idleHosts; //资源池拥有的空闲主机信息
 
-    public LJIdlePoolInfo(int bizId, int setId, String setName)
+    public LJIdlePoolInfo(LJSetInfo idlePoolSet, String setId)
     {
-        this.bizId = bizId;
+        this.bizId = idlePoolSet.getBizId();
+        this.bkSetId = idlePoolSet.getSetId();
+        this.setName = idlePoolSet.getSetName();
         this.setId = setId;
-        this.setName = setName;
         this.idleHosts = new ArrayList<>();
     }
 
@@ -35,12 +38,12 @@ public class LJIdlePoolInfo {
         this.bizId = bizId;
     }
 
-    public int getSetId() {
-        return setId;
+    public int getBkSetId() {
+        return bkSetId;
     }
 
-    public void setSetId(int setId) {
-        this.setId = setId;
+    public void setBkSetId(int bkSetId) {
+        this.bkSetId = bkSetId;
     }
 
     public String getSetName() {
@@ -57,5 +60,13 @@ public class LJIdlePoolInfo {
 
     public void setIdleHosts(List<LJHostInfo> idleHosts) {
         this.idleHosts = idleHosts;
+    }
+
+    public String getSetId() {
+        return setId;
+    }
+
+    public void setSetId(String setId) {
+        this.setId = setId;
     }
 }

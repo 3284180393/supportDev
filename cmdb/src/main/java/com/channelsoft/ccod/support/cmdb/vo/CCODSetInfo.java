@@ -12,21 +12,25 @@ import java.util.List;
  */
 public class CCODSetInfo {
 
-    private String bkSetName;
+    private String bkSetName; //该set对应lj paas的set名,该名字也是set在cmdb中的名字
 
-    private int bkSetId;
+    private int bkSetId; //该set对应lj paas上的set id,
 
-    private List<CCODDomainInfo> domains;
+    private String setId; //该set在cmdb对应的id
 
-    public CCODSetInfo(String bkSetName)
+    private List<CCODDomainInfo> domains; //在cmdb的逻辑划分中,该set下面的域
+
+    public CCODSetInfo(String setId, String bkSetName)
     {
         this.bkSetName = bkSetName;
+        this.setId = setId;
         this.domains = new ArrayList<>();
     }
 
-    public CCODSetInfo(LJSetInfo bkSet)
+    public CCODSetInfo(String setId, LJSetInfo bkSet)
     {
         this.bkSetId = bkSet.getSetId();
+        this.setId = setId;
         this.bkSetName = bkSet.getSetName();
         this.domains = new ArrayList<>();
     }
@@ -55,11 +59,19 @@ public class CCODSetInfo {
         this.domains = domains;
     }
 
+    public String getSetId() {
+        return setId;
+    }
+
+    public void setSetId(String setId) {
+        this.setId = setId;
+    }
+
     @Override
     public CCODSetInfo clone()
     {
-        CCODSetInfo setInfo = new CCODSetInfo(this.bkSetName);
-        setInfo.setBkSetId(this.bkSetId);
+        CCODSetInfo setInfo = new CCODSetInfo(this.setId, this.bkSetName);
+        setInfo.bkSetId = this.bkSetId;
         List<CCODDomainInfo> domainList = new ArrayList<>();
         for(CCODDomainInfo domainInfo : this.domains)
         {

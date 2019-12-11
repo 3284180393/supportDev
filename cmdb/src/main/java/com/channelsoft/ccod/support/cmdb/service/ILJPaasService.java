@@ -43,5 +43,5 @@ public interface ILJPaasService {
      * @return 查询结果
      * @throws Exception
      */
-    List<CCODPlatformInfo> queryCCODBiz(Integer bizId, Integer setId, String domainId) throws Exception;
+    List<CCODPlatformInfo> queryCCODBiz(Integer bizId, String setId, String domainId) throws Exception;
 }

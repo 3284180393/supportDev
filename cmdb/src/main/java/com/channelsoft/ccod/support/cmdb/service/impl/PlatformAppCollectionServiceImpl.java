@@ -37,34 +37,34 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${windows}")
     private boolean isWindows;
 
-    @Value("${cmdb.share_secret}")
+    @Value("${cmdb.share-secret}")
     private String shareSecret;
 
-    @Value("${cmdb.server_name}")
+    @Value("${cmdb.server-name}")
     private String serverName;
 
     private String instructionTopicFmt = "CMDB_TO_%s_INSTRUCTION";
 
-    @Value("${cmdb.app_collect.start_data_collect_instruction}")
+    @Value("${cmdb.app-collect.start-data-collect-instruction}")
     private String startCollectDataInstruction;
 
-    @Value("${cmdb.app_collect.start_file_transfer_instruction}")
+    @Value("${cmdb.app-collect.start-file-transfer-instruction}")
     private String startAppFileTransferInstruction;
 
-    private String reportCollectDataQueueFmt = "CLIENT_REPORT_COLLECT_DATA_%s";
+    private String reportCollectDataQueueFmt = "CLIENT_REPORT_COLLECT_DATA-%s";
 
     private String receiveFileQueueFmt = "FILE_REC_%s";
 
-    @Value("${cmdb.app_collect.receipt_timeout}")
+    @Value("${cmdb.app-collect.receipt-timeout}")
     private long receiptTimeout;
 
-    @Value("${cmdb.app_collect.collect_data_timeout}")
+    @Value("${cmdb.app-collect.collect-data-timeout}")
     private long collectDataTimeout;
 
-    @Value("${cmdb.app_collect.transfer_file_timeout}")
+    @Value("${cmdb.app-collect.transfer-file-timeout}")
     private long transferFileTimeout;
 
-    @Value("${cmdb.app_collect.app_file_attribute_key}")
+    @Value("${cmdb.app-collect.app-file-attribute-key}")
     private String appFileAttributeKey;
 
     private String installPackage = "Install_Package";
@@ -74,7 +74,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${activemq.brokerUrl}")
     private String activeMqBrokeUrl;
 
-    @Value("${activemq.receive_time_span}")
+    @Value("${activemq.receive-time-span}")
     private long activeMqReceiveTimeSpan;
 
     @Autowired

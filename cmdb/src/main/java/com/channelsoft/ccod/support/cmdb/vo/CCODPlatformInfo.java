@@ -139,7 +139,7 @@ public class CCODPlatformInfo {
         List<CCODSetInfo> setList = new ArrayList<>();
         for(CCODSetInfo set : this.sets)
         {
-            setList.add(set);
+            setList.add(set.clone());
         }
         platformInfo.sets = setList;
         platformInfo.idlePool = this.idlePool;

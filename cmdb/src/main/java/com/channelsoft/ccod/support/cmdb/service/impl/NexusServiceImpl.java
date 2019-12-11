@@ -4,13 +4,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
-import com.channelsoft.ccod.support.cmdb.po.ServerPo;
-import com.channelsoft.ccod.support.cmdb.po.ServerUserPo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
-import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
-import org.apache.commons.lang3.builder.ToStringExclude;
-import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -35,7 +30,6 @@ import org.apache.http.util.EntityUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -76,21 +70,21 @@ public class NexusServiceImpl implements INexusService {
 
     private String queryAssetByNameFmt = "%s/service/rest/v1/search?repository=%s&name=%s";
 
-    @Value("${nexus.platform_app_cfg_repository}")
+    @Value("${nexus.platform-app-cfg-repository}")
     private String platformAppCfgRepository;
 
     private String appDirectoryFmt = "%s%s%s";
 
-    @Value("${nexus.app_module_repository}")
+    @Value("${nexus.app-module-repository}")
     private String appRepository;
 
-    @Value("${app_publish_nexus.host_url}")
+    @Value("${app-publish-nexus.host-url}")
     private String appPublishNexusUrl;
 
-    @Value("${app_publish_nexus.user}")
+    @Value("${app-publish-nexus.user}")
     private String appPublishNexusUserName;
 
-    @Value("${app_publish_nexus.password}")
+    @Value("${app-publish-nexus.password}")
     private String getAppPublishNexusPassword;
 
     @Value("${windows}")

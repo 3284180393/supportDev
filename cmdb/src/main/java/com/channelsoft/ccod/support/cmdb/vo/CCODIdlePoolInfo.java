@@ -11,18 +11,20 @@ import java.util.List;
  * @Version: 1.0
  */
 public class CCODIdlePoolInfo {
-    private int bizId;  //资源池对应的biz id
+    private int bkBizId;  //资源池对应的biz id
 
-    private int setId; //资源池对应的set id
+    private int bkSetId; //资源池对应的set id
+
+    private String setId; //资源池在cmdb中的id,方便查询
 
     private String setName; //资源池对应的set名
 
     private List<CCODHostInfo> idleHosts; //资源池拥有的空闲host
 
-    public CCODIdlePoolInfo(int bizId, LJSetInfo idlePoolSet, List<LJHostInfo> idleHosts)
+    public CCODIdlePoolInfo(int bkBizId, LJSetInfo idlePoolSet, List<LJHostInfo> idleHosts)
     {
-        this.bizId = bizId;
-        this.setId = idlePoolSet.getSetId();
+        this.bkBizId = bkBizId;
+        this.bkSetId = idlePoolSet.getSetId();
         this.setName = idlePoolSet.getSetName();
         this.idleHosts = new ArrayList<>();
         for(LJHostInfo host : idleHosts)
@@ -34,26 +36,27 @@ public class CCODIdlePoolInfo {
 
     public CCODIdlePoolInfo(LJSetInfo idlePoolSet)
     {
-        this.bizId = idlePoolSet.getBizId();
-        this.setId = idlePoolSet.getSetId();
+        this.bkBizId = idlePoolSet.getBizId();
+        this.bkSetId = idlePoolSet.getSetId();
         this.setName = idlePoolSet.getSetName();
         this.idleHosts = new ArrayList<>();
+        this.setId = idlePoolSet.getSetName();
     }
 
-    public int getBizId() {
-        return bizId;
+    public int getBkBizId() {
+        return bkBizId;
     }
 
-    public void setBizId(int bizId) {
-        this.bizId = bizId;
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
     }
 
-    public int getSetId() {
-        return setId;
+    public int getBkSetId() {
+        return bkSetId;
     }
 
-    public void setSetId(int setId) {
-        this.setId = setId;
+    public void setBkSetId(int bkSetId) {
+        this.bkSetId = bkSetId;
     }
 
     public String getSetName() {
@@ -70,5 +73,22 @@ public class CCODIdlePoolInfo {
 
     public void setIdleHosts(List<CCODHostInfo> idleHosts) {
         this.idleHosts = idleHosts;
+    }
+
+    public String getSetId() {
+        return setId;
+    }
+
+    public void setSetId(String setId) {
+        this.setId = setId;
+    }
+
+    public LJSetInfo getIdlePoolSet()
+    {
+        LJSetInfo setInfo = new LJSetInfo();
+        setInfo.setBizId(this.bkBizId);
+        setInfo.setSetName(this.setName);
+        setInfo.setSetId(this.bkSetId);
+        return setInfo;
     }
 }
