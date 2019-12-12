@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.exception.ParamException;
+import com.channelsoft.ccod.support.cmdb.vo.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.vo.CCODPlatformInfo;
 import com.channelsoft.ccod.support.cmdb.vo.LJBizInfo;
 
@@ -44,4 +46,18 @@ public interface ILJPaasService {
      * @throws Exception
      */
     List<CCODPlatformInfo> queryCCODBiz(Integer bizId, String setId, String domainId) throws Exception;
+
+    /**
+     * 查询ccod biz下面set信息
+     * @return
+     */
+    List<BizSetDefine> queryCCODBizSet();
+
+    /**
+     * 查询指定set下面关联的应用
+     * @param setId 指定的set的id
+     * @return 查询结果
+     * @throws ParamException 指定的setId不存在
+     */
+    List<String> queryAppsInSet(String setId) throws ParamException;
 }

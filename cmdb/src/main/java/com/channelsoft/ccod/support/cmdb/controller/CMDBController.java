@@ -596,4 +596,24 @@ public class CMDBController {
         return resultPo;
     }
 
+
+    @RequestMapping(value = "/sets", method = RequestMethod.GET)
+    public AjaxResultPo queryAllCCODBizSet()
+    {
+        String uri = String.format("GET %s/sets", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<BizSetDefine> setDefines = this.ljPaasService.queryCCODBizSet();
+            resultPo = new AjaxResultPo(true, "query SUCCESS", setDefines.size(), setDefines);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query sets of ccod biz, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
 }

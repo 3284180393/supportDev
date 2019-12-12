@@ -16,6 +16,8 @@ import java.util.List;
  */
 public class CCODModuleInfo {
 
+    private int appId; //该模块对应的appId,该id由数据库唯一生成
+
     private String moduleName; //模块名
 
     private String moduleAlias; //模块别名
@@ -31,6 +33,8 @@ public class CCODModuleInfo {
     private int platformAppId; //该模块信息在数据的id
 
     private int bkModuleId; //对应蓝鲸paas的module id
+
+    private int bkHostId; //对应的蓝鲸host id
 
     private String versionControl; //版本控制方式
 
@@ -49,6 +53,7 @@ public class CCODModuleInfo {
 
     public CCODModuleInfo(PlatformAppDeployDetailVo deployApp)
     {
+        this.appId = deployApp.getAppId();
         this.versionControl = deployApp.getVersionControl();
         this.moduleName = deployApp.getAppName();
         this.moduleAlias = deployApp.getAppAlias();
@@ -61,11 +66,20 @@ public class CCODModuleInfo {
         this.installPackage = deployApp.getInstallPackage();
         this.srcCfgs = deployApp.getSrcCfgs();
         this.cfgs = deployApp.getCfgs();
+        this.bkHostId = deployApp.getBkHostId();
     }
 
     public CCODModuleInfo()
     {
 
+    }
+
+    public int getBkHostId() {
+        return bkHostId;
+    }
+
+    public void setBkHostId(int bkHostId) {
+        this.bkHostId = bkHostId;
     }
 
     public String getModuleName() {
@@ -164,10 +178,19 @@ public class CCODModuleInfo {
         this.cfgs = cfgs;
     }
 
+    public int getAppId() {
+        return appId;
+    }
+
+    public void setAppId(int appId) {
+        this.appId = appId;
+    }
+
     @Override
     public CCODModuleInfo clone()
     {
         CCODModuleInfo module = new CCODModuleInfo();
+        module.appId = this.appId;
         module.cfgs = this.cfgs;
         module.srcCfgs = this.srcCfgs;
         module.installPackage = this.installPackage;
@@ -179,6 +202,7 @@ public class CCODModuleInfo {
         module.moduleName = this.moduleName;
         module.hostIp = this.hostIp;
         module.bkModuleId = bkModuleId;
+        module.bkHostId = this.bkHostId;
         return module;
     }
 }

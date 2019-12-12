@@ -7,6 +7,7 @@ import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
 import com.channelsoft.ccod.support.cmdb.exception.DBPAASDataNotConsistentException;
 import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
+import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -980,28 +981,17 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return platformInfo;
     }
 
-    private PlatformUpdateSchemaInfo generateDemoSchema(PlatformUpdateTaskType taskType, DomainUpdateType updateType, CCODPlatformInfo src)
+    private PlatformUpdateSchemaInfo generateDemoSchemaFromPlatform(CCODPlatformInfo src, PlatformUpdateTaskType taskType, DomainUpdateType updateType, AppUpdateOperation operation, UpdateStatus updateStatus, List<AppPo> appList)
     {
-        Date now = new Date();
-        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo();
-        schema.setBkBizId(src.getBizId());
-        schema.setPlatformName(src.getPlatformName());
-        schema.setCreateTime(now);
-        schema.setDeadline(now);
-        schema.setExecuteTime(now);
-        schema.setStatus(UpdateStatus.MODIFY);
-        schema.setTaskType(taskType);
-        schema.setUpdateTime(now);
-        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
-        schema.setDomainUpdatePlanList(planList);
-        if(PlatformUpdateTaskType.CREATE.equals(taskType))
+        List<PlatformAppDeployDetailVo> deployApps = new ArrayList<>();
+        for(CCODSetInfo setInfo : src.getSets())
         {
 
         }
-        return schema;
+        return null;
     }
 
-    private DomainUpdatePlanInfo generateDomainUpdatePlan(DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, int domId, String domainName, String domainId, List<PlatformAppDeployDetailVo> deployApps, List<AppPo> appList)
+    private DomainUpdatePlanInfo generateDomainUpdatePlan(DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, int domId, String domainName, String domainId, List<CCODModuleInfo> deployApps, List<AppPo> appList)
     {
         Date now = new Date();
         DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
@@ -1013,9 +1003,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
         planInfo.setExecuteTime(now);
         List<AppUpdateOperationInfo> operationList = new ArrayList<>();
         Map<String, List<AppPo>> nameAppMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
-        for(PlatformAppDeployDetailVo deployApp : deployApps)
+        for(CCODModuleInfo deployApp : deployApps)
         {
-            Map<String, AppPo> versionAppMap = nameAppMap.get(deployApp.getAppName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity()));
+            Map<String, AppPo> versionAppMap = nameAppMap.get(deployApp.getModuleName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity()));
             AppPo chosenApp = versionAppMap.get(deployApp.getVersion());
             if(!DomainUpdateType.ADD.equals(updateType))
             {
@@ -1035,17 +1025,50 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return planInfo;
     }
 
-
-    private PlatformUpdateSchemaInfo generatePlatformUpdateSchema(int bkBizId, String platformName, DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, List<PlatformAppDeployDetailVo> deployApps, List<AppPo> appList)
+    private PlatformUpdateSchemaInfo generatePlatformUpdateSchema(CCODPlatformInfo srcPlatform, PlatformUpdateTaskType taskType, DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, List<AppPo> appList)
     {
-        return null;
+        PlatformUpdateSchemaInfo schemaInfo = new PlatformUpdateSchemaInfo();
+        Date now = new Date();
+        schemaInfo.setUpdateTime(now);
+        schemaInfo.setDeadline(now);
+        schemaInfo.setExecuteTime(now);
+        schemaInfo.setTaskType(taskType);
+        schemaInfo.setStatus(updateStatus);
+        schemaInfo.setBkBizId(srcPlatform.getBizId());
+        schemaInfo.setCreateTime(now);
+        schemaInfo.setComment(taskType.desc);
+        schemaInfo.setPlatformName(srcPlatform.getPlatformName());
+        schemaInfo.setTitle(String.format("%s平台%s计划", srcPlatform.getPlatformName(), taskType.name));
+        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
+        for(CCODSetInfo setInfo : srcPlatform.getSets())
+        {
+            for(CCODDomainInfo domainInfo : setInfo.getDomains())
+            {
+                if(domainInfo.getModules().size() > 0)
+                {
+                    DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+                    planInfo.setExecuteTime(now);
+                    planInfo.setUpdateTime(now);
+                    planInfo.setCreateTime(now);
+                    planInfo.setDomainName(domainInfo.getDomainName());
+                    planInfo.setDomainId(domainInfo.getDomainId());
+                    planInfo.setComment(String.format("%s域%s计划", domainInfo.getDomainName(), updateType.name));
+                    planInfo.setDomId(domainInfo.getDomId());
+                    planInfo.setStatus(updateStatus);
+                    planInfo.setUpdateType(updateType);
+                    planList.add(planInfo);
+                }
+            }
+        }
+        schemaInfo.setDomainUpdatePlanList(planList);
+        return schemaInfo;
     }
 
-    private AppUpdateOperationInfo generateAppUpdateOperation(AppUpdateOperation operation, PlatformAppDeployDetailVo deployApp, AppPo targetApp, UpdateStatus updateStatus)
+    private AppUpdateOperationInfo generateAppUpdateOperation(AppUpdateOperation operation, CCODModuleInfo deployApp, AppPo targetApp, UpdateStatus updateStatus)
     {
         Date now = new Date();
         AppUpdateOperationInfo info = new AppUpdateOperationInfo();
-        info.setAppRunner(deployApp.getRunnerName());
+        info.setAppRunner(deployApp.getAppRunner());
         info.setBasePath(deployApp.getBasePath());
         info.setBkModuleId(deployApp.getBkModuleId());
         info.setBzHostId(deployApp.getBkHostId());
@@ -1085,6 +1108,28 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return info;
     }
 
+    @Override
+    public List<BizSetDefine> queryCCODBizSet() {
+        logger.info(String.format("begin to query all set info of ccod biz"));
+        List<BizSetDefine> setList = new ArrayList<>();
+        setList.addAll(this.basicBizSetMap.values());
+        setList.addAll(this.extendBizSetMap.values());
+        logger.info(String.format("ccod biz has %d set", setList.size()));
+        return setList;
+    }
+
+    @Override
+    public List<String> queryAppsInSet(String setId) throws ParamException {
+        logger.info(String.format("begin to query all appName in setId=%s", setId));
+        if(!this.basicBizSetMap.containsKey(setId) && !this.extendBizSetMap.containsKey(setId))
+        {
+            logger.error(String.format("%s not in ccod biz basic sets and extend sets, so it is not a legal set id", setId));
+            throw new ParamException(String.format("ccod biz has not set with id=%s", setId));
+        }
+        String[] apps = this.basicBizSetMap.containsKey(setId) ? this.basicBizSetMap.get(setId).getApps() : this.extendBizSetMap.get(setId).getApps();
+        logger.info(String.format("find %s relative to setId=%s", String.join(",", apps), setId));
+        return Arrays.asList(apps);
+    }
 
     @Test
     public void jsonTest()
