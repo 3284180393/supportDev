@@ -117,7 +117,6 @@ lj-paas:
         - psr
         - slee
         - StatSchedule
-        - DialEngine
     set[1]:
       name: 公共组件
       id: publicModules
@@ -134,11 +133,9 @@ lj-paas:
       fixedDomainId: gateway
       apps:
         - umg
-        - UCGateway
-        - AppGateWay
     set[3]:
       name: 管理门户
-      id: managerPort
+      id: managerPortal
       isBasic: 1
       fixedDomainName: 门户
       fixedDomainId: portal
@@ -196,6 +193,16 @@ lj-paas:
         - IBcustomWebs
         - IBsafetymoni
         - licen
+    set[6]:
+      name: 外拨模块
+      id: apgModules
+      isBasic: 0
+      fixedDomainName: 外拨域
+      fixedDomainId: apgDomain
+      apps:
+        - AppGateWay
+        - DialEngine
+        - UCGateway
 
 windows: false
 

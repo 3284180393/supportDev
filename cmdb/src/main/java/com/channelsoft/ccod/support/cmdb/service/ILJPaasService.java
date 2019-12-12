@@ -1,9 +1,11 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.vo.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.vo.CCODPlatformInfo;
 import com.channelsoft.ccod.support.cmdb.vo.LJBizInfo;
+import com.channelsoft.ccod.support.cmdb.vo.LJSetInfo;
 
 import java.util.List;
 
@@ -60,4 +62,25 @@ public interface ILJPaasService {
      * @throws ParamException 指定的setId不存在
      */
     List<String> queryAppsInSet(String setId) throws ParamException;
+
+    /**
+     * 在蓝鲸paas创建一个新的set
+     * @param bkBizId set所属的biz id
+     * @param bkSetName 需要创建的set名字
+     * @param desc 该set的描述
+     * @param capacity 描述
+     * @return 创建的set信息
+     * @throws ParamException 如果biz不存在,或是需要创建的setName已经存在将会抛出该异常
+     * @throws LJPaasException 蓝鲸paas返回的失败信息
+     */
+    LJSetInfo createNewBizSet(int bkBizId, String bkSetName, String desc, int capacity) throws ParamException, LJPaasException;
+
+    /**
+     * 删除已有的set
+     * @param bkBizId 需要删除的set 归属的biz的id
+     * @param bkSetId 需要删除的set id
+     * @throws ParamException 如果bkBizId不存在或是bkSetId不存在将会抛出此异常
+     * @throws LJPaasException 蓝鲸返回失败信息
+     */
+    void deleteBizSet(int bkBizId, int bkSetId) throws ParamException, LJPaasException;
 }

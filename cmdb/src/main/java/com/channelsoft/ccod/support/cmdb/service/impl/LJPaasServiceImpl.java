@@ -6,10 +6,12 @@ import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
 import com.channelsoft.ccod.support.cmdb.exception.DBPAASDataNotConsistentException;
+import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
 import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
+import com.channelsoft.ccod.support.cmdb.utils.HttpTools;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
@@ -82,11 +84,13 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Value("${lj-paas.update-schema-set-id}")
     private String updateSchemaSetId;
 
-    private String queryBizUrlFmt = "%s/api/c/compapi/v2/cc/search_business/";
+    private final String queryBizUrlFmt = "%s/api/c/compapi/v2/cc/search_business/";
 
-    private String queryBizSetUrlFmt = "%s/api/c/compapi/v2/cc/search_set/";
+    private final String queryBizSetUrlFmt = "%s/api/c/compapi/v2/cc/search_set/";
 
-    private String queryHostUrlFmt = "%s/api/c/compapi/v2/cc/search_host/";
+    private final String queryHostUrlFmt = "%s/api/c/compapi/v2/cc/search_host/";
+
+    private final String createNewSetUrlFmt = "%s/api/c/compapi/v2/cc/create_set/";
 
     private final static Logger logger = LoggerFactory.getLogger(LJPaasServiceImpl.class);
 
@@ -1131,6 +1135,68 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return Arrays.asList(apps);
     }
 
+    @Override
+    public LJSetInfo createNewBizSet(int bkBizId, String bkSetName, String desc, int capacity) throws ParamException, LJPaasException {
+        return null;
+    }
+
+
+    /**
+     * 向蓝鲸paas指定biz添加一个新的set
+     * @param bkBizId set所属的biz id
+     * @param bkSetName 需要创建的set名字
+     * @param desc 该set的描述
+     * @param capacity 描述
+     * @throws LJPaasException 蓝鲸paas返回创建失败信息
+     */
+    private void addNewBizSet(int bkBizId, String bkSetName, String desc, int capacity) throws LJPaasException, Exception
+    {
+        logger.info(String.format("begin to add new set=%s of biz=%d, desc=%s and capacity=%d",
+                bkSetName, bkBizId, desc, capacity));
+        String url = String.format(this.createNewSetUrlFmt, this.paasHostUrl);
+        Map<String, String> headersMap = new HashMap<>();
+        Map<String, Object> paramsMap = new HashMap<>();
+        paramsMap.put("bk_app_code", bkAppCode);
+        paramsMap.put("bk_app_secret", bkAppSecret);
+        paramsMap.put("bk_username", bkUserName);
+        paramsMap.put("bk_biz_id", bkBizId);
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("bk_parent_id", bkBizId);
+        dataMap.put("bk_supplier_id", "0");
+        dataMap.put("bk_set_name ", bkSetName);
+        dataMap.put("bk_set_desc", bkSetName);
+        dataMap.put("bk_capacity", capacity);
+        paramsMap.put("data", dataMap);
+        String retVal = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        System.out.println(retVal);
+    }
+
+    @Override
+    public void deleteBizSet(int bkBizId, int bkSetId) throws ParamException, LJPaasException {
+
+    }
+
+    private void initParamForTest()
+    {
+        this.paasHostUrl = "http://paas.ccod.com:80";
+
+        this.bkAppCode = "wyffirstsaas";
+
+        this.bkAppSecret = "8a4c0887-ca15-462b-8804-8bedefe1f352";
+
+        this.bkUserName = "admin";
+
+        this.isDevelop = true;
+
+        this.paasIdlePoolSetName = "idle pool";
+
+        this.paasIdlePoolSetId = "ccodIdlePool";
+
+        this.updateSchemaSetName = "平台升级方案";
+
+        this.updateSchemaSetId = "platformUpdateSchema";
+    }
+
     @Test
     public void jsonTest()
     {
@@ -1146,6 +1212,20 @@ public class LJPaasServiceImpl implements ILJPaasService {
             String data = "[{\"biz\":[{\"life_cycle\":\"2\",\"create_time\":\"2019-06-04T11:16:44.87+08:00\",\"bk_biz_id\":2,\"bk_biz_developer\":\"\",\"language\":\"1\",\"bk_supplier_account\":\"0\",\"time_zone\":\"Asia/Shanghai\",\"bk_biz_tester\":\"\",\"operator\":\"\",\"bk_biz_name\":\"蓝鲸\",\"default\":0,\"bk_supplier_id\":0,\"last_time\":\"2019-06-20T10:04:44.932+08:00\",\"bk_biz_maintainer\":\"admin,luoxin,wangyf,lanhb\",\"bk_biz_productor\":\"\"}],\"set\":[{\"create_time\":\"2019-06-04T11:16:45.003+08:00\",\"bk_parent_id\":2,\"bk_biz_id\":2,\"bk_set_env\":\"3\",\"TopModuleName\":\"##公共组件\",\"description\":\"\",\"bk_supplier_account\":\"0\",\"bk_set_id\":5,\"default\":0,\"last_time\":\"2019-06-04T11:16:45.003+08:00\",\"bk_set_desc\":\"\",\"bk_service_status\":\"1\",\"bk_set_name\":\"公共组件\"},{\"create_time\":\"2019-06-04T11:16:45.048+08:00\",\"bk_parent_id\":2,\"bk_biz_id\":2,\"bk_set_env\":\"3\",\"TopModuleName\":\"##集成平台\",\"description\":\"\",\"bk_supplier_account\":\"0\",\"bk_set_id\":6,\"default\":0,\"last_time\":\"2019-06-04T11:16:45.048+08:00\",\"bk_set_desc\":\"\",\"bk_service_status\":\"1\",\"bk_set_name\":\"集成平台\"}],\"module\":[{\"create_time\":\"2019-06-04T11:16:45.036+08:00\",\"bk_parent_id\":5,\"bk_biz_id\":2,\"TopModuleName\":\"##公共组件##consul\",\"bk_supplier_account\":\"0\",\"bk_set_id\":5,\"bk_module_id\":19,\"operator\":\"\",\"bk_bak_operator\":\"\",\"default\":0,\"bk_module_name\":\"consul\",\"last_time\":\"2019-06-04T11:16:45.036+08:00\",\"bk_module_type\":\"1\"},{\"create_time\":\"2019-06-04T11:16:45.026+08:00\",\"bk_parent_id\":5,\"bk_biz_id\":2,\"TopModuleName\":\"##公共组件##mysql\",\"bk_supplier_account\":\"0\",\"bk_set_id\":5,\"bk_module_id\":16,\"operator\":\"\",\"bk_bak_operator\":\"\",\"default\":0,\"bk_module_name\":\"mysql\",\"last_time\":\"2019-06-04T11:16:45.026+08:00\",\"bk_module_type\":\"1\"},{\"create_time\":\"2019-06-04T11:16:45.019+08:00\",\"bk_parent_id\":5,\"bk_biz_id\":2,\"TopModuleName\":\"##公共组件##nginx\",\"bk_supplier_account\":\"0\",\"bk_set_id\":5,\"bk_module_id\":14,\"operator\":\"\",\"bk_bak_operator\":\"\",\"default\":0,\"bk_module_name\":\"nginx\",\"last_time\":\"2019-06-04T11:16:45.019+08:00\",\"bk_module_type\":\"1\"},{\"create_time\":\"2019-06-04T11:16:45.041+08:00\",\"bk_parent_id\":5,\"bk_biz_id\":2,\"TopModuleName\":\"##公共组件##zookeeper\",\"bk_supplier_account\":\"0\",\"bk_set_id\":5,\"bk_module_id\":20,\"operator\":\"\",\"bk_bak_operator\":\"\",\"default\":0,\"bk_module_name\":\"zookeeper\",\"last_time\":\"2019-06-04T11:16:45.041+08:00\",\"bk_module_type\":\"1\"},{\"create_time\":\"2019-06-04T11:16:45.066+08:00\",\"bk_parent_id\":6,\"bk_biz_id\":2,\"TopModuleName\":\"##集成平台##appo\",\"bk_supplier_account\":\"0\",\"bk_set_id\":6,\"bk_module_id\":26,\"operator\":\"\",\"bk_bak_operator\":\"\",\"default\":0,\"bk_module_name\":\"appo\",\"last_time\":\"2019-06-04T11:16:45.066+08:00\",\"bk_module_type\":\"1\"}],\"host\":{\"bk_os_bit\":\"64-bit\",\"bk_host_outerip\":\"\",\"bk_comment\":\"\",\"docker_client_version\":\"\",\"bk_sn\":\"\",\"bk_host_innerip\":\"10.130.41.39\",\"bk_supplier_account\":\"0\",\"import_from\":\"2\",\"bk_os_version\":\"7.2.1511\",\"bk_mac\":\"52:54:00:05:b4:56\",\"bk_mem\":15887,\"bk_os_name\":\"linux centos\",\"last_time\":\"2019-08-05T18:24:50.228+08:00\",\"bk_host_id\":1,\"bk_host_name\":\"localhost.localdomain\",\"bk_cpu_module\":\"QEMU Virtual CPU version (cpu64-rhel6)\",\"bk_outer_mac\":\"\",\"docker_server_version\":\"\",\"create_time\":\"2019-06-04T12:02:32.522+08:00\",\"bk_asset_id\":\"\",\"bk_disk\":191,\"bk_os_type\":\"1\",\"bk_cpu\":4,\"bk_cloud_id\":[{\"bk_obj_name\":\"\",\"bk_obj_icon\":\"\",\"bk_inst_name\":\"default area\",\"bk_obj_id\":\"plat\",\"id\":\"0\",\"bk_inst_id\":0}],\"bk_cpu_mhz\":2599}}]";
             List<LJHostResourceInfo> resourceInfos = JSONArray.parseArray(data, LJHostResourceInfo.class);
             System.out.println(JSONArray.toJSONString(resourceInfos));
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
+    @Test
+    public void createSetTest()
+    {
+        this.initParamForTest();
+        try
+        {
+            addNewBizSet(11, "测试set", "测试set", 1000);
         }
         catch (Exception ex)
         {
