@@ -5,10 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
-import com.channelsoft.ccod.support.cmdb.exception.DBPAASDataNotConsistentException;
-import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
-import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
-import com.channelsoft.ccod.support.cmdb.exception.ParamException;
+import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.utils.HttpTools;
@@ -91,6 +88,16 @@ public class LJPaasServiceImpl implements ILJPaasService {
     private final String queryHostUrlFmt = "%s/api/c/compapi/v2/cc/search_host/";
 
     private final String createNewSetUrlFmt = "%s/api/c/compapi/v2/cc/create_set/";
+
+    private final String deleteSetUrlFmt = "%s/api/c/compapi/v2/cc/delete_set/";
+
+    private final String addModuleUrlFmt = "%s/api/c/compapi/v2/cc/create_module/";
+
+    private final String deleteModuleUrlFmt = "%s/api/c/compapi/v2/cc/delete_module/";
+
+    private final String queryModuleUrlFmt = "%s/api/c/compapi/v2/cc/search_module/";
+
+    private final String transferModuleUrlFmt = "%s/api/c/compapi/v2/cc/transfer_host_module/";
 
     private final static Logger logger = LoggerFactory.getLogger(LJPaasServiceImpl.class);
 
@@ -1149,26 +1156,179 @@ public class LJPaasServiceImpl implements ILJPaasService {
      * @param capacity 描述
      * @throws LJPaasException 蓝鲸paas返回创建失败信息
      */
-    private void addNewBizSet(int bkBizId, String bkSetName, String desc, int capacity) throws LJPaasException, Exception
+    private LJSetInfo addNewBizSet(int bkBizId, String bkSetName, String desc, int capacity) throws InterfaceCallException, LJPaasException
     {
         logger.info(String.format("begin to add new set=%s of biz=%d, desc=%s and capacity=%d",
                 bkSetName, bkBizId, desc, capacity));
         String url = String.format(this.createNewSetUrlFmt, this.paasHostUrl);
         Map<String, String> headersMap = new HashMap<>();
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId + "");
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("bk_parent_id", bkBizId);
+        dataMap.put("bk_supplier_id", "0");
+        dataMap.put("bk_set_name", bkSetName);
+        dataMap.put("bk_set_desc", bkSetName);
+        dataMap.put("bk_capacity", capacity);
+        dataMap.put("description", String.format("create by tools"));
+        paramsMap.put("data", dataMap);
+        String retVal = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        String data = parsePaasInterfaceResult(retVal);
+        LJSetInfo setInfo = JSONObject.parseObject(data, LJSetInfo.class);
+        return setInfo;
+    }
+
+    private void deleteExistBizSet(int bkBizId, int bkSetId) throws InterfaceCallException, LJPaasException
+    {
+        logger.info(String.format("begin to delete bkSetId=%d of bkBizId=%s", bkSetId, bkBizId));
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId + "");
+        paramsMap.put("bk_set_id", bkSetId + "");
+        Map<String, String> headersMap = new HashMap<>();
+        String url = String.format(this.deleteSetUrlFmt, this.paasHostUrl);
+        String result = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        parsePaasInterfaceResult(result);
+        logger.info(String.format("delete bkSetId=%d of bkBizId=%s SUCCESS", bkSetId, bkBizId));
+    }
+
+    private LJModuleInfo addNewBkModule(int bkBizId, int bkSetId, String moduleName) throws InterfaceCallException, LJPaasException
+    {
+        logger.info(String.format("begin to add new module=%s to bizId=%d and setId=%d",
+                moduleName, bkBizId, bkSetId));
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId);
+        paramsMap.put("bk_set_id", bkSetId);
+        Map<String, Object> dataMap = new HashMap<>();
+        dataMap.put("bk_parent_id", bkSetId);
+        dataMap.put("bk_module_name", moduleName);
+        paramsMap.put("data", dataMap);
+        Map<String, String> headersMap = new HashMap<>();
+        String url = String.format(this.addModuleUrlFmt, this.paasHostUrl);
+        String retVal = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        String data = parsePaasInterfaceResult(retVal);
+        return JSONObject.parseObject(data, LJModuleInfo.class);
+    }
+
+    private void deleteExistModule(int bkBizId, int bkSetId, int bkModuleId) throws InterfaceCallException, LJPaasException
+    {
+        logger.info(String.format("begin to delete bkModuleId=%d from bkBizId=%d and bkSetId=%d",
+                bkModuleId, bkBizId, bkSetId));
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId);
+        paramsMap.put("bk_set_id", bkSetId);
+        paramsMap.put("bk_module_id", bkModuleId);
+        Map<String, String> headersMap = new HashMap<>();
+        String url = String.format(this.deleteModuleUrlFmt, this.paasHostUrl);
+        String retVal = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        parsePaasInterfaceResult(retVal);
+    }
+
+    /**
+     * 在蓝鲸paas查询指定条件的module信息
+     * @param bkBizId 需要查询的biz id,必填
+     * @param bkSetId 需要查询的set id,必填
+     * @param moduleId 需要查询的module id,可以为空，为空则忽略此条件
+     * @param moduleName 需要查询的module name,可以为空,为空则忽略此条件
+     * @return 查询结果
+     * @throws InterfaceCallException 调用接口发生异常
+     * @throws LJPaasException 蓝鲸报错或是返回结果异常
+     */
+    private List<LJModuleInfo> queryBkModule(int bkBizId, int bkSetId, Integer moduleId, String moduleName) throws InterfaceCallException, LJPaasException
+    {
+        logger.info(String.format("begin to query module info with bkBizId=%d and bkSetId=%d and bkModuleId=%s and bkModuleName=%s",
+                bkBizId, bkSetId, moduleId, moduleName));
+        List<LJModuleInfo> moduleList;
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId);
+        paramsMap.put("bk_set_id", bkSetId);
+        Map<String, Object> conditionMap = new HashMap<>();
+        if(moduleId != null)
+        {
+            conditionMap.put("bk_module_id", moduleId);
+        }
+        if(moduleName != null)
+        {
+            conditionMap.put("bk_module_name", moduleName);
+        }
+        paramsMap.put("condition", conditionMap);
+        String url = String.format(this.queryModuleUrlFmt, this.paasHostUrl);
+        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String data = parsePaasInterfaceResult(retVal);
+        try
+        {
+            JSONObject jsonObject = JSONObject.parseObject(data);
+            moduleList = JSONArray.parseArray(jsonObject.getString("info"), LJModuleInfo.class);
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("parse lj paas module info exception"), ex);
+            throw new LJPaasException(String.format("parse lj paas module info exception"));
+        }
+        logger.info(String.format("find %d modules with bkBizId=%d and bkSetId=%d and bkModuleId=%s and bkModuleName=%s",
+                moduleList.size(), bkBizId, bkSetId, moduleId, moduleName));
+        return moduleList;
+    }
+
+    private Map<String, Object> getLJPaasCallBaseParams()
+    {
         Map<String, Object> paramsMap = new HashMap<>();
         paramsMap.put("bk_app_code", bkAppCode);
         paramsMap.put("bk_app_secret", bkAppSecret);
         paramsMap.put("bk_username", bkUserName);
+        return paramsMap;
+    }
+
+    private void transferModulesToHost(int bkBizId, int bkHostId, String[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
+    {
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         paramsMap.put("bk_biz_id", bkBizId);
-        Map<String, Object> dataMap = new HashMap<>();
-        dataMap.put("bk_parent_id", bkBizId);
-        dataMap.put("bk_supplier_id", "0");
-        dataMap.put("bk_set_name ", bkSetName);
-        dataMap.put("bk_set_desc", bkSetName);
-        dataMap.put("bk_capacity", capacity);
-        paramsMap.put("data", dataMap);
-        String retVal = HttpTools.httpPostRequest(url, headersMap, paramsMap);
-        System.out.println(retVal);
+        paramsMap.put("bk_host_id", new int[]{bkHostId});
+        paramsMap.put("bk_module_id", moduleIdList);
+        paramsMap.put("is_increment", isIncrement);
+        String url = String.format(this.transferModuleUrlFmt, this.paasHostUrl);
+        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        parsePaasInterfaceResult(retVal);
+    }
+
+    private String parsePaasInterfaceResult(String interfaceResult) throws LJPaasException
+    {
+        JSONObject jsonObject;
+        try
+        {
+            jsonObject = JSONObject.parseObject(interfaceResult);
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("parse paas interface result exception", ex));
+            throw new LJPaasException(String.format("parse paas interface result exception"));
+        }
+        boolean isSucc = true;
+        try
+        {
+            isSucc = jsonObject.getBoolean("result");
+            if(!isSucc)
+            {
+                String errMsg = jsonObject.getString("message");
+                logger.error(String.format("lj paas return errorMsg[%s]", errMsg));
+                throw new LJPaasException(errMsg);
+            }
+            else
+            {
+                String data = jsonObject.getString("data");
+                JSONObject jso = JSONObject.parseObject(data);
+                logger.info(String.format("lj paas return data : %s", data));
+                return data;
+            }
+        }
+        catch (LJPaasException e)
+        {
+            throw e;
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("parse paas interface result exception", ex));
+            throw new LJPaasException(String.format("parse paas interface result exception"));
+        }
     }
 
     @Override
@@ -1202,6 +1362,8 @@ public class LJPaasServiceImpl implements ILJPaasService {
     {
         try
         {
+            String haha = "thada";
+            JSONObject jsonObject = JSONObject.parseObject(haha);
             AppUpdateOperationVo operationVo = new AppUpdateOperationVo();
             operationVo.setOperation(AppUpdateOperation.ADD);
             String str = JSONObject.toJSONString(operationVo);
@@ -1220,12 +1382,30 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Test
-    public void createSetTest()
+    public void setOperationTest()
     {
         this.initParamForTest();
         try
         {
-            addNewBizSet(11, "测试set", "测试set", 1000);
+            LJSetInfo setInfo = addNewBizSet(11, "域服务222", "域服222务", 1000);
+            deleteExistBizSet(setInfo.getBizId(), setInfo.getSetId());
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
+    @Test
+    public void moduleOperationTest()
+    {
+        this.initParamForTest();
+        try
+        {
+//            LJModuleInfo moduleInfo = addNewBkModule(11, 69, "slee");
+//            deleteExistModule(moduleInfo.getBizId(), moduleInfo.getSetId(), moduleInfo.getModuleId());
+            List<LJModuleInfo> moduleInfos = queryBkModule(11, 69, 229, "cms1");
+            System.out.println(JSONArray.toJSONString(moduleInfos));
         }
         catch (Exception ex)
         {
