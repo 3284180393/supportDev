@@ -60,6 +60,8 @@ public class HttpTools {
     {
         logger.info(String.format("http post %s, headers=%s and params=%s",
                 url, JSONObject.toJSONString(headersMap), JSONObject.toJSONString(paramsMap)));
+        String paramStr = JSONObject.toJSONString(paramsMap);
+        System.out.println(paramStr);
         HttpPost httpPost = new HttpPost(url);
         for(Map.Entry<String, String> entry : headersMap.entrySet())
         {

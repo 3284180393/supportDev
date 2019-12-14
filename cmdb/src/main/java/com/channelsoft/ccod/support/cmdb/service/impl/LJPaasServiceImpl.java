@@ -648,6 +648,24 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return paramMap;
     }
 
+    private Map<String, Object> generateLJObjectParam(String objId, String[] fields, Map<String, Object> equalCondition)
+    {
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("bk_obj_id", objId);
+        paramMap.put("fields", fields);
+        List<Map<String, Object>> conditionList = new ArrayList<>();
+        for(Map.Entry<String, Object> entry : equalCondition.entrySet())
+        {
+            Map<String, Object> condition = new HashMap<>();
+            condition.put("field", entry.getKey());
+            condition.put("operator", "$eq");
+            condition.put("value", entry.getValue());
+            conditionList.add(condition);
+        }
+        paramMap.put("condition", conditionList);
+        return paramMap;
+    }
+
     private CloseableHttpClient getBasicHttpClient() {
         // 创建HttpClientBuilder
         HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
@@ -1269,6 +1287,70 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return moduleList;
     }
 
+    /**
+     * 查询指定set下的所有主机
+     * @param bkBizId 蓝鲸paas的biz id
+     * @param bkSetId 蓝鲸paas的set id
+     * @param bkModuleName 蓝鲸paas上定义的模块名
+     * @param bkHostInnerIp 主机的内部ip
+     * @return 指定set下的所有host
+     * @throws Exception
+     */
+    private List<LJHostInfo> queryBKHost(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException
+    {
+        String queryUrl = String.format(this.queryHostUrlFmt, paasHostUrl);
+        logger.debug(String.format("begin to query hosts for bkBizId=%d and bkSetId=%d and bkHostInnerIp=%s",
+                bkBizId, bkSetId, bkHostInnerIp));
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        if(bkBizId != null)
+        {
+            paramsMap.put("bk_biz_id", bkBizId);
+        }
+        List<Map<String, Object>> conditionsList = new ArrayList<>();
+        Map<String, Object> equalCondition = new HashMap<>();
+        conditionsList.add(generateLJObjectParam("biz", new String[0], equalCondition));
+        equalCondition = new HashMap<>();
+        if(bkSetId != null)
+        {
+            equalCondition.put("bk_set_id", bkSetId);
+        }
+        conditionsList.add(generateLJObjectParam("set", new String[0], equalCondition));
+        equalCondition = new HashMap<>();
+        if(bkModuleName != null)
+        {
+            equalCondition.put("bk_module_name", bkModuleName);
+        }
+        conditionsList.add(generateLJObjectParam("module", new String[0], equalCondition));
+        equalCondition = new HashMap<>();
+        if(bkHostInnerIp != null)
+        {
+            equalCondition.put("bk_host_innerip", bkHostInnerIp);
+        }
+        conditionsList.add(generateLJObjectParam("host", new String[0], equalCondition));
+        paramsMap.put("condition", conditionsList);
+        String url = String.format(this.queryHostUrlFmt, this.paasHostUrl);
+        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String data = parsePaasInterfaceResult(retVal);
+        try
+        {
+            String info = JSONObject.parseObject(data).getString("info");
+            List<LJHostInfo> hostList = new ArrayList<>();
+            List<LJHostResourceInfo> resourceList = JSONArray.parseArray(info, LJHostResourceInfo.class);
+            for(LJHostResourceInfo resourceInfo : resourceList)
+            {
+                hostList.add(resourceInfo.getHost());
+            }
+            logger.info(String.format("find %d host for bkBizId=%d and bkSetId=%d",
+                    hostList.size(), bkBizId, bkSetId));
+            return hostList;
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("parse lj %s return exception", url), ex);
+            throw new LJPaasException(String.format("parse paas return message exception"));
+        }
+    }
+
     private Map<String, Object> getLJPaasCallBaseParams()
     {
         Map<String, Object> paramsMap = new HashMap<>();
@@ -1278,7 +1360,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return paramsMap;
     }
 
-    private void transferModulesToHost(int bkBizId, int bkHostId, String[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
+    private void transferModulesToHost(int bkBizId, int bkHostId, int[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
     {
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         paramsMap.put("bk_biz_id", bkBizId);
@@ -1302,10 +1384,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
             logger.error(String.format("parse paas interface result exception", ex));
             throw new LJPaasException(String.format("parse paas interface result exception"));
         }
-        boolean isSucc = true;
         try
         {
-            isSucc = jsonObject.getBoolean("result");
+            boolean isSucc = jsonObject.getBoolean("result");
             if(!isSucc)
             {
                 String errMsg = jsonObject.getString("message");
@@ -1404,8 +1485,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
         {
 //            LJModuleInfo moduleInfo = addNewBkModule(11, 69, "slee");
 //            deleteExistModule(moduleInfo.getBizId(), moduleInfo.getSetId(), moduleInfo.getModuleId());
-            List<LJModuleInfo> moduleInfos = queryBkModule(11, 69, 229, "cms1");
-            System.out.println(JSONArray.toJSONString(moduleInfos));
+//            List<LJModuleInfo> moduleInfos = queryBkModule(11, 69, 229, "cms1");
+//            System.out.println(JSONArray.toJSONString(moduleInfos));
+            transferModulesToHost(11, 198, new int[]{229, 231, 232}, true);
         }
         catch (Exception ex)
         {
@@ -1416,10 +1498,13 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Test
     public void hostQueryTest()
     {
+        this.initParamForTest();
         try
         {
 //            queryLJPaasBKHostResource("http://paas.ccod.com:80", "wyffirstsaas", "8a4c0887-ca15-462b-8804-8bedefe1f352", "admin");
 //            queryIdleHost(10, 30, "http://paas.ccod.com:80", "wyffirstsaas", "8a4c0887-ca15-462b-8804-8bedefe1f352", "admin");
+            List<LJHostInfo> hostList = queryBKHost(11, null, "cms", null);
+            System.out.println(JSONArray.toJSONString(hostList));
         }
         catch (Exception ex)
         {
