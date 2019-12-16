@@ -1487,7 +1487,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         Map<String, LJSetInfo> setMap = resetExistBiz(bkBizId, setNames).stream().collect(Collectors.toMap(LJSetInfo::getSetName, Function.identity()));
         Map<String, List<PlatformAppDeployDetailVo>> hostIpAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp));
         List<String> ipList = new ArrayList<>(hostIpAppMap.keySet());
-        Collections.sort(ipList);
+        ipSort(ipList);
         addNewHostToIdlePool(bkBizId, ipList, hostCloudId);
         Map<String, LJHostInfo> hostMap = queryBKHost(bkBizId, setMap.get(this.paasIdlePoolSetName).getSetId(), null, null).stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
         Map<String, List<Integer>> hostModuleMap = new HashMap<>();
@@ -1578,6 +1578,30 @@ public class LJPaasServiceImpl implements ILJPaasService {
         this.defaultCloudId = 5;
     }
 
+    public void ipSort(List<String> ipList)
+    {
+        ipList.stream().sorted((e1,e2) -> {
+
+            StringTokenizer token=new StringTokenizer(e1,".");
+            StringTokenizer token2=new StringTokenizer(e2,".");
+            while (token.hasMoreTokens() && token2.hasMoreTokens()){
+                int parseInt = Integer.parseInt(token.nextToken());
+                int parseInt2 = Integer.parseInt(token2.nextToken());
+                if(parseInt > parseInt2) {
+                    return 1;
+                }
+                if(parseInt < parseInt2) {
+                    return -1;
+                }
+
+            }
+            if(token.hasMoreElements()) { // e1还有值，则e2已遍历完
+                return 1;
+            }else {
+                return -1;
+            }
+        }).forEach(System.out::println);
+    }
 
     @Test
     public void autoCreateBizTest()
@@ -1667,6 +1691,65 @@ public class LJPaasServiceImpl implements ILJPaasService {
         catch (Exception ex)
         {
             ex.printStackTrace();
+        }
+    }
+
+    @Test
+    public void ipSortTest()
+    {
+        List<String> list = Arrays.asList(
+                "003.322.805.822.840.438.220.274",
+                "055.786.157.416.245",
+                "077.134.673.105.355.003.758.727.066",
+                "085.013.435.523.224",
+                "152.441.564.586.073",
+                "152.177.480",
+                "152.465.444.522.626.526.568",
+                "152.177.480.748.018.647.570",
+                "323.624",
+                "356.773.718.782.171.536.871",
+                "364.180.121.483.601.678.067",
+                "402.107.014",
+                "472.602.046",
+                "472.602.046.263.170",
+                "472.602.046.263.803",
+                "527.530.350.778.137.513.335",
+                "536.017.404.734.537.134.241",
+                "604.255.236.550",
+                "640.117.263.314.358.353.678",
+                "677.873.326.803.167.528.474",
+                "733.212.422",
+                "783.850.435.605.204.862.722.563.417",
+                "800.461.476.404.442.666.212",
+                "810.454.842.314.848.623",
+                "823.405.158.606",
+                "833.204.283.833.320.664.236",
+                "854.367.556.645.628.764.760"
+        );
+        list.stream().sorted((e1,e2) -> {
+
+            StringTokenizer token=new StringTokenizer(e1,".");
+            StringTokenizer token2=new StringTokenizer(e2,".");
+            while (token.hasMoreTokens() && token2.hasMoreTokens()){
+                int parseInt = Integer.parseInt(token.nextToken());
+                int parseInt2 = Integer.parseInt(token2.nextToken());
+                if(parseInt > parseInt2) {
+                    return 1;
+                }
+                if(parseInt < parseInt2) {
+                    return -1;
+                }
+
+            }
+            if(token.hasMoreElements()) { // e1还有值，则e2已遍历完
+                return 1;
+            }else {
+                return -1;
+            }
+        });
+        for(String ip : list)
+        {
+            System.out.println(ip);
         }
     }
 }
