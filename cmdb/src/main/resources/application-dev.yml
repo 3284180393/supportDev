@@ -92,6 +92,7 @@ lj-paas:
   idle-pool-set-id: ccodIdlePool
   update-schema-set-name: 平台升级方案
   update-schema-set-id: platformUpdateSchema
+  host-default-cloud-id: 5
   set-apps:
     set[0]:
       name: 域服务

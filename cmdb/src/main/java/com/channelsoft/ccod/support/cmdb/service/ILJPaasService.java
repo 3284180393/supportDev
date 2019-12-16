@@ -1,6 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
+import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.vo.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.vo.CCODPlatformInfo;
@@ -83,4 +85,16 @@ public interface ILJPaasService {
      * @throws LJPaasException 蓝鲸返回失败信息
      */
     void deleteBizSet(int bkBizId, int bkSetId) throws ParamException, LJPaasException;
+
+    /**
+     * 将通过客户端收集的平台应用部署详情同步到蓝鲸paas
+     * @param bkBizId 平台对应的蓝鲸paas biz id
+     * @param platformName 平台名
+     * @param hostCloudId 该biz的服务器所处的cloud id
+     * @throws ParamException 接口函数的参数有误
+     * @throws NotSupportAppException 客户端收集的应用中有蓝鲸paas无法处理的
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    void syncClientCollectResultToPaas(int bkBizId, String platformName, int hostCloudId) throws ParamException, NotSupportAppException, InterfaceCallException, LJPaasException;
 }

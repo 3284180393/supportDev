@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -81,9 +82,14 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Value("${lj-paas.update-schema-set-id}")
     private String updateSchemaSetId;
 
+    @Value("${lj-paas.host-default-cloud-id}")
+    private int defaultCloudId;
+
     private final String queryBizUrlFmt = "%s/api/c/compapi/v2/cc/search_business/";
 
     private final String queryBizSetUrlFmt = "%s/api/c/compapi/v2/cc/search_set/";
+
+    private final String addHostUrlFmt = "%s/api/c/compapi/v2/cc/add_host_to_resource/";
 
     private final String queryHostUrlFmt = "%s/api/c/compapi/v2/cc/search_host/";
 
@@ -98,6 +104,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
     private final String queryModuleUrlFmt = "%s/api/c/compapi/v2/cc/search_module/";
 
     private final String transferModuleUrlFmt = "%s/api/c/compapi/v2/cc/transfer_host_module/";
+
+    private final String transferHostToIdlePoolUrlFmt = "%s/api/c/compapi/v2/cc/transfer_host_to_idlemodule/";
+
+    private final String transferHostToResourceUrlFmt = "%s/api/c/compapi/v2/cc/transfer_host_to_resourcemodule/";
 
     private final static Logger logger = LoggerFactory.getLogger(LJPaasServiceImpl.class);
 
@@ -199,130 +209,61 @@ public class LJPaasServiceImpl implements ILJPaasService {
     {
 //        CCODPlatformInfo[] platformInfos = queryAllCCODBiz();
 //        System.out.println(JSONArray.toJSONString(platformInfos));
-        this.waitSyncUpdateToPaasBiz.add(11);
+//        this.waitSyncUpdateToPaasBiz.add(11);
+        syncClientCollectResultToPaas(14, "shltPA", this.defaultCloudId);
     }
 
 
-    private List<LJBizInfo> queryLJPaasAllBiz(String paasHostUrl) throws Exception
+    private List<LJBizInfo> queryBKBiz(Integer bkBizId, String bkBizName) throws InterfaceCallException, LJPaasException
     {
-        String queryUrl = String.format(this.queryBizUrlFmt, paasHostUrl);
-        logger.debug(String.format("begin to query all biz info from paasUrl=%s : appCode=%s, appSecret=%s and userName=%s",
-                queryUrl, bkAppCode, bkAppSecret, bkUserName));
-        JSONObject jsonParam = new JSONObject();
-        jsonParam.put("bk_app_code", bkAppCode);
-        jsonParam.put("bk_app_secret", bkAppSecret);
-        jsonParam.put("bk_username", bkUserName);
-        String jsonStr = jsonParam.toJSONString();
-        StringEntity entity = new StringEntity(jsonParam.toString(),"utf-8");//解决中文乱码问题
-        entity.setContentEncoding("UTF-8");
-        entity.setContentType("application/json");
-        HttpPost httpPost = new HttpPost(queryUrl);
-        httpPost.setEntity(entity);
-        HttpClient httpClient = getBasicHttpClient();
-        HttpResponse response = httpClient.execute(httpPost);
-        // 解析response封装返回对象httpResult
-        if (response.getStatusLine().getStatusCode() != 200)
+        logger.info(String.format("begin to query biz info : bkBizId=%d and bkBizName=%s", bkBizId, bkBizName));
+        String url = String.format(this.queryBizUrlFmt, paasHostUrl);
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        Map<String, Object> condition = new HashMap<>();
+        if(bkBizId != null)
         {
-            logger.error(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
-                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
-            throw new Exception(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
-                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
+            condition.put("bk_biz_id", bkBizId);
         }
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        JSONObject jsonObject = JSONObject.parseObject(conResult);
-        if("success".equals(jsonObject.containsKey("message")))
+        if(bkBizName != null)
         {
-            logger.error(String.format("paas return error message %s", jsonObject.containsKey("message")));
-            throw new Exception(String.format("paas return error message %s", jsonObject.containsKey("message")));
+            condition.put("bk_biz_name", bkBizName);
         }
-        String data = jsonObject.getJSONObject("data").getString("info");
-        List<LJBizInfo> bizList = JSONArray.parseArray(data, LJBizInfo.class);
-        System.out.println(bizList.size());
-        return bizList;
+        paramsMap.put("condition", condition);
+        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String data = parsePaasInterfaceResult(retVal);
+        try
+        {
+            List<LJBizInfo> bizList = JSONArray.parseArray(JSONObject.parseObject(data).getString("info"), LJBizInfo.class);
+            logger.info(String.format("find %d biz with bkBizId=%d and bkBizName=%s", bizList.size(), bkBizId, bkBizName));
+            return bizList;
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("parse lj paas return info for biz info exception"), ex);
+            throw new LJPaasException(String.format("parse lj paas return info for biz info exception"));
+        }
     }
 
-    private List<LJSetInfo> queryLJPaasBizSet(int bizId) throws Exception
+    private List<LJSetInfo> queryLJPaasBizSet(int bkBizId) throws InterfaceCallException, LJPaasException
     {
-        String queryUrl = String.format(this.queryBizSetUrlFmt, paasHostUrl);
-        logger.debug(String.format("begin to query all set of bizId=%d from paasUrl=%s : appCode=%s, appSecret=%s and userName=%s",
-                bizId, queryUrl, bkAppCode, bkAppSecret, bkUserName));
-        JSONObject jsonParam = new JSONObject();
-        jsonParam.put("bk_app_code", bkAppCode);
-        jsonParam.put("bk_app_secret", bkAppSecret);
-        jsonParam.put("bk_username", bkUserName);
-        jsonParam.put("bk_biz_id", bizId + "");
-        StringEntity entity = new StringEntity(jsonParam.toString(),"utf-8");//解决中文乱码问题
-        entity.setContentEncoding("UTF-8");
-        entity.setContentType("application/json");
-        HttpPost httpPost = new HttpPost(queryUrl);
-        httpPost.setEntity(entity);
-        HttpClient httpClient = getBasicHttpClient();
-        HttpResponse response = httpClient.execute(httpPost);
-        // 解析response封装返回对象httpResult
-        if (response.getStatusLine().getStatusCode() != 200)
+        logger.info(String.format("begin to query set info of bkBizId=%d", bkBizId));
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId);
+        String url = String.format(this.queryBizSetUrlFmt, paasHostUrl);
+        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String data = parsePaasInterfaceResult(retVal);
+        try
         {
-            logger.error(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
-                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
-            throw new Exception(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
-                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
+            List<LJSetInfo> setList = JSONArray.parseArray(JSONObject.parseObject(data).getString("info"), LJSetInfo.class);
+            logger.info(String.format("find %d set at bkBizId=%d", setList.size(), bkBizId));
+            return setList;
         }
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        JSONObject jsonObject = JSONObject.parseObject(conResult);
-        if("success".equals(jsonObject.containsKey("message")))
+        catch (Exception ex)
         {
-            logger.error(String.format("paas return error message %s", jsonObject.containsKey("message")));
-            throw new Exception(String.format("paas return error message %s", jsonObject.containsKey("message")));
+            logger.error(String.format("parse lj paas return set info of bkBizId=%d biz exception", bkBizId), ex);
+            throw new LJPaasException(String.format("parse lj paas return set info of bkBizId=%d biz exception", bkBizId));
         }
-        String data = jsonObject.getJSONObject("data").getString("info");
-        List<LJSetInfo> setList = JSONArray.parseArray(data, LJSetInfo.class);
-        System.out.println(setList.size());
-        return setList;
     }
-
-    private List<LJHostResourceInfo> queryLJPaasBKHostResource(String paasHostUrl, String bkAppCode, String bkAppSecret, String bkUserName) throws Exception
-    {
-        String queryUrl = String.format(this.queryHostUrlFmt, paasHostUrl);
-        logger.debug(String.format("begin to query all bk_biz info from paasUrl=%s : appCode=%s, appSecret=%s and userName=%s",
-                queryUrl, bkAppCode, bkAppSecret, bkUserName));
-        JSONObject jsonParam = new JSONObject();
-        jsonParam.put("bk_app_code", bkAppCode);
-        jsonParam.put("bk_app_secret", bkAppSecret);
-        jsonParam.put("bk_username", bkUserName);
-        List<Map<String, Object>> conditionsList = new ArrayList<>();
-        conditionsList.add(generateLJObjectParam("set", new String[0], new HashMap[0]));
-        conditionsList.add(generateLJObjectParam("biz", new String[0], new HashMap[0]));
-        conditionsList.add(generateLJObjectParam("host", new String[0], new HashMap[0]));
-        conditionsList.add(generateLJObjectParam("module", new String[0], new HashMap[0]));
-        jsonParam.put("condition", conditionsList);
-        String jsonStr = jsonParam.toJSONString();
-        StringEntity entity = new StringEntity(jsonParam.toString(),"utf-8");//解决中文乱码问题
-        entity.setContentEncoding("UTF-8");
-        entity.setContentType("application/json");
-        HttpPost httpPost = new HttpPost(queryUrl);
-        httpPost.setEntity(entity);
-        HttpClient httpClient = getBasicHttpClient();
-        HttpResponse response = httpClient.execute(httpPost);
-        // 解析response封装返回对象httpResult
-        if (response.getStatusLine().getStatusCode() != 200)
-        {
-            logger.error(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
-                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
-            throw new Exception(String.format("query paasUrl=%s : appCode=%s, appSecret=%s and userName=%s return errorCode",
-                    queryUrl, bkAppCode, bkAppSecret, bkUserName, response.getStatusLine().getStatusCode()));
-        }
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        JSONObject jsonObject = JSONObject.parseObject(conResult);
-        if("success".equals(jsonObject.containsKey("message")))
-        {
-            logger.error(String.format("paas return error message %s", jsonObject.containsKey("message")));
-            throw new Exception(String.format("paas return error message %s", jsonObject.containsKey("message")));
-        }
-        String data = jsonObject.getJSONObject("data").getString("info");
-        List<LJHostResourceInfo> hostResources = JSONArray.parseArray(data, LJHostResourceInfo.class);
-        System.out.println(hostResources.size());
-        return hostResources;
-    }
-
 
     private List<LJHostInfo> queryIdleHost(int bizId, int idlePoolSetId) throws Exception
     {
@@ -711,7 +652,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 }
             }
         }
-        List<LJBizInfo> bizList = queryLJPaasAllBiz(this.paasHostUrl);
+        List<LJBizInfo> bizList = queryBKBiz(null, null);
         Map<Integer, PlatformPo> bizPlatformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getBkBizId, Function.identity()));
         Map<String, PlatformPo> namePlatformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getPlatformName, Function.identity()));;
         Map<Integer, List<PlatformAppDeployDetailVo>> bizAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkBizId));
@@ -1299,7 +1240,33 @@ public class LJPaasServiceImpl implements ILJPaasService {
     private List<LJHostInfo> queryBKHost(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException
     {
         String queryUrl = String.format(this.queryHostUrlFmt, paasHostUrl);
-        logger.debug(String.format("begin to query hosts for bkBizId=%d and bkSetId=%d and bkHostInnerIp=%s",
+        logger.debug(String.format("begin to query hosts for bkBizId=%d and bkSetId=%d and bkModuleName=%s and bkHostInnerIp=%s",
+                bkBizId, bkSetId, bkModuleName, bkHostInnerIp));
+        List<LJHostResourceInfo> resourceList = queryBKHostResource(bkBizId, bkSetId, bkModuleName, bkHostInnerIp);
+        List<LJHostInfo> hostList = new ArrayList<>();
+        for(LJHostResourceInfo resourceInfo : resourceList)
+        {
+            hostList.add(resourceInfo.getHost());
+        }
+        logger.debug(String.format("find %d host for bkBizId=%d and bkSetId=%d and bkModuleName=%s and bkHostInnerIp=%s",
+                hostList.size(), bkBizId, bkSetId, bkModuleName, bkHostInnerIp));
+        return hostList;
+    }
+
+
+    /**
+     * 查询指定条件下的所有host resource
+     * @param bkBizId 蓝鲸paas的biz id
+     * @param bkSetId 蓝鲸paas的set id
+     * @param bkModuleName 蓝鲸paas上定义的模块名
+     * @param bkHostInnerIp 主机的内部ip
+     * @return 满足条件的host resource
+     * @throws Exception
+     */
+    private List<LJHostResourceInfo> queryBKHostResource(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException
+    {
+        String queryUrl = String.format(this.queryHostUrlFmt, paasHostUrl);
+        logger.debug(String.format("begin to query host resource for bkBizId=%d and bkSetId=%d and bkHostInnerIp=%s",
                 bkBizId, bkSetId, bkHostInnerIp));
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         if(bkBizId != null)
@@ -1334,15 +1301,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
         try
         {
             String info = JSONObject.parseObject(data).getString("info");
-            List<LJHostInfo> hostList = new ArrayList<>();
             List<LJHostResourceInfo> resourceList = JSONArray.parseArray(info, LJHostResourceInfo.class);
-            for(LJHostResourceInfo resourceInfo : resourceList)
-            {
-                hostList.add(resourceInfo.getHost());
-            }
-            logger.info(String.format("find %d host for bkBizId=%d and bkSetId=%d",
-                    hostList.size(), bkBizId, bkSetId));
-            return hostList;
+            logger.info(String.format("find %d host resource for bkBizId=%d and bkSetId=%d and bkHostInnerIp=%s",
+                    resourceList.size(), bkBizId, bkSetId, bkHostInnerIp));;
+            return resourceList;
         }
         catch (Exception ex)
         {
@@ -1360,16 +1322,82 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return paramsMap;
     }
 
-    private void transferModulesToHost(int bkBizId, int bkHostId, int[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
+    /**
+     * 修改已有的主机上绑定的模块信息
+     * @param bkBizId paas上的biz id
+     * @param hostIdList paas上的host列表
+     * @param moduleIdList 需要绑定的模块id列表
+     * @param isIncrement 是追加还是覆盖,true追加,false覆盖
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    private void transferModulesToHost(int bkBizId, int[] hostIdList, Integer[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
     {
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         paramsMap.put("bk_biz_id", bkBizId);
-        paramsMap.put("bk_host_id", new int[]{bkHostId});
+        paramsMap.put("bk_host_id", hostIdList);
         paramsMap.put("bk_module_id", moduleIdList);
         paramsMap.put("is_increment", isIncrement);
         String url = String.format(this.transferModuleUrlFmt, this.paasHostUrl);
         String retVal = HttpTools.httpPostRequest(url, paramsMap);
         parsePaasInterfaceResult(retVal);
+    }
+
+    /**
+     * 将一组新的主机添加到idle pool去
+     * @param bkBizId 需要添加新主机的biz的id
+     * @param newHostIps 被添加的主机ip
+     * @param bkCloudId 该服务器所处的云id
+     * @throws InterfaceCallException 接口调用失败
+     * @throws LJPaasException 接口返回调用失败或是解析接口调用结果失败
+     */
+    private void addNewHostToIdlePool(int bkBizId, List<String> newHostIps, int bkCloudId) throws InterfaceCallException, LJPaasException
+    {
+        logger.info(String.format("begin to add %s to bkBizId=%d", String.join(",", newHostIps), bkBizId));
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId);
+        Map<String, Object> hostMap = new HashMap<>();
+        for(int i = 0; i < newHostIps.size(); i++)
+        {
+            Map<String, Object> hostInfo = new HashMap<>();
+            hostInfo.put("bk_host_innerip", newHostIps.get(i));
+            hostInfo.put("bk_cloud_id", bkCloudId);
+            hostInfo.put("import_from", "3");
+            hostMap.put(i + "", hostInfo);
+        }
+        paramsMap.put("host_info", hostMap);
+        String url = String.format(this.addHostUrlFmt, this.paasHostUrl);
+        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        parsePaasInterfaceResult(retVal);
+        logger.info(String.format("add %s to bkBizId=%d : SUCCESS", String.join(",", newHostIps), bkBizId));
+    }
+
+    private void transferHostToIdlePool(int bkBizId, Integer[] hostList) throws InterfaceCallException, LJPaasException
+    {
+        logger.info(String.format("begin to transfer hosts=%s of bkBizId=%d to idle pool",
+                JSONArray.toJSONString(hostList), bkBizId));
+        String url = String.format(this.transferHostToIdlePoolUrlFmt, this.paasHostUrl);
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId);
+        paramsMap.put("bk_host_id", hostList);
+        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        parsePaasInterfaceResult(retVal);
+        logger.info(String.format("transfer hosts=%s of bkBizId=%d to idle pool : SUCCESS",
+                JSONArray.toJSONString(hostList), bkBizId));
+    }
+
+    private void transferHostToResource(int bkBizId, Integer[] hostList) throws InterfaceCallException, LJPaasException
+    {
+        logger.info(String.format("begin to transfer hosts=%s of bkBizId=%d to resource",
+                JSONArray.toJSONString(hostList), bkBizId));
+        String url = String.format(this.transferHostToResourceUrlFmt, this.paasHostUrl);
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("bk_biz_id", bkBizId);
+        paramsMap.put("bk_host_id", hostList);
+        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        parsePaasInterfaceResult(retVal);
+        logger.info(String.format("transfer hosts=%s of bkBizId=%d to resource : SUCCESS",
+                JSONArray.toJSONString(hostList), bkBizId));
     }
 
     private String parsePaasInterfaceResult(String interfaceResult) throws LJPaasException
@@ -1412,9 +1440,119 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
     }
 
+    /**
+     * 将一个已经存在的biz重置,并给它创建指定的set
+     * @param bkBizId 需要重置的set名
+     * @param setNames 需要创建的set名
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    private List<LJSetInfo> resetExistBiz(int bkBizId, List<String> setNames) throws InterfaceCallException, LJPaasException
+    {
+        List<LJHostInfo> hostList = queryBKHost(bkBizId, null, null, null);
+        Integer[] hostIds = hostList.stream().collect(Collectors.groupingBy(LJHostInfo::getHostId)).keySet().toArray(new Integer[0]);
+        if(hostIds.length > 0)
+        {
+            transferHostToIdlePool(bkBizId, hostIds);
+//            transferHostToResource(bkBizId, hostIds);
+        }
+        List<LJSetInfo> setList = queryLJPaasBizSet(bkBizId);
+        for(LJSetInfo set : setList)
+        {
+            if(this.paasIdlePoolSetName.equals(set.getSetName()))
+                continue;
+            List<LJModuleInfo> moduleList = this.queryBkModule(bkBizId, set.getSetId(), null, null);
+            for(LJModuleInfo module : moduleList)
+            {
+                deleteExistModule(bkBizId, set.getSetId(), module.getModuleId());
+            }
+            deleteExistBizSet(bkBizId, set.getSetId());
+        }
+        List<LJSetInfo> createSets = new ArrayList<>();
+        for(String setName : setNames)
+        {
+            LJSetInfo setInfo = addNewBizSet(bkBizId, setName, String.format("%s is created by cmdb", setName), 2000);
+        }
+        return queryLJPaasBizSet(bkBizId);
+    }
+
+    private void autoCreateCCODBizFromClientCollectResult(int bkBizId, String platformName, int hostCloudId, List<PlatformAppDeployDetailVo> deployAppList)
+            throws NotSupportAppException, InterfaceCallException, LJPaasException
+    {
+        List<PlatformAppDeployDetailVo> deployApps = makeUpBizInfoForDeployApps(bkBizId, deployAppList);
+        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getSetName));
+        List<String> setNames = new ArrayList<>(this.basicBizSetMap.keySet());
+        setNames.addAll(new ArrayList<>(this.extendBizSetMap.keySet()));
+        Collections.sort(setNames);
+        Map<String, LJSetInfo> setMap = resetExistBiz(bkBizId, setNames).stream().collect(Collectors.toMap(LJSetInfo::getSetName, Function.identity()));
+        Map<String, List<PlatformAppDeployDetailVo>> hostIpAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp));
+        List<String> ipList = new ArrayList<>(hostIpAppMap.keySet());
+        Collections.sort(ipList);
+        addNewHostToIdlePool(bkBizId, ipList, hostCloudId);
+        Map<String, LJHostInfo> hostMap = queryBKHost(bkBizId, setMap.get(this.paasIdlePoolSetName).getSetId(), null, null).stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        Map<String, List<Integer>> hostModuleMap = new HashMap<>();
+        for(String hostIp : ipList)
+        {
+            if(!hostMap.containsKey(hostIp))
+            {
+                logger.error(String.format("%s is not added to idle pool=%d of bkBizId=%d",
+                        hostIp, setMap.get(this.paasIdlePoolSetName).getSetId(), bkBizId));
+                throw new LJPaasException(String.format("add %s host to idle pool for %s : FAIL", hostIp, platformName));
+            }
+            hostModuleMap.put(hostIp, new ArrayList<>());
+        }
+        for(String setName : setAppMap.keySet())
+        {
+            Map<String, List<PlatformAppDeployDetailVo>> deployAppMap = setAppMap.get(setName).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppAlias));
+            List<String> appAliasList = new ArrayList<>(deployAppMap.keySet());
+            Collections.sort(appAliasList);
+            for(String appAlias : appAliasList)
+            {
+                LJModuleInfo module = addNewBkModule(bkBizId, setMap.get(setName).getSetId(), appAlias);
+                for(PlatformAppDeployDetailVo deployApp : deployAppMap.get(appAlias))
+                {
+                    hostModuleMap.get(deployApp.getHostIp()).add(module.getModuleId());
+                }
+            }
+        }
+        for(String hostIp : ipList)
+        {
+            transferModulesToHost(bkBizId, new int[]{hostMap.get(hostIp).getHostId()}, hostModuleMap.get(hostIp).toArray(new Integer[0]), false);
+        }
+
+
+    }
+
     @Override
     public void deleteBizSet(int bkBizId, int bkSetId) throws ParamException, LJPaasException {
 
+    }
+
+    @Override
+    public void syncClientCollectResultToPaas(int bkBizId, String platformId, int hostCloudId) throws ParamException, NotSupportAppException, InterfaceCallException, LJPaasException {
+        logger.info(String.format("begin to sync client collect apps deploy details to lj paas : bkBizId=%d and platformId=%s",
+                bkBizId, platformId));
+        List<LJBizInfo> bizList = queryBKBiz(bkBizId, null);
+        if(bizList.size() == 0)
+        {
+            logger.error(String.format("biz with bkBizId=%d and bkBizName=%s not exist", bkBizId, platformId));
+            throw new ParamException(String.format("biz with bkBizId=%d and bkBizName=%s not exist", bkBizId, platformId));
+        }
+        String platformName = bizList.get(0).getBizName();
+        List<PlatformAppDeployDetailVo> deloyAppList = platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null, null);
+        if(deloyAppList.size() == 0)
+        {
+            logger.error(String.format("platformId=%s has not collected platform app deploy info record", platformId));
+            throw new ParamException(String.format("platformId=%s has not collected platform app deploy info record", platformId));
+        }
+        if(!platformName.equals(deloyAppList.get(0).getPlatformName()))
+        {
+            logger.error(String.format("bkBizId=%s with bkBizName=%s is not equal platformId=%s with platformName=%s",
+                    bkBizId, platformName, platformId, deloyAppList.get(0).getPlatformName()));
+            throw new ParamException(String.format("bkBizId=%s with bkBizName=%s is not equal platformId=%s with platformName=%s",
+                    bkBizId, platformName, platformId, deloyAppList.get(0).getPlatformName()));
+        }
+        autoCreateCCODBizFromClientCollectResult(bkBizId, platformName, hostCloudId, deloyAppList);
     }
 
     private void initParamForTest()
@@ -1436,7 +1574,26 @@ public class LJPaasServiceImpl implements ILJPaasService {
         this.updateSchemaSetName = "平台升级方案";
 
         this.updateSchemaSetId = "platformUpdateSchema";
+
+        this.defaultCloudId = 5;
     }
+
+
+    @Test
+    public void autoCreateBizTest()
+    {
+        initParamForTest();
+        try
+        {
+            List<LJSetInfo> setList = resetExistBiz(14, Arrays.asList(new String[]{"测试域1", "测试域2", "测试域3"}));
+            System.out.println(JSONArray.toJSONString(setList));
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
 
     @Test
     public void jsonTest()
@@ -1483,11 +1640,11 @@ public class LJPaasServiceImpl implements ILJPaasService {
         this.initParamForTest();
         try
         {
-//            LJModuleInfo moduleInfo = addNewBkModule(11, 69, "slee");
+//            LJModuleInfo moduleInfo = addNewBkModule(11, 70, "dcs");
 //            deleteExistModule(moduleInfo.getBizId(), moduleInfo.getSetId(), moduleInfo.getModuleId());
-//            List<LJModuleInfo> moduleInfos = queryBkModule(11, 69, 229, "cms1");
+//            List<LJModuleInfo> moduleInfos = queryBkModule(11, 69, null, null);
 //            System.out.println(JSONArray.toJSONString(moduleInfos));
-            transferModulesToHost(11, 198, new int[]{229, 231, 232}, true);
+            transferModulesToHost(11, new int[]{198}, new Integer[]{234}, true);
         }
         catch (Exception ex)
         {
@@ -1503,8 +1660,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
         {
 //            queryLJPaasBKHostResource("http://paas.ccod.com:80", "wyffirstsaas", "8a4c0887-ca15-462b-8804-8bedefe1f352", "admin");
 //            queryIdleHost(10, 30, "http://paas.ccod.com:80", "wyffirstsaas", "8a4c0887-ca15-462b-8804-8bedefe1f352", "admin");
-            List<LJHostInfo> hostList = queryBKHost(11, null, "cms", null);
-            System.out.println(JSONArray.toJSONString(hostList));
+//            List<LJHostInfo> hostList = queryBKHost(11, null, "cms", null);
+//            System.out.println(JSONArray.toJSONString(hostList));
+            transferHostToIdlePool(11, new Integer[]{198});
         }
         catch (Exception ex)
         {
