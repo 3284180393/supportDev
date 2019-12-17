@@ -4,10 +4,7 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
 import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
-import com.channelsoft.ccod.support.cmdb.vo.BizSetDefine;
-import com.channelsoft.ccod.support.cmdb.vo.CCODPlatformInfo;
-import com.channelsoft.ccod.support.cmdb.vo.LJBizInfo;
-import com.channelsoft.ccod.support.cmdb.vo.LJSetInfo;
+import com.channelsoft.ccod.support.cmdb.vo.*;
 
 import java.util.List;
 
@@ -97,4 +94,109 @@ public interface ILJPaasService {
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
     void syncClientCollectResultToPaas(int bkBizId, String platformName, int hostCloudId) throws ParamException, NotSupportAppException, InterfaceCallException, LJPaasException;
+
+    /**
+     * 将指定biz的主机迁移到资源池
+     * @param bkBizId 平台的biz id
+     * @param hostList 需要迁移到资源池的主机id列表
+     * @throws InterfaceCallException 接口调用失败
+     * @throws LJPaasException 接口返回调用失败或是解析接口调用结果失败
+     */
+    void transferHostToResource(int bkBizId, Integer[] hostList) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 将指定的主机迁移到平台的空闲池
+     * @param bkBizId 指定平台的biz id
+     * @param hostList 需要迁移的主机列表
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    void transferHostToIdlePool(int bkBizId, Integer[] hostList) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 将一组新的主机添加到idle pool去
+     * @param bkBizId 需要添加新主机的biz的id
+     * @param newHostIps 被添加的主机ip
+     * @param bkCloudId 该服务器所处的云id
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    void addNewHostToIdlePool(int bkBizId, List<String> newHostIps, int bkCloudId) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 将指定平台的一组modules迁移到一组指定的主机上
+     * @param bkBizId 平台的biz id
+     * @param hostIdList 迁移的目标主机
+     * @param moduleIdList 需要迁移的模块i
+     * @param isIncrement 追加还是覆盖,true追加，false覆盖
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    void transferModulesToHost(int bkBizId, Integer[] hostIdList, Integer[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 查询指定条件下的所有host resource
+     * @param bkBizId 蓝鲸paas的biz id
+     * @param bkSetId 蓝鲸paas的set id
+     * @param bkModuleName 蓝鲸paas上定义的模块名
+     * @param bkHostInnerIp 主机的内部ip
+     * @return 满足条件的host resource
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    List<LJHostResourceInfo> queryBKHostResource(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 查询指定set下的所有主机
+     * @param bkBizId 蓝鲸paas的biz id
+     * @param bkSetId 蓝鲸paas的set id
+     * @param bkModuleName 蓝鲸paas上定义的模块名
+     * @param bkHostInnerIp 主机的内部ip
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    List<LJHostInfo> queryBKHost(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 在蓝鲸paas查询指定条件的module信息
+     * @param bkBizId 需要查询的biz id,必填
+     * @param bkSetId 需要查询的set id,必填
+     * @param moduleId 需要查询的module id,可以为空，为空则忽略此条件
+     * @param moduleName 需要查询的module name,可以为空,为空则忽略此条件
+     * @return 查询结果
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    List<LJModuleInfo> queryBkModule(int bkBizId, int bkSetId, Integer moduleId, String moduleName) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 向平台的指定set添加一个新的module
+     * @param bkBizId 平台的biz id
+     * @param bkSetId  指定的set的id
+     * @param moduleName 需要添加的module名
+     * @return 添加后的模块信息
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    LJModuleInfo addNewBkModule(int bkBizId, int bkSetId, String moduleName) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 从指定平台删除一个已经存在的set
+     * @param bkBizId 指定平台的biz id
+     * @param bkSetId 需要删除的set id
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    void deleteExistBizSet(int bkBizId, int bkSetId) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 向蓝鲸paas指定biz添加一个新的set
+     * @param bkBizId set所属的biz id
+     * @param bkSetName 需要创建的set名字
+     * @param desc 该set的描述
+     * @param capacity 描述
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    LJSetInfo addNewBizSet(int bkBizId, String bkSetName, String desc, int capacity) throws InterfaceCallException, LJPaasException;
 }

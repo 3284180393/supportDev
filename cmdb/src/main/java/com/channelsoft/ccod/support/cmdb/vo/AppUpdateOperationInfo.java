@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
+import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 
 import java.util.Date;
@@ -15,6 +16,8 @@ import java.util.List;
  * @Version: 1.0
  */
 public class AppUpdateOperationInfo {
+
+    private int platformAppId; //平台应用id,如果操作是ADD为0,否则是被操作的平台应用id
 
     private AppUpdateOperation operation; //应用升级类型,由AppUpdateType枚举定义
 
@@ -124,5 +127,13 @@ public class AppUpdateOperationInfo {
 
     public void setAppAlias(String appAlias) {
         this.appAlias = appAlias;
+    }
+
+    public int getPlatformAppId() {
+        return platformAppId;
+    }
+
+    public void setPlatformAppId(int platformAppId) {
+        this.platformAppId = platformAppId;
     }
 }

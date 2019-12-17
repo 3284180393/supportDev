@@ -2,6 +2,8 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
+import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
@@ -33,10 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -94,117 +93,117 @@ public class NexusServiceImpl implements INexusService {
 
     private final static Logger logger = LoggerFactory.getLogger(NexusServiceImpl.class);
 
-    @Override
-    public boolean uploadRawFile(String nexusHostUrl, String userName, String password, String repository, String sourceFilePath, String group, String fileName) throws Exception {
-        String url = String.format(this.uploadRawUrlFmt, nexusHostUrl, repository);
-        logger.debug(String.format("begin to upload %s to %s/%s/%s, uploadUrl=%s",
-                sourceFilePath, repository, group, fileName, url));
-        HttpClient httpclient = getBasicHttpClient(userName, password);
-        HttpPost httppost = new HttpPost(url);
-        httppost.addHeader("Authorization", getBasicAuthPropValue(userName, password));
-        List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-        nvps.add(new BasicNameValuePair("raw.directory", group));
-        nvps.add(new BasicNameValuePair("raw.asset1", sourceFilePath));
-        nvps.add(new BasicNameValuePair("raw.asset1.filename", fileName));
-        httppost.setEntity(new UrlEncodedFormEntity(nvps));
-        HttpResponse response = httpclient.execute(httppost);
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        boolean ret;
-        if (response.getStatusLine().getStatusCode() == 200)
-        {
-            logger.debug(String.format("upload %s to %s/%s/%s SUCCESS", sourceFilePath, repository, group, fileName));
-            ret = true;
-        }
-        else
-        {
-            logger.debug(String.format("upload %s to %s/%s/%s FAIL : %s", sourceFilePath, repository, group, fileName, conResult));
-            ret = false;
-        }
-        return ret;
-    }
+//    @Override
+//    public boolean uploadRawFile(String nexusHostUrl, String userName, String password, String repository, String sourceFilePath, String group, String fileName) throws InterfaceCallException, NexusException {
+//        String url = String.format(this.uploadRawUrlFmt, nexusHostUrl, repository);
+//        logger.debug(String.format("begin to upload %s to %s/%s/%s, uploadUrl=%s",
+//                sourceFilePath, repository, group, fileName, url));
+//        HttpClient httpclient = getBasicHttpClient(userName, password);
+//        HttpPost httppost = new HttpPost(url);
+//        httppost.addHeader("Authorization", getBasicAuthPropValue(userName, password));
+//        List<NameValuePair> nvps = new ArrayList<NameValuePair>();
+//        nvps.add(new BasicNameValuePair("raw.directory", group));
+//        nvps.add(new BasicNameValuePair("raw.asset1", sourceFilePath));
+//        nvps.add(new BasicNameValuePair("raw.asset1.filename", fileName));
+//        httppost.setEntity(new UrlEncodedFormEntity(nvps));
+//        HttpResponse response = httpclient.execute(httppost);
+//        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+//        boolean ret;
+//        if (response.getStatusLine().getStatusCode() == 200)
+//        {
+//            logger.debug(String.format("upload %s to %s/%s/%s SUCCESS", sourceFilePath, repository, group, fileName));
+//            ret = true;
+//        }
+//        else
+//        {
+//            logger.debug(String.format("upload %s to %s/%s/%s FAIL : %s", sourceFilePath, repository, group, fileName, conResult));
+//            ret = false;
+//        }
+//        return ret;
+//    }
+//
+//    @Override
+//    public NexusComponentPo queryComponentById(String nexusHostUrl, String userName, String password, String componentId) throws InterfaceCallException, NexusException {
+//        String url = String.format(this.queryComponentUrlFmt, nexusHostUrl, componentId);
+//        logger.info(String.format("begin to query id=%s component info, queryUrl=%s", componentId, url));
+//        HttpClient httpclient = getBasicHttpClient(userName, password);
+//        HttpGet httpGet = new HttpGet(url);
+//        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
+//        HttpResponse response = httpclient.execute(httpGet);
+//        if (response.getStatusLine().getStatusCode() == 404)
+//        {
+//            logger.error(String.format("id=%s component not exist", componentId));
+//            throw new Exception(String.format("id=%s component not exist", componentId));
+//        }
+//        else if (response.getStatusLine().getStatusCode() != 200)
+//        {
+//            logger.error(String.format("query id=%s component FAIL : server return %d code",
+//                    componentId, response.getStatusLine().getStatusCode()));
+//            throw new Exception(String.format("query id=%s component FAIL : server return %d code",
+//                    componentId, response.getStatusLine().getStatusCode()));
+//        }
+//        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+//        NexusComponentPo info = JSONObject.parseObject(conResult, NexusComponentPo.class);
+//        logger.info(String.format("query id=%s component SUCCESS", componentId));
+//        return info;
+//    }
+
+//    @Override
+//    public NexusAssetInfo queryAssetById(String nexusHostUrl, String userName, String password, String assetId) throws InterfaceCallException, NexusException {
+//        String url = String.format(this.queryAssetUrlFmt, nexusHostUrl, assetId);
+//        logger.info(String.format("begin to query id=%s asset info, queryUrl=%s", assetId, url));
+//        HttpClient httpclient = getBasicHttpClient(userName, password);
+//        HttpGet httpGet = new HttpGet(url);
+//        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
+//        HttpResponse response = httpclient.execute(httpGet);
+//        if (response.getStatusLine().getStatusCode() == 422)
+//        {
+//            logger.error(String.format("id=%s asset not exist", assetId));
+//            throw new Exception(String.format("id=%s asset not exist", assetId));
+//        }
+//        else if (response.getStatusLine().getStatusCode() != 200)
+//        {
+//            logger.error(String.format("query id=%s asset FAIL : server return %d code",
+//                    assetId, response.getStatusLine().getStatusCode()));
+//            throw new Exception(String.format("query id=%s asset FAIL : server return %d code",
+//                    assetId, response.getStatusLine().getStatusCode()));
+//        }
+//        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+//        NexusAssetInfo info = JSONObject.parseObject(conResult, NexusAssetInfo.class);
+//        logger.info(String.format("query id=%s asset SUCCESS", assetId));
+//        return info;
+//    }
+//
+//    @Override
+//    public NexusComponentPo[] queryComponentFromRepository(String nexusHostUrl, String userName, String password, String repository) throws InterfaceCallException, NexusException {
+//        String url = String.format(this.queryRepositoryUrlFmt, nexusHostUrl, repository);
+//        logger.info(String.format("begin to query all components from repository=%s, queryUrl=%s",
+//                repository, url));
+//        HttpClient httpclient = getBasicHttpClient(userName, password);
+//        HttpGet httpGet = new HttpGet(url);
+//        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
+//        HttpResponse response = httpclient.execute(httpGet);
+//        if (response.getStatusLine().getStatusCode() == 404)
+//        {
+//            logger.error(String.format("repository=%s not exist", repository));
+//            throw new Exception(String.format("repository=%s not exist", repository));
+//        }
+//        else if (response.getStatusLine().getStatusCode() != 200)
+//        {
+//            logger.error(String.format("query all components from repository=%s FAIL : server return %d code",
+//                    repository, response.getStatusLine().getStatusCode()));
+//            throw new Exception(String.format("query all components from repository=%s FAIL : server return %d code",
+//                    repository, response.getStatusLine().getStatusCode()));
+//        }
+//
+//        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+//        List<NexusComponentPo> components = JSONArray.parseArray(conResult, NexusComponentPo.class);
+//        logger.info(String.format("repository=%s has %d components", repository, components.size()));
+//        return components.toArray(new NexusComponentPo[0]);
+//    }
 
     @Override
-    public NexusComponentPo queryComponentById(String nexusHostUrl, String userName, String password, String componentId) throws Exception {
-        String url = String.format(this.queryComponentUrlFmt, nexusHostUrl, componentId);
-        logger.info(String.format("begin to query id=%s component info, queryUrl=%s", componentId, url));
-        HttpClient httpclient = getBasicHttpClient(userName, password);
-        HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
-        HttpResponse response = httpclient.execute(httpGet);
-        if (response.getStatusLine().getStatusCode() == 404)
-        {
-            logger.error(String.format("id=%s component not exist", componentId));
-            throw new Exception(String.format("id=%s component not exist", componentId));
-        }
-        else if (response.getStatusLine().getStatusCode() != 200)
-        {
-            logger.error(String.format("query id=%s component FAIL : server return %d code",
-                    componentId, response.getStatusLine().getStatusCode()));
-            throw new Exception(String.format("query id=%s component FAIL : server return %d code",
-                    componentId, response.getStatusLine().getStatusCode()));
-        }
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        NexusComponentPo info = JSONObject.parseObject(conResult, NexusComponentPo.class);
-        logger.info(String.format("query id=%s component SUCCESS", componentId));
-        return info;
-    }
-
-    @Override
-    public NexusAssetInfo queryAssetById(String nexusHostUrl, String userName, String password, String assetId) throws Exception {
-        String url = String.format(this.queryAssetUrlFmt, nexusHostUrl, assetId);
-        logger.info(String.format("begin to query id=%s asset info, queryUrl=%s", assetId, url));
-        HttpClient httpclient = getBasicHttpClient(userName, password);
-        HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
-        HttpResponse response = httpclient.execute(httpGet);
-        if (response.getStatusLine().getStatusCode() == 422)
-        {
-            logger.error(String.format("id=%s asset not exist", assetId));
-            throw new Exception(String.format("id=%s asset not exist", assetId));
-        }
-        else if (response.getStatusLine().getStatusCode() != 200)
-        {
-            logger.error(String.format("query id=%s asset FAIL : server return %d code",
-                    assetId, response.getStatusLine().getStatusCode()));
-            throw new Exception(String.format("query id=%s asset FAIL : server return %d code",
-                    assetId, response.getStatusLine().getStatusCode()));
-        }
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        NexusAssetInfo info = JSONObject.parseObject(conResult, NexusAssetInfo.class);
-        logger.info(String.format("query id=%s asset SUCCESS", assetId));
-        return info;
-    }
-
-    @Override
-    public NexusComponentPo[] queryComponentFromRepository(String nexusHostUrl, String userName, String password, String repository) throws Exception {
-        String url = String.format(this.queryRepositoryUrlFmt, nexusHostUrl, repository);
-        logger.info(String.format("begin to query all components from repository=%s, queryUrl=%s",
-                repository, url));
-        HttpClient httpclient = getBasicHttpClient(userName, password);
-        HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
-        HttpResponse response = httpclient.execute(httpGet);
-        if (response.getStatusLine().getStatusCode() == 404)
-        {
-            logger.error(String.format("repository=%s not exist", repository));
-            throw new Exception(String.format("repository=%s not exist", repository));
-        }
-        else if (response.getStatusLine().getStatusCode() != 200)
-        {
-            logger.error(String.format("query all components from repository=%s FAIL : server return %d code",
-                    repository, response.getStatusLine().getStatusCode()));
-            throw new Exception(String.format("query all components from repository=%s FAIL : server return %d code",
-                    repository, response.getStatusLine().getStatusCode()));
-        }
-
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        List<NexusComponentPo> components = JSONArray.parseArray(conResult, NexusComponentPo.class);
-        logger.info(String.format("repository=%s has %d components", repository, components.size()));
-        return components.toArray(new NexusComponentPo[0]);
-    }
-
-    @Override
-    public  Map<String, NexusAssetInfo> uploadRawComponent(String nexusHostUrl, String userName, String password, String repository, String directory, DeployFileInfo[] componentFiles) throws Exception {
+    public  Map<String, NexusAssetInfo> uploadRawComponent(String nexusHostUrl, String userName, String password, String repository, String directory, DeployFileInfo[] componentFiles) throws InterfaceCallException, NexusException {
         String url = String.format(this.uploadRawUrlFmt, nexusHostUrl, repository);
         HttpClient httpclient = getBasicHttpClient(userName, password);
         HttpPost httpPost = new HttpPost(url);
@@ -226,7 +225,7 @@ public class NexusServiceImpl implements INexusService {
             String conResult = EntityUtils.toString(response.getEntity(), "utf8");
             logger.error(String.format("upload component to %s/%s FAIL : return code=%d and errMsg=%s ",
                     repository, directory, response.getStatusLine().getStatusCode(), conResult));
-            throw new Exception(String.format("upload component to %s/%s FAIL : return code=%d and errMsg=%s ",
+            throw new InterfaceCallException(String.format("upload component to %s/%s FAIL : return code=%d and errMsg=%s ",
                     repository, directory, response.getStatusLine().getStatusCode(), conResult));
         }
         Thread.sleep(10000);
@@ -237,7 +236,7 @@ public class NexusServiceImpl implements INexusService {
             {
                 logger.error(String.format("%s up to repository=%s and directory=%s FAIL : not find %s at nexus",
                         fileInfo.getFileName(), repository, directory, fileInfo.getFileName()));
-                throw new Exception(String.format("%s up to repository=%s and directory=%s FAIL : not find %s at nexus",
+                throw new NexusException(String.format("%s up to repository=%s and directory=%s FAIL : not find %s at nexus",
                         fileInfo.getFileName(), repository, directory, fileInfo.getFileName()));
             }
             else
@@ -247,7 +246,7 @@ public class NexusServiceImpl implements INexusService {
                 {
                     logger.error(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
                             fileInfo.getLocalSavePath(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
-                    throw new Exception(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
+                    throw new NexusException(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
                             fileInfo.getLocalSavePath(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
                 }
                 fileInfo.setNexusAssetId(assetInfo.getId());
@@ -311,7 +310,7 @@ public class NexusServiceImpl implements INexusService {
     }
 
     @Override
-    public Map<String, NexusAssetInfo> queryGroupAssetMap(String nexusHostUrl, String userName, String password, String repository, String group) throws Exception
+    public Map<String, NexusAssetInfo> queryGroupAssetMap(String nexusHostUrl, String userName, String password, String repository, String group) throws InterfaceCallException, NexusException
     {
         Map<String, NexusAssetInfo> map = new HashMap<>();
         String url = String.format(this.queryGroupItemsUrlFmt, nexusHostUrl, repository, group);
@@ -348,7 +347,7 @@ public class NexusServiceImpl implements INexusService {
     }
 
     @Override
-    public Map<String, Map<String, NexusAssetInfo>> queryRepositoryAssetRelationMap(String nexusHostUrl, String userName, String password, String repository) throws Exception
+    public Map<String, Map<String, NexusAssetInfo>> queryRepositoryAssetRelationMap(String nexusHostUrl, String userName, String password, String repository) throws InterfaceCallException, NexusException
     {
         NexusComponentPo[] components = this.queryRepositoryAllComponent(nexusHostUrl, userName, password, repository);
         Map<String, Map<String, NexusAssetInfo>> storeAssetMap = new HashMap<>();
@@ -370,16 +369,16 @@ public class NexusServiceImpl implements INexusService {
     }
 
 
-    @Override
-    public void downloadComponent(String nexusHostUrl, String userName, String password, NexusAssetInfo[] componentAssets, String savePath) throws Exception {
-        for(NexusAssetInfo assetInfo : componentAssets)
-        {
-            downloadAsset(nexusHostUrl, userName, password, assetInfo, savePath);
-        }
-    }
+//    @Override
+//    public void downloadComponent(String nexusHostUrl, String userName, String password, NexusAssetInfo[] componentAssets, String savePath) throws InterfaceCallException, NexusException {
+//        for(NexusAssetInfo assetInfo : componentAssets)
+//        {
+//            downloadAsset(nexusHostUrl, userName, password, assetInfo, savePath);
+//        }
+//    }
 
     @Override
-    public NexusAssetInfo queryAssetByNexusName(String nexusHostUrl, String userName, String password, String repository, String nexusName) throws Exception {
+    public NexusAssetInfo queryAssetByNexusName(String nexusHostUrl, String userName, String password, String repository, String nexusName) throws InterfaceCallException, NexusException {
         String url = String.format(this.queryAssetByNameFmt, nexusHostUrl, repository, nexusName);
         HttpClient httpclient = getBasicHttpClient(userName, password);
         HttpGet httpGet = new HttpGet(url);
@@ -426,7 +425,7 @@ public class NexusServiceImpl implements INexusService {
 
 
     @Override
-    public String downloadFile(String userName, String password, String downloadUrl, String saveDir, String saveFileName) throws Exception {
+    public String downloadFile(String userName, String password, String downloadUrl, String saveDir, String saveFileName) throws IOException, InterfaceCallException{
         File dir = new File(saveDir);
         if(!dir.exists())
         {
@@ -454,7 +453,7 @@ public class NexusServiceImpl implements INexusService {
                     && message.startsWith("HTTP/1.1 404"))
             {
                 logger.error(String.format("%s not exist", downloadUrl));
-                throw new Exception(String.format("%s not exist", downloadUrl));
+                throw new InterfaceCallException(String.format("%s not exist", downloadUrl));
             }
             long fileSize = uc.getContentLength();
             logger.debug(String.format("file length of %s is %d", downloadUrl, fileSize));
@@ -492,98 +491,98 @@ public class NexusServiceImpl implements INexusService {
         return savePath;
     }
 
-    private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws Exception
-    {
-        String url = String.format(this.queryAssetUrlFmt, nexusUrl, nexusAssetId);
-        CloseableHttpClient client = getBasicHttpClient(userName, password);
-        HttpClient httpclient = getBasicHttpClient(userName, password);
-        HttpGet httpGet = new HttpGet(url);
-        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
-        HttpResponse response = httpclient.execute(httpGet);
-        if (response.getStatusLine().getStatusCode() == 404)
-        {
-            logger.error(String.format("nexusAssetId=%s asset not exist at nexus=%s", nexusAssetId, nexusUrl));
-            throw new Exception(String.format("nexusAssetId=%s not exist at nexus=%s", nexusAssetId, nexusUrl));
-        }
-        else if (response.getStatusLine().getStatusCode() != 200)
-        {
-            logger.error(String.format("query assetId=%s from nexus=%s FAIL : server return %d code",
-                    nexusAssetId, nexusUrl, response.getStatusLine().getStatusCode()));
-            throw new Exception(String.format("query assetId=%s from nexus=%s FAIL : server return %d code",
-                    nexusAssetId, nexusUrl, response.getStatusLine().getStatusCode()));
-        }
-        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-        JSONObject jsonObject = JSONObject.parseObject(conResult);
-        List<NexusComponentPo> components = JSONArray.parseArray(jsonObject.get("items").toString(), NexusComponentPo.class);
-        logger.info(String.format("repository=%s has %d components", nexusAssetId, components.size()));
-        return null;
-    }
+//    private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws InterfaceCallException, NexusException
+//    {
+//        String url = String.format(this.queryAssetUrlFmt, nexusUrl, nexusAssetId);
+//        CloseableHttpClient client = getBasicHttpClient(userName, password);
+//        HttpClient httpclient = getBasicHttpClient(userName, password);
+//        HttpGet httpGet = new HttpGet(url);
+//        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
+//        HttpResponse response = httpclient.execute(httpGet);
+//        if (response.getStatusLine().getStatusCode() == 404)
+//        {
+//            logger.error(String.format("nexusAssetId=%s asset not exist at nexus=%s", nexusAssetId, nexusUrl));
+//            throw new Exception(String.format("nexusAssetId=%s not exist at nexus=%s", nexusAssetId, nexusUrl));
+//        }
+//        else if (response.getStatusLine().getStatusCode() != 200)
+//        {
+//            logger.error(String.format("query assetId=%s from nexus=%s FAIL : server return %d code",
+//                    nexusAssetId, nexusUrl, response.getStatusLine().getStatusCode()));
+//            throw new Exception(String.format("query assetId=%s from nexus=%s FAIL : server return %d code",
+//                    nexusAssetId, nexusUrl, response.getStatusLine().getStatusCode()));
+//        }
+//        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
+//        JSONObject jsonObject = JSONObject.parseObject(conResult);
+//        List<NexusComponentPo> components = JSONArray.parseArray(jsonObject.get("items").toString(), NexusComponentPo.class);
+//        logger.info(String.format("repository=%s has %d components", nexusAssetId, components.size()));
+//        return null;
+//    }
 
-    private void downloadAsset(String nexusHostUrl, String userName, String password, NexusAssetInfo assetInfo, String savePath) throws Exception
-    {
-        BufferedInputStream bis = null;
-        BufferedOutputStream bos = null;
-        HttpURLConnection uc = null;
-        try
-        {
-            String downloadUrl = String.format(this.downloadUrlFmt, nexusHostUrl, assetInfo.getRepository(), assetInfo.getPath()).replace("//", "/");
-            String[] arr = downloadUrl.split("/");
-            String fileName = arr[arr.length - 1];
-            String savedFullPath = savePath;
-            if(isWindows)
-            {
-                savedFullPath = "/" + savedFullPath.replace("\\", "/");
-            }
-            savedFullPath += savedFullPath + "/" + fileName;
-            URL url = new URL(downloadUrl);
-            uc = (HttpURLConnection) url.openConnection();
-            uc.setRequestProperty("Authorization", getBasicAuthPropValue(userName, password));
+//    private void downloadAsset(String nexusHostUrl, String userName, String password, NexusAssetInfo assetInfo, String savePath) throws InterfaceCallException, NexusException
+//    {
+//        BufferedInputStream bis = null;
+//        BufferedOutputStream bos = null;
+//        HttpURLConnection uc = null;
+//        try
+//        {
+//            String downloadUrl = String.format(this.downloadUrlFmt, nexusHostUrl, assetInfo.getRepository(), assetInfo.getPath()).replace("//", "/");
+//            String[] arr = downloadUrl.split("/");
+//            String fileName = arr[arr.length - 1];
+//            String savedFullPath = savePath;
+//            if(isWindows)
+//            {
+//                savedFullPath = "/" + savedFullPath.replace("\\", "/");
+//            }
+//            savedFullPath += savedFullPath + "/" + fileName;
+//            URL url = new URL(downloadUrl);
+//            uc = (HttpURLConnection) url.openConnection();
+//            uc.setRequestProperty("Authorization", getBasicAuthPropValue(userName, password));
+////            uc.connect();
+//            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
 //            uc.connect();
-            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
-            uc.connect();
-            String message = uc.getHeaderField(0);
-            if (message != null && !"".equals(message.trim())
-                    && message.startsWith("HTTP/1.1 404"))
-            {
-                logger.error("查询到的录音" + downloadUrl + "不存在");
-
-                throw new Exception("录音文件不存在");
-            }
-            File file = new File(savedFullPath);// 创建新文件
-            if (file != null && !file.exists())
-            {
-                file.createNewFile();
-            }
-            long fileSize = uc.getContentLength();
-            logger.info(downloadUrl + "录音文件长度:" + uc.getContentLength());// 打印文件长度
-            // 读取文件
-            bis = new BufferedInputStream(uc.getInputStream());
-            bos = new BufferedOutputStream(new FileOutputStream(file));
-            int len = 2048;
-            byte[] b = new byte[len];
-            while ((len = bis.read(b)) != -1)
-            {
-                bos.write(b, 0, len);
-            }
-            logger.info("下载保存成功");
-            bos.flush();
-        }
-        finally {
-            if(uc != null)
-            {
-                uc.disconnect();
-            }
-            if(bis != null)
-            {
-                bis.close();
-            }
-            if(bos != null)
-            {
-                bos.close();
-            }
-        }
-
-    }
+//            String message = uc.getHeaderField(0);
+//            if (message != null && !"".equals(message.trim())
+//                    && message.startsWith("HTTP/1.1 404"))
+//            {
+//                logger.error("查询到的录音" + downloadUrl + "不存在");
+//
+//                throw new Exception("录音文件不存在");
+//            }
+//            File file = new File(savedFullPath);// 创建新文件
+//            if (file != null && !file.exists())
+//            {
+//                file.createNewFile();
+//            }
+//            long fileSize = uc.getContentLength();
+//            logger.info(downloadUrl + "录音文件长度:" + uc.getContentLength());// 打印文件长度
+//            // 读取文件
+//            bis = new BufferedInputStream(uc.getInputStream());
+//            bos = new BufferedOutputStream(new FileOutputStream(file));
+//            int len = 2048;
+//            byte[] b = new byte[len];
+//            while ((len = bis.read(b)) != -1)
+//            {
+//                bos.write(b, 0, len);
+//            }
+//            logger.info("下载保存成功");
+//            bos.flush();
+//        }
+//        finally {
+//            if(uc != null)
+//            {
+//                uc.disconnect();
+//            }
+//            if(bis != null)
+//            {
+//                bis.close();
+//            }
+//            if(bos != null)
+//            {
+//                bos.close();
+//            }
+//        }
+//
+//    }
 
     private String getBasicAuthPropValue(String userName, String password)
     {

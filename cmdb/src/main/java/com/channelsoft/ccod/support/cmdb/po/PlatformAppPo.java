@@ -10,23 +10,26 @@ import java.util.Date;
  * @Version: 1.0
  */
 public class PlatformAppPo {
+
     private int platformAppId; //平台app部署id,数据库唯一生成
 
     private int appId; //应用id,外键app的appId
 
     private String appAlias; //应用别名,例如在服务器上部署两个cms,appName=cmsserver,两个cms的别名可以分别取cms1和cms2用来区分
 
-    private int platId; //对应的平台在数据库的唯一主键,外键平台表的id
-
     private String platformId; //平台id
 
-    private String domId; //对应的域在数据库的唯一主键,外键域表的id
+    private String setId; //该应用所在ccod应用平台的set id
 
     private String domainId; //应用所在的域id,外键domain的domain_id
 
     private int serverId; //应用部署所在服务器id,外键server表的server_id
 
     private int runnerId; //应用运行用户id
+
+    private String hostIp; //应用所在服务器的主机ip
+
+    private String appRunner; //应用运行用户
 
     private String basePath; //该应用的basePath
 
@@ -35,6 +38,8 @@ public class PlatformAppPo {
     private int bkBizId; //该应用在蓝鲸paas的biz的id
 
     private int bkSetId; //该应用在蓝鲸set的id
+
+    private String bkSetName; //该应用在所在蓝鲸paas的set名
 
     private int bkHostId; //该应用在蓝鲸的host的id
 
@@ -104,22 +109,6 @@ public class PlatformAppPo {
         this.runnerId = runnerId;
     }
 
-    public int getPlatId() {
-        return platId;
-    }
-
-    public void setPlatId(int platId) {
-        this.platId = platId;
-    }
-
-    public String getDomId() {
-        return domId;
-    }
-
-    public void setDomId(String domId) {
-        this.domId = domId;
-    }
-
     public int getBkBizId() {
         return bkBizId;
     }
@@ -158,5 +147,37 @@ public class PlatformAppPo {
 
     public void setAppAlias(String appAlias) {
         this.appAlias = appAlias;
+    }
+
+    public String getSetId() {
+        return setId;
+    }
+
+    public void setSetId(String setId) {
+        this.setId = setId;
+    }
+
+    public String getBkSetName() {
+        return bkSetName;
+    }
+
+    public void setBkSetName(String bkSetName) {
+        this.bkSetName = bkSetName;
+    }
+
+    public String getAppRunner() {
+        return appRunner;
+    }
+
+    public void setAppRunner(String appRunner) {
+        this.appRunner = appRunner;
+    }
+
+    public String getHostIp() {
+        return hostIp;
+    }
+
+    public void setHostIp(String hostIp) {
+        this.hostIp = hostIp;
     }
 }
