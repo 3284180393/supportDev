@@ -18,6 +18,8 @@ public class AppUpdateOperationInfo {
 
     private AppUpdateOperation operation; //应用升级类型,由AppUpdateType枚举定义
 
+    private String appAlias; //应用别名
+
     private int originalAppId; //操作前应用id,该id由app表定义,如果是ADD操作，该属性为0
 
     private int bkModuleId; //该应用在蓝鲸paas的moduleId,如果是ADD操作，该属性为0
@@ -114,5 +116,13 @@ public class AppUpdateOperationInfo {
 
     public void setCfgs(List<NexusAssetInfo> cfgs) {
         this.cfgs = cfgs;
+    }
+
+    public String getAppAlias() {
+        return appAlias;
+    }
+
+    public void setAppAlias(String appAlias) {
+        this.appAlias = appAlias;
     }
 }

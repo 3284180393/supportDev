@@ -11,13 +11,9 @@ import java.util.Date;
  */
 public class DomainPo {
 
-    private int domId; //id,数据库唯一主键
-
     private String domainId; //域id
 
     private String domainName; //域名
-
-    private int platId; //该域归属的平台id,外键platform表主键
 
     private String platformId; //域所在的平台
 
@@ -85,22 +81,6 @@ public class DomainPo {
 
     public void setStatus(int status) {
         this.status = status;
-    }
-
-    public int getDomId() {
-        return domId;
-    }
-
-    public void setDomId(int domId) {
-        this.domId = domId;
-    }
-
-    public int getPlatId() {
-        return platId;
-    }
-
-    public void setPlatId(int platId) {
-        this.platId = platId;
     }
 
     public int getBkSetId() {

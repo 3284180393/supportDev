@@ -3,6 +3,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.*;
+import com.channelsoft.ccod.support.cmdb.dao.DomainMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
 import com.channelsoft.ccod.support.cmdb.exception.*;
@@ -26,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -54,6 +56,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     @Autowired
     private ExcludeBiz excludeBiz;
+
+    @Autowired
+    private DomainMapper domainMapper;
 
     @Value("${lj-paas.host-url}")
     private String paasHostUrl;
@@ -210,7 +215,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
 //        CCODPlatformInfo[] platformInfos = queryAllCCODBiz();
 //        System.out.println(JSONArray.toJSONString(platformInfos));
 //        this.waitSyncUpdateToPaasBiz.add(11);
-        syncClientCollectResultToPaas(14, "shltPA", this.defaultCloudId);
+//        syncClientCollectResultToPaas(14, "shltPA", this.defaultCloudId);
     }
 
 
@@ -406,7 +411,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         CCODIdlePoolInfo idlePool = new CCODIdlePoolInfo(bizInfo.getBizId(), setMap.get(this.paasIdlePoolSetName), idleHostList);
         platformInfo.setIdlePool(idlePool);
         platformInfo.setSets(setList);
-        platformInfo.setPlatId(platform.getId());
         return platformInfo;
     }
 
@@ -1331,7 +1335,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
      * @throws InterfaceCallException
      * @throws LJPaasException
      */
-    private void transferModulesToHost(int bkBizId, int[] hostIdList, Integer[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
+    private void transferModulesToHost(int bkBizId, Integer[] hostIdList, Integer[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
     {
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         paramsMap.put("bk_biz_id", bkBizId);
@@ -1517,9 +1521,72 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
         for(String hostIp : ipList)
         {
-            transferModulesToHost(bkBizId, new int[]{hostMap.get(hostIp).getHostId()}, hostModuleMap.get(hostIp).toArray(new Integer[0]), false);
+            transferModulesToHost(bkBizId, new Integer[]{hostMap.get(hostIp).getHostId()}, hostModuleMap.get(hostIp).toArray(new Integer[0]), false);
         }
+    }
 
+    /**
+     * 将一组应用添加到指定的set下
+     * @param bkBizId
+     * @param set
+     * @param deployAppList
+     * @param hostList 归属该平台的主机列表
+     */
+    private void addNewAppsToBkSet(int bkBizId, LJSetInfo set, List<PlatformAppDeployDetailVo> deployAppList, List<LJHostInfo> hostList) throws InterfaceCallException, LJPaasException, DBPAASDataNotConsistentException
+    {
+        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        Map<String, LJModuleInfo> moduleMap = queryBkModule(bkBizId, set.getSetId(), null, null)
+                .stream().collect(Collectors.toMap(LJModuleInfo::getModuleName, Function.identity()));
+
+    }
+
+    private void addNewDomain(String platformId, String domainId, String domainName, int bkBizId, LJSetInfo bkSet, List<LJHostInfo> hostList, List<AppUpdateOperationInfo> deployAppList) throws DataAccessException, InterfaceCallException, LJPaasException, ParamException
+    {
+        Map<Integer, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostId, Function.identity()));
+        Map<Integer, Set<Integer>> transferAppMap = new HashMap<>();
+        for(AppUpdateOperationInfo deployApp : deployAppList)
+        {
+            if(!AppUpdateOperation.ADD.equals(deployApp.getOperation()))
+            {
+                logger.error(String.format("create domain can not include %s operation", deployApp.getOperation().name));
+                throw new ParamException(String.format("create domain can not include %s operation", deployApp.getOperation().name));
+            }
+            if(!hostMap.containsKey(deployApp.getBzHostId()))
+            {
+                logger.error(String.format("bkBizId=%d has not bkHostId=%d host", bkBizId, deployApp.getBzHostId()));
+                throw new ParamException(String.format("bkBizId=%d has not bkHostId=%d host", bkBizId, deployApp.getBzHostId()));
+            }
+            if(!transferAppMap.containsKey(deployApp.getBzHostId()))
+            {
+                transferAppMap.put(deployApp.getBzHostId(), new HashSet<>());
+            }
+        }
+        Map<String, LJModuleInfo> moduleMap = queryBkModule(bkBizId, bkSet.getSetId(), null, null)
+                .stream().collect(Collectors.toMap(LJModuleInfo::getModuleName, Function.identity()));
+        for(AppUpdateOperationInfo deployApp : deployAppList)
+        {
+            if(!moduleMap.containsKey(deployApp.getAppAlias()))
+            {
+                LJModuleInfo moduleInfo = addNewBkModule(bkBizId, bkSet.getSetId(), deployApp.getAppAlias());
+                moduleMap.put(deployApp.getAppAlias(), moduleInfo);
+            }
+            transferAppMap.get(deployApp.getBzHostId()).add(moduleMap.get(deployApp.getAppAlias()).getModuleId());
+        }
+        for(Integer bkHostId : transferAppMap.keySet())
+        {
+            transferModulesToHost(bkBizId, new Integer[]{bkHostId}, transferAppMap.get(bkHostId).toArray(new Integer[0]), true);
+        }
+        Date now = new Date();
+        DomainPo domainPo = new DomainPo();
+        domainPo.setDomainName(domainName);
+        domainPo.setCreateTime(now);
+        domainPo.setUpdateTime(now);
+        domainPo.setStatus(1);
+        domainPo.setPlatformId(platformId);
+        domainPo.setDomainId(domainId);
+        domainPo.setComment(String.format("created by tools automatic"));
+        domainPo.setBkSetId(bkSet.getSetId());
+        this.domainMapper.insert(domainPo);
 
     }
 
@@ -1668,7 +1735,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
 //            deleteExistModule(moduleInfo.getBizId(), moduleInfo.getSetId(), moduleInfo.getModuleId());
 //            List<LJModuleInfo> moduleInfos = queryBkModule(11, 69, null, null);
 //            System.out.println(JSONArray.toJSONString(moduleInfos));
-            transferModulesToHost(11, new int[]{198}, new Integer[]{234}, true);
+            transferModulesToHost(11, new Integer[]{198}, new Integer[]{234}, true);
         }
         catch (Exception ex)
         {

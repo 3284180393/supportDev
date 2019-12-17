@@ -11,8 +11,6 @@ import java.util.Date;
  */
 public class PlatformPo {
 
-    private int id; //id,该平台信息在数据存储的唯一主键
-
     private String platformId; //平台id
 
     private String platformName; //平台名
@@ -93,11 +91,4 @@ public class PlatformPo {
         this.bkBizId = bkBizId;
     }
 
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
 }
