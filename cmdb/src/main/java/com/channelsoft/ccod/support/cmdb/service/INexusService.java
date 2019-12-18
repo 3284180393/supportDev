@@ -8,6 +8,7 @@ import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,21 +73,10 @@ public interface INexusService {
      * @param repository 指定的raw类型仓库
      * @param directory 在仓库的存放路径
      * @param componentFiles 需要上传的文件
-     * @return 是否上传成功
+     * @return 上传结果
      * @throws Exception
      */
-    Map<String, NexusAssetInfo> uploadRawComponent(String nexusHostUrl, String userName, String password, String repository, String directory, DeployFileInfo[] componentFiles) throws InterfaceCallException, NexusException;
-
-    /**
-     * 查询raw仓库，并生成repository : <directory, <fileName, asset>>的关系map
-     * @param nexusHostUrl nexus主机url
-     * @param userName nexus登录用户
-     * @param password nexus用户登录密码
-     * @param repository 需要查询的仓库名
-     * @return 关系map
-     * @throws Exception
-     */
-    Map<String, Map<String, NexusAssetInfo>> queryRepositoryAssetRelationMap(String nexusHostUrl, String userName, String password, String repository) throws InterfaceCallException, NexusException;
+    List<NexusAssetInfo> uploadRawComponent(String nexusHostUrl, String userName, String password, String repository, String directory, DeployFileInfo[] componentFiles) throws InterfaceCallException, NexusException;
 
 //    /**
 //     * 下载一组文件到指定目录
@@ -106,7 +96,7 @@ public interface INexusService {
      * @return 查询结果
      * @throws Exception
      */
-    Map<String, NexusAssetInfo> queryGroupAssetMap(String nexusHostUrl, String userName, String password, String repository, String group) throws InterfaceCallException, NexusException;
+    List<NexusAssetInfo> queryGroupAssetMap(String nexusHostUrl, String userName, String password, String repository, String group) throws InterfaceCallException, NexusException;
 
 
     /**

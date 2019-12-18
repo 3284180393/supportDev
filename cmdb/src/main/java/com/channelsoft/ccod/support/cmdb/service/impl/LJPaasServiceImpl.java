@@ -2,6 +2,9 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.config.CCODBizSetInfo;
+import com.channelsoft.ccod.support.cmdb.config.ExcludeBiz;
+import com.channelsoft.ccod.support.cmdb.config.NotCheckCfgApp;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.DomainMapper;
 import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
@@ -10,24 +13,14 @@ import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
-import com.channelsoft.ccod.support.cmdb.utils.HttpTools;
+import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -162,11 +155,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         logger.info(String.format("basic ccod biz set : %s", JSONObject.toJSONString(basicBizSetMap)));
         logger.info(String.format("extend ccod biz set : %s", JSONObject.toJSONString(extendBizSetMap)));
         logger.info(String.format("app and set relation is : %s", JSONObject.toJSONString(this.appSetRelationMap)));
-        this.excludeBizSet = new HashSet<>();
-        for(String bizName : this.excludeBiz.getExcludes())
-        {
-            excludeBizSet.add(bizName);
-        }
+        this.excludeBizSet = new HashSet<>(this.excludeBiz.getExcludes());
         logger.info(String.format("%s will be excluded from ccod biz", JSONObject.toJSONString(this.excludeBizSet)));
         this.waitSyncUpdateToPaasBiz = initWaitToSyncPaasBiz();
         logger.info(String.format("biz=%s wait to sync update detail from cmdb to paas", JSONObject.toJSONString(this.waitSyncUpdateToPaasBiz)));
@@ -235,7 +224,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             condition.put("bk_biz_name", bkBizName);
         }
         paramsMap.put("condition", condition);
-        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         String data = parsePaasInterfaceResult(retVal);
         try
         {
@@ -256,7 +245,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         paramsMap.put("bk_biz_id", bkBizId);
         String url = String.format(this.queryBizSetUrlFmt, paasHostUrl);
-        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         String data = parsePaasInterfaceResult(retVal);
         try
         {
@@ -1061,7 +1050,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         dataMap.put("bk_capacity", capacity);
         dataMap.put("description", String.format("create by tools"));
         paramsMap.put("data", dataMap);
-        String retVal = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, headersMap, paramsMap);
         String data = parsePaasInterfaceResult(retVal);
         LJSetInfo setInfo = JSONObject.parseObject(data, LJSetInfo.class);
         return setInfo;
@@ -1076,7 +1065,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         paramsMap.put("bk_set_id", bkSetId + "");
         Map<String, String> headersMap = new HashMap<>();
         String url = String.format(this.deleteSetUrlFmt, this.paasHostUrl);
-        String result = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        String result = HttpRequestTools.httpPostRequest(url, headersMap, paramsMap);
         parsePaasInterfaceResult(result);
         logger.info(String.format("delete bkSetId=%d of bkBizId=%s SUCCESS", bkSetId, bkBizId));
     }
@@ -1095,7 +1084,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         paramsMap.put("data", dataMap);
         Map<String, String> headersMap = new HashMap<>();
         String url = String.format(this.addModuleUrlFmt, this.paasHostUrl);
-        String retVal = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, headersMap, paramsMap);
         String data = parsePaasInterfaceResult(retVal);
         return JSONObject.parseObject(data, LJModuleInfo.class);
     }
@@ -1110,7 +1099,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         paramsMap.put("bk_module_id", bkModuleId);
         Map<String, String> headersMap = new HashMap<>();
         String url = String.format(this.deleteModuleUrlFmt, this.paasHostUrl);
-        String retVal = HttpTools.httpPostRequest(url, headersMap, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, headersMap, paramsMap);
         parsePaasInterfaceResult(retVal);
     }
 
@@ -1134,7 +1123,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
         paramsMap.put("condition", conditionMap);
         String url = String.format(this.queryModuleUrlFmt, this.paasHostUrl);
-        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         String data = parsePaasInterfaceResult(retVal);
         try
         {
@@ -1202,7 +1191,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         conditionsList.add(generateLJObjectParam("host", new String[0], equalCondition));
         paramsMap.put("condition", conditionsList);
         String url = String.format(this.queryHostUrlFmt, this.paasHostUrl);
-        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         String data = parsePaasInterfaceResult(retVal);
         try
         {
@@ -1238,7 +1227,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         paramsMap.put("bk_module_id", moduleIdList);
         paramsMap.put("is_increment", isIncrement);
         String url = String.format(this.transferModuleUrlFmt, this.paasHostUrl);
-        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         parsePaasInterfaceResult(retVal);
     }
 
@@ -1259,7 +1248,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
         paramsMap.put("host_info", hostMap);
         String url = String.format(this.addHostUrlFmt, this.paasHostUrl);
-        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         parsePaasInterfaceResult(retVal);
         logger.info(String.format("add %s to bkBizId=%d : SUCCESS", String.join(",", newHostIps), bkBizId));
     }
@@ -1273,7 +1262,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         paramsMap.put("bk_biz_id", bkBizId);
         paramsMap.put("bk_host_id", hostList);
-        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         parsePaasInterfaceResult(retVal);
         logger.info(String.format("transfer hosts=%s of bkBizId=%d to idle pool : SUCCESS",
                 JSONArray.toJSONString(hostList), bkBizId));
@@ -1288,7 +1277,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         paramsMap.put("bk_biz_id", bkBizId);
         paramsMap.put("bk_host_id", hostList);
-        String retVal = HttpTools.httpPostRequest(url, paramsMap);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         parsePaasInterfaceResult(retVal);
         logger.info(String.format("transfer hosts=%s of bkBizId=%d to resource : SUCCESS",
                 JSONArray.toJSONString(hostList), bkBizId));
@@ -1513,6 +1502,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         po.setBkBizId(bkBizId);
         po.setBkHostId(hostMap.get(deployApp.getBzHostId()).getHostId());
         po.setBkModuleId(moduleMap.get(deployApp.getAppAlias()).getModuleId());
+
         po.setBkSetId(bkSet.getSetId());
         po.setBkSetName(bkSet.getSetName());
         po.setAppRunner(deployApp.getAppRunner());

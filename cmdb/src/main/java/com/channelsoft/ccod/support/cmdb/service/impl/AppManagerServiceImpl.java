@@ -2,11 +2,11 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.config.NotCheckCfgApp;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.dao.*;
-import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
-import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
+import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
@@ -118,13 +118,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Autowired
     ILJPaasService paasService;
 
+    @Autowired
+    private NotCheckCfgApp notCheckCfgApp;
+
     private boolean isPlatformCheckOngoing = false;
 
-    private Map<String, NexusComponentPo> appNexusComponentMap = new ConcurrentHashMap<>();
+    private Set<String> notCheckCfgAppSet;
 
     private final static Logger logger = LoggerFactory.getLogger(AppManagerServiceImpl.class);
 
-    private String appDirectoryFmt = "/%s/%s/%s";
+    private String appDirectoryFmt = "/%s/%s";
 
     private String appCfgDirectoryFmt = "/%s/%s/%s/%s/%s%s";
 
@@ -139,6 +142,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @PostConstruct
     void init() throws  Exception
     {
+        this.notCheckCfgAppSet = new HashSet<>(this.notCheckCfgApp.getNotCheckCfgApps());
+        logger.info(String.format("%s will not check cfg count of app",
+                JSONArray.toJSONString(this.notCheckCfgAppSet)));
         try
         {
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
@@ -171,7 +177,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public AppModuleVo[] queryApps(String appName) throws Exception {
+    public AppModuleVo[] queryApps(String appName) throws DataAccessException {
         logger.debug(String.format("begin to query app modules : appName=%s", appName));
         List<AppModuleVo> list = this.appModuleMapper.select(null, appName, null, null);
         logger.info(String.format("query %d app module record with appName=%s", list.size(), appName));
@@ -179,17 +185,17 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public AppModuleVo queryAppByVersion(String appName, String version) throws Exception {
+    public AppModuleVo queryAppByVersion(String appName, String version) throws ParamException, DataAccessException {
         logger.debug(String.format("begin to query appName=%s and version=%s app module record", appName, version));
         if(StringUtils.isBlank(appName))
         {
             logger.error("query FAIL : appName is blank");
-            throw new Exception("appName is blank");
+            throw new ParamException("appName is blank");
         }
         if(StringUtils.isBlank(version))
         {
             logger.error("query FAIL : version is blank");
-            throw new Exception("version is blank");
+            throw new ParamException("version is blank");
         }
         AppModuleVo moduleVo = this.appModuleMapper.selectByNameAndVersion(appName, version);
         if(moduleVo == null)
@@ -205,7 +211,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public PlatformAppDeployDetailVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws Exception {
+    public PlatformAppDeployDetailVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws DataAccessException {
         logger.debug(String.format("begin to query platform apps : platformId=%s, domainId=%s, hostIp=%s",
                 platformId, domainId, hostIp));
         List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, domainId, hostIp, null);
@@ -216,7 +222,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
 
     @Override
-    public PlatformAppDeployDetailVo[] queryAppDeployDetails(String appName, String platformId, String domainId, String hostIp) throws Exception {
+    public PlatformAppDeployDetailVo[] queryAppDeployDetails(String appName, String platformId, String domainId, String hostIp) throws DataAccessException {
         logger.debug(String.format("begin to query platform apps : appName=%s, platformId=%s, domainId=%s, hostIp=%s",
                 appName, platformId, domainId, hostIp));
         List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.selectAppDeployDetails(appName, platformId, domainId, hostIp);
@@ -271,10 +277,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
     {
         List<AppPo> appList = appMapper.select(null, null, null, null);
         Map<String, AppPo> appMap = new HashMap<>();
-        for(AppPo appPo : appList)
-        {
-            appMap.put(String.format(this.appDirectoryFmt, appPo.getAppName(), appPo.getAppAlias(), appPo.getVersion()), appPo);
-        }
         List<PlatformPo> platformList = this.platformMapper.select(null);
         Map<String, PlatformPo> platformMap = new HashMap<>();
         for(PlatformPo po : platformList)
@@ -304,7 +306,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             try
             {
-                boolean handleSucc = handlePlatformAppModule(module, appMap, appFileAssetMap, platformMap, domainMap, serverMap,
+                boolean handleSucc = handlePlatformAppModule(module, appList, appFileAssetMap, platformMap, domainMap, serverMap,
                         serverUserMap);
                 if(!handleSucc)
                 {
@@ -319,14 +321,32 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
-    private boolean handlePlatformAppModule(PlatformAppModuleVo module, Map<String, AppPo> appMap,
-                                            Map<String, Map<String, NexusAssetInfo>> appFileAssetMap,
+    /**
+     * 处理客户端收集的平台应用信息
+     * 如果该模块在db中没有记录则需要上传二进制安装包以及配置文件并在数据库创建一条记录
+     * 归档平台应用的配置文件，并在数据库创建一条平台应用详情记录
+     * @param module 客户端收集的平台应用信息
+     * @param appList 已有应用列表
+     * @param appFileAssetMap
+     * @param platformMap 已有平台列表
+     * @param domainMap 已有域列表
+     * @param serverMap
+     * @param userMap
+     * @return
+     * @throws Exception
+     */
+    private boolean handlePlatformAppModule(PlatformAppModuleVo module, List<AppPo> appList,
+                                            Map<String, List<NexusAssetInfo>> appFileAssetMap,
                                             Map<String, PlatformPo> platformMap, Map<String, DomainPo> domainMap,
-                                            Map<String, ServerPo> serverMap, Map<String, ServerUserPo> userMap) throws Exception
+                                            Map<String, ServerPo> serverMap, Map<String, ServerUserPo> userMap)
+            throws DataAccessException, InterfaceCallException, NexusException, DBNexusNotConsistentException
     {
+        AppPo appPo = module.getAppInfo();
+        String appName = appPo.getAppName();
+        String appVersion = appPo.getVersion();
         if(StringUtils.isBlank(module.getInstallPackage().getLocalSavePath()))
         {
-            logger.error(String.format("handle [%s] FAIL : not receive install packag[%s]",
+            logger.error(String.format("handle [%s] FAIL : not receive install package[%s]",
                     module.toString(), module.getInstallPackage().getFileName()));
             return false;
         }
@@ -344,19 +364,70 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     module.toString(), sb.toString()));
             return false;
         }
-        String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
+        String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getVersion());
         String cfgDirectory = String.format(this.appCfgDirectoryFmt, module.getPlatformId(), module.getDomainId(), module.getHostIp(),
                 module.getModuleName(), module.getModuleAliasName(), module.getBasePath());
         logger.info(String.format("handle [%s] platform app module : appDirectory=%s and cfgDirectory=%s",
                 module.toString(), appDirectory, cfgDirectory));
-        AppPo appPo = module.getAppInfo();
         if(!appFileAssetMap.containsKey(appDirectory))
         {
-            Map<String, NexusAssetInfo> fileAssetMap = this.nexusService.queryGroupAssetMap(this.nexusHostUrl,
+            List<NexusAssetInfo> appSetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl,
                     this.nexusUserName, this.nexusPassword, appRepository, appDirectory);
-            if(fileAssetMap.size() > 0)
+            if(appSetList.size() > 0)
             {
-                appFileAssetMap.put(appDirectory, fileAssetMap);
+                appFileAssetMap.put(appDirectory, appSetList);
+            }
+        }
+        Map<String, List<AppPo>> appMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
+        if(appMap.containsKey(appName))
+        {
+            Map<String, AppPo> versionMap = appMap.get(appName).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity()));
+            //检查报告的应用的的安装包和配置文件数是否和保存在nexus上的相同
+            if(versionMap.containsKey(appVersion) && appFileAssetMap.containsKey(appDirectory))
+            {
+                //检查应用的安装包文件名是否和保存的同版本相同
+                Map<String, NexusAssetInfo> fileAssetMap = appFileAssetMap.get(appDirectory).stream()
+                        .collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
+                //检查安装包名是否一致
+                String installPackagePath = String.format("%s/%s", module.getInstallPackage().getFileName()).replaceAll("^/", "");
+                if (!fileAssetMap.containsKey(installPackagePath)) {
+                    logger.error(String.format("handle [%s] module FAIL : reported install package=%s not equal the saved same version",
+                            module.toString(), installPackagePath));
+                    throw new DBNexusNotConsistentException(String.format("handle [%s] module FAIL : reported install package=%s not equal the saved same version",
+                            module.toString(), installPackagePath));
+                }
+                //检查应用的安装包的md5是否和保存的同版本相同
+                if (!fileAssetMap.get(installPackagePath).getMd5().equals(module.getInstallPackage().getFileMd5())) {
+                    logger.error(String.format("handle [%s] module FAIL : reported install package md5=%s not equal the saved same version md5=%s",
+                            module.toString(), module.getInstallPackage().getFileMd5(), fileAssetMap.get(module.getInstallPackage().getFileName()).getMd5()));
+                    throw new DBNexusNotConsistentException(String.format("handle [%s] module FAIL : reported install package md5=%s not equal the saved same version md5=%s",
+                            module.toString(), module.getInstallPackage().getFileMd5(), fileAssetMap.get(module.getInstallPackage().getFileName()).getMd5()));
+                }
+                if(this.notCheckCfgAppSet.contains(appName))
+                {
+                    if(fileAssetMap.size() != module.getCfgs().length + 1)
+                    {
+                        logger.error(String.format("cfg count of module[%s] is error : save=%d and report=%d",
+                                module.toString(), fileAssetMap.size()-1, module.getCfgs().length));
+                        throw new DBNexusNotConsistentException(String.format("cfg count of module[%s] is error : save=%d and report=%d",
+                                module.toString(), fileAssetMap.size()-1, module.getCfgs().length));
+                    }
+                    //检查应用的配置文件名是否和保存的相同
+                    for (DeployFileInfo cfg : module.getCfgs()) {
+                        String cfgPath = String.format("%s/%s", appDirectory, cfg.getFileName()).replaceAll("^/", "");
+                        if (!fileAssetMap.containsKey(cfgPath)) {
+                            logger.error(String.format("handle [%s] module FAIL : reported cfg=%s not in the saved same version list",
+                                    module.toString(), cfg.getFileName()));
+                            throw new DBNexusNotConsistentException(String.format("handle [%s] module FAIL : reported cfg=%s not in the saved same version list",
+                                    module.toString(), cfg.getFileName()));
+                        }
+                    }
+                }
+                else
+                {
+                    logger.info(String.format("appName=%s with version=%s is in not check cfg count apps, so save=%d and report=%d is legal",
+                            appName, appVersion, fileAssetMap.size()-1, module.getCfgs().length));
+                }
             }
         }
         if(appMap.containsKey(appDirectory) && appFileAssetMap.containsKey(appDirectory)) {
@@ -584,24 +655,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //    }
 
     @Override
-    public PlatformAppDeployDetailVo[] queryPlatformAppDeploy(QueryEntity queryEntity) throws Exception {
-        logger.info(String.format("begin to query queryPlatformAppDeploy, queryEntity=%s",
-                JSONObject.toJSONString(queryEntity)));
-        List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.selectPlatformApps(queryEntity.platformId, queryEntity.domainId,
-                queryEntity.hostIP, queryEntity.hostname);
-        return list.toArray(new PlatformAppDeployDetailVo[0]);
-    }
-
-    @Override
-    public AppModuleVo[] queryAppModules(QueryEntity queryEntity) throws Exception {
-        logger.info(String.format("begin to queryAppModules : queryEntity=%s", JSONObject.toJSONString(queryEntity)));
-        List<AppModuleVo> list = this.appModuleMapper.select(queryEntity.appType, queryEntity.appName,
-                queryEntity.appAlias, queryEntity.version);
-        logger.info(String.format("query %d App Module record", list.size()));
-        return list.toArray(new AppModuleVo[0]);
-    }
-
-    @Override
     public void createNewPlatformAppDataCollectTask(String platformId, String domainId, String hostIp, String appName, String version) throws Exception {
         logger.info(String.format("begin to create platformId=%s, domainId=%s, hostIp=%s, appName=%s, version=%s app collect task",
                 platformId, domainId, hostIp, appName, version));
@@ -777,20 +830,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
         po.setSetId(setId);
         platformAppMapper.insert(po);
         //将应用的配置文件添加到数据库
-        for(AppCfgFilePo cfg : deployApp.getCfgs())
-        {
-            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
-            cfgFilePo.setDeployPath(cfg.getDeployPath());
-            cfgFilePo.setCreateTime(now);
-            cfgFilePo.setPlatformAppId(po.getPlatformAppId());
-            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
-            cfgFilePo.setExt(cfg.getExt());
-            cfgFilePo.setFileName(cfg.getFileName());
-            cfgFilePo.setMd5(cfg.getMd5());
-            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
-            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
-            platformAppCfgFileMapper.insert(cfgFilePo);
-        }
+//        for(AppCfgFilePo cfg : deployApp.getCfgs())
+//        {
+//            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
+//            cfgFilePo.setDeployPath(cfg.getDeployPath());
+//            cfgFilePo.setCreateTime(now);
+//            cfgFilePo.setPlatformAppId(po.getPlatformAppId());
+//            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
+//            cfgFilePo.setExt(cfg.getExt());
+//            cfgFilePo.setFileName(cfg.getFileName());
+//            cfgFilePo.setMd5(cfg.getMd5());
+//            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
+//            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
+//            platformAppCfgFileMapper.insert(cfgFilePo);
+//        }
     }
 
     private List<PlatformAppCfgFilePo> downloadAndUpdateCfg(List<NexusAssetInfo> cfgs)
@@ -815,20 +868,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
         deployApp.setDeployTime(now);
         platformAppMapper.update(deployApp);
         //将应用的配置文件添加到数据库
-        for(AppCfgFilePo cfg : updateApp.getCfgs())
-        {
-            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
-            cfgFilePo.setDeployPath(cfg.getDeployPath());
-            cfgFilePo.setCreateTime(now);
-            cfgFilePo.setPlatformAppId(deployApp.getPlatformAppId());
-            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
-            cfgFilePo.setExt(cfg.getExt());
-            cfgFilePo.setFileName(cfg.getFileName());
-            cfgFilePo.setMd5(cfg.getMd5());
-            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
-            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
-            platformAppCfgFileMapper.insert(cfgFilePo);
-        }
+//        for(AppCfgFilePo cfg : updateApp.getCfgs())
+//        {
+//            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
+//            cfgFilePo.setDeployPath(cfg.getDeployPath());
+//            cfgFilePo.setCreateTime(now);
+//            cfgFilePo.setPlatformAppId(deployApp.getPlatformAppId());
+//            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
+//            cfgFilePo.setExt(cfg.getExt());
+//            cfgFilePo.setFileName(cfg.getFileName());
+//            cfgFilePo.setMd5(cfg.getMd5());
+//            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
+//            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
+//            platformAppCfgFileMapper.insert(cfgFilePo);
+//        }
     }
 
     @Test

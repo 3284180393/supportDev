@@ -146,27 +146,6 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping("/platformApp")
-    public AjaxResultPo queryPlatformAppDeploy()
-    {
-        QueryEntity queryEntity = new QueryEntity();
-        String uri = "/platformApp";
-        logger.debug(String.format("enter %s : queryEntity=%s", uri, JSONObject.toJSONString(queryEntity)));
-        AjaxResultPo resultPo;
-        try
-        {
-            PlatformAppDeployDetailVo[] apps = this.appManagerService.queryPlatformAppDeploy(queryEntity);
-            resultPo = new AjaxResultPo(true, "query SUCCESs", apps.length, apps);
-            logger.debug(String.format("query SUCCESS, quit %s controller", uri));
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("query [] platform app deploy exception", JSONObject.toJSONString(queryEntity)), e);
-            resultPo = AjaxResultPo.failed(e);
-        }
-        return resultPo;
-    }
-
     @RequestMapping("/createPlatformAppDataCollectTask")
     public AjaxResultPo queryPlatformAppDeploy(String platformId)
     {

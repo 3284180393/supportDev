@@ -10,6 +10,8 @@ mybatis:
   type-aliases-package : com.example.entity
 
 ccod:
+  notCheckCfgApps:
+    - cmsserver
   ccod-kernel-module:
     Glsserver:
       alias : gls

@@ -1,11 +1,13 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
+import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import org.springframework.dao.DataAccessException;
 
 import java.util.Map;
 
@@ -42,7 +44,7 @@ public interface IAppManagerService {
      * @return 查询结果
      * @throws Exception
      */
-    AppModuleVo queryAppByVersion(String appName, String version) throws Exception;
+    AppModuleVo queryAppByVersion(String appName, String version) throws ParamException, DataAccessException;
 
     /**
      * 查询指定应用信息,如果appName为空则查询所有的应用信息
@@ -50,7 +52,7 @@ public interface IAppManagerService {
      * @return 查询结果
      * @throws Exception
      */
-    AppModuleVo[] queryApps(String appName) throws Exception;
+    AppModuleVo[] queryApps(String appName) throws DataAccessException;
 
     /**
      * 查询某个平台所有模块部署情况
@@ -60,7 +62,7 @@ public interface IAppManagerService {
      * @return 查询结果
      * @throws Exception
      */
-    PlatformAppDeployDetailVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws Exception;
+    PlatformAppDeployDetailVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws DataAccessException;
 
     /**
      * 查询应用在平台的部署情况,条件可以为空,如果为空则忽略该参数
@@ -71,7 +73,7 @@ public interface IAppManagerService {
      * @return 查询结果
      * @throws Exception
      */
-    PlatformAppDeployDetailVo[] queryAppDeployDetails(String appName, String platformId, String domainId, String hostIp) throws Exception;
+    PlatformAppDeployDetailVo[] queryAppDeployDetails(String appName, String platformId, String domainId, String hostIp) throws DataAccessException;
 
     /**
      * 检查指定条件的平台的应用部署情况，并上传对应的安装包和配置文件
@@ -96,22 +98,6 @@ public interface IAppManagerService {
      * @throws Exception
      */
     PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception;
-
-    /**
-     * 查询指定条件的应用模块
-     * @param queryEntity 查询条件到的封装集合
-     * @return 查询结果
-     * @throws Exception
-     */
-    AppModuleVo[] queryAppModules(QueryEntity queryEntity) throws Exception;
-
-    /**
-     * 查询平台应用部署情况
-     * @param queryEntity 查询条件实体类
-     * @return 查询结果
-     * @throws Exception
-     */
-    PlatformAppDeployDetailVo[] queryPlatformAppDeploy(QueryEntity queryEntity) throws Exception;
 
     /**
      * 创建一个新的平台应用收集任务
