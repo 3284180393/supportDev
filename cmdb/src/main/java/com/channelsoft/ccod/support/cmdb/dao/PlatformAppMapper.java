@@ -38,7 +38,6 @@ public interface PlatformAppMapper {
      * @param platformId 平台id
      * @param domainId 域id
      * @param hostIp 主机ip
-     * @param hostname 主机名
      * @param appName 应用名
      * @param appAlias 应用别名
      * @param version 应用版本号
@@ -46,7 +45,7 @@ public interface PlatformAppMapper {
      * @throws DataAccessException
      */
     List<PlatformAppPo> select(@Param("platformId")String platformId, @Param("domainId")String domainId,
-                               @Param("hostIp")String hostIp, @Param("hostname")String hostname, @Param("appName")String appName,
+                               @Param("hostIp")String hostIp, @Param("appName")String appName,
                                @Param("appAlias")String appAlias, @Param("version")String version)
             throws DataAccessException;
 

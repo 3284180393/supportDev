@@ -214,7 +214,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     public PlatformAppDeployDetailVo[] queryPlatformApps(String platformId, String domainId, String hostIp) throws DataAccessException {
         logger.debug(String.format("begin to query platform apps : platformId=%s, domainId=%s, hostIp=%s",
                 platformId, domainId, hostIp));
-        List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, domainId, hostIp, null);
+        List<PlatformAppDeployDetailVo> list = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, domainId, hostIp);
         logger.info(String.format("query %d record with platformId=%s and domainId=%s and hostIp=%s",
                 list.size(), platformId, domainId, hostIp));
         return list.toArray(new PlatformAppDeployDetailVo[0]);
@@ -447,8 +447,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         PlatformAppPo platformApp = module.getPlatformApp();
         platformApp.setAppId(appPo.getAppId());
-        platformApp.setServerId(0);
-        platformApp.setRunnerId(0);
         this.platformAppMapper.insert(platformApp);
         for(DeployFileInfo cfgFilePo : module.getCfgs())
         {
@@ -785,19 +783,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
         PlatformAppPo po = new PlatformAppPo();
         po.setDeployTime(deployApp.getUpdateTime());
         po.setAppId(deployApp.getTargetAppId());
-        po.setRunnerId(0);
-        po.setServerId(0);
         po.setDomainId(domainId);
         po.setBasePath(deployApp.getBasePath());
         po.setPlatformId(platformId);
         po.setAppAlias(deployApp.getAppAlias());
-        po.setBkBizId(bkBizId);
-        po.setBkHostId(hostMap.get(deployApp.getBzHostId()).getHostId());
-        po.setBkModuleId(moduleMap.get(deployApp.getAppAlias()).getModuleId());
-        po.setBkSetId(bkSet.getSetId());
-        po.setBkSetName(bkSet.getSetName());
         po.setAppRunner(deployApp.getAppRunner());
-        po.setSetId(setId);
         platformAppMapper.insert(po);
         //将应用的配置文件添加到数据库
 //        for(AppCfgFilePo cfg : deployApp.getCfgs())

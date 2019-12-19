@@ -38,66 +38,68 @@
     </resultMap>
     <sql id="Base_Column_List" >
         pacf.platform_app_id AS platform_app_id,
-        pf.platform_name,
-        pf.platform_id,
-        dm.domain_id,
-        dm.domain_name,
-        svr.server_id,
-        svr.host_ip,
-        svr.host_name,
-        sur.user_id AS runner_id,
-        sur.user_name AS runner_name,
-        a.app_id,
-        a.app_name,
-        a.app_alias,
-        a.app_type,
-        a.version,
-        a.ccod_version,
-        pa.base_path,
-        pa.deploy_time,
-        aip.app_id AS aip_app_id,
-        aip.create_time AS aip_create_time,
-        aip.deploy_path AS aip_deploy_path,
-        aip.file_name AS aip_file_name,
-        aip.ext AS aip_ext,
-        aip.md5 AS aip_md5,
-        aip.nexus_asset_id AS aip_nexus_asset_id,
-        aip.nexus_directory AS aip_nexus_directory,
-        aip.nexus_repository AS aip_nexus_repository,
-        aip.package_id AS aip_package_id,
-        acf.app_id AS acf_app_id,
-        acf.create_time AS acf_create_time,
-        acf.deploy_path AS acf_deploy_path,
-        acf.file_name AS acf_file_name,
-        acf.ext AS acf_ext,
-        acf.md5 AS acf_md5,
-        acf.nexus_asset_id AS acf_nexus_asset_id,
-        acf.nexus_directory AS acf_nexus_directory,
-        acf.nexus_repository AS acf_nexus_repository,
-        acf.cfg_file_id AS acf_cfg_file_id,
-        pacf.platform_app_id AS pacf_platform_app_id,
-        pacf.create_time AS pacf_create_time,
-        pacf.deploy_path AS pacf_deploy_path,
-        pacf.file_name AS pacf_file_name,
-        pacf.ext AS pacf_ext,
-        pacf.md5 AS pacf_md5,
-        pacf.nexus_asset_id AS pacf_nexus_asset_id,
-        pacf.nexus_directory AS pacf_nexus_directory,
-        pacf.nexus_repository AS pacf_nexus_repository,
-        pacf.cfg_file_id AS pacf_cfg_file_id
-        FROM
-        platform_app pa
-        INNER JOIN platform pf ON pa.platform_id = pf.platform_id
+	    pf.platform_name,
+	    pf.platform_id,
+	    dm.domain_id,
+	    dm.domain_name,
+	    a.app_id,
+	    a.app_name,
+	    pa.app_alias AS app_alias,
+	    a.app_type,
+	    a.version,
+	    a.ccod_version,
+	    pa.host_ip AS host_ip,
+	    pa.app_runner AS app_runner,
+	    pa.base_path,
+	    pa.deploy_time,
+	    aip.app_id AS aip_app_id,
+	    aip.create_time AS aip_create_time,
+	    aip.deploy_path AS aip_deploy_path,
+	    aip.file_name AS aip_file_name,
+	    aip.ext AS aip_ext,
+	    aip.md5 AS aip_md5,
+	    aip.nexus_asset_id AS aip_nexus_asset_id,
+	    aip.nexus_directory AS aip_nexus_directory,
+	    aip.nexus_repository AS aip_nexus_repository,
+	    aip.package_id AS aip_package_id,
+	    acf.app_id AS acf_app_id,
+	    acf.create_time AS acf_create_time,
+	    acf.deploy_path AS acf_deploy_path,
+	    acf.file_name AS acf_file_name,
+	    acf.ext AS acf_ext,
+	    acf.md5 AS acf_md5,
+	    acf.nexus_asset_id AS acf_nexus_asset_id,
+	    acf.nexus_directory AS acf_nexus_directory,
+	    acf.nexus_repository AS acf_nexus_repository,
+	    acf.cfg_file_id AS acf_cfg_file_id,
+	    pacf.platform_app_id AS pacf_platform_app_id,
+	    pacf.create_time AS pacf_create_time,
+	    pacf.deploy_path AS pacf_deploy_path,
+	    pacf.file_name AS pacf_file_name,
+	    pacf.ext AS pacf_ext,
+	    pacf.md5 AS pacf_md5,
+	    pacf.nexus_asset_id AS pacf_nexus_asset_id,
+	    pacf.nexus_directory AS pacf_nexus_directory,
+	    pacf.nexus_repository AS pacf_nexus_repository,
+	    pacf.cfg_file_id AS pacf_cfg_file_id,
+	    bakm.app_bk_module_id AS app_bk_module_id,
+	    bakm.set_id AS set_id,
+	    bakm.bk_biz_id AS bk_biz_id,
+	    bakm.bk_set_id AS bk_set_id,
+	    bakm.bk_set_name AS bk_set_name,
+	    bakm.bk_module_id AS bk_module_id,
+	    bakm.bk_host_id AS bk_host_id
+    FROM
+	    platform_app pa
+    INNER JOIN platform pf ON pa.platform_id = pf.platform_id
         AND pf.`status` = 1
-        INNER JOIN domain dm ON pa.domain_id = dm.domain_id
+    INNER JOIN domain dm ON pa.domain_id = dm.domain_id
         AND dm.`status` = 1
-        INNER JOIN SERVER svr ON pa.server_id = svr.server_id
-        AND svr.`status` = 1
-        INNER JOIN server_user sur ON pa.runner_id = sur.user_id
-        INNER JOIN app a ON pa.app_id = a.app_id
-        INNER JOIN app_install_package aip ON a.app_id = aip.app_id
-        INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
-        INNER JOIN platform_app_cfg_file pacf ON pacf.platform_app_id = pa.platform_app_id
+    INNER JOIN app a ON pa.app_id = a.app_id
+    INNER JOIN app_install_package aip ON a.app_id = aip.app_id
+    INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
+    INNER JOIN platform_app_cfg_file pacf ON pacf.platform_app_id = pa.platform_app_id
+    LEFT OUTER JOIN platform_app_bk_module bakm ON bakm.platform_app_id = pa.platform_app_id
     </sql>
     <select id="selectPlatformApps" resultMap="AppModuleMap" >
         select
@@ -111,15 +113,12 @@
             And dm.domain_id=#{domainId,jdbcType=VARCHAR}
         </if>
         <if test="hostIp!=null">
-            And svr.host_ip=#{hostIp,jdbcType=VARCHAR}
-        </if>
-        <if test="hostname!=null">
-            And svr.host_name=#{hostname,jdbcType=VARCHAR}
+            And host_ip=#{hostIp,jdbcType=VARCHAR}
         </if>
         ORDER BY
             pf.platform_name ASC,
             dm.domain_name ASC,
-            svr.host_ip ASC
+            host_ip ASC
     </select>
     <select id="selectAppDeployDetails" resultMap="AppModuleMap" >
         select

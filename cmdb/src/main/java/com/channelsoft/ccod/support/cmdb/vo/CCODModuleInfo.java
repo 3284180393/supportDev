@@ -62,7 +62,7 @@ public class CCODModuleInfo {
         this.hostIp = deployApp.getHostIp();
         this.platformAppId = deployApp.getPlatformAppId();
         this.basePath = deployApp.getBasePath();
-        this.appRunner = deployApp.getRunnerName();
+        this.appRunner = deployApp.getAppRunner();
         this.installPackage = deployApp.getInstallPackage();
         this.srcCfgs = deployApp.getSrcCfgs();
         this.cfgs = deployApp.getCfgs();

@@ -4,10 +4,11 @@
     <resultMap id="PlatformAppMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         <id column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="app_id" property="appId" jdbcType="INTEGER" />
+        <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
-        <result column="server_id" property="serverId" jdbcType="INTEGER" />
-        <result column="runner_id" property="runnerId" jdbcType="INTEGER" />
+        <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_time" property="deployTime" jdbcType="updateTime" />
     </resultMap>
@@ -15,10 +16,11 @@
         SELECT
 	        pa.platform_app_id,
 	        pa.app_id,
+	        pa.app_alias,
 	        pa.platform_id,
 	        pa.domain_id,
-	        pa.server_id,
-	        pa.runner_id,
+	        pa.host_ip,
+	        pa.app_runner,
 	        pa.base_path,
 	        pa.deploy_time
         FROM
@@ -29,10 +31,11 @@
         SELECT
             pa.platform_app_id,
             pa.app_id,
+            pa.app_alias,
             pa.platform_id,
             pa.domain_id,
-            pa.server_id,
-            pa.runner_id,
+            pa.host_ip,
+            pa.app_runner,
             pa.base_path,
             pa.deploy_time
         FROM
@@ -40,8 +43,6 @@
         INNER JOIN app a ON pa.app_id = a.app_id
         INNER JOIN platform pf ON pa.platform_id = pf.platform_id
         INNER JOIN domain dm ON pa.domain_id = dm.domain_id
-        INNER JOIN `server` svr ON pa.server_id = svr.server_id
-        INNER JOIN server_user sur ON pa.runner_id = sur.user_id
         WHERE
         1 = 1
         <if test="platformId!=null">
@@ -51,10 +52,7 @@
             And dm.domain_id=#{domainId,jdbcType=VARCHAR}
         </if>
         <if test="hostIp!=null">
-            And svr.host_ip=#{hostIp,jdbcType=VARCHAR}
-        </if>
-        <if test="hostname!=null">
-            And svr.host_name=#{hostname,jdbcType=VARCHAR}
+            And host_ip=#{hostIp,jdbcType=VARCHAR}
         </if>
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}
@@ -68,8 +66,8 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo"
             useGeneratedKeys="true" keyProperty="platformAppId">
-        insert into platform_app(app_id, platform_id,	domain_id,	server_id,	runner_id,	base_path,	deploy_time)
-        values (#{appId,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{serverId,jdbcType=INTEGER}, #{runnerId,jdbcType=INTEGER}, #{basePath,jdbcType=VARCHAR}, #{deployTime,jdbcType=TIMESTAMP})
+        insert into platform_app(app_id, app_alias, platform_id,	domain_id,	host_ip, app_runner, base_path,	deploy_time)
+        values (#{appId,jdbcType=INTEGER}, #{appAlias,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{appRunner,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{deployTime,jdbcType=TIMESTAMP})
     </insert>
     <delete id="delete">
         delete
@@ -86,10 +84,6 @@
         <if test="domainId!=null">
             And
             domain_id=#{domainId,jdbcType=VARCHAR}
-        </if>
-        <if test="serverId!=null">
-            And
-            server_id=#{serverId,jdbcType=INTEGER}
         </if>
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >

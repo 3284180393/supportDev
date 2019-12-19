@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformAppBkModuleMapper" >
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppBkModulePo"
+            useGeneratedKeys="true" keyProperty="appBkModuleId">
+        insert into platform_app_bk_module(platform_app_id, set_id, bk_biz_id, bk_set_id, bk_set_name, bk_module_id, bk_host_id)
+        values (#{platformAppId,jdbcType=INTEGER}, #{setId,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkSetId,jdbcType=INTEGER}, #{bkSetName,jdbcType=VARCHAR}, #{bkModuleId,jdbcType=INTEGER}, #{bkHostId,jdbcType=INTEGER})
+    </insert>
+    <delete id="delete">
+        delete
+        from platform_app_bk_module
+        where platform_app_id=#{platformAppId,jdbcType=INTEGER}
+    </delete>
+</mapper>

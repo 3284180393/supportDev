@@ -140,3 +140,16 @@ CREATE TABLE `cmdb_lj_relation` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS `platform_app_bk_module`;
+CREATE TABLE `platform_app_bk_module` (
+`app_bk_module_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '平台应用蓝鲸module关系id,主键',
+	`platform_app_id` int(11) NOT NULL COMMENT '平台部署应用id,外键platform_app表主键',
+	  `set_id` varchar(40) NOT NULL COMMENT '蓝鲸set对应ccod的set id',
+`bk_biz_id` int(11) NOT NULL COMMENT '该应用归属的蓝鲸biz的id',
+`bk_set_id` int(11) NOT NULL COMMENT '该应用归属的蓝鲸set的id',
+`bk_set_name` varchar(40) NOT NULL COMMENT '该应用归属的蓝鲸set的名字',
+`bk_module_id` int(11) NOT NULL COMMENT '该应用对应的蓝鲸module的id',
+`bk_host_id` int(11) NOT NULL COMMENT '该应用部署服务器的蓝鲸host的id',
+  PRIMARY KEY (`app_bk_module_id`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
+

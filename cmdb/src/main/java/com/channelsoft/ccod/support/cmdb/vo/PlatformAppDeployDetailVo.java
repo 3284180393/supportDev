@@ -22,17 +22,9 @@ public class PlatformAppDeployDetailVo {
 
     private int appId; //应用id,外键app的appId
 
-    private int platId; //平台id,外键platform表主键
-
     private String platformId; //平台id
 
     private String platformName; //部署平台名
-
-    private String setId; //cmdb中标识该应用所属的set的id,setId在cmdb中不唯一,但platformName+setId在cmdb中唯一
-
-    private String setName; //set名,和蓝鲸paas平台对应的set名一致
-
-    private int domId; //域id,数外键domain表主键
 
     private String domainId; //应用所在的域id,外键domain的domain_id
 
@@ -44,15 +36,11 @@ public class PlatformAppDeployDetailVo {
 
     private AppType appType; //应用类型
 
-    private int serverId; //应用部署所在服务器id,外键server表的server_id
-
     private String hostname; //部署服务器名
 
     private String hostIp; //服务器ip
 
-    private int runnerId; //应用运行用户id
-
-    private String runnerName; //运行用户名
+    private String appRunner; //运行用户名
 
     private String ccodVersion; //ccod版本
 
@@ -74,11 +62,15 @@ public class PlatformAppDeployDetailVo {
 
     private List<PlatformAppCfgFilePo> cfgs; //应用部署后的配置文件
 
-    private int bkModuleId; //该应用在蓝鲸paas的唯一id
-
     private int bkBizId; //该应用在蓝鲸biz id
 
+    private String setId; //cmdb中标识该应用所属的set的id,setId在cmdb中不唯一,但platformName+setId在cmdb中唯一
+
     private int bkSetId; //该应用在paas的set id
+
+    private String bkSetName; //该应用在paas的set名字
+
+    private int bkModuleId; //该应用在蓝鲸paas的唯一id
 
     private int bkHostId; //该应用在蓝鲸paas的服务器id
 
@@ -112,22 +104,6 @@ public class PlatformAppDeployDetailVo {
 
     public void setDomainId(String domainId) {
         this.domainId = domainId;
-    }
-
-    public int getServerId() {
-        return serverId;
-    }
-
-    public void setServerId(int serverId) {
-        this.serverId = serverId;
-    }
-
-    public int getRunnerId() {
-        return runnerId;
-    }
-
-    public void setRunnerId(int runnerId) {
-        this.runnerId = runnerId;
     }
 
     public String getPlatformName() {
@@ -250,12 +226,12 @@ public class PlatformAppDeployDetailVo {
         this.cfgs = cfgs;
     }
 
-    public String getRunnerName() {
-        return runnerName;
+    public String getAppRunner() {
+        return appRunner;
     }
 
-    public void setRunnerName(String runnerName) {
-        this.runnerName = runnerName;
+    public void setAppRunner(String appRunner) {
+        this.appRunner = appRunner;
     }
 
     public String getHostIp() {
@@ -274,36 +250,12 @@ public class PlatformAppDeployDetailVo {
         this.ccodVersion = ccodVersion;
     }
 
-    public int getPlatId() {
-        return platId;
-    }
-
-    public void setPlatId(int platId) {
-        this.platId = platId;
-    }
-
     public String getSetId() {
         return setId;
     }
 
     public void setSetId(String setId) {
         this.setId = setId;
-    }
-
-    public String getSetName() {
-        return setName;
-    }
-
-    public void setSetName(String setName) {
-        this.setName = setName;
-    }
-
-    public int getDomId() {
-        return domId;
-    }
-
-    public void setDomId(int domId) {
-        this.domId = domId;
     }
 
     public int getBkModuleId() {
@@ -336,5 +288,13 @@ public class PlatformAppDeployDetailVo {
 
     public void setBkHostId(int bkHostId) {
         this.bkHostId = bkHostId;
+    }
+
+    public String getBkSetName() {
+        return bkSetName;
+    }
+
+    public void setBkSetName(String bkSetName) {
+        this.bkSetName = bkSetName;
     }
 }

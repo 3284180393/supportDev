@@ -290,7 +290,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         {
             deloyAppList = makeUpBizInfoForDeployApps(bizInfo.getBizId(), deloyAppList);
         }
-        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deloyAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getSetName));
+        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deloyAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
         Map<String, LJSetInfo> setMap = bkSetList.stream().collect(Collectors.toMap(LJSetInfo::getSetName, Function.identity()));
         if(!bizInfo.getBizName().equals(platform.getPlatformName()))
         {
@@ -329,7 +329,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             for(String domainName : domainAppMap.keySet())
             {
                 List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName);
-                CCODDomainInfo domain = new CCODDomainInfo(bkSet.getSetId(), domAppList.get(0).getDomId(),
+                CCODDomainInfo domain = new CCODDomainInfo(bkSet.getSetId(), 0,
                         domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
                 for(PlatformAppDeployDetailVo deployApp : domAppList)
                 {
@@ -367,11 +367,11 @@ public class LJPaasServiceImpl implements ILJPaasService {
             }
             deployApp.setBkBizId(bizId);
             BizSetDefine sd = this.appSetRelationMap.get(deployApp.getAppName()).get(0);
-            deployApp.setSetName(sd.getName());
+            deployApp.setBkSetName(sd.getName());
             if(StringUtils.isNotBlank(sd.getFixedDomainName()))
             {
                 deployApp.setSetId(sd.getId());
-                deployApp.setSetName(sd.getName());
+                deployApp.setBkSetName(sd.getName());
                 deployApp.setDomainId(sd.getFixedDomainId());
                 deployApp.setDomainName(sd.getFixedDomainName());
             }
@@ -552,7 +552,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             return this.allPlatformBiz;
         List<PlatformPo> platformList = platformMapper.select(1);
         List<PlatformAppDeployDetailVo> deployAppList = platformAppDeployDetailMapper.selectPlatformApps(null,
-                null, null,null);
+                null, null);
         if(isDevelop)
         {
             for(PlatformPo platformPo : platformList)
@@ -1363,7 +1363,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             throws NotSupportAppException, InterfaceCallException, LJPaasException
     {
         List<PlatformAppDeployDetailVo> deployApps = makeUpBizInfoForDeployApps(bkBizId, deployAppList);
-        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getSetName));
+        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
         List<String> setNames = new ArrayList<>(this.basicBizSetMap.keySet());
         setNames.addAll(new ArrayList<>(this.extendBizSetMap.keySet()));
         Collections.sort(setNames);
@@ -1471,19 +1471,11 @@ public class LJPaasServiceImpl implements ILJPaasService {
             PlatformAppPo po = new PlatformAppPo();
             po.setDeployTime(deployApp.getUpdateTime());
             po.setAppId(deployApp.getTargetAppId());
-            po.setRunnerId(0);
-            po.setServerId(0);
             po.setDomainId(domainId);
             po.setBasePath(deployApp.getBasePath());
             po.setPlatformId(platformId);
             po.setAppAlias(deployApp.getAppAlias());
-            po.setBkBizId(bkBizId);
-            po.setBkHostId(hostMap.get(deployApp.getBzHostId()).getHostId());
-            po.setBkModuleId(moduleMap.get(deployApp.getAppAlias()).getModuleId());
-            po.setBkSetId(bkSet.getSetId());
-            po.setBkSetName(bkSet.getSetName());
             po.setAppRunner(deployApp.getAppRunner());
-            po.setSetId(setId);
             platformAppMapper.insert(po);
         }
     }
@@ -1493,20 +1485,11 @@ public class LJPaasServiceImpl implements ILJPaasService {
         PlatformAppPo po = new PlatformAppPo();
         po.setDeployTime(deployApp.getUpdateTime());
         po.setAppId(deployApp.getTargetAppId());
-        po.setRunnerId(0);
-        po.setServerId(0);
         po.setDomainId(domainId);
         po.setBasePath(deployApp.getBasePath());
         po.setPlatformId(platformId);
         po.setAppAlias(deployApp.getAppAlias());
-        po.setBkBizId(bkBizId);
-        po.setBkHostId(hostMap.get(deployApp.getBzHostId()).getHostId());
-        po.setBkModuleId(moduleMap.get(deployApp.getAppAlias()).getModuleId());
-
-        po.setBkSetId(bkSet.getSetId());
-        po.setBkSetName(bkSet.getSetName());
         po.setAppRunner(deployApp.getAppRunner());
-        po.setSetId(setId);
         platformAppMapper.insert(po);
     }
 
@@ -1526,7 +1509,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             throw new ParamException(String.format("biz with bkBizId=%d and bkBizName=%s not exist", bkBizId, platformId));
         }
         String platformName = bizList.get(0).getBizName();
-        List<PlatformAppDeployDetailVo> deloyAppList = platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null, null);
+        List<PlatformAppDeployDetailVo> deloyAppList = platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
         if(deloyAppList.size() == 0)
         {
             logger.error(String.format("platformId=%s has not collected platform app deploy info record", platformId));
