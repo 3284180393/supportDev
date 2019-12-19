@@ -270,6 +270,9 @@ public class PlatformAppModuleVo {
         po.setPlatformId(this.platformId);
         po.setDomainId(this.domainId);
         po.setDeployTime(new Date());
+        po.setAppRunner(this.loginUser);
+        po.setHostIp(this.hostIp);
+        po.setAppAlias(this.getModuleAliasName());
         return po;
     }
 

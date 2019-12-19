@@ -2,10 +2,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
-import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
-import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
-import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
-import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 
 import java.util.Date;
 import java.util.List;
@@ -47,6 +44,29 @@ public class AppModuleVo {
     private AppInstallPackagePo installPackage; //应用部署包
 
     private List<AppCfgFilePo> cfgs; //应用配置文件
+
+    public AppModuleVo()
+    {
+
+    }
+
+    public AppModuleVo(AppPo app, AppInstallPackagePo installPackage, List<AppCfgFilePo> cfgs)
+    {
+        this.appId = app.getAppId();
+        this.appType = AppType.getEnum(app.getAppType());
+        this.appAlias = app.getAppAlias();
+        this.version = app.getVersion();
+        this.ccodVersion = app.getCcodVersion();
+        this.createTime = app.getCreateTime();
+        this.createReason = app.getCreateReason();
+        this.updateTime = app.getUpdateTime();
+        this.versionControl = VersionControl.getEnum(app.getVersionControl());
+        this.versionControlUrl = app.getVersionControlUrl();
+        this.basePath = app.getBasePath();
+        this.comment = app.getComment();
+        this.installPackage = installPackage;
+        this.cfgs = cfgs;
+    }
 
     public int getAppId() {
         return appId;
