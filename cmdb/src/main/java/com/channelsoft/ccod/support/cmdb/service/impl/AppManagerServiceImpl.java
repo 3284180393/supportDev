@@ -249,7 +249,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         try
         {
             this.isPlatformCheckOngoing = true;
-            List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, domainId, hostIp, appName, version);
+            List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, platformName, domainId, hostIp, appName, version);
             Map<String, List<PlatformAppModuleVo>> platformAppModuleMap = modules.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getPlatformId));
             if(platformAppModuleMap.keySet().size() > 1)
             {
@@ -327,14 +327,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception {
+    public PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String platformName, String domainName, String hostIp, String appName, String version) throws Exception {
         if(this.isPlatformCheckOngoing)
         {
             logger.error(String.format("start platform=%s app data check FAIL : some collect task is ongoing", platformId));
             throw new Exception(String.format("start platform=%s app data check FAIL : some collect task is ongoing", platformId));
         }
         this.isPlatformCheckOngoing = true;
-        List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, domainName, hostIp, appName, version);
+        List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, platformName, domainName, hostIp, appName, version);
         this.isPlatformCheckOngoing = false;
         return modules.toArray(new PlatformAppModuleVo[0]);
     }

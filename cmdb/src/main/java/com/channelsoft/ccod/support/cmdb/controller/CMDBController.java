@@ -147,12 +147,12 @@ public class CMDBController {
     }
 
     @RequestMapping("/createPlatformAppDataCollectTask")
-    public AjaxResultPo queryPlatformAppDeploy(String platformId)
+    public AjaxResultPo createPlatformAppDataCollectTask(String platformId, String platformName)
     {
         AjaxResultPo resultPo;
         try
         {
-            this.appManagerService.createNewPlatformAppDataCollectTask(platformId, null,null, null, null);
+            this.appManagerService.createNewPlatformAppDataCollectTask(platformId, platformName,null,null, null, null);
             resultPo = new AjaxResultPo(true, "app data task create success");
         }
         catch (Exception ex)
@@ -203,7 +203,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            this.appManagerService.createNewPlatformAppDataCollectTask(param.getPlatformId(), param.getDomainId(),
+            this.appManagerService.createNewPlatformAppDataCollectTask(param.getPlatformId(), param.getPlatformName(), param.getDomainId(),
                     param.getHostIp(), param.getAppName(), param.getVersion());
             logger.info(String.format("platform app collect task with param=%s create SUCCESS, quit %s controller",
                     JSONObject.toJSONString(param), uri));

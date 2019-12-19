@@ -91,6 +91,7 @@ public interface IAppManagerService {
     /**
      * 检查指定条件的平台的应用部署情况，不上传对应的安装包和配置文件
      * @param platformId 平台id，不能为空
+     * @param platformName 平台名,不能为空
      * @param domainName 域名，可以为空
      * @param hostIp 主机名，可以为空
      * @param appName 应用名，可以为空
@@ -98,7 +99,7 @@ public interface IAppManagerService {
      * @return 所有满足条件的应用配置信息
      * @throws Exception
      */
-    PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception;
+    PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String platformName, String domainName, String hostIp, String appName, String version) throws Exception;
 
     /**
      * 创建一个新的平台应用收集任务

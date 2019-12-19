@@ -93,14 +93,20 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     private String tmpSavePathFmt = "%s/%s";
 
     @Override
-    public List<PlatformAppModuleVo> checkPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception {
+    public List<PlatformAppModuleVo> checkPlatformAppData(String platformId, String platformName,String domainName, String hostIp, String appName, String version) throws Exception {
         if(StringUtils.isBlank(platformId))
         {
             logger.error(String.format("checkPlatformAppData FAIL : platformId is blank"));
             throw new Exception(String.format("checkPlatformAppData FAIL : platformId is blank"));
         }
+        if(StringUtils.isBlank(platformName))
+        {
+            logger.error(String.format("checkPlatformAppData FAIL : platformName is blank"));
+            throw new Exception(String.format("checkPlatformAppData FAIL : platformName is blank"));
+        }
         Map<String, String> params = new HashMap<>();
         params.put("platformId", platformId);
+        params.put("platformName", platformName);
         if(StringUtils.isNotBlank(domainName))
         {
             params.put("domainName", domainName);
@@ -141,14 +147,20 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
 
     @Override
-    public List<PlatformAppModuleVo> collectPlatformAppData(String platformId, String domainName, String hostIp, String appName, String version) throws Exception {
+    public List<PlatformAppModuleVo> collectPlatformAppData(String platformId, String platformName, String domainName, String hostIp, String appName, String version) throws Exception {
         if(StringUtils.isBlank(platformId))
         {
             logger.error(String.format("collectPlatformAppData FAIL : platformId is blank"));
             throw new Exception(String.format("collectPlatformAppData FAIL : platformId is blank"));
         }
+        if(StringUtils.isBlank(platformName))
+        {
+            logger.error(String.format("checkPlatformAppData FAIL : platformName is blank"));
+            throw new Exception(String.format("checkPlatformAppData FAIL : platformName is blank"));
+        }
         Map<String, String> params = new HashMap<>();
         params.put("platformId", platformId);
+        params.put("platformName", platformName);
         if(StringUtils.isNotBlank(domainName))
         {
             params.put("domainName", domainName);

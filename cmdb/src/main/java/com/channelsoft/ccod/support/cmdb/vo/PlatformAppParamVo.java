@@ -17,6 +17,8 @@ public class PlatformAppParamVo {
 
     private String platformId; //平台id
 
+    private String platformName; //平台名
+
     private String domainId; //域id
 
     private String hostIp; //主机ip
@@ -81,5 +83,13 @@ public class PlatformAppParamVo {
 
     public void setData(Object data) {
         this.data = data;
+    }
+
+    public String getPlatformName() {
+        return platformName;
+    }
+
+    public void setPlatformName(String platformName) {
+        this.platformName = platformName;
     }
 }
