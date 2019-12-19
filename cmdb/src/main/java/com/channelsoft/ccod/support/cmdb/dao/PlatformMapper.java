@@ -33,6 +33,15 @@ public interface PlatformMapper {
     PlatformPo selectByPrimaryKey(String platformId) throws DataAccessException;
 
     /**
+     * 根据平台名或是bkBizId查询指定平台，注意两个条件不能同时为空
+     * @param platformName 平台名
+     * @param bkBizId 平台对应蓝鲸paas的biz id
+     * @return 满足条件的记录
+     * @throws DataAccessException
+     */
+    PlatformPo selectByNameBizId(@Param("platformName")String platformName, @Param("bkBizId")Integer bkBizId) throws DataAccessException;
+
+    /**
      * 根据指定条件查询平台信息，如果某个参数为空则忽略该参数
      * @param status 平台状态
      * @return 满足条件的记录

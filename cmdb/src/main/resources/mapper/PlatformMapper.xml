@@ -4,6 +4,8 @@
     <resultMap id="PlatformMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformPo" >
         <id column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="platform_name" property="platformName" jdbcType="VARCHAR" />
+        <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
+        <result column="bk_cloud_id" property="bkCloudId" jdbcType="INTEGER" />
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
         <result column="status" property="status" jdbcType="INTEGER" />
@@ -11,13 +13,25 @@
         <result column="comment" property="comment" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        pf.platform_id, pf.platform_name, pf.create_time, pf.update_time, pf.`status`, pf.`comment`
+        pf.platform_id, pf.platform_name, pf.bk_biz_id, pf.bk_cloud_id, pf.create_time, pf.update_time, pf.`status`, pf.`comment`
     </sql>
     <select id="selectByPrimaryKey" resultMap="PlatformMap" parameterType="java.lang.String">
         select
         <include refid="Base_Column_List" />
         from platform pf
         where pf.platform_id=#{platformId,jdbcType=VARCHAR}
+    </select>
+    <select id="selectByNameBizId" resultMap="PlatformMap">
+        select
+        <include refid="Base_Column_List" />
+        from platform pf
+        where 1=1
+        <if test="platformName!=null">
+            And pf.platform_name=#{platformName,jdbcType=VARCHAR}
+        </if>
+        <if test="bkBizId!=null">
+            And pf.bk_biz_id=#{bkBizId,jdbcType=INTEGER}
+        </if>
     </select>
     <select id="select" resultMap="PlatformMap" >
         select
@@ -29,8 +43,8 @@
         </if>
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformPo">
-        insert into platform(platform_id, platform_name, create_time, update_time, `status`, ccod_version, `comment`)
-        values (#{platformId,jdbcType=VARCHAR}, #{platformName,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{ccodVersion,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR})
+        insert into platform(platform_id, platform_name, bk_biz_id, bk_cloud_id, create_time, update_time, `status`, ccod_version, `comment`)
+        values (#{platformId,jdbcType=VARCHAR}, #{platformName,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkCloudId,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{ccodVersion,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR})
     </insert>
     <delete id="delete" parameterType="java.lang.String">
         delete
@@ -40,6 +54,8 @@
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformPo" >
         update platform set
             platform_name = #{platformName,jdbcType=VARCHAR},
+            bk_biz_id = #{bkBizId,jdbcType=INTEGER},
+            bk_cloud_id = #{bkCloudId,jdbcType=INTEGER},
             status = #{status,jdbcType=INTEGER},
             ccod_version = #{ccodVersion,jdbcType=VARCHAR},
             comment = #{comment,jdbcType=VARCHAR},

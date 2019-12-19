@@ -17,6 +17,8 @@ public class PlatformPo {
 
     private int bkBizId; //平台在蓝鲸paas平台上的唯一id,平台名应当同paas上的bkBizName相同
 
+    private int bkCloudId; //平台主机在蓝鲸paas的cloud id
+
     private Date createTime; //创建时间
 
     private Date updateTime; //最后一次修改时间
@@ -91,4 +93,11 @@ public class PlatformPo {
         this.bkBizId = bkBizId;
     }
 
+    public int getBkCloudId() {
+        return bkCloudId;
+    }
+
+    public void setBkCloudId(int bkCloudId) {
+        this.bkCloudId = bkCloudId;
+    }
 }
