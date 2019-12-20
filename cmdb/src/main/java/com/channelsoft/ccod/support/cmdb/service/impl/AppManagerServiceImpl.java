@@ -746,7 +746,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     /**
-     * 将一条新的平台应用部署信息同时添加到蓝鲸paas以及本地数据库
+     * 部署应用到域主机
      * @param platformId 部署应用的平台id
      * @param setId 部署该应用的域归属的set id
      * @param domainId 部署该应用的域id
@@ -754,56 +754,70 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param bkSet 部署该应用的set信息
      * @param moduleList set下的module定义列表
      * @param hostList 平台下面的所有主机列表
-     * @param deployApp 部署的应用
+     * @param deployOperationList 部署的操作
      * @throws DataAccessException cmdb数据库访问异常
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
-    private void addNewDeployAppModule(String platformId, String setId, String domainId, int bkBizId, LJSetInfo bkSet,
+    private void deployAppsToDomainHost(String platformId, String setId, String domainId, int bkBizId, LJSetInfo bkSet,
                                        List<LJModuleInfo> moduleList, List<LJHostInfo> hostList,
-                                       AppUpdateOperationInfo deployApp)
+                                       List<AppUpdateOperationInfo> deployOperationList, List<AppPo> appList)
             throws DataAccessException, InterfaceCallException, LJPaasException
     {
         Date now = new Date();
         Map<String, LJModuleInfo> moduleMap = moduleList.stream().collect(Collectors.toMap(LJModuleInfo::getModuleName, Function.identity()));
         Map<Integer, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostId, Function.identity()));
-        /**
-         * 如果新部署的应用的alias在蓝鲸paas的指定set没有定义，则需要将alias添加到set的module定义
-         */
-        if(!moduleMap.containsKey(deployApp.getAppAlias()))
+        List<PlatformAppDeployDetailVo> deployAppList = new ArrayList<>();
+        for(AppUpdateOperationInfo deployOperationInfo : deployOperationList)
         {
-            LJModuleInfo module = paasService.addNewBkModule(bkBizId, bkSet.getSetId(), deployApp.getAppAlias());
-            moduleList.add(module);
-            moduleMap.put(deployApp.getAppAlias(), module);
+            PlatformAppPo deployApp = new PlatformAppPo();
+            deployApp.setAppAlias(deployOperationInfo.getAppAlias());
+            deployApp.setHostIp(hostMap.get(deployOperationInfo.getBzHostId()).getHostInnerIp());
+            deployApp.setAppRunner(deployOperationInfo.getAppRunner());
+            deployApp.setDeployTime(now);
+            deployApp.setAppId(deployOperationInfo.getTargetAppId());
+            deployApp.setPlatformId(platformId);
+            deployApp.setBasePath(deployOperationInfo.getBasePath());
+            deployApp.setDomainId(domainId);
+            platformAppMapper.insert(deployApp);
+            /**
+             * 如果新部署的应用的alias在蓝鲸paas的指定set没有定义，则需要将alias添加到set的module定义
+             */
+            if(!moduleMap.containsKey(deployApp.getAppAlias()))
+            {
+                LJModuleInfo module = paasService.addNewBkModule(bkBizId, bkSet.getSetId(), deployApp.getAppAlias());
+                moduleList.add(module);
+                moduleMap.put(deployApp.getAppAlias(), module);
+            }
+            //将该应用绑定到指定的host
+//            paasService.transferModulesToHost(bkBizId, new Integer[]{deployApp.getBzHostId()},
+//                    new Integer[]{moduleMap.get(deployApp.getAppAlias()).getModuleId()}, true);
+//            //在数据库添加该应用记录
+//            PlatformAppPo po = new PlatformAppPo();
+//            po.setAppId(deployApp.getTargetAppId());
+//            po.setDomainId(domainId);
+//            po.setBasePath(deployApp.getBasePath());
+//            po.setPlatformId(platformId);
+//            po.setAppAlias(deployApp.getAppAlias());
+//            po.setAppRunner(deployApp.getAppRunner());
+//            platformAppMapper.insert(po);
+//            //将应用的配置文件添加到数据库
+////        for(AppCfgFilePo cfg : deployApp.getCfgs())
+////        {
+////            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
+////            cfgFilePo.setDeployPath(cfg.getDeployPath());
+////            cfgFilePo.setCreateTime(now);
+////            cfgFilePo.setPlatformAppId(po.getPlatformAppId());
+////            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
+////            cfgFilePo.setExt(cfg.getExt());
+////            cfgFilePo.setFileName(cfg.getFileName());
+////            cfgFilePo.setMd5(cfg.getMd5());
+////            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
+////            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
+////            platformAppCfgFileMapper.insert(cfgFilePo);
+////        }
         }
-        //将该应用绑定到指定的host
-        paasService.transferModulesToHost(bkBizId, new Integer[]{deployApp.getBzHostId()},
-                new Integer[]{moduleMap.get(deployApp.getAppAlias()).getModuleId()}, true);
-        //在数据库添加该应用记录
-        PlatformAppPo po = new PlatformAppPo();
-        po.setDeployTime(deployApp.getUpdateTime());
-        po.setAppId(deployApp.getTargetAppId());
-        po.setDomainId(domainId);
-        po.setBasePath(deployApp.getBasePath());
-        po.setPlatformId(platformId);
-        po.setAppAlias(deployApp.getAppAlias());
-        po.setAppRunner(deployApp.getAppRunner());
-        platformAppMapper.insert(po);
-        //将应用的配置文件添加到数据库
-//        for(AppCfgFilePo cfg : deployApp.getCfgs())
-//        {
-//            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
-//            cfgFilePo.setDeployPath(cfg.getDeployPath());
-//            cfgFilePo.setCreateTime(now);
-//            cfgFilePo.setPlatformAppId(po.getPlatformAppId());
-//            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
-//            cfgFilePo.setExt(cfg.getExt());
-//            cfgFilePo.setFileName(cfg.getFileName());
-//            cfgFilePo.setMd5(cfg.getMd5());
-//            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
-//            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
-//            platformAppCfgFileMapper.insert(cfgFilePo);
-//        }
+
     }
 
     private List<PlatformAppCfgFilePo> downloadAndUpdateCfg(List<NexusAssetInfo> cfgs)

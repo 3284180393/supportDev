@@ -4,6 +4,8 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
 import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
+import com.channelsoft.ccod.support.cmdb.po.PlatformAppBkModulePo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 
 import java.util.List;
@@ -96,15 +98,6 @@ public interface ILJPaasService {
     void syncClientCollectResultToPaas(int bkBizId, String platformName, int hostCloudId) throws ParamException, NotSupportAppException, InterfaceCallException, LJPaasException;
 
     /**
-     * 将指定biz的主机迁移到资源池
-     * @param bkBizId 平台的biz id
-     * @param hostList 需要迁移到资源池的主机id列表
-     * @throws InterfaceCallException 接口调用失败
-     * @throws LJPaasException 接口返回调用失败或是解析接口调用结果失败
-     */
-    void transferHostToResource(int bkBizId, Integer[] hostList) throws InterfaceCallException, LJPaasException;
-
-    /**
      * 将指定的主机迁移到平台的空闲池
      * @param bkBizId 指定平台的biz id
      * @param hostList 需要迁移的主机列表
@@ -112,16 +105,6 @@ public interface ILJPaasService {
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
     void transferHostToIdlePool(int bkBizId, Integer[] hostList) throws InterfaceCallException, LJPaasException;
-
-    /**
-     * 将一组新的主机添加到idle pool去
-     * @param bkBizId 需要添加新主机的biz的id
-     * @param newHostIps 被添加的主机ip
-     * @param bkCloudId 该服务器所处的云id
-     * @throws InterfaceCallException 调用蓝鲸api失败
-     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
-     */
-    void addNewHostToIdlePool(int bkBizId, List<String> newHostIps, int bkCloudId) throws InterfaceCallException, LJPaasException;
 
     /**
      * 将指定平台的一组modules迁移到一组指定的主机上
@@ -199,4 +182,24 @@ public interface ILJPaasService {
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
     LJSetInfo addNewBizSet(int bkBizId, String bkSetName, String desc, int capacity) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 将一组已经部署好的应用绑定到paas平台的指定set下
+     * @param bkBizId 指定的平台biz id
+     * @param bkSetId 需要绑定应用的set的id
+     * @param deployAppList 需要绑定的应用列表
+     * @throws InterfaceCallException 调用蓝鲸api异常
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api结果异常
+     */
+    void bindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppDeployDetailVo> deployAppList) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 将一组已经部署好的应用从paas平台的指定set下解绑
+     * @param bkBizId 指定的平台biz id
+     * @param bkSetId 需要解绑应用的set id
+     * @param deployAppList 需要解绑的应用列表
+     * @throws InterfaceCallException 调用蓝鲸api异常
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api结果异常
+     */
+    void disBindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppBkModulePo> deployAppList) throws InterfaceCallException, LJPaasException;
 }

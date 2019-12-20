@@ -6,10 +6,7 @@ import com.channelsoft.ccod.support.cmdb.config.CCODBizSetInfo;
 import com.channelsoft.ccod.support.cmdb.config.ExcludeBiz;
 import com.channelsoft.ccod.support.cmdb.config.NotCheckCfgApp;
 import com.channelsoft.ccod.support.cmdb.constant.*;
-import com.channelsoft.ccod.support.cmdb.dao.DomainMapper;
-import com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper;
-import com.channelsoft.ccod.support.cmdb.dao.PlatformAppMapper;
-import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
+import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
@@ -56,6 +53,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     @Autowired
     private PlatformAppMapper platformAppMapper;
+
+    @Autowired
+    private PlatformAppBkModuleMapper platformAppBkModuleMapper;
 
     @Value("${lj-paas.host-url}")
     private String paasHostUrl;
@@ -366,16 +366,18 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 throw new NotSupportAppException(String.format("%s未定义所属的set信息", deployApp.getAppName()));
             }
             deployApp.setBkBizId(bizId);
-            BizSetDefine sd = this.appSetRelationMap.get(deployApp.getAppName()).get(0);
-            deployApp.setBkSetName(sd.getName());
-            if(StringUtils.isNotBlank(sd.getFixedDomainName()))
+            if(StringUtils.isBlank(deployApp.getBkSetName()))
             {
-                deployApp.setSetId(sd.getId());
+                BizSetDefine sd = this.appSetRelationMap.get(deployApp.getAppName()).get(0);
                 deployApp.setBkSetName(sd.getName());
-                deployApp.setDomainId(sd.getFixedDomainId());
-                deployApp.setDomainName(sd.getFixedDomainName());
+                if(StringUtils.isNotBlank(sd.getFixedDomainName()))
+                {
+                    deployApp.setSetId(sd.getId());
+                    deployApp.setBkSetName(sd.getName());
+                    deployApp.setDomainId(sd.getFixedDomainId());
+                    deployApp.setDomainName(sd.getFixedDomainName());
+                }
             }
-
         }
         return deployApps;
     }
@@ -966,7 +968,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         AppUpdateOperationInfo info = new AppUpdateOperationInfo();
         info.setAppRunner(deployApp.getAppRunner());
         info.setBasePath(deployApp.getBasePath());
-        info.setBkModuleId(deployApp.getBkModuleId());
         info.setBzHostId(deployApp.getBkHostId());
         info.setCfgs(new ArrayList<>());
         for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
@@ -982,13 +983,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
         info.setOperation(operation);
         info.setOriginalAppId(deployApp.getAppId());
-        info.setStatus(updateStatus);
-        info.setUpdateTime(now);
         info.setTargetAppId(deployApp.getAppId());
         switch (operation)
         {
             case ADD:
-                info.setBkModuleId(0);
                 info.setOriginalAppId(0);
                 break;
             case DELETE:
@@ -1231,8 +1229,17 @@ public class LJPaasServiceImpl implements ILJPaasService {
         parsePaasInterfaceResult(retVal);
     }
 
-    @Override
-    public void addNewHostToIdlePool(int bkBizId, List<String> newHostIps, int bkCloudId) throws InterfaceCallException, LJPaasException
+    /**
+     * 将一组新的主机添加到idle pool去
+     * @param bkBizId 需要添加新主机的biz的id
+     * @param bkIdlePoolSetId 空闲资源池set的id
+     * @param newHostIps 被添加的主机ip
+     * @param bkCloudId 该服务器所处的云id
+     * @return 添加后空闲池所有空闲服务器
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    private List<LJHostInfo> addNewHostToIdlePool(int bkBizId, int bkIdlePoolSetId, List<String> newHostIps, int bkCloudId) throws InterfaceCallException, LJPaasException
     {
         logger.info(String.format("begin to add %s to bkBizId=%d", String.join(",", newHostIps), bkBizId));
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
@@ -1251,6 +1258,25 @@ public class LJPaasServiceImpl implements ILJPaasService {
         String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         parsePaasInterfaceResult(retVal);
         logger.info(String.format("add %s to bkBizId=%d : SUCCESS", String.join(",", newHostIps), bkBizId));
+        List<LJHostInfo> idleHostList = queryBKHost(bkBizId, bkIdlePoolSetId, null, null);
+        Map<String, LJHostInfo> idleHostMap = idleHostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        StringBuffer sb = new StringBuffer();
+        for(String hostIp : newHostIps)
+        {
+            if(!idleHostMap.containsKey(hostIp))
+            {
+                sb.append(String.format("%s,", hostIp));
+            }
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            String errMsg = String.format("add host %s to idle pool FAIL : not find such ip at idle pool",
+                    sb.toString().replaceAll(",$", ""));
+            logger.error(errMsg);
+            throw new LJPaasException(errMsg);
+
+        }
+        return idleHostList;
     }
 
     @Override
@@ -1268,8 +1294,14 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 JSONArray.toJSONString(hostList), bkBizId));
     }
 
-    @Override
-    public void transferHostToResource(int bkBizId, Integer[] hostList) throws InterfaceCallException, LJPaasException
+    /**
+     * 将指定biz的主机迁移到资源池
+     * @param bkBizId 平台的biz id
+     * @param hostList 需要迁移到资源池的主机id列表
+     * @throws InterfaceCallException 接口调用失败
+     * @throws LJPaasException 接口返回调用失败或是解析接口调用结果失败
+     */
+    private void transferHostToResource(int bkBizId, Integer[] hostList) throws InterfaceCallException, LJPaasException
     {
         logger.info(String.format("begin to transfer hosts=%s of bkBizId=%d to resource",
                 JSONArray.toJSONString(hostList), bkBizId));
@@ -1359,64 +1391,123 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return queryLJPaasBizSet(bkBizId);
     }
 
-    private void autoCreateCCODBizFromClientCollectResult(int bkBizId, String platformName, int hostCloudId, List<PlatformAppDeployDetailVo> deployAppList)
+    /**
+     * 重置ccod biz，并将客户端收集的平台部署详情同步到biz（包括服务器以及服务器上部署的应用）
+     * @param bkBizId 需要自动同步的biz的id
+     * @param platformName 平台名，等价biz的bizName
+     * @param hostCloudId 该biz的服务器所属的cloud
+     * @param deployAppList 客户端收集的平台应用详情
+     * @throws NotSupportAppException 客户端收集的应用不在支持的应用列表
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败信息或是解析蓝鲸api返回结果失败
+     */
+    private void resetAndSyncAppDeployDetailToBiz(int bkBizId, String platformName, int hostCloudId, List<PlatformAppDeployDetailVo> deployAppList)
             throws NotSupportAppException, InterfaceCallException, LJPaasException
     {
+        logger.info(String.format("begin to sync bizName=%s and bizId=%d app deploy info to lj paas, hostCloud=%d and record count=%d",
+                platformName, bkBizId, hostCloudId, deployAppList.size()));
+        long currentTime = System.currentTimeMillis();
         List<PlatformAppDeployDetailVo> deployApps = makeUpBizInfoForDeployApps(bkBizId, deployAppList);
         Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
         List<String> setNames = new ArrayList<>(this.basicBizSetMap.keySet());
         setNames.addAll(new ArrayList<>(this.extendBizSetMap.keySet()));
         Collections.sort(setNames);
+        //将指定的biz重置
         Map<String, LJSetInfo> setMap = resetExistBiz(bkBizId, setNames).stream().collect(Collectors.toMap(LJSetInfo::getSetName, Function.identity()));
         Map<String, List<PlatformAppDeployDetailVo>> hostIpAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp));
         List<String> ipList = new ArrayList<>(hostIpAppMap.keySet());
         ipSort(ipList);
-        addNewHostToIdlePool(bkBizId, ipList, hostCloudId);
-        Map<String, LJHostInfo> hostMap = queryBKHost(bkBizId, setMap.get(this.paasIdlePoolSetName).getSetId(), null, null).stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
-        Map<String, List<Integer>> hostModuleMap = new HashMap<>();
-        for(String hostIp : ipList)
-        {
-            if(!hostMap.containsKey(hostIp))
-            {
-                logger.error(String.format("%s is not added to idle pool=%d of bkBizId=%d",
-                        hostIp, setMap.get(this.paasIdlePoolSetName).getSetId(), bkBizId));
-                throw new LJPaasException(String.format("add %s host to idle pool for %s : FAIL", hostIp, platformName));
-            }
-            hostModuleMap.put(hostIp, new ArrayList<>());
-        }
+        LJSetInfo idlePoolSet = setMap.get(this.paasIdlePoolSetName);
+        //在指定的云区域为biz添加空闲服务器
+        Map<String, LJHostInfo> idleHostMap = addNewHostToIdlePool(bkBizId, idlePoolSet.getSetId(), ipList, hostCloudId)
+                .stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
         for(String setName : setAppMap.keySet())
         {
-            Map<String, List<PlatformAppDeployDetailVo>> deployAppMap = setAppMap.get(setName).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppAlias));
-            List<String> appAliasList = new ArrayList<>(deployAppMap.keySet());
-            Collections.sort(appAliasList);
-            for(String appAlias : appAliasList)
+            List<LJModuleInfo> setModuleList = new ArrayList<>();
+            LJSetInfo setInfo = setMap.get(setName);
+            for(PlatformAppDeployDetailVo deployApp : setAppMap.get(setName))
             {
-                LJModuleInfo module = addNewBkModule(bkBizId, setMap.get(setName).getSetId(), appAlias);
-                for(PlatformAppDeployDetailVo deployApp : deployAppMap.get(appAlias))
-                {
-                    hostModuleMap.get(deployApp.getHostIp()).add(module.getModuleId());
-                }
+                int bkHostId = idleHostMap.get(deployApp.getHostIp()).getHostId();
+                int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, setInfo.getSetId(), bkHostId, setModuleList);
+                insertPlatformAppBkModule(deployApp.getPlatformAppId(), bkBizId, deployApp.getSetId(),  setInfo.getSetId(), setInfo.getSetName(), bkModuleId, bkHostId);
             }
         }
-        for(String hostIp : ipList)
-        {
-            transferModulesToHost(bkBizId, new Integer[]{hostMap.get(hostIp).getHostId()}, hostModuleMap.get(hostIp).toArray(new Integer[0]), false);
-        }
+        logger.info(String.format("sync bizName=%s and bizId=%d app deploy info to lj paas SUCCESS, timeUsage=%d(second)",
+                platformName, bkBizId, (System.currentTimeMillis()-currentTime)/1000));
+    }
+
+    private PlatformAppBkModulePo insertPlatformAppBkModule(int platformAppId, int bkBizId, String setId, int bkSetId,
+                                             String bkSetName, int bkModuleId, int bkHostId)
+    {
+        PlatformAppBkModulePo bkModulePo = new PlatformAppBkModulePo();
+        bkModulePo.setBkBizId(bkBizId);
+        bkModulePo.setBkHostId(bkHostId);
+        bkModulePo.setBkModuleId(bkModuleId);
+        bkModulePo.setBkSetId(bkSetId);
+        bkModulePo.setBkSetName(bkSetName);
+        bkModulePo.setPlatformAppId(platformAppId);
+        bkModulePo.setSetId(setId);
+        this.platformAppBkModuleMapper.insert(bkModulePo);
+        return bkModulePo;
     }
 
     /**
-     * 将一组应用添加到指定的set下
-     * @param bkBizId
-     * @param set
-     * @param deployAppList
-     * @param hostList 归属该平台的主机列表
+     * 将一个应用和指定的host绑定
+     * @param moduleName 应用名
+     * @param bkBizId 绑定应用的biz的id
+     * @param bkSetId 绑定应用的biz下的set id
+     * @param bkHostId 指定的host的id
+     * @param bkModuleList 该set下已经注册的module列表
+     * @return 绑定后该应用的module id
      */
-    private void addNewAppsToBkSet(int bkBizId, LJSetInfo set, List<PlatformAppDeployDetailVo> deployAppList, List<LJHostInfo> hostList) throws InterfaceCallException, LJPaasException, DBPAASDataNotConsistentException
+    private int bindModuleToBkHost(String moduleName, int bkBizId, int bkSetId, int bkHostId, List<LJModuleInfo> bkModuleList) throws InterfaceCallException, LJPaasException
     {
-        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
-        Map<String, LJModuleInfo> moduleMap = queryBkModule(bkBizId, set.getSetId(), null, null)
-                .stream().collect(Collectors.toMap(LJModuleInfo::getModuleName, Function.identity()));
+        Map<String, LJModuleInfo> moduleMap = bkModuleList.stream().collect(Collectors.toMap(LJModuleInfo::getModuleName, Function.identity()));
+        LJModuleInfo module = moduleMap.containsKey(moduleName) ? moduleMap.get(moduleName) : addNewBkModule(bkBizId, bkSetId, moduleName);
+        transferModulesToHost(bkBizId, new Integer[]{module.getModuleId()}, new Integer[]{bkHostId}, true);
+        if(!moduleMap.containsKey(moduleName))
+            bkModuleList.add(module);
+        return module.getModuleId();
+    }
 
+
+    /**
+     * 将一个应用从指定的host解绑
+     * @param bkModuleId 需要解绑的应用模块id
+     * @param bkBizId 该应用以及host对应的biz的id
+     * @param bkSetId 该应用对应的set的id
+     * @param bkHostId 需要解绑应用的host的id
+     * @throws InterfaceCallException 调用蓝鲸api异常
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果异常
+     */
+    void disBindModuleFromBkHost(int bkModuleId, int bkBizId, int bkSetId, int bkHostId) throws InterfaceCallException, LJPaasException
+    {
+        Map<Integer, LJModuleInfo> bindModuleMap = queryBkModule(bkBizId, bkSetId, bkHostId, null)
+                .stream().collect(Collectors.toMap(LJModuleInfo::getModuleId, Function.identity()));
+        bindModuleMap.remove(bkModuleId);
+        transferModulesToHost(bkBizId, bindModuleMap.keySet().toArray(new Integer[0]), new Integer[]{bkHostId}, false);
+    }
+
+    @Override
+    public void bindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppDeployDetailVo> deployAppList) throws InterfaceCallException, LJPaasException
+    {
+        List<LJModuleInfo> bkModuleList = queryBkModule(bkBizId, bkSetId, null, null);
+        Map<String, LJHostInfo> hostMap = queryBKHost(bkBizId, null, null, null)
+                .stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        for(PlatformAppDeployDetailVo deployApp : deployAppList)
+        {
+            int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, bkSetId, hostMap.get(deployApp.getHostIp()).getHostId(), bkModuleList);
+            insertPlatformAppBkModule(deployApp.getPlatformAppId(), bkBizId, deployApp.getSetId(), bkSetId, deployApp.getBkSetName(), bkModuleId, hostMap.get(deployApp.getHostIp()).getHostId());
+        }
+    }
+
+    @Override
+    public void disBindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppBkModulePo> disBindAppList) throws InterfaceCallException, LJPaasException {
+        for(PlatformAppBkModulePo disBindApp : disBindAppList)
+        {
+            disBindModuleFromBkHost(disBindApp.getBkModuleId(), disBindApp.getBkBizId(), disBindApp.getBkSetId(), disBindApp.getBkHostId());
+            this.platformAppBkModuleMapper.delete(disBindApp.getPlatformAppId());
+        }
     }
 
     private void addNewDomain(String platformId, String setId, String domainId, String domainName, int bkBizId, LJSetInfo bkSet, List<LJHostInfo> hostList, List<AppUpdateOperationInfo> deployAppList) throws DataAccessException, InterfaceCallException, LJPaasException, ParamException
@@ -1469,7 +1560,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         for(AppUpdateOperationInfo deployApp : deployAppList)
         {
             PlatformAppPo po = new PlatformAppPo();
-            po.setDeployTime(deployApp.getUpdateTime());
             po.setAppId(deployApp.getTargetAppId());
             po.setDomainId(domainId);
             po.setBasePath(deployApp.getBasePath());
@@ -1483,7 +1573,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
     private void addNewAppRecord(String platformId, String setId, String domainId, String domainName, int bkBizId, LJSetInfo bkSet, Map<Integer, LJModuleInfo> moduleMap, Map<Integer, LJHostInfo> hostMap, AppUpdateOperationInfo deployApp) throws DataAccessException, InterfaceCallException, LJPaasException
     {
         PlatformAppPo po = new PlatformAppPo();
-        po.setDeployTime(deployApp.getUpdateTime());
         po.setAppId(deployApp.getTargetAppId());
         po.setDomainId(domainId);
         po.setBasePath(deployApp.getBasePath());
@@ -1522,7 +1611,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             throw new ParamException(String.format("bkBizId=%s with bkBizName=%s is not equal platformId=%s with platformName=%s",
                     bkBizId, platformName, platformId, deloyAppList.get(0).getPlatformName()));
         }
-        autoCreateCCODBizFromClientCollectResult(bkBizId, platformName, hostCloudId, deloyAppList);
+        resetAndSyncAppDeployDetailToBiz(bkBizId, platformName, hostCloudId, deloyAppList);
     }
 
     private void initParamForTest()
