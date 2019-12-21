@@ -10,31 +10,31 @@ import com.alibaba.fastjson.annotation.JSONField;
  * @Version: 1.0
  */
 public class LJBizInfo {
-    private int bizId;
+    private int bkBizId;
 
-    private String bizName;
+    private String bkBizName;
 
-    public int getBizId() {
-        return bizId;
+    public int getBkBizId() {
+        return bkBizId;
     }
 
     @JSONField(name = "bk_biz_id")
-    public void setBizId(int bizId) {
-        this.bizId = bizId;
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
     }
 
-    public String getBizName() {
-        return bizName;
+    public String getBkBizName() {
+        return bkBizName;
     }
 
     @JSONField(name = "bk_biz_name")
-    public void setBizName(String bizName) {
-        this.bizName = bizName;
+    public void setBkBizName(String bkBizName) {
+        this.bkBizName = bkBizName;
     }
 
     @Override
     public String toString()
     {
-        return String.format("bizId=%d and bizName=%s", bizId, bizName);
+        return String.format("bkBizId=%d and bkBizName=%s", bkBizId, bkBizName);
     }
 }

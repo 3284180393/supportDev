@@ -15,7 +15,7 @@ public class CCODPlatformInfo {
 
     private int platId; //该平台在数据库的组件
 
-    private int bizId; //该平台在蓝鲸paas的biz id
+    private int bkBizId; //该平台在蓝鲸paas的biz id
 
     private String platformId; //平台id
 
@@ -34,8 +34,8 @@ public class CCODPlatformInfo {
 
     public CCODPlatformInfo(LJBizInfo bizInfo, int status)
     {
-        this.bizId = bizInfo.getBizId();
-        this.platformName = bizInfo.getBizName();
+        this.bkBizId = bizInfo.getBkBizId();
+        this.platformName = bizInfo.getBkBizName();
         this.status = status;
         this.sets = new ArrayList<>();
     }
@@ -43,19 +43,19 @@ public class CCODPlatformInfo {
 
     public CCODPlatformInfo(LJBizInfo bizInfo, int status, CCODIdlePoolInfo idlePool, List<CCODSetInfo> sets)
     {
-        this.bizId = bizInfo.getBizId();
-        this.platformName = bizInfo.getBizName();
+        this.bkBizId = bizInfo.getBkBizId();
+        this.platformName = bizInfo.getBkBizName();
         this.status = status;
         this.idlePool = idlePool;
         this.sets = sets;
     }
 
-    public int getBizId() {
-        return bizId;
+    public int getBkBizId() {
+        return bkBizId;
     }
 
-    public void setBizId(int bizId) {
-        this.bizId = bizId;
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
     }
 
     public String getPlatformName() {
@@ -112,7 +112,7 @@ public class CCODPlatformInfo {
         CCODPlatformInfo platformInfo = new CCODPlatformInfo();
         platformInfo.status = this.status;
         platformInfo.platformName = this.platformName;
-        platformInfo.bizId = this.bizId;
+        platformInfo.bkBizId = this.bkBizId;
         platformInfo.platformId = this.platformId;
         platformInfo.platId = this.platId;
         List<CCODSetInfo> setList = new ArrayList<>();

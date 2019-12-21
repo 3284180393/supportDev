@@ -40,7 +40,7 @@ public class CCODHostInfo {
         this.cpuMHZ = ljHostInfo.getCpuMHZ();
         this.cpuModule = ljHostInfo.getCpuModule();
         this.disk = ljHostInfo.getDisk();
-        this.bkHostId = ljHostInfo.getHostId();
+        this.bkHostId = ljHostInfo.getBkHostId();
         this.hostInnerIp = ljHostInfo.getHostInnerIp();
         this.hostOutIp = ljHostInfo.getHostOutIp();
         this.mac = ljHostInfo.getMac();

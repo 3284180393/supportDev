@@ -116,6 +116,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     PlatformResourceMapper platformResourceMapper;
 
     @Autowired
+    PlatformAppBkModuleMapper platformAppBkModuleMapper;
+
+    @Autowired
     ILJPaasService paasService;
 
     @Autowired
@@ -760,7 +763,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throws InterfaceCallException, LJPaasException
     {
         Date now = new Date();
-        Map<Integer, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostId, Function.identity()));
+        Map<Integer, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getBkHostId, Function.identity()));
         List<PlatformAppPo> deployAppList = new ArrayList<>();
         for(AppUpdateOperationInfo deployOperationInfo : deployOperationList)
         {
@@ -776,12 +779,46 @@ public class AppManagerServiceImpl implements IAppManagerService {
             platformAppMapper.insert(deployApp);
             deployAppList.add(deployApp);
         }
-        paasService.bindDeployAppsToBizSet(bkSet.getBizId(), setId, bkSet, deployAppList);
+        paasService.bindDeployAppsToBizSet(bkSet.getBkBizId(), setId, bkSet.getBkSetId(), bkSet.getBkSetName(), deployAppList);
     }
 
-    private void removeAppsFromDomainHost(LJSetInfo bkSet, List<PlatformAppBkModulePo> appBkModuleList) throws InterfaceCallException, LJPaasException
-    {
 
+    private void addNewDomainToPlatform(String domainId, String domainName, List<AppUpdateOperationInfo> domainApps,
+                              PlatformPo platform, String setId, LJSetInfo bkSet, List<LJHostInfo> bkHostList)
+            throws InterfaceCallException, LJPaasException
+    {
+        Date now = new Date();
+        DomainPo newDomain = new DomainPo();
+        newDomain.setComment("");
+        newDomain.setDomainId(domainId);
+        newDomain.setPlatformId(platform.getPlatformId());
+        newDomain.setStatus(1);
+        newDomain.setUpdateTime(now);
+        newDomain.setCreateTime(now);
+        newDomain.setDomainName(domainName);
+        this.domainMapper.insert(newDomain);
+        deployAppsToDomainHost(newDomain, setId, bkSet, bkHostList, domainApps);
+    }
+
+    private void removeAppsFromDomainHost(LJSetInfo bkSet, List<PlatformAppBkModulePo> removedAppBkModuleList)
+            throws InterfaceCallException, LJPaasException
+    {
+        this.paasService.disBindDeployAppsToBizSet(bkSet.getBkBizId(), bkSet.getBkSetId(), removedAppBkModuleList);
+        for(PlatformAppBkModulePo removedAppModule : removedAppBkModuleList)
+        {
+            platformAppCfgFileMapper.delete(null, removedAppModule.getPlatformAppId());
+            platformAppMapper.delete(removedAppModule.getPlatformAppId(), null, null);
+        }
+    }
+
+    private void deleteDomainFromPlatform(DomainPo deleteDomain, LJSetInfo bkSet, List<LJHostInfo> bkHostList)
+            throws InterfaceCallException, LJPaasException
+    {
+        List<PlatformAppBkModulePo> domainBkModuleList = this.platformAppBkModuleMapper.select(deleteDomain.getPlatformId(),
+                deleteDomain.getDomainId(), null, null, null, null);
+        this.removeAppsFromDomainHost(bkSet, domainBkModuleList);
+        platformAppMapper.delete(null, deleteDomain.getPlatformId(), deleteDomain.getDomainId());
+        domainMapper.delete(deleteDomain.getDomainId(), deleteDomain.getPlatformId());
     }
 
     private List<PlatformAppCfgFilePo> downloadAndUpdateCfg(List<NexusAssetInfo> cfgs)

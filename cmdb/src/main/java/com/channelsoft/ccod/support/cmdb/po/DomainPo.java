@@ -17,8 +17,6 @@ public class DomainPo {
 
     private String platformId; //域所在的平台
 
-    private int bkSetId; //该域在蓝鲸paas下的哪个set的id
-
     private Date createTime; //创建时间
 
     private Date updateTime; //修改时间
@@ -83,11 +81,4 @@ public class DomainPo {
         this.status = status;
     }
 
-    public int getBkSetId() {
-        return bkSetId;
-    }
-
-    public void setBkSetId(int bkSetId) {
-        this.bkSetId = bkSetId;
-    }
 }

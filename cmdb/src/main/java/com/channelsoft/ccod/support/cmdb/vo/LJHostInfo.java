@@ -10,7 +10,7 @@ import com.alibaba.fastjson.annotation.JSONField;
  * @Version: 1.0
  */
 public class LJHostInfo {
-    private int hostId; //id在蓝鲸存储的主键
+    private int bkHostId; //id在蓝鲸存储的主键
 
     private String mac; //主机mac地址
 
@@ -40,13 +40,14 @@ public class LJHostInfo {
 //
 //    private List<LJModuleInfo> modules; //服务器安装的应用模块
 
-    public int getHostId() {
-        return hostId;
+
+    public int getBkHostId() {
+        return bkHostId;
     }
 
     @JSONField(name = "bk_host_id")
-    public void setHostId(int hostId) {
-        this.hostId = hostId;
+    public void setBkHostId(int bkHostId) {
+        this.bkHostId = bkHostId;
     }
 
     public String getMac() {

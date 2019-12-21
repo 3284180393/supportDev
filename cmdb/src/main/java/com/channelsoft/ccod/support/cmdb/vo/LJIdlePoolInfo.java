@@ -23,9 +23,9 @@ public class LJIdlePoolInfo {
 
     public LJIdlePoolInfo(LJSetInfo idlePoolSet, String setId)
     {
-        this.bizId = idlePoolSet.getBizId();
-        this.bkSetId = idlePoolSet.getSetId();
-        this.setName = idlePoolSet.getSetName();
+        this.bizId = idlePoolSet.getBkBizId();
+        this.bkSetId = idlePoolSet.getBkSetId();
+        this.setName = idlePoolSet.getBkSetName();
         this.setId = setId;
         this.idleHosts = new ArrayList<>();
     }

@@ -5,6 +5,7 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
@@ -126,6 +127,10 @@ public class HttpRequestTools {
         }
         try
         {
+            StringEntity entity = new StringEntity(jsonParam.toString(),"utf-8");//解决中文乱码问题
+            entity.setContentEncoding("UTF-8");
+            entity.setContentType("application/json; charset=utf-8");
+            httpPost.setEntity(entity);
             CloseableHttpClient httpClient = getCloseableHttpClient();
             HttpResponse response = httpClient.execute(httpPost);
             if (response.getStatusLine().getStatusCode() == 404)

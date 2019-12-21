@@ -29,9 +29,9 @@ public class CCODSetInfo {
 
     public CCODSetInfo(String setId, LJSetInfo bkSet)
     {
-        this.bkSetId = bkSet.getSetId();
+        this.bkSetId = bkSet.getBkSetId();
         this.setId = setId;
-        this.bkSetName = bkSet.getSetName();
+        this.bkSetName = bkSet.getBkSetName();
         this.domains = new ArrayList<>();
     }
 

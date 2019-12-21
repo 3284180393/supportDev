@@ -10,59 +10,59 @@ import com.alibaba.fastjson.annotation.JSONField;
  * @Version: 1.0
  */
 public class LJModuleInfo {
-    private int bizId;
 
-    private int setId;
+    private int bkBizId;
 
-    private int moduleId;
+    private int bkSetId;
 
-    private String moduleName;
+    private int bkModuleId;
 
-    private String moduleType;
+    private String bkModuleName;
 
-    public int getBizId() {
-        return bizId;
+    private String bkModuleType;
+
+    public int getBkBizId() {
+        return bkBizId;
     }
 
     @JSONField(name = "bk_biz_id")
-    public void setBizId(int bizId) {
-        this.bizId = bizId;
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
     }
 
-    public int getSetId() {
-        return setId;
+    public int getBkSetId() {
+        return bkSetId;
     }
 
     @JSONField(name = "bk_set_id")
-    public void setSetId(int setId) {
-        this.setId = setId;
+    public void setBkSetId(int bkSetId) {
+        this.bkSetId = bkSetId;
     }
 
-    public int getModuleId() {
-        return moduleId;
+    public int getBkModuleId() {
+        return bkModuleId;
     }
 
     @JSONField(name = "bk_module_id")
-    public void setModuleId(int moduleId) {
-        this.moduleId = moduleId;
+    public void setBkModuleId(int bkModuleId) {
+        this.bkModuleId = bkModuleId;
     }
 
-    public String getModuleName() {
-        return moduleName;
+    public String getBkModuleName() {
+        return bkModuleName;
     }
 
     @JSONField(name = "bk_module_name")
-    public void setModuleName(String moduleName) {
-        this.moduleName = moduleName;
+    public void setBkModuleName(String bkModuleName) {
+        this.bkModuleName = bkModuleName;
     }
 
-    public String getModuleType() {
-        return moduleType;
+    public String getBkModuleType() {
+        return bkModuleType;
     }
 
     @JSONField(name = "bk_module_type")
-    public void setModuleType(String moduleType) {
-        this.moduleType = moduleType;
+    public void setBkModuleType(String bkModuleType) {
+        this.bkModuleType = bkModuleType;
     }
-
 }

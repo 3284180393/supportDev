@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * @ClassName: PlatformAppBkModuleMapper
  * @Author: lanhb
@@ -31,4 +33,30 @@ public interface PlatformAppBkModuleMapper {
      * @throws DataAccessException
      */
     void delete(@Param("platformAppId")Integer platformAppId, @Param("bkBizId")Integer bkBizId) throws DataAccessException;
+
+    /**
+     * 根据主键查询应用和蓝鲸paas模块关系
+     * @param appBkModuleId 应用模块关系id
+     * @return 查询结果
+     * @throws DataAccessException
+     */
+    PlatformAppBkModulePo selectByPrimaryKey(int appBkModuleId) throws DataAccessException;
+
+    /**
+     * 根据指定条件查询应用和蓝鲸paas模块关系,如果某个参数为空则忽略该参数
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param bkBizId 蓝鲸paas的biz id
+     * @param bkSetId 蓝鲸paas的set id
+     * @param bkModuleId 蓝鲸paas的module id
+     * @param bkHostId 蓝鲸paas的host id
+     * @return 查询结果
+     * @throws DataAccessException
+     */
+    List<PlatformAppBkModulePo> select(@Param("platformId")String platformId,
+                                       @Param("domainId")String domainId,
+                                       @Param("bkBizId")Integer bkBizId,
+                                       @Param("bkSetId")Integer bkSetId,
+                                       @Param("bkModuleId")Integer bkModuleId,
+                                       @Param("bkHostId")Integer bkHostId) throws DataAccessException;
 }

@@ -11,36 +11,36 @@ import com.alibaba.fastjson.annotation.JSONField;
  */
 public class LJSetInfo {
 
-    private int bizId; //set对应的biz的id
+    private int bkBizId; //set对应的biz的id
 
-    private int setId; //set id
+    private int bkSetId; //set id
 
-    private String setName; //set名
+    private String bkSetName; //set名
 
-    @JSONField(name = "bk_biz_id")
-    public void setBizId(int bizId) {
-        this.bizId = bizId;
+    public int getBkBizId() {
+        return bkBizId;
     }
 
-    public int getSetId() {
-        return setId;
+    @JSONField(name = "bk_biz_id")
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
+    }
+
+    public int getBkSetId() {
+        return bkSetId;
     }
 
     @JSONField(name = "bk_set_id")
-    public void setSetId(int setId) {
-        this.setId = setId;
+    public void setBkSetId(int bkSetId) {
+        this.bkSetId = bkSetId;
     }
 
-    public String getSetName() {
-        return setName;
+    public String getBkSetName() {
+        return bkSetName;
     }
 
     @JSONField(name = "bk_set_name")
-    public void setSetName(String setName) {
-        this.setName = setName;
-    }
-
-    public int getBizId() {
-        return bizId;
+    public void setBkSetName(String bkSetName) {
+        this.bkSetName = bkSetName;
     }
 }

@@ -46,9 +46,9 @@ public class CCODModuleInfo {
 
     public CCODModuleInfo(LJModuleInfo moduleInfo)
     {
-        this.bkModuleId = moduleInfo.getModuleId();
-        this.moduleAlias = moduleInfo.getModuleName();
-        this.moduleName = moduleInfo.getModuleName();
+        this.bkModuleId = moduleInfo.getBkModuleId();
+        this.moduleAlias = moduleInfo.getBkModuleName();
+        this.moduleName = moduleInfo.getBkModuleName();
     }
 
     public CCODModuleInfo(PlatformAppDeployDetailVo deployApp)

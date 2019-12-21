@@ -191,7 +191,7 @@ public interface ILJPaasService {
      * @throws InterfaceCallException 调用蓝鲸api异常
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api结果异常
      */
-    void bindDeployAppsToBizSet(int bkBizId, String setId, LJSetInfo bkSet, List<PlatformAppPo> deployAppList) throws InterfaceCallException, LJPaasException;
+    void bindDeployAppsToBizSet(int bkBizId, String setId, int bkSetId, String bkSetName, List<PlatformAppPo> deployAppList) throws InterfaceCallException, LJPaasException;
 
     /**
      * 将一组已经部署好的应用从paas平台的指定set下解绑

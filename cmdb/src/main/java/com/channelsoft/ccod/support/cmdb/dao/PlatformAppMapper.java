@@ -56,8 +56,7 @@ public interface PlatformAppMapper {
      * @param platformAppId 平台应用id
      * @param platformId 平台id
      * @param domainId 域id
-     * @param serverId 服务器id
      * @throws DataAccessException
      */
-    void delete(@Param("platformAppId")Integer platformAppId, @Param("platformId")String platformId, @Param("domainId")String domainId, @Param("serverId")Integer serverId) throws DataAccessException;
+    void delete(@Param("platformAppId")Integer platformAppId, @Param("platformId")String platformId, @Param("domainId")String domainId) throws DataAccessException;
 }

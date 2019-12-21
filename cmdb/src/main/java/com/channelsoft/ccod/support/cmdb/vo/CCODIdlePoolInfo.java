@@ -24,8 +24,8 @@ public class CCODIdlePoolInfo {
     public CCODIdlePoolInfo(int bkBizId, LJSetInfo idlePoolSet, List<LJHostInfo> idleHosts)
     {
         this.bkBizId = bkBizId;
-        this.bkSetId = idlePoolSet.getSetId();
-        this.setName = idlePoolSet.getSetName();
+        this.bkSetId = idlePoolSet.getBkSetId();
+        this.setName = idlePoolSet.getBkSetName();
         this.idleHosts = new ArrayList<>();
         for(LJHostInfo host : idleHosts)
         {
@@ -41,11 +41,11 @@ public class CCODIdlePoolInfo {
 
     public CCODIdlePoolInfo(LJSetInfo idlePoolSet)
     {
-        this.bkBizId = idlePoolSet.getBizId();
-        this.bkSetId = idlePoolSet.getSetId();
-        this.setName = idlePoolSet.getSetName();
+        this.bkBizId = idlePoolSet.getBkBizId();
+        this.bkSetId = idlePoolSet.getBkSetId();
+        this.setName = idlePoolSet.getBkSetName();
         this.idleHosts = new ArrayList<>();
-        this.setId = idlePoolSet.getSetName();
+        this.setId = idlePoolSet.getBkSetName();
     }
 
     public int getBkBizId() {
@@ -91,9 +91,9 @@ public class CCODIdlePoolInfo {
     public LJSetInfo getIdlePoolSet()
     {
         LJSetInfo setInfo = new LJSetInfo();
-        setInfo.setBizId(this.bkBizId);
-        setInfo.setSetName(this.setName);
-        setInfo.setSetId(this.bkSetId);
+        setInfo.setBkBizId(this.bkBizId);
+        setInfo.setBkSetName(this.setName);
+        setInfo.setBkSetId(this.bkSetId);
         return setInfo;
     }
 }
