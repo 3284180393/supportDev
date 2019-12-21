@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.dao;
 
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppBkModulePo;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +27,8 @@ public interface PlatformAppBkModuleMapper {
     /**
      * 删除一条已有的平台应用关联蓝鲸paas模块信息
      * @param platformAppId 需要删除的平台应用id
+     * @param bkBizId 需要删除的平台应用模块对应的biz id
      * @throws DataAccessException
      */
-    void delete(int platformAppId) throws DataAccessException;
+    void delete(@Param("platformAppId")Integer platformAppId, @Param("bkBizId")Integer bkBizId) throws DataAccessException;
 }

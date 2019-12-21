@@ -186,12 +186,12 @@ public interface ILJPaasService {
     /**
      * 将一组已经部署好的应用绑定到paas平台的指定set下
      * @param bkBizId 指定的平台biz id
-     * @param bkSetId 需要绑定应用的set的id
+     * @param setId 需要绑定应用的set的在cmdb的id
      * @param deployAppList 需要绑定的应用列表
      * @throws InterfaceCallException 调用蓝鲸api异常
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api结果异常
      */
-    void bindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppDeployDetailVo> deployAppList) throws InterfaceCallException, LJPaasException;
+    void bindDeployAppsToBizSet(int bkBizId, String setId, LJSetInfo bkSet, List<PlatformAppPo> deployAppList) throws InterfaceCallException, LJPaasException;
 
     /**
      * 将一组已经部署好的应用从paas平台的指定set下解绑

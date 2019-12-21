@@ -1393,19 +1393,19 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     /**
      * 重置ccod biz，并将客户端收集的平台部署详情同步到biz（包括服务器以及服务器上部署的应用）
+     * @param platform 数据库记录的需要同步的平台信息
      * @param bkBizId 需要自动同步的biz的id
-     * @param platformName 平台名，等价biz的bizName
      * @param hostCloudId 该biz的服务器所属的cloud
      * @param deployAppList 客户端收集的平台应用详情
      * @throws NotSupportAppException 客户端收集的应用不在支持的应用列表
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败信息或是解析蓝鲸api返回结果失败
      */
-    private void resetAndSyncAppDeployDetailToBiz(int bkBizId, String platformName, int hostCloudId, List<PlatformAppDeployDetailVo> deployAppList)
+    private void resetAndSyncAppDeployDetailToBiz(PlatformPo platform, int bkBizId, int hostCloudId, List<PlatformAppDeployDetailVo> deployAppList)
             throws NotSupportAppException, InterfaceCallException, LJPaasException
     {
         logger.info(String.format("begin to sync bizName=%s and bizId=%d app deploy info to lj paas, hostCloud=%d and record count=%d",
-                platformName, bkBizId, hostCloudId, deployAppList.size()));
+                platform.getPlatformName(), bkBizId, hostCloudId, deployAppList.size()));
         long currentTime = System.currentTimeMillis();
         List<PlatformAppDeployDetailVo> deployApps = makeUpBizInfoForDeployApps(bkBizId, deployAppList);
         Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
@@ -1421,6 +1421,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
         //在指定的云区域为biz添加空闲服务器
         Map<String, LJHostInfo> idleHostMap = addNewHostToIdlePool(bkBizId, idlePoolSet.getSetId(), ipList, hostCloudId)
                 .stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        //需要更新数据库平台信息,修改平台的bizId和cloudId信息
+        platform.setBkBizId(bkBizId);
+        platform.setBkCloudId(hostCloudId);
+        platformMapper.update(platform);
+        //需要删除已有的平台应用和蓝鲸模块关系表记录
+        platformAppBkModuleMapper.delete(null, bkBizId);
         for(String setName : setAppMap.keySet())
         {
             List<LJModuleInfo> setModuleList = new ArrayList<>();
@@ -1433,7 +1439,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             }
         }
         logger.info(String.format("sync bizName=%s and bizId=%d app deploy info to lj paas SUCCESS, timeUsage=%d(second)",
-                platformName, bkBizId, (System.currentTimeMillis()-currentTime)/1000));
+                platform.getPlatformName(), bkBizId, (System.currentTimeMillis()-currentTime)/1000));
     }
 
     private PlatformAppBkModulePo insertPlatformAppBkModule(int platformAppId, int bkBizId, String setId, int bkSetId,
@@ -1489,15 +1495,15 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public void bindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppDeployDetailVo> deployAppList) throws InterfaceCallException, LJPaasException
+    public void bindDeployAppsToBizSet(int bkBizId, String setId, LJSetInfo bkSet, List<PlatformAppPo> deployAppList) throws InterfaceCallException, LJPaasException
     {
-        List<LJModuleInfo> bkModuleList = queryBkModule(bkBizId, bkSetId, null, null);
+        List<LJModuleInfo> bkModuleList = queryBkModule(bkBizId, bkSet.getSetId(), null, null);
         Map<String, LJHostInfo> hostMap = queryBKHost(bkBizId, null, null, null)
                 .stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
-        for(PlatformAppDeployDetailVo deployApp : deployAppList)
+        for(PlatformAppPo deployApp : deployAppList)
         {
-            int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, bkSetId, hostMap.get(deployApp.getHostIp()).getHostId(), bkModuleList);
-            insertPlatformAppBkModule(deployApp.getPlatformAppId(), bkBizId, deployApp.getSetId(), bkSetId, deployApp.getBkSetName(), bkModuleId, hostMap.get(deployApp.getHostIp()).getHostId());
+            int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, bkSet.getSetId(), hostMap.get(deployApp.getHostIp()).getHostId(), bkModuleList);
+            insertPlatformAppBkModule(deployApp.getPlatformAppId(), bkBizId, setId, bkSet.getSetId(), bkSet.getSetName(), bkModuleId, hostMap.get(deployApp.getHostIp()).getHostId());
         }
     }
 
@@ -1506,7 +1512,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         for(PlatformAppBkModulePo disBindApp : disBindAppList)
         {
             disBindModuleFromBkHost(disBindApp.getBkModuleId(), disBindApp.getBkBizId(), disBindApp.getBkSetId(), disBindApp.getBkHostId());
-            this.platformAppBkModuleMapper.delete(disBindApp.getPlatformAppId());
+            this.platformAppBkModuleMapper.delete(disBindApp.getPlatformAppId(), null);
         }
     }
 
@@ -1591,27 +1597,25 @@ public class LJPaasServiceImpl implements ILJPaasService {
     public void syncClientCollectResultToPaas(int bkBizId, String platformId, int hostCloudId) throws ParamException, NotSupportAppException, InterfaceCallException, LJPaasException {
         logger.info(String.format("begin to sync client collect apps deploy details to lj paas : bkBizId=%d and platformId=%s",
                 bkBizId, platformId));
-        List<LJBizInfo> bizList = queryBKBiz(bkBizId, null);
+        PlatformPo platform = platformMapper.selectByPrimaryKey(platformId);
+        if(platform == null)
+        {
+            logger.error(String.format("platformId=%s platform not exist", platformId));
+            throw new ParamException(String.format("platformId=%s platform not exist", platformId));
+        }
+        List<LJBizInfo> bizList = queryBKBiz(bkBizId, platform.getPlatformName());
         if(bizList.size() == 0)
         {
-            logger.error(String.format("biz with bkBizId=%d and bkBizName=%s not exist", bkBizId, platformId));
-            throw new ParamException(String.format("biz with bkBizId=%d and bkBizName=%s not exist", bkBizId, platformId));
+            logger.error(String.format("biz with bkBizId=%d and bkBizName=%s not exist", bkBizId, platform.getPlatformName()));
+            throw new ParamException(String.format("biz with bkBizId=%d and bkBizName=%s not exist", bkBizId, platform.getPlatformName()));
         }
-        String platformName = bizList.get(0).getBizName();
         List<PlatformAppDeployDetailVo> deloyAppList = platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
         if(deloyAppList.size() == 0)
         {
             logger.error(String.format("platformId=%s has not collected platform app deploy info record", platformId));
             throw new ParamException(String.format("platformId=%s has not collected platform app deploy info record", platformId));
         }
-        if(!platformName.equals(deloyAppList.get(0).getPlatformName()))
-        {
-            logger.error(String.format("bkBizId=%s with bkBizName=%s is not equal platformId=%s with platformName=%s",
-                    bkBizId, platformName, platformId, deloyAppList.get(0).getPlatformName()));
-            throw new ParamException(String.format("bkBizId=%s with bkBizName=%s is not equal platformId=%s with platformName=%s",
-                    bkBizId, platformName, platformId, deloyAppList.get(0).getPlatformName()));
-        }
-        resetAndSyncAppDeployDetailToBiz(bkBizId, platformName, hostCloudId, deloyAppList);
+        resetAndSyncAppDeployDetailToBiz(platform, bkBizId, hostCloudId, deloyAppList);
     }
 
     private void initParamForTest()

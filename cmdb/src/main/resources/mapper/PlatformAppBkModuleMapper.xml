@@ -9,6 +9,14 @@
     <delete id="delete">
         delete
         from platform_app_bk_module
-        where platform_app_id=#{platformAppId,jdbcType=INTEGER}
+        where 1=1
+        <if test="platformAppId!=null">
+            And
+            platform_app_id=#{platformAppId,jdbcType=INTEGER}
+        </if>
+        <if test="bkBizId!=null">
+            And
+            bk_biz_id=#{bkBizId,jdbcType=INTEGER}
+        </if>
     </delete>
 </mapper>
