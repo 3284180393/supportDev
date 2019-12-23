@@ -53,5 +53,6 @@ public interface PlatformAppCfgFileMapper {
      * @param cfgFileId 应用配置文件id
      * @param platformAppId 平台应用id
      */
-    void delete(@Param("cfgFileId")Integer cfgFileId, @Param("platformAppId")Integer platformAppId);
+    void delete(@Param("cfgFileId") Integer cfgFileId,
+                @Param("platformAppId") Integer platformAppId);
 }

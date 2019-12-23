@@ -966,39 +966,41 @@ public class LJPaasServiceImpl implements ILJPaasService {
     {
         Date now = new Date();
         AppUpdateOperationInfo info = new AppUpdateOperationInfo();
-        info.setAppRunner(deployApp.getAppRunner());
-        info.setBasePath(deployApp.getBasePath());
-        info.setBzHostId(deployApp.getBkHostId());
-        info.setCfgs(new ArrayList<>());
-        for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
-        {
-            NexusAssetInfo assetInfo = new NexusAssetInfo();
-            Checksum checksum = new Checksum();
-            checksum.md5 = cfg.getMd5();
-            assetInfo.setChecksum(checksum);
-            assetInfo.setId(cfg.getNexusAssetId());
-            assetInfo.setPath(cfg.getNexusDirectory());
-            assetInfo.setRepository(cfg.getNexusRepository());
-            info.getCfgs().add(assetInfo);
-        }
-        info.setOperation(operation);
-        info.setOriginalAppId(deployApp.getAppId());
-        info.setTargetAppId(deployApp.getAppId());
-        switch (operation)
-        {
-            case ADD:
-                info.setOriginalAppId(0);
-                break;
-            case DELETE:
-                info.setTargetAppId(0);
-                info.setCfgs(new ArrayList<>());
-                break;
-            case CFG_UPDATE:
-                info.setTargetAppId(0);
-                break;
-            default:
-                break;
-        }
+//        info.setAppRunner(deployApp.getAppRunner());
+//        info.setBasePath(deployApp.getBasePath());
+//        info.setHostIp(deployApp.getHostIp());
+//        info.setCfgs(new ArrayList<>());
+//        for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
+//        {
+//            AppFileNexusInfo fileInfo = new AppFileNexusInfo();
+//            fileInfo.setDeployPath(deployApp.get);
+//            NexusAssetInfo assetInfo = new NexusAssetInfo();
+//            Checksum checksum = new Checksum();
+//            checksum.md5 = cfg.getMd5();
+//            assetInfo.setChecksum(checksum);
+//            assetInfo.setId(cfg.getNexusAssetId());
+//            assetInfo.setPath(cfg.getNexusDirectory());
+//            assetInfo.setRepository(cfg.getNexusRepository());
+//            info.getCfgs().add(assetInfo);
+//        }
+//        info.setOperation(operation);
+//        info.setOriginalAppId(deployApp.getAppId());
+//        info.setTargetAppId(deployApp.getAppId());
+//        switch (operation)
+//        {
+//            case ADD:
+//                info.setOriginalAppId(0);
+//                break;
+//            case DELETE:
+//                info.setTargetAppId(0);
+//                info.setCfgs(new ArrayList<>());
+//                break;
+//            case CFG_UPDATE:
+//                info.setTargetAppId(0);
+//                break;
+//            default:
+//                break;
+//        }
         return info;
     }
 
@@ -1516,27 +1518,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
     }
 
-    private void addNewDomain(String platformId, String setId, String domainId, String domainName, int bkBizId, LJSetInfo bkSet, List<LJHostInfo> hostList, List<AppUpdateOperationInfo> deployAppList) throws DataAccessException, InterfaceCallException, LJPaasException, ParamException
+    private void addNewDomain(String platformId, String setId, String domainId, String domainName, int bkBizId, LJSetInfo bkSet, List<LJHostInfo> hostList, List<AppPo> appList, List<AppUpdateOperationInfo> deployAppList) throws DataAccessException, InterfaceCallException, LJPaasException, ParamException
     {
         Map<Integer, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getBkHostId, Function.identity()));
         Map<Integer, Set<Integer>> transferAppMap = new HashMap<>();
-        for(AppUpdateOperationInfo deployApp : deployAppList)
-        {
-            if(!AppUpdateOperation.ADD.equals(deployApp.getOperation()))
-            {
-                logger.error(String.format("create domain can not include %s operation", deployApp.getOperation().name));
-                throw new ParamException(String.format("create domain can not include %s operation", deployApp.getOperation().name));
-            }
-            if(!hostMap.containsKey(deployApp.getBzHostId()))
-            {
-                logger.error(String.format("bkBizId=%d has not bkHostId=%d host", bkBizId, deployApp.getBzHostId()));
-                throw new ParamException(String.format("bkBizId=%d has not bkHostId=%d host", bkBizId, deployApp.getBzHostId()));
-            }
-            if(!transferAppMap.containsKey(deployApp.getBzHostId()))
-            {
-                transferAppMap.put(deployApp.getBzHostId(), new HashSet<>());
-            }
-        }
         Map<String, LJModuleInfo> moduleMap = queryBkModule(bkBizId, bkSet.getBkSetId(), null, null)
                 .stream().collect(Collectors.toMap(LJModuleInfo::getBkModuleName, Function.identity()));
         for(AppUpdateOperationInfo deployApp : deployAppList)
@@ -1546,7 +1531,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 LJModuleInfo moduleInfo = addNewBkModule(bkBizId, bkSet.getBkSetId(), deployApp.getAppAlias());
                 moduleMap.put(deployApp.getAppAlias(), moduleInfo);
             }
-            transferAppMap.get(deployApp.getBzHostId()).add(moduleMap.get(deployApp.getAppAlias()).getBkModuleId());
+            LJHostInfo bkHost = hostMap.get(deployApp.getHostIp());
+            if(!transferAppMap.containsKey(bkHost.getBkHostId()))
+            {
+                transferAppMap.put(bkHost.getBkHostId(), new HashSet<>());
+            }
+            transferAppMap.get(bkHost.getBkHostId()).add(moduleMap.get(deployApp.getAppAlias()).getBkModuleId());
         }
         for(Integer bkHostId : transferAppMap.keySet())
         {
@@ -1562,10 +1552,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
         domainPo.setDomainId(domainId);
         domainPo.setComment(String.format("created by tools automatic"));
         this.domainMapper.insert(domainPo);
+        Map<String, List<AppPo>> appMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
         for(AppUpdateOperationInfo deployApp : deployAppList)
         {
+            AppPo appPo = appMap.get(deployApp.getAppName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity())).get(deployApp.getTargetVersion());
             PlatformAppPo po = new PlatformAppPo();
-            po.setAppId(deployApp.getTargetAppId());
+            po.setAppId(appPo.getAppId());
             po.setDomainId(domainId);
             po.setBasePath(deployApp.getBasePath());
             po.setPlatformId(platformId);
@@ -1573,18 +1565,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
             po.setAppRunner(deployApp.getAppRunner());
             platformAppMapper.insert(po);
         }
-    }
-
-    private void addNewAppRecord(String platformId, String setId, String domainId, String domainName, int bkBizId, LJSetInfo bkSet, Map<Integer, LJModuleInfo> moduleMap, Map<Integer, LJHostInfo> hostMap, AppUpdateOperationInfo deployApp) throws DataAccessException, InterfaceCallException, LJPaasException
-    {
-        PlatformAppPo po = new PlatformAppPo();
-        po.setAppId(deployApp.getTargetAppId());
-        po.setDomainId(domainId);
-        po.setBasePath(deployApp.getBasePath());
-        po.setPlatformId(platformId);
-        po.setAppAlias(deployApp.getAppAlias());
-        po.setAppRunner(deployApp.getAppRunner());
-        platformAppMapper.insert(po);
     }
 
     @Override

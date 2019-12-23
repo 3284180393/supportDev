@@ -87,10 +87,6 @@
             And
             domain_id=#{domainId,jdbcType=VARCHAR}
         </if>
-        <if test="serverId!=null">
-            And
-            server_id=#{serverId,jdbcType=INTEGER}
-        </if>
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         update platform_app set

@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.NotCheckCfgApp;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformUpdateTaskType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
@@ -26,6 +28,8 @@ import org.springframework.util.DigestUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -755,37 +759,108 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param bkSet 部署该应用的set信息
      * @param hostList 平台下面的所有主机列表
      * @param deployOperationList 部署的操作
+     * @param appList 应用记录列表
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
-    private void deployAppsToDomainHost(DomainPo domain, String setId, LJSetInfo bkSet,
-                                       List<LJHostInfo> hostList, List<AppUpdateOperationInfo> deployOperationList)
-            throws InterfaceCallException, LJPaasException
+    private void deployAppsToDomainHost(DomainPo domain, String setId, LJSetInfo bkSet, List<LJHostInfo> hostList,
+                                        List<AppUpdateOperationInfo> deployOperationList, List<AppPo> appList)
+            throws InterfaceCallException, LJPaasException, NexusException, IOException
     {
+        logger.debug(String.format("begin to add new %d apps to %s/%s(%s)/%s(%s)", deployOperationList.size(),
+                domain.getPlatformId(), setId, bkSet.getBkSetName(), domain.getDomainId(), domain.getDomainName()));
         Date now = new Date();
-        Map<Integer, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getBkHostId, Function.identity()));
         List<PlatformAppPo> deployAppList = new ArrayList<>();
+        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        Map<String, List<AppPo>> appMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
         for(AppUpdateOperationInfo deployOperationInfo : deployOperationList)
         {
+            Map<String, AppPo> versionMap = appMap.get(deployOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity()));
+            AppPo appPo = versionMap.get(deployOperationInfo.getTargetVersion());
+            LJHostInfo bkHost = hostMap.get(deployOperationInfo.getHostIp());
+            logger.debug(String.format("insert appId=%d to bkHostId=%d with appAlias=%s and deployDirectory=%s to database",
+                    appPo.getAppId(), bkHost.getHostInnerIp(), deployOperationInfo.getAppAlias(), deployOperationInfo.getBasePath()));
             PlatformAppPo deployApp = new PlatformAppPo();
             deployApp.setAppAlias(deployOperationInfo.getAppAlias());
-            deployApp.setHostIp(hostMap.get(deployOperationInfo.getBzHostId()).getHostInnerIp());
+            deployApp.setHostIp(bkHost.getHostInnerIp());
             deployApp.setAppRunner(deployOperationInfo.getAppRunner());
             deployApp.setDeployTime(now);
-            deployApp.setAppId(deployOperationInfo.getTargetAppId());
+            deployApp.setAppId(appPo.getAppId());
             deployApp.setPlatformId(domain.getPlatformId());
             deployApp.setBasePath(deployOperationInfo.getBasePath());
             deployApp.setDomainId(domain.getDomainId());
             platformAppMapper.insert(deployApp);
             deployAppList.add(deployApp);
+            handlePlatformAppCfgs(deployApp, appPo, deployOperationInfo.getCfgs());
         }
         paasService.bindDeployAppsToBizSet(bkSet.getBkBizId(), setId, bkSet.getBkSetId(), bkSet.getBkSetName(), deployAppList);
     }
 
+    /**
+     * 处理平台应用配置文件
+     * 处理流程:首先下载配置文件,其次将下载的配置文件按一定格式上传到nexus去，最后入库
+     * @param platformAppPo 平台应用
+     * @param appPo 该平台应用对应的app详情
+     * @param cfgs 配置文件信息
+     * @throws InterfaceCallException 接口调用失败
+     * @throws NexusException nexus返回失败或是处理nexus返回信息失败
+     * @throws IOException 保存文件失败
+     */
+    private void handlePlatformAppCfgs(PlatformAppPo platformAppPo, AppPo appPo, List<AppFileNexusInfo> cfgs) throws InterfaceCallException, NexusException, IOException
+    {
+        List<DeployFileInfo> fileList = new ArrayList<>();
+        List<PlatformAppCfgFilePo> cfgFileList = new ArrayList<>();
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String directory = String.format("%s/%s/%s/%s/%s/%s/%s", platformAppPo.getPlatformId(),
+                platformAppPo.getDomainId(), platformAppPo.getHostIp(), appPo.getAppName(), appPo.getVersion(),
+                platformAppPo.getAppAlias(), sf.format(now));
+        logger.debug(String.format("begin to handle %s cfgs", directory));
+        for(AppFileNexusInfo cfg : cfgs)
+        {
+            String tmpSaveDir = String.format(this.tmpSaveDirFmt, System.getProperty("user.dir"), directory);
+            String downloadUrl = String.format("%s/%s/%s", this.nexusHostUrl, cfg.getNexusRepository(), cfg.getNexusPath());
+            logger.debug(String.format("download cfg from %s", downloadUrl));
+            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+            DeployFileInfo fileInfo = new DeployFileInfo();
+            fileInfo.setExt(cfg.getExt());
+            fileInfo.setFileMd5(cfg.getMd5());
+            fileInfo.setLocalSavePath(savePth);
+            fileInfo.setNexusRepository(this.appRepository);
+            fileInfo.setNexusDirectory(directory);
+            fileInfo.setFileSize(cfg.getFileSize());
+            fileInfo.setFileName(cfg.getFileName());
+            fileList.add(fileInfo);
+            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
+            cfgFilePo.setMd5(cfg.getMd5());
+            cfgFilePo.setFileName(cfg.getFileName());
+            cfgFilePo.setExt(cfg.getExt());
+            cfgFilePo.setPlatformAppId(platformAppPo.getPlatformAppId());
+            cfgFilePo.setCreateTime(now);
+            cfgFilePo.setDeployPath(cfg.getDeployPath());
+            cfgFilePo.setNexusDirectory(directory);
+            cfgFilePo.setNexusRepository(this.platformAppCfgRepository);
+            cfgFileList.add(cfgFilePo);
+        }
+        logger.debug(String.format("upload platform app cfgs to %s/%s/%s", nexusHostUrl, this.platformAppCfgRepository, directory));
+        Map<String, NexusAssetInfo> assetMap = nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.platformAppCfgRepository, directory, fileList.toArray(new DeployFileInfo[0]))
+                .stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
+        logger.debug(String.format("delete platformAppId=%d record from platform_app_cfg_file"));
+        platformAppCfgFileMapper.delete(null, platformAppPo.getPlatformAppId());
+        for(PlatformAppCfgFilePo cfgFilePo : cfgFileList)
+        {
+            String path = String.format("%s/%s", directory, cfgFilePo.getFileName());
+            cfgFilePo.setNexusAssetId(assetMap.get(path).getId());
+            logger.debug(String.format("insert %s cfg into platform_app_cfg_file", path));
+            this.platformAppCfgFileMapper.insert(cfgFilePo);
+        }
+        logger.info(String.format("handle %s cfgs SUCCESS", directory));
+    }
+
 
     private void addNewDomainToPlatform(String domainId, String domainName, List<AppUpdateOperationInfo> domainApps,
-                              PlatformPo platform, String setId, LJSetInfo bkSet, List<LJHostInfo> bkHostList)
-            throws InterfaceCallException, LJPaasException
+                              List<AppPo> appList, PlatformPo platform, String setId, LJSetInfo bkSet, List<LJHostInfo> bkHostList)
+            throws InterfaceCallException, LJPaasException, NexusException, IOException
     {
         Date now = new Date();
         DomainPo newDomain = new DomainPo();
@@ -797,66 +872,139 @@ public class AppManagerServiceImpl implements IAppManagerService {
         newDomain.setCreateTime(now);
         newDomain.setDomainName(domainName);
         this.domainMapper.insert(newDomain);
-        deployAppsToDomainHost(newDomain, setId, bkSet, bkHostList, domainApps);
+        deployAppsToDomainHost(newDomain, setId, bkSet, bkHostList, domainApps, appList);
     }
 
-    private void removeAppsFromDomainHost(LJSetInfo bkSet, List<PlatformAppBkModulePo> removedAppBkModuleList)
+    /**
+     * 将指定域的一组应用删除
+     * @param domain 指定删除应用的域
+     * @param bkSet 该域归属的蓝鲸paas的set
+     * @param removedAppBkModuleList 需要移除的应用列表
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果失败
+     */
+    private void removeAppsFromDomainHost(DomainPo domain, LJSetInfo bkSet, List<PlatformAppBkModulePo> removedAppBkModuleList)
             throws InterfaceCallException, LJPaasException
     {
+        logger.debug(String.format("begin to remove %d apps from platformId=%s and domainId=%s",
+                removedAppBkModuleList.size(), domain.getPlatformId(), domain.getDomainId()));
         this.paasService.disBindDeployAppsToBizSet(bkSet.getBkBizId(), bkSet.getBkSetId(), removedAppBkModuleList);
         for(PlatformAppBkModulePo removedAppModule : removedAppBkModuleList)
         {
+            logger.debug(String.format("delete id=%d platform app cfg record", removedAppModule.getPlatformAppId()));
             platformAppCfgFileMapper.delete(null, removedAppModule.getPlatformAppId());
+            logger.debug(String.format("delete id=%d platform app record", removedAppModule.getPlatformAppId()));
             platformAppMapper.delete(removedAppModule.getPlatformAppId(), null, null);
         }
+        logger.debug(String.format("remove %d apps from platformId=%s and domainId=%s SUCCESS",
+                removedAppBkModuleList.size(), domain.getPlatformId(), domain.getDomainId()));
     }
 
+    private String updateOperationCheck(PlatformUpdateTaskType taskType, DomainUpdateType updateType, List<AppUpdateOperationInfo> operationList, PlatformPo platformPo, DomainPo domainPo, List<AppPo> appList, List<LJHostInfo> hostList)
+    {
+        StringBuffer sb = new StringBuffer();
+        if(PlatformUpdateTaskType.CREATE.equals(taskType))
+        {
+            if(!DomainUpdateType.ADD.equals(updateType))
+            {
+                logger.error(String.format("%s of %s only support DomainUpdateType=%s, not %s",
+                        taskType.name, platformPo.getPlatformId(), DomainUpdateType.ADD.name, updateType.name));
+                return String.format("%s of %s only support DomainUpdateType=%s, not %s",
+                        taskType.name, platformPo.getPlatformId(), DomainUpdateType.ADD.name, updateType.name);
+            }
+        }
+        for(AppUpdateOperationInfo operationInfo : operationList)
+        {
+            if(operationInfo.getOperation() == null)
+            {
+                logger.error(String.format("operationType of %s is blank", JSONObject.toJSONString(operationInfo)));
+                return String.format("domainId=%s of platformId=%s");
+            }
+            switch (operationInfo.getOperation())
+            {
+                case ADD:
+                case VERSION_UPDATE:
+                case CFG_UPDATE:
+                case DELETE:
+                default:
+                    sb.append("%s operation not support;");
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 将某个域从平台移除
+     * @param deleteDomain 需要删除的域
+     * @param bkSet 该域归属的蓝鲸paas的set
+     * @param bkHostList 该域关联的服务器信息
+     * @throws InterfaceCallException 调用蓝鲸api异常
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸返回消息失败
+     */
     private void deleteDomainFromPlatform(DomainPo deleteDomain, LJSetInfo bkSet, List<LJHostInfo> bkHostList)
             throws InterfaceCallException, LJPaasException
     {
+        logger.debug(String.format("begin to remove domainId=%s and domainName=%s from platformId=%s",
+                deleteDomain.getDomainId(), deleteDomain.getDomainName(), deleteDomain.getPlatformId()));
         List<PlatformAppBkModulePo> domainBkModuleList = this.platformAppBkModuleMapper.select(deleteDomain.getPlatformId(),
                 deleteDomain.getDomainId(), null, null, null, null);
-        this.removeAppsFromDomainHost(bkSet, domainBkModuleList);
+        this.removeAppsFromDomainHost(deleteDomain, bkSet, domainBkModuleList);
+        logger.debug(String.format("delete all domainId=%s and platformId=%s app record",
+                deleteDomain.getDomainId(), deleteDomain.getPlatformId()));
         platformAppMapper.delete(null, deleteDomain.getPlatformId(), deleteDomain.getDomainId());
+        logger.debug(String.format("delete domainId=%s and platformId=%s record from database",
+                deleteDomain.getDomainId(), deleteDomain.getPlatformId()));
         domainMapper.delete(deleteDomain.getDomainId(), deleteDomain.getPlatformId());
-    }
-
-    private List<PlatformAppCfgFilePo> downloadAndUpdateCfg(List<NexusAssetInfo> cfgs)
-    {
-        List<PlatformAppCfgFilePo> cfgFileList = new ArrayList<>();
-        return cfgFileList;
+        logger.info(String.format("delete domainId=%s from platformId=%s SUCCESS",
+                deleteDomain.getDomainId(), deleteDomain.getPlatformId()));
     }
 
     /**
      * 升级已有的应用模块
      * @param updateApp 模块升级操作信息
+     * @param deployApp 该模块的部署记录
+     * @param originalApp 升级前app信息
+     * @param targetApp 升级后app信息
      * @throws DataAccessException cmdb数据库访问异常
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
-    private void updateDeployAppModule(AppUpdateOperationInfo updateApp)
-            throws DataAccessException, InterfaceCallException, LJPaasException
+    private void updateDeployAppModuleVersion(AppUpdateOperationInfo updateApp, PlatformAppPo deployApp, AppPo originalApp, AppPo targetApp)
+            throws InterfaceCallException, NexusException, IOException
     {
+        logger.debug(String.format("begin to modify %s version from %s to %s at %s/%s/%s",
+                updateApp.getAppAlias(), originalApp.getVersion(), targetApp.getVersion(), deployApp.getPlatformId(), deployApp.getDomainId(), deployApp.getHostIp()));
         Date now = new Date();
-        PlatformAppPo deployApp = platformAppMapper.selectByPrimaryKey(updateApp.getPlatformAppId());
-        deployApp.setAppId(updateApp.getTargetAppId());
+        handlePlatformAppCfgs(deployApp, targetApp, updateApp.getCfgs());
+        deployApp.setAppId(targetApp.getAppId());
         deployApp.setDeployTime(now);
+        logger.debug(String.format("update platformAppId=%d platform_app record", deployApp.getPlatformAppId()));
         platformAppMapper.update(deployApp);
-        //将应用的配置文件添加到数据库
-//        for(AppCfgFilePo cfg : updateApp.getCfgs())
-//        {
-//            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
-//            cfgFilePo.setDeployPath(cfg.getDeployPath());
-//            cfgFilePo.setCreateTime(now);
-//            cfgFilePo.setPlatformAppId(deployApp.getPlatformAppId());
-//            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
-//            cfgFilePo.setExt(cfg.getExt());
-//            cfgFilePo.setFileName(cfg.getFileName());
-//            cfgFilePo.setMd5(cfg.getMd5());
-//            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
-//            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
-//            platformAppCfgFileMapper.insert(cfgFilePo);
-//        }
+        logger.info(String.format("update %s version from %s to %s at %s/%s/%s SUCCESS",
+                updateApp.getAppAlias(), originalApp.getVersion(), targetApp.getVersion(), deployApp.getHostIp()));
+    }
+
+    /**
+     * 修改已有的应用的配置文件
+     * @param modifiedCfgApp 修改配置文件的操作信息
+     * @param deployApp 被修改配置应用部署记录
+     * @param appPo 被修改配置app记录
+    * @throws DataAccessException cmdb数据库访问异常
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    private void modifyDeployAppModuleCfg(AppUpdateOperationInfo modifiedCfgApp, PlatformAppPo deployApp, AppPo appPo)
+            throws InterfaceCallException, NexusException, IOException
+    {
+        logger.debug(String.format("begin to modify %d %s cfgs at %s/%s/%s",
+                modifiedCfgApp.getCfgs().size(), modifiedCfgApp.getAppAlias(), deployApp.getPlatformId(), deployApp.getDomainId(), deployApp.getHostIp()));
+        handlePlatformAppCfgs(deployApp, appPo, modifiedCfgApp.getCfgs());
+        Date now = new Date();
+        deployApp.setDeployTime(now);
+        logger.debug(String.format("update platformAppId=%d platform_app record deployTime", deployApp.getPlatformAppId()));
+        platformAppMapper.update(deployApp);
+        logger.debug(String.format("modify %d %s cfgs at %s/%s/%s SUCCESS",
+                modifiedCfgApp.getCfgs().size(), modifiedCfgApp.getAppAlias(), deployApp.getPlatformId(), deployApp.getDomainId(), deployApp.getHostIp()));
     }
 
     @Test
