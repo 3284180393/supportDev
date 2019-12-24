@@ -15,11 +15,13 @@ import java.util.List;
  */
 public class DomainUpdatePlanInfo {
 
-    private int domId; //对应的域id
-
     private String domainName; //对应的域名
 
     private String domainId; //对应的域标识
+
+    private String setId; //域归属的set id
+
+    private String bkSetName; //域归属的set名
 
     private List<AppUpdateOperationInfo> appUpdateOperationList; //应用升级操作列表
 
@@ -91,14 +93,6 @@ public class DomainUpdatePlanInfo {
         this.comment = comment;
     }
 
-    public int getDomId() {
-        return domId;
-    }
-
-    public void setDomId(int domId) {
-        this.domId = domId;
-    }
-
     public String getDomainName() {
         return domainName;
     }
@@ -113,5 +107,21 @@ public class DomainUpdatePlanInfo {
 
     public void setDomainId(String domainId) {
         this.domainId = domainId;
+    }
+
+    public String getSetId() {
+        return setId;
+    }
+
+    public void setSetId(String setId) {
+        this.setId = setId;
+    }
+
+    public String getBkSetName() {
+        return bkSetName;
+    }
+
+    public void setBkSetName(String bkSetName) {
+        this.bkSetName = bkSetName;
     }
 }

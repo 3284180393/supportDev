@@ -889,40 +889,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return null;
     }
 
-    private DomainUpdatePlanInfo generateDomainUpdatePlan(DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, int domId, String domainName, String domainId, List<CCODModuleInfo> deployApps, List<AppPo> appList)
-    {
-        Date now = new Date();
-        DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
-        planInfo.setDomId(domId);
-        planInfo.setDomainId(domainId);
-        planInfo.setDomainName(domainName);
-        planInfo.setCreateTime(now);
-        planInfo.setUpdateTime(now);
-        planInfo.setExecuteTime(now);
-        List<AppUpdateOperationInfo> operationList = new ArrayList<>();
-        Map<String, List<AppPo>> nameAppMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
-        for(CCODModuleInfo deployApp : deployApps)
-        {
-            Map<String, AppPo> versionAppMap = nameAppMap.get(deployApp.getModuleName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity()));
-            AppPo chosenApp = versionAppMap.get(deployApp.getVersion());
-            if(!DomainUpdateType.ADD.equals(updateType))
-            {
-                for(String version : versionAppMap.keySet())
-                {
-                    if(!version.equals(deployApp.getVersion()))
-                    {
-                        chosenApp = versionAppMap.get(version);
-                        break;
-                    }
-                }
-            }
-            AppUpdateOperationInfo operationInfo = generateAppUpdateOperation(operation, deployApp, chosenApp, updateStatus);
-            operationList.add(operationInfo);
-        }
-        planInfo.setAppUpdateOperationList(operationList);
-        return planInfo;
-    }
-
     private PlatformUpdateSchemaInfo generatePlatformUpdateSchema(CCODPlatformInfo srcPlatform, PlatformUpdateTaskType taskType, DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, List<AppPo> appList)
     {
         PlatformUpdateSchemaInfo schemaInfo = new PlatformUpdateSchemaInfo();
@@ -951,7 +917,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
                     planInfo.setDomainName(domainInfo.getDomainName());
                     planInfo.setDomainId(domainInfo.getDomainId());
                     planInfo.setComment(String.format("%s域%s计划", domainInfo.getDomainName(), updateType.name));
-                    planInfo.setDomId(domainInfo.getDomId());
                     planInfo.setStatus(updateStatus);
                     planInfo.setUpdateType(updateType);
                     planList.add(planInfo);
@@ -960,48 +925,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
         schemaInfo.setDomainUpdatePlanList(planList);
         return schemaInfo;
-    }
-
-    private AppUpdateOperationInfo generateAppUpdateOperation(AppUpdateOperation operation, CCODModuleInfo deployApp, AppPo targetApp, UpdateStatus updateStatus)
-    {
-        Date now = new Date();
-        AppUpdateOperationInfo info = new AppUpdateOperationInfo();
-//        info.setAppRunner(deployApp.getAppRunner());
-//        info.setBasePath(deployApp.getBasePath());
-//        info.setHostIp(deployApp.getHostIp());
-//        info.setCfgs(new ArrayList<>());
-//        for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
-//        {
-//            AppFileNexusInfo fileInfo = new AppFileNexusInfo();
-//            fileInfo.setDeployPath(deployApp.get);
-//            NexusAssetInfo assetInfo = new NexusAssetInfo();
-//            Checksum checksum = new Checksum();
-//            checksum.md5 = cfg.getMd5();
-//            assetInfo.setChecksum(checksum);
-//            assetInfo.setId(cfg.getNexusAssetId());
-//            assetInfo.setPath(cfg.getNexusDirectory());
-//            assetInfo.setRepository(cfg.getNexusRepository());
-//            info.getCfgs().add(assetInfo);
-//        }
-//        info.setOperation(operation);
-//        info.setOriginalAppId(deployApp.getAppId());
-//        info.setTargetAppId(deployApp.getAppId());
-//        switch (operation)
-//        {
-//            case ADD:
-//                info.setOriginalAppId(0);
-//                break;
-//            case DELETE:
-//                info.setTargetAppId(0);
-//                info.setCfgs(new ArrayList<>());
-//                break;
-//            case CFG_UPDATE:
-//                info.setTargetAppId(0);
-//                break;
-//            default:
-//                break;
-//        }
-        return info;
     }
 
     @Override
