@@ -14,7 +14,11 @@ public enum UpdateStatus {
 
     WAIT_EXEC(3, "WAIT_EXEC", "等待执行"),
 
-    END(4, "END", "升级完成"),;
+    SUCCESS(4, "SUCCESS", "升级成功"),
+
+    FAIL(5, "FAIL", "升级失败"),
+
+    CANCEL(6, "CANCEL", "升级取消"),;
 
     public int id;
 

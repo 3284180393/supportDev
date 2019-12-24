@@ -19,6 +19,8 @@ public class PlatformUpdateSchemaInfo {
 
     private int bkBizId; //该平台对应蓝鲸的bizId
 
+    private String platformId; //平台id
+
     private String platformName; //该平台的平台名,需要同蓝鲸的对应的bizName一致
 
     private PlatformUpdateTaskType taskType; //升级计划的任务类型,由PlatformUpdateTaskType枚举定义
@@ -123,5 +125,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setPlatformName(String platformName) {
         this.platformName = platformName;
+    }
+
+    public String getPlatformId() {
+        return platformId;
+    }
+
+    public void setPlatformId(String platformId) {
+        this.platformId = platformId;
     }
 }

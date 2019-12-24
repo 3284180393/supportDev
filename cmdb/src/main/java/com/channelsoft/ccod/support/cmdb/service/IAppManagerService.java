@@ -1,6 +1,9 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
+import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
+import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
+import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
@@ -9,6 +12,7 @@ import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.springframework.dao.DataAccessException;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -127,5 +131,16 @@ public interface IAppManagerService {
      * @throws Exception
      */
     AppPo addNewAppFromPublishNexus(String appType, String appName, String appAlias, String version, String ccodVersion, AppModuleFileNexusInfo installPackage, AppModuleFileNexusInfo[] cfgs, String basePath) throws Exception;
+
+    /**
+     * 更新平台升级计划
+     * @param platformUpdateSchemaInfo 需要更新的平台计划
+     * @throws ParamException 计划的参数异常
+     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
+     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
+     * @throws NexusException 调用nexus api返回调用失败或是解析nexus api返回结果失败
+     * @throws IOException 处理文件失败
+     */
+    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo platformUpdateSchemaInfo) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
 
 }

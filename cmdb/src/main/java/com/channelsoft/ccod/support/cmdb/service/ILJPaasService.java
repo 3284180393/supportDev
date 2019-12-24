@@ -20,11 +20,11 @@ import java.util.List;
 public interface ILJPaasService {
     /**
      * 根据指定的biz id查询蓝鲸biz信息
-     * @param bizId
+     * @param bkBizId 需要查询的biz的id
      * @return 查询结果
      * @throws Exception
      */
-    LJBizInfo queryBizInfoById(int bizId) throws Exception;
+    LJBizInfo queryBizInfoById(int bkBizId) throws InterfaceCallException, LJPaasException;
 
     /**
      * 查询蓝鲸所有的biz信息
@@ -202,4 +202,11 @@ public interface ILJPaasService {
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api结果异常
      */
     void disBindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppBkModulePo> deployAppList) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 查询指定biz的所有set
+     * @param bkBizId 指定的biz的id
+     * @return 该biz的所有set
+     */
+    List<LJSetInfo> queryBkBizSet(int bkBizId) throws InterfaceCallException, LJPaasException;
 }

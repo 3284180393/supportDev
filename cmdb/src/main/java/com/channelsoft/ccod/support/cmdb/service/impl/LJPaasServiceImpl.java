@@ -191,8 +191,20 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public LJBizInfo queryBizInfoById(int bizId) throws Exception {
-        return null;
+    public LJBizInfo queryBizInfoById(int bkBizId) throws InterfaceCallException, LJPaasException {
+        logger.debug(String.format("query bkBizId=%d biz", bkBizId));
+        LJBizInfo bkBiz = null;
+        List<LJBizInfo> bkBizList = queryBKBiz(bkBizId, null);
+        if(bkBizList != null && bkBizList.size() > 0)
+        {
+            bkBiz = bkBizList.get(0);
+            logger.info("query bkBizId=%d biz SUCCESS : %s", bkBizId, JSONObject.toJSONString(bkBiz));
+        }
+        else
+        {
+            logger.warn(String.format("can not find id=%d biz", bkBizId));
+        }
+        return bkBiz;
     }
 
     @Override
@@ -239,7 +251,8 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
     }
 
-    private List<LJSetInfo> queryLJPaasBizSet(int bkBizId) throws InterfaceCallException, LJPaasException
+    @Override
+    public List<LJSetInfo> queryBkBizSet(int bkBizId) throws InterfaceCallException, LJPaasException
     {
         logger.info(String.format("begin to query set info of bkBizId=%d", bkBizId));
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
@@ -594,7 +607,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 logger.info(String.format("bizId=%d is in exclude set", biz.getBkBizId()));
                 continue;
             }
-            List<LJSetInfo> setList = this.queryLJPaasBizSet(biz.getBkBizId());
+            List<LJSetInfo> setList = this.queryBkBizSet(biz.getBkBizId());
             boolean isCcodBiz = isCCODBiz(biz, setList);
             if(!isCcodBiz)
                 continue;
@@ -1296,7 +1309,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             transferHostToIdlePool(bkBizId, hostIds);
 //            transferHostToResource(bkBizId, hostIds);
         }
-        List<LJSetInfo> setList = queryLJPaasBizSet(bkBizId);
+        List<LJSetInfo> setList = queryBkBizSet(bkBizId);
         for(LJSetInfo set : setList)
         {
             if(this.paasIdlePoolSetName.equals(set.getBkSetName()))
@@ -1313,7 +1326,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         {
             LJSetInfo setInfo = addNewBizSet(bkBizId, setName, String.format("%s is created by cmdb", setName), 2000);
         }
-        return queryLJPaasBizSet(bkBizId);
+        return queryBkBizSet(bkBizId);
     }
 
     /**
