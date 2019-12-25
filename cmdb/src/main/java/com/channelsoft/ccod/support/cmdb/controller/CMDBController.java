@@ -595,4 +595,82 @@ public class CMDBController {
         }
         return resultPo;
     }
+
+    @RequestMapping(value = "/platformUpdateSchemas", method = RequestMethod.GET)
+    public AjaxResultPo getAllPlatformUpdateSchemas()
+    {
+        String uri = String.format("GET %s/platformUpdateSchemas", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<PlatformUpdateSchemaInfo> schemaInfos = this.appManagerService.queryPlatformUpdateSchema(null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", schemaInfos.size(), schemaInfos);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformUpdateSchema exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformUpdateSchemas/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo getAllPlatformUpdateSchemaByPlatformId(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/platformUpdateSchemas/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<PlatformUpdateSchemaInfo> schemaInfos = this.appManagerService.queryPlatformUpdateSchema(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", schemaInfos.size(), schemaInfos);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformUpdateSchema exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformUpdateSchema", method = RequestMethod.POST)
+    public AjaxResultPo updatePlatformUpdateSchema(@RequestBody PlatformUpdateSchemaInfo schema)
+    {
+        String uri = String.format("POST %s/platformUpdateSchema", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            appManagerService.updatePlatformUpdateSchema(schema);
+            resultPo = new AjaxResultPo(true, "update schema success", 1, null);
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create demo schema exception"), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformUpdateSchemaDemo", method = RequestMethod.POST)
+    public AjaxResultPo createDemoPlatformUpdateSchema(@RequestBody PlatformUpdateSchemaParamVo param)
+    {
+        String uri = String.format("POST %s/platformUpdateSchemaParamDemo", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformUpdateSchemaInfo schemaDemo = appManagerService.createPlatformUpdateSchemaDemo(param);
+            resultPo = new AjaxResultPo(true, "create demo schema success", 1, schemaDemo);
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create demo schema exception"), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
 }

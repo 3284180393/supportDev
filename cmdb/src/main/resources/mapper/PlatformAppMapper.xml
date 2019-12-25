@@ -4,46 +4,47 @@
     <resultMap id="PlatformAppMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         <id column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="app_id" property="appId" jdbcType="INTEGER" />
+        <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
-        <result column="server_id" property="serverId" jdbcType="INTEGER" />
-        <result column="runner_id" property="runnerId" jdbcType="INTEGER" />
+        <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
     </resultMap>
     <select id="selectByPrimaryKey" resultMap="PlatformAppMap" parameterType="java.lang.String">
         SELECT
-	        pa.platform_app_id,
-	        pa.app_id,
-	        pa.platform_id,
-	        pa.domain_id,
-	        pa.server_id,
-	        pa.runner_id,
-	        pa.base_path,
-	        pa.deploy_time
+	        pa.platform_app_id AS platform_app_id,
+	        pa.app_id AS app_id,
+	        pa.app_alias AS app_alias,
+	        pa.platform_id AS platform_id,
+	        pa.domain_id AS domain_id,
+	        pa.host_ip AS host_ip,
+	        pa.app_runner AS app_runner,
+	        pa.base_path AS base_path,
+	        pa.deploy_time AS deploy_time
         FROM
 	        platform_app pa
         where pa.platform_app_id=#{platformAppId,jdbcType=INTEGER}
     </select>
     <select id="select" resultMap="PlatformAppMap" >
         SELECT
-        pa.platform_app_id,
-        pa.app_id,
-        pa.platform_id,
-        pa.domain_id,
-        pa.server_id,
-        pa.runner_id,
-        pa.base_path,
-        pa.deploy_time
+            pa.platform_app_id AS platform_app_id,
+            pa.app_id AS app_id,
+            pa.app_alias AS app_alias,
+            pa.platform_id AS platform_id,
+            pa.domain_id AS domain_id,
+            pa.host_ip AS host_ip,
+            pa.app_runner AS app_runner,
+            pa.base_path AS base_path,
+            pa.deploy_time AS deploy_time
         FROM
-        platform_app pa
+            platform_app pa
         INNER JOIN app a ON pa.app_id = a.app_id
         INNER JOIN platform pf ON pa.platform_id = pf.platform_id
         INNER JOIN domain dm ON pa.domain_id = dm.domain_id
-        INNER JOIN `server` svr ON pa.server_id = svr.server_id
-        INNER JOIN server_user sur ON pa.runner_id = sur.user_id
         WHERE
-        1 = 1
+            1 = 1
         <if test="platformId!=null">
             And pf.platform_id=#{platformId,jdbcType=VARCHAR}
         </if>
@@ -52,9 +53,6 @@
         </if>
         <if test="hostIp!=null">
             And svr.host_ip=#{hostIp,jdbcType=VARCHAR}
-        </if>
-        <if test="hostname!=null">
-            And svr.host_name=#{hostname,jdbcType=VARCHAR}
         </if>
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}

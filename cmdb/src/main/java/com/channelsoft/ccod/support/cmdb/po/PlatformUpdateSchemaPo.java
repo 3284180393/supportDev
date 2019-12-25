@@ -14,83 +14,33 @@ import java.util.Date;
  */
 public class PlatformUpdateSchemaPo {
 
-    private PlatformUpdateTaskType taskType; //升级计划的任务类型,由PlatformUpdateTaskType枚举定义
+    private int schemaId; //平台升级计划id,数据库主键
 
-    private UpdateStatus status; //任务当前状态,由PlatformUpdateTaskStatus枚举定义
+    private String platformId; //该计划对应的平台
 
-    private Date createTime; //计划创建时间
+    private String context; //计划类容
 
-    private Date updateTime; //计划最后一次修改时间
-
-    private Date executeTime; //如果该时间为非空，在该时间自动执行
-
-    private Date deadline; //计划完成最后期限
-
-    private String title; //升级任务标题
-
-    private String comment; //备注
-
-    public PlatformUpdateTaskType getTaskType() {
-        return taskType;
+    public int getSchemaId() {
+        return schemaId;
     }
 
-    public void setTaskType(PlatformUpdateTaskType taskType) {
-        this.taskType = taskType;
+    public void setSchemaId(int schemaId) {
+        this.schemaId = schemaId;
     }
 
-    public UpdateStatus getStatus() {
-        return status;
+    public String getPlatformId() {
+        return platformId;
     }
 
-    public void setStatus(UpdateStatus status) {
-        this.status = status;
+    public void setPlatformId(String platformId) {
+        this.platformId = platformId;
     }
 
-    public Date getCreateTime() {
-        return createTime;
+    public String getContext() {
+        return context;
     }
 
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
-    }
-
-    public Date getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(Date updateTime) {
-        this.updateTime = updateTime;
-    }
-
-    public String getComment() {
-        return comment;
-    }
-
-    public void setComment(String comment) {
-        this.comment = comment;
-    }
-
-    public Date getDeadline() {
-        return deadline;
-    }
-
-    public void setDeadline(Date deadline) {
-        this.deadline = deadline;
-    }
-
-    public Date getExecuteTime() {
-        return executeTime;
-    }
-
-    public void setExecuteTime(Date executeTime) {
-        this.executeTime = executeTime;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
+    public void setContext(String context) {
+        this.context = context;
     }
 }

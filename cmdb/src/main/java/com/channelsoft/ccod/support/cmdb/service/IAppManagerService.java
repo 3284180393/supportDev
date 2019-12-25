@@ -13,6 +13,7 @@ import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.springframework.dao.DataAccessException;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -142,5 +143,22 @@ public interface IAppManagerService {
      * @throws IOException 处理文件失败
      */
     void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo platformUpdateSchemaInfo) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
+
+    /**
+     * 创建一个平台升级计划demo
+     * @param paramVo 希望生成的demo计划的相关参数
+     * @return 生成的计划demo
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    PlatformUpdateSchemaInfo createPlatformUpdateSchemaDemo(PlatformUpdateSchemaParamVo paramVo) throws ParamException, InterfaceCallException, LJPaasException;
+
+    /**
+     * 查询指定条件的平台升级计划
+     * @param platformId 平台id可以为空
+     * @return 满足条记按的升级计划
+     */
+    List<PlatformUpdateSchemaInfo> queryPlatformUpdateSchema(String platformId);
 
 }

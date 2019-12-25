@@ -1,5 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * @ClassName: BizSetDefine
  * @Author: lanhb
@@ -67,5 +70,22 @@ public class BizSetDefine {
 
     public void setApps(String[] apps) {
         this.apps = apps;
+    }
+
+    @Override
+    public BizSetDefine clone()
+    {
+        BizSetDefine setDefine = new BizSetDefine();
+        setDefine.name = this.name;
+        setDefine.id = this.id;
+        setDefine.isBasic = this.isBasic;
+        setDefine.fixedDomainName = this.fixedDomainName;
+        setDefine.fixedDomainId = this.fixedDomainId;
+        setDefine.apps = new String[this.apps.length];
+        for(int i = 0; i < this.apps.length; i++)
+        {
+            setDefine.apps[i] = this.apps[i];
+        }
+        return setDefine;
     }
 }

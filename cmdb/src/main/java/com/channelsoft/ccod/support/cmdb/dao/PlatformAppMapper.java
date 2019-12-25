@@ -44,9 +44,12 @@ public interface PlatformAppMapper {
      * @return
      * @throws DataAccessException
      */
-    List<PlatformAppPo> select(@Param("platformId")String platformId, @Param("domainId")String domainId,
-                               @Param("hostIp")String hostIp, @Param("appName")String appName,
-                               @Param("appAlias")String appAlias, @Param("version")String version)
+    List<PlatformAppPo> select(@Param("platformId")String platformId,
+                               @Param("domainId")String domainId,
+                               @Param("hostIp")String hostIp,
+                               @Param("appName")String appName,
+                               @Param("appAlias")String appAlias,
+                               @Param("version")String version)
             throws DataAccessException;
 
     void update(PlatformAppPo app) throws DataAccessException;

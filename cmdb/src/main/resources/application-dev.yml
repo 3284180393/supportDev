@@ -212,3 +212,7 @@ windows: false
 debug: false
 
 develop: true
+
+test:
+  new-create-biz-id: 12
+  template_platform_id: shltPA

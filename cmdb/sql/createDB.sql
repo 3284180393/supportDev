@@ -153,3 +153,10 @@ CREATE TABLE `platform_app_bk_module` (
   PRIMARY KEY (`app_bk_module_id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 
+DROP TABLE IF EXISTS `platform_update_schema`;
+CREATE TABLE `platform_update_schema` (
+`schema_id` int(11) NOT NULL AUTO_INCREMENT COMMENT '平台升级计划id,主键',
+  `platform_id` varchar(40) NOT NULL COMMENT '平台id',
+  `context` BLOB  NOT NULL COMMENT '计划内容',
+  PRIMARY KEY (`schema_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;

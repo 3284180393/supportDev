@@ -13,8 +13,6 @@ import java.util.List;
 public class CCODPlatformInfo {
     private String platformName; //平台名,同时对应蓝鲸paas的biz name
 
-    private int platId; //该平台在数据库的组件
-
     private int bkBizId; //该平台在蓝鲸paas的biz id
 
     private String platformId; //平台id
@@ -25,7 +23,7 @@ public class CCODPlatformInfo {
 
     private CCODIdlePoolInfo idlePool; //该平台的idle pools set
 
-    private UpdatePlatformSchemaVo updateSchema; //正在进行的平台升级计划,如果没有为空
+    private PlatformUpdateSchemaInfo updateSchema; //正在进行的平台升级计划,如果没有为空
 
     public CCODPlatformInfo()
     {
@@ -66,14 +64,6 @@ public class CCODPlatformInfo {
         this.platformName = platformName;
     }
 
-    public int getPlatId() {
-        return platId;
-    }
-
-    public void setPlatId(int platId) {
-        this.platId = platId;
-    }
-
     public String getPlatformId() {
         return platformId;
     }
@@ -106,6 +96,14 @@ public class CCODPlatformInfo {
         this.idlePool = idlePool;
     }
 
+    public PlatformUpdateSchemaInfo getUpdateSchema() {
+        return updateSchema;
+    }
+
+    public void setUpdateSchema(PlatformUpdateSchemaInfo updateSchema) {
+        this.updateSchema = updateSchema;
+    }
+
     @Override
     public CCODPlatformInfo clone()
     {
@@ -114,7 +112,6 @@ public class CCODPlatformInfo {
         platformInfo.platformName = this.platformName;
         platformInfo.bkBizId = this.bkBizId;
         platformInfo.platformId = this.platformId;
-        platformInfo.platId = this.platId;
         List<CCODSetInfo> setList = new ArrayList<>();
         for(CCODSetInfo set : this.sets)
         {
@@ -122,6 +119,7 @@ public class CCODPlatformInfo {
         }
         platformInfo.sets = setList;
         platformInfo.idlePool = this.idlePool;
+        platformInfo.updateSchema = this.updateSchema;
         return platformInfo;
     }
 }

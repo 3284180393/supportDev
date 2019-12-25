@@ -51,6 +51,15 @@ public interface ILJPaasService {
     List<CCODPlatformInfo> queryCCODBiz(Integer bizId, String setId, String domainId) throws Exception;
 
     /**
+     * 将一个已经存在的biz重置,并给它创建指定的set
+     * @param bkBizId 需要重置的set名
+     * @param setNames 需要创建的set名
+     * @throws InterfaceCallException 调用蓝鲸api接口失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果失败
+     */
+    List<LJSetInfo> resetExistBiz(int bkBizId, List<String> setNames) throws InterfaceCallException, LJPaasException;
+
+    /**
      * 查询ccod biz下面set信息
      * @return
      */
@@ -139,6 +148,18 @@ public interface ILJPaasService {
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
     List<LJHostInfo> queryBKHost(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 将一组新的主机添加到idle pool去
+     * @param bkBizId 需要添加新主机的biz的id
+     * @param bkIdlePoolSetId 空闲资源池set的id
+     * @param newHostIps 被添加的主机ip
+     * @param bkCloudId 该服务器所处的云id
+     * @return 添加后空闲池所有空闲服务器
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    List<LJHostInfo> addNewHostToIdlePool(int bkBizId, int bkIdlePoolSetId, List<String> newHostIps, int bkCloudId) throws InterfaceCallException, LJPaasException;
 
     /**
      * 在蓝鲸paas查询指定条件的module信息

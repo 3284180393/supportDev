@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.CCODBizSetInfo;
 import com.channelsoft.ccod.support.cmdb.config.ExcludeBiz;
-import com.channelsoft.ccod.support.cmdb.config.NotCheckCfgApp;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
@@ -53,6 +52,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     @Autowired
     private PlatformAppMapper platformAppMapper;
+
+    @Autowired
+    private AppMapper appMapper;
 
     @Autowired
     private PlatformAppBkModuleMapper platformAppBkModuleMapper;
@@ -568,31 +570,27 @@ public class LJPaasServiceImpl implements ILJPaasService {
         List<PlatformPo> platformList = platformMapper.select(1);
         List<PlatformAppDeployDetailVo> deployAppList = platformAppDeployDetailMapper.selectPlatformApps(null,
                 null, null);
-        if(isDevelop)
-        {
-            for(PlatformPo platformPo : platformList)
-            {
-                if("shltPA".equals(platformPo.getPlatformId()))
-                {
-                    platformPo.setBkBizId(11);
-                }
-                else
-                {
-                    platformList.remove(platformPo);
-                }
-            }
-            for(PlatformAppDeployDetailVo deployApp : deployAppList)
-            {
-                if(deployApp.getPlatformId().equals("shltPA"))
-                {
-                    deployApp.setBkBizId(11);
-                }
-                else
-                {
-                    deployAppList.remove(deployApp);
-                }
-            }
-        }
+//        if(isDevelop)
+//        {
+//            for(PlatformPo platformPo : platformList)
+//            {
+//                if("shltPA".equals(platformPo.getPlatformId()))
+//                {
+//                    platformPo.setBkBizId(11);
+//                }
+//            }
+//            for(PlatformAppDeployDetailVo deployApp : deployAppList)
+//            {
+//                if(deployApp.getPlatformId().equals("shltPA"))
+//                {
+//                    deployApp.setBkBizId(11);
+//                }
+//                else
+//                {
+//                    deployAppList.remove(deployApp);
+//                }
+//            }
+//        }
         List<LJBizInfo> bizList = queryBKBiz(null, null);
         Map<Integer, PlatformPo> bizPlatformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getBkBizId, Function.identity()));
         Map<String, PlatformPo> namePlatformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getPlatformName, Function.identity()));;
@@ -943,9 +941,32 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Override
     public List<BizSetDefine> queryCCODBizSet() {
         logger.info(String.format("begin to query all set info of ccod biz"));
+        Map<String, List<AppPo>> appMap = appMapper.select(null, null, null, null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
         List<BizSetDefine> setList = new ArrayList<>();
-        setList.addAll(this.basicBizSetMap.values());
-        setList.addAll(this.extendBizSetMap.values());
+        for(BizSetDefine setDefine : this.basicBizSetMap.values())
+        {
+            BizSetDefine cloneSet = setDefine.clone();
+            List<String> appList = new ArrayList<>();
+            for(String appName : setDefine.getApps())
+            {
+                if(appMap.containsKey(appName))
+                    appList.add(appName);
+            }
+            cloneSet.setApps(appList.toArray(new String[0]));
+            setList.add(cloneSet);
+        }
+        for(BizSetDefine setDefine : this.extendBizSetMap.values())
+        {
+            BizSetDefine cloneSet = setDefine.clone();
+            List<String> appList = new ArrayList<>();
+            for(String appName : setDefine.getApps())
+            {
+                if(appMap.containsKey(appName))
+                    appList.add(appName);
+            }
+            cloneSet.setApps(appList.toArray(new String[0]));
+            setList.add(cloneSet);
+        }
         logger.info(String.format("ccod biz has %d set", setList.size()));
         return setList;
     }
@@ -1167,17 +1188,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
         parsePaasInterfaceResult(retVal);
     }
 
-    /**
-     * 将一组新的主机添加到idle pool去
-     * @param bkBizId 需要添加新主机的biz的id
-     * @param bkIdlePoolSetId 空闲资源池set的id
-     * @param newHostIps 被添加的主机ip
-     * @param bkCloudId 该服务器所处的云id
-     * @return 添加后空闲池所有空闲服务器
-     * @throws InterfaceCallException 调用蓝鲸api失败
-     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
-     */
-    private List<LJHostInfo> addNewHostToIdlePool(int bkBizId, int bkIdlePoolSetId, List<String> newHostIps, int bkCloudId) throws InterfaceCallException, LJPaasException
+
+    @Override
+    public List<LJHostInfo> addNewHostToIdlePool(int bkBizId, int bkIdlePoolSetId, List<String> newHostIps, int bkCloudId) throws InterfaceCallException, LJPaasException
     {
         logger.info(String.format("begin to add %s to bkBizId=%d", String.join(",", newHostIps), bkBizId));
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
@@ -1293,14 +1306,8 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
     }
 
-    /**
-     * 将一个已经存在的biz重置,并给它创建指定的set
-     * @param bkBizId 需要重置的set名
-     * @param setNames 需要创建的set名
-     * @throws InterfaceCallException
-     * @throws LJPaasException
-     */
-    private List<LJSetInfo> resetExistBiz(int bkBizId, List<String> setNames) throws InterfaceCallException, LJPaasException
+    @Override
+    public List<LJSetInfo> resetExistBiz(int bkBizId, List<String> setNames) throws InterfaceCallException, LJPaasException
     {
         List<LJHostInfo> hostList = queryBKHost(bkBizId, null, null, null);
         Integer[] hostIds = hostList.stream().collect(Collectors.groupingBy(LJHostInfo::getBkHostId)).keySet().toArray(new Integer[0]);

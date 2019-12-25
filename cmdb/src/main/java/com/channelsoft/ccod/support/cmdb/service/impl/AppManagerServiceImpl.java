@@ -74,6 +74,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${app-publish-nexus.host-url}")
     private String publishNexusHostUrl;
 
+    @Value("${lj-paas.idle-pool-set-name}")
+    private String paasIdlePoolSetName;
+
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
 
@@ -120,6 +123,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     PlatformAppBkModuleMapper platformAppBkModuleMapper;
 
     @Autowired
+    PlatformUpdateSchemaMapper platformUpdateSchemaMapper;
+
+    @Autowired
     ILJPaasService paasService;
 
     @Autowired
@@ -143,6 +149,19 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.notCheckCfgAppSet = new HashSet<>(this.notCheckCfgApp.getNotCheckCfgApps());
         logger.info(String.format("%s will not check cfg count of app",
                 JSONArray.toJSONString(this.notCheckCfgAppSet)));
+        List<PlatformUpdateSchemaPo> schemaPoList = this.platformUpdateSchemaMapper.select();
+        for(PlatformUpdateSchemaPo po : schemaPoList)
+        {
+            try
+            {
+                PlatformUpdateSchemaInfo schemaInfo = JSONObject.parseObject(po.getContext(), PlatformUpdateSchemaInfo.class);
+                this.platformUpdateSchemaMap.put(po.getPlatformId(), schemaInfo);
+            }
+            catch (Exception ex)
+            {
+                logger.error(String.format("parse %s platform update schema exception", po.getPlatformId()), ex);
+            }
+        }
         try
         {
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
@@ -1478,6 +1497,195 @@ public class AppManagerServiceImpl implements IAppManagerService {
         platformAppMapper.update(deployApp);
         logger.debug(String.format("modify %d %s cfgs at %s/%s/%s SUCCESS",
                 modifiedCfgApp.getCfgs().size(), modifiedCfgApp.getAppAlias(), deployApp.getPlatformId(), deployApp.getDomainId(), deployApp.getHostIp()));
+    }
+
+
+    /**
+     * 根据现有数据生成一个demo平台创建计划
+     * @param bkBizId 需要创建的平台biz id
+     * @param platformId 需要创建的平台id
+     * @param platformName 需要创建的平台名
+     * @param bkCloudId  该平台服务器对应的cloud id
+     * @return 新创建的demo平台创建计划
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    private PlatformUpdateSchemaInfo generatePlatformCreateDemoSchema(String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, InterfaceCallException, LJPaasException {
+        PlatformPo platform = platformMapper.selectByPrimaryKey(platformId);
+        if (platform != null) {
+            logger.error(String.format("create new platform create schema FAIL : %s exist", platformId));
+            throw new ParamException(String.format("create new platform create schema FAIL : %s exist", platformId));
+        }
+        platform = platformMapper.selectByNameBizId(platformName, null);
+        if (platform != null) {
+            logger.error(String.format("create new platform create schema FAIL : %s exist", platformName));
+            throw new ParamException(String.format("create new platform create schema FAIL : %s exist", platformName));
+        }
+        LJBizInfo bkBiz = paasService.queryBizInfoById(bkBizId);
+        if (bkBiz == null) {
+            logger.error(String.format("create new platform create schema FAIL : bkBizId=%d biz not exist", bkBizId));
+            throw new ParamException(String.format("create new platform create schema FAIL : bkBizId=%d biz not exist", bkBizId));
+        }
+        if (!platformName.equals(bkBiz.getBkBizName()))
+        {
+            logger.error(String.format("create new platform create schema FAIL : bkBizId=%d biz name is %s, not %s", bkBizId, bkBiz.getBkBizName(), platformName));
+            throw new ParamException(String.format(String.format("create new platform create schema FAIL : bkBizId=%d biz name is %s, not %s", bkBizId, bkBiz.getBkBizName(), platformName)));
+        }
+        Date now = new Date();
+        List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
+        Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        List<LJSetInfo> setList = this.paasService.resetExistBiz(bkBizId, new ArrayList<>(setDefineMap.keySet()));
+        platform = new PlatformPo();
+        platform.setBkCloudId(bkCloudId);
+        platform.setBkBizId(bkBizId);
+        platform.setCreateTime(now);
+        platform.setCcodVersion("ccod4.5");
+        platform.setStatus(1);
+        platform.setPlatformName(platformName);
+        platform.setPlatformId(platformId);
+        platform.setComment("通过程序自动创建的demo平台");
+        platformMapper.insert(platform);
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo();
+        schema.setTitle(String.format("%s(%s)平台新建计划", platformName, platformId));
+        schema.setPlatformName(platformName);
+        schema.setComment(String.format("通过程序自动创建的%s(%s)平台新建计划", platformName, platformId));
+        schema.setCreateTime(now);
+        schema.setBkBizId(bkBizId);
+        schema.setStatus(UpdateStatus.CREATE);
+        schema.setTaskType(PlatformUpdateTaskType.CREATE);
+        schema.setExecuteTime(now);
+        schema.setDeadline(now);
+        schema.setUpdateTime(now);
+        schema.setPlatformId(platformId);
+        schema.setDomainUpdatePlanList(new ArrayList<>());
+        Random random = new Random();
+        List<String> hostList = new ArrayList<>();
+        for(BizSetDefine setDefine : setDefineMap.values())
+        {
+            if(setDefine.getApps().length == 0)
+                continue;
+            String hostIp = String.format("%d.%d.%d.%d", 173,random.nextInt(10000) % 255,
+                    random.nextInt(10000) % 255, random.nextInt(10000) % 255);
+            hostList.add(hostIp);
+            DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+            planInfo.setUpdateType(DomainUpdateType.ADD);
+            planInfo.setStatus(UpdateStatus.CREATE);
+            planInfo.setComment("由程序自动生成的新建域");
+            String domainId = setDefine.getFixedDomainId();
+            String domainName = setDefine.getFixedDomainName();
+            if(StringUtils.isBlank(domainId))
+            {
+                domainId = "newCreateTestDomain";
+                domainName = "新建测试域";
+            }
+            planInfo.setDomainId(domainId);
+            planInfo.setDomainName(domainName);
+            planInfo.setCreateTime(now);
+            planInfo.setUpdateTime(now);
+            planInfo.setExecuteTime(now);
+            planInfo.setAppUpdateOperationList(new ArrayList<>());
+            planInfo.setBkSetName(setDefine.getName());
+            planInfo.setSetId(setDefine.getId());
+            for(String appName : setDefine.getApps())
+            {
+                AppModuleVo appModuleVo = appMap.get(appName).get(0);
+                AppUpdateOperationInfo addOperationInfo = new AppUpdateOperationInfo();
+                addOperationInfo.setHostIp(hostIp);
+                addOperationInfo.setOperation(AppUpdateOperation.ADD);
+                addOperationInfo.setCfgs(new ArrayList<>());
+                for(AppCfgFilePo appCfgFilePo : appModuleVo.getCfgs())
+                {
+                    AppFileNexusInfo info = new AppFileNexusInfo();
+                    info.setDeployPath(appCfgFilePo.getDeployPath());
+                    info.setExt(appCfgFilePo.getExt());
+                    info.setFileName(appCfgFilePo.getFileName());
+                    info.setFileSize(0);
+                    info.setMd5(appCfgFilePo.getMd5());
+                    info.setNexusAssetId(appCfgFilePo.getNexusAssetId());
+                    info.setNexusPath(String.format("%s/%s", appCfgFilePo.getNexusDirectory(), appCfgFilePo.getFileName()));
+                    info.setNexusRepository(appCfgFilePo.getNexusRepository());
+                    addOperationInfo.getCfgs().add(info);
+                }
+                addOperationInfo.setBasePath(appModuleVo.getBasePath());
+                addOperationInfo.setAppRunner("qnsoft");
+                addOperationInfo.setAppAlias(appModuleVo.getAppAlias());
+                addOperationInfo.setAppName(appModuleVo.getAppName());
+                addOperationInfo.setTargetVersion(appModuleVo.getVersion());
+                planInfo.getAppUpdateOperationList().add(addOperationInfo);
+            }
+            schema.getDomainUpdatePlanList().add(planInfo);
+        }
+        LJSetInfo idlePoolSet = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity())).get(this.paasIdlePoolSetName);
+        List<LJHostInfo> bkHostList = this.paasService.addNewHostToIdlePool(bkBizId, idlePoolSet.getBkSetId(), hostList, bkCloudId);
+        String planCheckResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, bkHostList, new ArrayList<>());
+        if(StringUtils.isNotBlank(planCheckResult))
+        {
+            logger.error(String.format("check platform update schema FAIL : %s", planCheckResult));
+            throw new ParamException(String.format("check platform update schema FAIL : %s", planCheckResult));
+        }
+        return schema;
+    }
+
+    @Override
+    public PlatformUpdateSchemaInfo createPlatformUpdateSchemaDemo(PlatformUpdateSchemaParamVo paramVo) throws ParamException, InterfaceCallException, LJPaasException {
+        logger.debug(String.format("prepare to create platform update schema demo : params=%s", JSONObject.toJSONString(paramVo)));
+        if(paramVo.getBkBizId() == 0)
+        {
+            logger.error(String.format("create demo schema FAIL : bkBizId=0"));
+            throw new ParamException(String.format("create demo schema FAIL : bkBizId=0"));
+        }
+        else if(StringUtils.isBlank(paramVo.getPlatformId()))
+        {
+            logger.error(String.format("create demo schema FAIL : platformId is blank"));
+            throw new ParamException(String.format("create demo schema FAIL : platformId is blank"));
+        }
+        else if(StringUtils.isBlank(paramVo.getPlatformName()))
+        {
+            logger.error(String.format("create demo schema FAIL : platformName is blank"));
+            throw new ParamException(String.format("create demo schema FAIL : platformName is blank"));
+        }
+        else if(paramVo.getTaskType() == null)
+        {
+            logger.error(String.format("create demo schema FAIL : taskType is blank"));
+            throw new ParamException(String.format("create demo schema FAIL : taskType is blank"));
+        }
+        PlatformUpdateSchemaInfo schemaInfo;
+        if(PlatformUpdateTaskType.CREATE.equals(paramVo.getTaskType()))
+        {
+            schemaInfo = generatePlatformCreateDemoSchema(paramVo.getPlatformId(), paramVo.getPlatformName(), paramVo.getBkBizId(), paramVo.getBkCloudId());
+        }
+        else
+        {
+            logger.error(String.format("current version not support %s platform update demo schema create", paramVo.getTaskType().name));
+            throw new ParamException(String.format("current version not support %s platform update demo schema create", paramVo.getTaskType().name));
+        }
+        platformUpdateSchemaMapper.delete(paramVo.getPlatformId());
+        PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+        schemaPo.setPlatformId(paramVo.getPlatformId());
+        schemaPo.setContext(JSONObject.toJSONString(schemaInfo));
+        platformUpdateSchemaMapper.insert(schemaPo);
+        this.platformUpdateSchemaMap.put(paramVo.getPlatformId(), schemaInfo);
+        return schemaInfo;
+    }
+
+    @Override
+    public List<PlatformUpdateSchemaInfo> queryPlatformUpdateSchema(String platformId) {
+        logger.debug(String.format("begin to query platformId=%s platform update schema", platformId));
+        List<PlatformUpdateSchemaInfo> schemaList = new ArrayList<>();
+        if(StringUtils.isBlank(platformId))
+        {
+            schemaList = new ArrayList<>(this.platformUpdateSchemaMap.values());
+        }
+        else
+        {
+            if(this.platformUpdateSchemaMap.containsKey(platformId))
+            {
+                schemaList.add(platformUpdateSchemaMap.get(platformId));
+            }
+        }
+        return schemaList;
     }
 
     @Test
