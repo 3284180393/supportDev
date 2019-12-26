@@ -291,7 +291,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             CCODSetInfo setInfo = new CCODSetInfo(define.getId(), define.getName());
             ccodSetList.add(setInfo);
         }
-        CCODPlatformInfo platformInfo = new CCODPlatformInfo(bizInfo, CCODPlatformStatus.NEW_CREATE.id, idlePoolInfo, ccodSetList);
+        CCODPlatformInfo platformInfo = new CCODPlatformInfo(bizInfo, CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id, idlePoolInfo, ccodSetList);
         return platformInfo;
     }
 
@@ -344,8 +344,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             for(String domainName : domainAppMap.keySet())
             {
                 List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName);
-                CCODDomainInfo domain = new CCODDomainInfo(bkSet.getBkSetId(), 0,
-                        domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
+                CCODDomainInfo domain = new CCODDomainInfo(domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
                 for(PlatformAppDeployDetailVo deployApp : domAppList)
                 {
                     CCODModuleInfo bkModule = new CCODModuleInfo(deployApp);
@@ -465,7 +464,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             {
                 logger.info(String.format("bizId=%d and bizName=%s biz has one set with name=%s and it not saved in database so it maybe a new create biz relative to cmdb, so return 2",
                         bizInfo.getBkBizId(), bizInfo.getBkBizName(), this.paasIdlePoolSetName));
-                return CCODPlatformStatus.NEW_CREATE;
+                return CCODPlatformStatus.SCHEMA_CREATE_PLATFORM;
             }
         }
         else
@@ -507,7 +506,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         List<LJSetInfo> setList = createDefaultSetList(bizInfo.getBkBizId());
         List<LJHostInfo> idleHosts = new ArrayList<>();
         CCODPlatformInfo platformInfo = generatePlatformInfo(platform, bizInfo, setList, idleHosts, apps);
-        platformInfo.setStatus(CCODPlatformStatus.WAIT_SYNC_NEW_CREATE_PLATFORM_TO_PAAS.id);
+        platformInfo.setStatus(CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id);
         return platformInfo;
     }
 
@@ -610,7 +609,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             if(!isCcodBiz)
                 continue;
             LJSetInfo idlePoolSet = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity())).get(this.paasIdlePoolSetName);
-            List<LJHostInfo> idleHostList = queryBKHost(biz.getBkBizId(), idlePoolSet.getBkSetId(), null, null);
+            List<LJHostInfo> idleHostList = queryBKHost(biz.getBkBizId(), idlePoolSet.getBkSetId(),  null, null, null);
             if(setList.size() > 1 && bizAppMap.containsKey(biz.getBkBizId()))
             {
                 logger.info(String.format("%s biz has all ccod biz sets and cmdb has %d app records for it, so %s is running ccod platform",
@@ -619,22 +618,22 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 if(this.waitSyncUpdateToPaasBiz.contains(biz.getBkBizId()))
                 {
                     logger.error(String.format("%s in waitSyncUpdateToPaasBiz, so it status is %s",
-                            biz.toString(), CCODPlatformStatus.WAIT_SYNC_PLATFORM_UPDATE_TO_PAAS.name));
-                    platformInfo.setStatus(CCODPlatformStatus.WAIT_SYNC_PLATFORM_UPDATE_TO_PAAS.id);
+                            biz.toString(), CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.name));
+                    platformInfo.setStatus(CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id);
                 }
                 ccodPlatformList.add(platformInfo);
             }
             else if(setList.size() == 1 && platformNameAppMap.containsKey(biz.getBkBizName()) && idleHostList.size() > 0)
             {
                 logger.info(String.format("%s biz has and only has %s set and %d idle hosts and cmdb has %d app record for it, so %s is %s platform",
-                        biz.toString(), this.paasIdlePoolSetName, idleHostList.size(), platformNameAppMap.get(biz.getBkBizName()).size(), biz.getBkBizName(), CCODPlatformStatus.WAIT_SYNC_NEW_CREATE_PLATFORM_TO_PAAS.name));
+                        biz.toString(), this.paasIdlePoolSetName, idleHostList.size(), platformNameAppMap.get(biz.getBkBizName()).size(), biz.getBkBizName(), CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.name));
                 CCODPlatformInfo platformInfo = createNewCreateWaitSyncPlatformInfo(namePlatformMap.get(biz.getBkBizName()), biz, platformNameAppMap.get(biz.getBkBizName()));
                 ccodPlatformList.add(platformInfo);
             }
             else if(setList.size() == 1 && !platformNameAppMap.containsKey(biz.getBkBizName()) && idleHostList.size() > 0)
             {
                 logger.info(String.format("%s biz has and only has %s set and cmdb has not app record for it, so %s is %s platform",
-                        biz.toString(), this.paasIdlePoolSetName, biz.getBkBizName(), CCODPlatformStatus.NEW_CREATE.name));
+                        biz.toString(), this.paasIdlePoolSetName, biz.getBkBizName(), CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.name));
                 CCODPlatformInfo platformInfo = createNewPlatformInfo(biz, idlePoolSet, idleHostList);
                 ccodPlatformList.add(platformInfo);
             }
@@ -696,7 +695,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 }
                 else if(setId.equals(this.paasIdlePoolSetId))
                 {
-                    List<LJHostInfo> idleHosts = queryBKHost(bizId, platform.getIdlePool().getBkSetId(), null, null);
+                    List<LJHostInfo> idleHosts = queryBKHost(bizId, platform.getIdlePool().getBkSetId(), null, null, null);
                     CCODIdlePoolInfo idlePoolInfo = new CCODIdlePoolInfo(bizId, platform.getIdlePool().getIdlePoolSet(), idleHosts);
                     platform.setSets(new ArrayList<>());
                     platform.setIdlePool(idlePoolInfo);
@@ -781,7 +780,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         CCODPlatformInfo src = null;
         for(CCODPlatformInfo platform : srcPlatforms)
         {
-            if(platform.getStatus() == CCODPlatformStatus.WAIT_SYNC_NEW_CREATE_PLATFORM_TO_PAAS.id
+            if(platform.getStatus() == CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id
                     && "上海联通平安".equals(platform.getPlatformName()))
             {
 //                platform = reduceData(platform);
@@ -800,7 +799,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             list.add(newPlat);
 
             newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.WAIT_SYNC_PLATFORM_UPDATE_TO_PAAS.id);
+            newPlat.setStatus(CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id);
             newPlat.setPlatformName("等待同步更新结果平台");
             newPlat.setPlatformId("waitSyncAppUpdatePlatform");
             newPlat.setBkBizId(random.nextInt(10000));
@@ -826,14 +825,14 @@ public class LJPaasServiceImpl implements ILJPaasService {
             list.add(newPlat);
 
             newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.PLAN_CREATE_PLATFORM.id);
+            newPlat.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
             newPlat.setPlatformName("计划创建新平台");
             newPlat.setPlatformId("planCreateNewPlatform");
             newPlat.setBkBizId(random.nextInt(10000));
             list.add(newPlat);
 
             newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.PLAN_CREATE_DOMAIN.id);
+            newPlat.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
             newPlat.setPlatformName("计划创建新域");
             newPlat.setPlatformId("planCreateNewDomain");
             newPlat.setBkBizId(random.nextInt(10000));
@@ -847,7 +846,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             list.add(newPlat);
 
             newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.PLAN_APP_UPDATE.id);
+            newPlat.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
             newPlat.setPlatformName("等待应用升级平台");
             newPlat.setPlatformId("waitAppUpdatePlatform");
             newPlat.setBkBizId(random.nextInt());
@@ -939,34 +938,44 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public List<BizSetDefine> queryCCODBizSet() {
+    public List<BizSetDefine> queryCCODBizSet(boolean isCheckApp) {
         logger.info(String.format("begin to query all set info of ccod biz"));
-        Map<String, List<AppPo>> appMap = appMapper.select(null, null, null, null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
+
         List<BizSetDefine> setList = new ArrayList<>();
-        for(BizSetDefine setDefine : this.basicBizSetMap.values())
+        if(isCheckApp)
         {
-            BizSetDefine cloneSet = setDefine.clone();
-            List<String> appList = new ArrayList<>();
-            for(String appName : setDefine.getApps())
+            Map<String, List<AppPo>> appMap = appMapper.select(null, null, null, null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
+            for(BizSetDefine setDefine : this.basicBizSetMap.values())
             {
-                if(appMap.containsKey(appName))
-                    appList.add(appName);
+                BizSetDefine cloneSet = setDefine.clone();
+                List<String> appList = new ArrayList<>();
+                for(String appName : setDefine.getApps())
+                {
+                    if(appMap.containsKey(appName))
+                        appList.add(appName);
+                }
+                cloneSet.setApps(appList.toArray(new String[0]));
+                setList.add(cloneSet);
             }
-            cloneSet.setApps(appList.toArray(new String[0]));
-            setList.add(cloneSet);
+            for(BizSetDefine setDefine : this.extendBizSetMap.values())
+            {
+                BizSetDefine cloneSet = setDefine.clone();
+                List<String> appList = new ArrayList<>();
+                for(String appName : setDefine.getApps())
+                {
+                    if(appMap.containsKey(appName))
+                        appList.add(appName);
+                }
+                cloneSet.setApps(appList.toArray(new String[0]));
+                setList.add(cloneSet);
+            }
         }
-        for(BizSetDefine setDefine : this.extendBizSetMap.values())
+        else
         {
-            BizSetDefine cloneSet = setDefine.clone();
-            List<String> appList = new ArrayList<>();
-            for(String appName : setDefine.getApps())
-            {
-                if(appMap.containsKey(appName))
-                    appList.add(appName);
-            }
-            cloneSet.setApps(appList.toArray(new String[0]));
-            setList.add(cloneSet);
+            setList.addAll(new ArrayList<>(this.basicBizSetMap.values()));
+            setList.addAll(new ArrayList<>(this.extendBizSetMap.values()));
         }
+
         logger.info(String.format("ccod biz has %d set", setList.size()));
         return setList;
     }
@@ -989,6 +998,13 @@ public class LJPaasServiceImpl implements ILJPaasService {
         return null;
     }
 
+    @Override
+    public List<LJHostInfo> queryBizIdleHost(int bkBizId) throws InterfaceCallException, LJPaasException {
+        List<LJHostInfo> hostList = queryBKHost(bkBizId, null, this.paasIdlePoolSetName, null, null);
+        logger.info(String.format("bkBizId=%d find %d idle hosts : %s",
+                bkBizId, hostList.size(), String.join(",", hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity())).keySet())));
+        return hostList;
+    }
 
     @Override
     public LJSetInfo addNewBizSet(int bkBizId, String bkSetName, String desc, int capacity) throws InterfaceCallException, LJPaasException
@@ -1098,12 +1114,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public List<LJHostInfo> queryBKHost(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException
+    public List<LJHostInfo> queryBKHost(Integer bkBizId, Integer bkSetId, String bkSetName, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException
     {
         String queryUrl = String.format(this.queryHostUrlFmt, paasHostUrl);
         logger.debug(String.format("begin to query hosts for bkBizId=%d and bkSetId=%d and bkModuleName=%s and bkHostInnerIp=%s",
                 bkBizId, bkSetId, bkModuleName, bkHostInnerIp));
-        List<LJHostResourceInfo> resourceList = queryBKHostResource(bkBizId, bkSetId, bkModuleName, bkHostInnerIp);
+        List<LJHostResourceInfo> resourceList = queryBKHostResource(bkBizId, bkSetId, bkSetName, bkModuleName, bkHostInnerIp);
         List<LJHostInfo> hostList = new ArrayList<>();
         for(LJHostResourceInfo resourceInfo : resourceList)
         {
@@ -1115,7 +1131,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public List<LJHostResourceInfo> queryBKHostResource(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException
+    public List<LJHostResourceInfo> queryBKHostResource(Integer bkBizId, Integer bkSetId, String bkSetName, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException
     {
         String queryUrl = String.format(this.queryHostUrlFmt, paasHostUrl);
         logger.debug(String.format("begin to query host resource for bkBizId=%d and bkSetId=%d and bkHostInnerIp=%s",
@@ -1132,6 +1148,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
         if(bkSetId != null)
         {
             equalCondition.put("bk_set_id", bkSetId);
+        }
+        if(StringUtils.isNotBlank(bkSetName))
+        {
+            equalCondition.put("bk_set_name", bkSetId);
         }
         conditionsList.add(generateLJObjectParam("set", new String[0], equalCondition));
         equalCondition = new HashMap<>();
@@ -1209,7 +1229,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
         parsePaasInterfaceResult(retVal);
         logger.info(String.format("add %s to bkBizId=%d : SUCCESS", String.join(",", newHostIps), bkBizId));
-        List<LJHostInfo> idleHostList = queryBKHost(bkBizId, bkIdlePoolSetId, null, null);
+        List<LJHostInfo> idleHostList = queryBKHost(bkBizId, bkIdlePoolSetId, null,  null,null);
         Map<String, LJHostInfo> idleHostMap = idleHostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
         StringBuffer sb = new StringBuffer();
         for(String hostIp : newHostIps)
@@ -1309,7 +1329,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Override
     public List<LJSetInfo> resetExistBiz(int bkBizId, List<String> setNames) throws InterfaceCallException, LJPaasException
     {
-        List<LJHostInfo> hostList = queryBKHost(bkBizId, null, null, null);
+        List<LJHostInfo> hostList = queryBKHost(bkBizId, null, null, null, null);
         Integer[] hostIds = hostList.stream().collect(Collectors.groupingBy(LJHostInfo::getBkHostId)).keySet().toArray(new Integer[0]);
         if(hostIds.length > 0)
         {
@@ -1443,7 +1463,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
     public void bindDeployAppsToBizSet(int bkBizId, String setId, int bkSetId, String bkSetName, List<PlatformAppPo> deployAppList) throws InterfaceCallException, LJPaasException
     {
         List<LJModuleInfo> bkModuleList = queryBkModule(bkBizId, bkSetId, null, null);
-        Map<String, LJHostInfo> hostMap = queryBKHost(bkBizId, null, null, null)
+        Map<String, LJHostInfo> hostMap = queryBKHost(bkBizId, null, null, null, null)
                 .stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
         for(PlatformAppPo deployApp : deployAppList)
         {
@@ -1586,6 +1606,11 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 return -1;
             }
         }).forEach(System.out::println);
+    }
+
+    @Override
+    public Map<String, List<BizSetDefine>> getAppBizSetRelation() {
+        return this.appSetRelationMap;
     }
 
     @Test

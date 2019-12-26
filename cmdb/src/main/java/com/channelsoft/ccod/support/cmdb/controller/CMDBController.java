@@ -584,7 +584,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<BizSetDefine> setDefines = this.ljPaasService.queryCCODBizSet();
+            List<BizSetDefine> setDefines = this.ljPaasService.queryCCODBizSet(true);
             resultPo = new AjaxResultPo(true, "query SUCCESS", setDefines.size(), setDefines);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }

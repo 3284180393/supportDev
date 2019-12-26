@@ -16,16 +16,10 @@ public class CCODDomainInfo {
 
     private String domainName; //域名
 
-    private int domId; //该域在数据库的唯一主键
-
-    private int bkSetId; //该域归属于蓝鲸paas的set的id
-
     private List<CCODModuleInfo> modules;
 
-    public CCODDomainInfo(int bkSetId, int domId, String domainId, String domainName)
+    public CCODDomainInfo(String domainId, String domainName)
     {
-        this.bkSetId = bkSetId;
-        this.domId = domId;
         this.domainId = domainId;
         this.domainName = domainName;
         this.modules = new ArrayList<>();
@@ -47,22 +41,6 @@ public class CCODDomainInfo {
         this.domainName = domainName;
     }
 
-    public int getDomId() {
-        return domId;
-    }
-
-    public void setDomId(int domId) {
-        this.domId = domId;
-    }
-
-    public int getBkSetId() {
-        return bkSetId;
-    }
-
-    public void setBkSetId(int bkSetId) {
-        this.bkSetId = bkSetId;
-    }
-
     public List<CCODModuleInfo> getModules() {
         return modules;
     }
@@ -74,7 +52,7 @@ public class CCODDomainInfo {
     @Override
     public CCODDomainInfo clone()
     {
-        CCODDomainInfo domainInfo = new CCODDomainInfo(this.bkSetId, this.domId, this.domainId, this.domainName);
+        CCODDomainInfo domainInfo = new CCODDomainInfo(this.domainId, this.domainName);
         List<CCODModuleInfo> moduleList = new ArrayList<>();
         for(CCODModuleInfo module : this.modules)
         {

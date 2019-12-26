@@ -1331,7 +1331,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             List<PlatformAppPo> deployApps = platformAppMapper.select(platformUpdateSchemaInfo.getPlatformId(), null, null, null, null, null);
             LJBizInfo bkBiz = paasService.queryBizInfoById(platformPo.getBkBizId());
             List<LJSetInfo> bkSetList = paasService.queryBkBizSet(platformPo.getBkBizId());
-            List<LJHostInfo> bkHostList = paasService.queryBKHost(platformPo.getBkBizId(),  null, null, null);
+            List<LJHostInfo> bkHostList = paasService.queryBKHost(platformPo.getBkBizId(),  null, null, null, null);
             List<PlatformAppBkModulePo> appBkModuleList = platformAppBkModuleMapper.select(platformUpdateSchemaInfo.getPlatformId(), null, null, null, null, null);
             String schemaCheckResult = checkPlatformUpdateTask(platformUpdateSchemaInfo, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
             if(StringUtils.isNotBlank(schemaCheckResult))
@@ -1535,7 +1535,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Date now = new Date();
         List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
         Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<LJSetInfo> setList = this.paasService.resetExistBiz(bkBizId, new ArrayList<>(setDefineMap.keySet()));
         platform = new PlatformPo();
         platform.setBkCloudId(bkCloudId);
@@ -1686,6 +1686,129 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
         }
         return schemaList;
+    }
+
+    /**
+     * 把通过onlinemanager主动收集上来的ccod应用部署情况同步到paas之前需要给这些应用添加对应的bizId
+     * 确定应用归属的set信息,并根据定义的set-app关系对某些应用归属域重新赋值
+     * @param bizId 蓝鲸paas的biz id
+     * @param deployApps 需要处理的应用详情
+     * @return 处理后的结果
+     * @throws NotSupportAppException 如果应用中存在没有在lj-paas.set-apps节点定义的应用将抛出此异常
+     */
+    private List<PlatformAppDeployDetailVo> makeUpBizInfoForDeployApps(int bizId, List<PlatformAppDeployDetailVo> deployApps) throws NotSupportAppException
+    {
+        Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
+        for(PlatformAppDeployDetailVo deployApp : deployApps)
+        {
+            if(appSetRelationMap.containsKey(deployApp.getAppName()))
+            {
+                logger.error(String.format("%s没有在配置文件的lj-paas.set-apps节点中定义", deployApp.getAppName()));
+                throw new NotSupportAppException(String.format("%s未定义所属的set信息", deployApp.getAppName()));
+            }
+            deployApp.setBkBizId(bizId);
+            BizSetDefine sd = appSetRelationMap.get(deployApp.getAppName()).get(0);
+            deployApp.setBkSetName(sd.getName());
+            if(StringUtils.isNotBlank(sd.getFixedDomainName()))
+            {
+                deployApp.setSetId(sd.getId());
+                deployApp.setBkSetName(sd.getName());
+                deployApp.setDomainId(sd.getFixedDomainId());
+                deployApp.setDomainName(sd.getFixedDomainName());
+            }
+        }
+        return deployApps;
+    }
+
+    /**
+     * 根据应用部署详情生成平台的set拓扑结构
+     * @param deployAppList 平台的应用部署明细
+     * @return 台的set拓扑结构
+     * @throws DBPAASDataNotConsistentException
+     * @throws NotSupportAppException
+     */
+    private List<CCODSetInfo> generateCCODSetInfo(List<PlatformAppDeployDetailVo> deployAppList) throws ParamException, NotSupportAppException
+    {
+        Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
+        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
+        List<CCODSetInfo> setList = new ArrayList<>();
+        for(PlatformAppDeployDetailVo deployApp : deployAppList)
+        {
+            if(!appSetRelationMap.containsKey(deployApp.getAppName()))
+            {
+                logger.error(String.format("current version not support %s", deployApp.getAppName()));
+                throw new NotSupportAppException(String.format("current version not support %s", deployApp.getAppName()));
+            }
+            else if(!setDefineMap.containsKey(deployApp.getBkSetName()))
+            {
+                logger.error(String.format("%s is not a legal ccod set name", deployApp.getBkSetName()));
+                throw new ParamException(String.format("%s is not a legal ccod set name", deployApp.getBkSetName()));
+            }
+        }
+        for(String setName : setAppMap.keySet())
+        {
+            Map<String, List<PlatformAppDeployDetailVo>> domainAppMap =  setAppMap.get(setName)
+                    .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
+            List<CCODDomainInfo> domainList = new ArrayList<>();
+            for(String domainName : domainAppMap.keySet())
+            {
+                List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName);
+                CCODDomainInfo domain = new CCODDomainInfo(domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
+                for(PlatformAppDeployDetailVo deployApp : domAppList)
+                {
+                    CCODModuleInfo bkModule = new CCODModuleInfo(deployApp);
+                    domain.getModules().add(bkModule);
+                }
+                domainList.add(domain);
+            }
+            CCODSetInfo set = new CCODSetInfo(setName);
+            set.setDomains(domainList);
+            setList.add(set);
+        }
+        return setList;
+    }
+
+    public PlatformTopologyInfo getPlatformTopology(String platformId) throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException
+    {
+        logger.debug(String.format("begin to query %s platform topology", platformId));
+        PlatformPo platform = platformMapper.selectByPrimaryKey(platformId);
+        if(platform == null)
+        {
+            logger.error(String.format("%s platform not exist", platformId));
+            throw new ParamException(String.format("%s platform not exist", platformId));
+        }
+        PlatformTopologyInfo topology = new PlatformTopologyInfo(platform);
+        if(topology.getStatus() == null)
+        {
+            logger.error(String.format("unknown ccod platform status %d", platform.getStatus()));
+            throw new ParamException(String.format("unknown ccod platform status %d", platform.getStatus()));
+        }
+        List<LJHostInfo> idleHostList = new ArrayList<>();
+        PlatformUpdateSchemaInfo schema = this.platformUpdateSchemaMap.containsKey(platformId) ? this.platformUpdateSchemaMap.get(platformId) : null;
+        switch (topology.getStatus())
+        {
+            case SUSPEND:
+            case STOP:
+            case UNKNOWN:
+                return topology;
+        }
+        switch (topology.getStatus())
+        {
+            case SCHEMA_CREATE_PLATFORM:
+                idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
+
+                break;
+            case RUNNING:
+                List<PlatformAppDeployDetailVo> deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+                List<CCODSetInfo> setList = generateCCODSetInfo(deployAppList);
+                topology.setSetList(setList);
+            case SCHEMA_UPDATE_PLATFORM:
+            case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
+            default:
+
+        }
+        return topology;
     }
 
     @Test

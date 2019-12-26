@@ -10,6 +10,7 @@ import com.alibaba.fastjson.annotation.JSONField;
  * @Version: 1.0
  */
 public class LJHostInfo {
+
     private int bkHostId; //id在蓝鲸存储的主键
 
     private String mac; //主机mac地址

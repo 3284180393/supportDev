@@ -9,6 +9,7 @@ import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @ClassName: ILJPaasService
@@ -61,9 +62,10 @@ public interface ILJPaasService {
 
     /**
      * 查询ccod biz下面set信息
-     * @return
+     * @param isCheckApp 如果为true在返回的set信息中的应用都可以查到具体版本，否则包含所有的应用，这些应用可能没有记录任何版本
+     * @return set信息
      */
-    List<BizSetDefine> queryCCODBizSet();
+    List<BizSetDefine> queryCCODBizSet(boolean isCheckApp);
 
     /**
      * 查询指定set下面关联的应用
@@ -130,24 +132,26 @@ public interface ILJPaasService {
      * 查询指定条件下的所有host resource
      * @param bkBizId 蓝鲸paas的biz id
      * @param bkSetId 蓝鲸paas的set id
+     * @param bkSetName 蓝鲸paas的set名
      * @param bkModuleName 蓝鲸paas上定义的模块名
      * @param bkHostInnerIp 主机的内部ip
      * @return 满足条件的host resource
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
-    List<LJHostResourceInfo> queryBKHostResource(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException;
+    List<LJHostResourceInfo> queryBKHostResource(Integer bkBizId, Integer bkSetId, String bkSetName, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException;
 
     /**
      * 查询指定set下的所有主机
      * @param bkBizId 蓝鲸paas的biz id
      * @param bkSetId 蓝鲸paas的set id
+     * @param bkSetName 蓝鲸paas的set名
      * @param bkModuleName 蓝鲸paas上定义的模块名
      * @param bkHostInnerIp 主机的内部ip
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
-    List<LJHostInfo> queryBKHost(Integer bkBizId, Integer bkSetId, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException;
+    List<LJHostInfo> queryBKHost(Integer bkBizId, Integer bkSetId, String bkSetName, String bkModuleName, String bkHostInnerIp) throws InterfaceCallException, LJPaasException;
 
     /**
      * 将一组新的主机添加到idle pool去
@@ -230,4 +234,19 @@ public interface ILJPaasService {
      * @return 该biz的所有set
      */
     List<LJSetInfo> queryBkBizSet(int bkBizId) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 获取应用和set的关系
+     * @return 应用和set的关系
+     */
+    Map<String, List<BizSetDefine>> getAppBizSetRelation();
+
+    /**
+     * 查询指定id的biz的空闲服务器
+     * @param bkBizId 指定的biz的id
+     * @return 该biz的空闲服务器
+     * @throws InterfaceCallException 调用蓝鲸api异常
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api结果异常
+     */
+    List<LJHostInfo> queryBizIdleHost(int bkBizId) throws InterfaceCallException, LJPaasException;
 }

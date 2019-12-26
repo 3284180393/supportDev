@@ -8,9 +8,6 @@ package com.channelsoft.ccod.support.cmdb.vo;
  * @Version: 1.0
  */
 public class CCODHostInfo {
-    private int hostId; //host id,数据库存储唯一主键
-
-    private int bkHostId; //id在蓝鲸存储的主键
 
     private String mac; //主机mac地址
 
@@ -40,7 +37,6 @@ public class CCODHostInfo {
         this.cpuMHZ = ljHostInfo.getCpuMHZ();
         this.cpuModule = ljHostInfo.getCpuModule();
         this.disk = ljHostInfo.getDisk();
-        this.bkHostId = ljHostInfo.getBkHostId();
         this.hostInnerIp = ljHostInfo.getHostInnerIp();
         this.hostOutIp = ljHostInfo.getHostOutIp();
         this.mac = ljHostInfo.getMac();
@@ -48,15 +44,6 @@ public class CCODHostInfo {
         this.osName = ljHostInfo.getOsName();
         this.osType = ljHostInfo.getOsType();
         this.osVersion = ljHostInfo.getOsVersion();
-        this.hostId = 0;
-    }
-
-    public int getHostId() {
-        return hostId;
-    }
-
-    public void setHostId(int hostId) {
-        this.hostId = hostId;
     }
 
     public String getMac() {
@@ -147,11 +134,4 @@ public class CCODHostInfo {
         this.osVersion = osVersion;
     }
 
-    public int getBkHostId() {
-        return bkHostId;
-    }
-
-    public void setBkHostId(int bkHostId) {
-        this.bkHostId = bkHostId;
-    }
 }
