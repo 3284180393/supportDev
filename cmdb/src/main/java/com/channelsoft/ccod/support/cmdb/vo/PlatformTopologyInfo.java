@@ -106,4 +106,14 @@ public class PlatformTopologyInfo {
     public void setSchema(PlatformUpdateSchemaInfo schema) {
         this.schema = schema;
     }
+
+    public void setIdleHosts(List<LJHostInfo> idleHostList) {
+
+        this.idleHostList = new ArrayList<>();
+        for(LJHostInfo hostInfo : idleHostList)
+        {
+            CCODHostInfo host = new CCODHostInfo(hostInfo);
+            this.idleHostList.add(host);
+        }
+    }
 }

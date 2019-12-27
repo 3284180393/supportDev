@@ -15,7 +15,7 @@ import java.util.Date;
  * @Date: 2019/11/12 16:46
  * @Version: 1.0
  */
-public class AppCfgFilePo extends BaseModel {
+public class AppCfgFilePo {
 
     private int cfgFileId; //配置文件id,数据库唯一生成
 

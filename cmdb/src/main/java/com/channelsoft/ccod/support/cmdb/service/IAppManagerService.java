@@ -1,10 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
-import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
-import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
-import com.channelsoft.ccod.support.cmdb.exception.NexusException;
-import com.channelsoft.ccod.support.cmdb.exception.ParamException;
+import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
@@ -148,9 +145,9 @@ public interface IAppManagerService {
      * 创建一个平台升级计划demo
      * @param paramVo 希望生成的demo计划的相关参数
      * @return 生成的计划demo
-     * @throws ParamException
-     * @throws InterfaceCallException
-     * @throws LJPaasException
+     * @throws ParamException 计划的参数异常
+     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
+     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
      */
     PlatformUpdateSchemaInfo createPlatformUpdateSchemaDemo(PlatformUpdateSchemaParamVo paramVo) throws ParamException, InterfaceCallException, LJPaasException;
 
@@ -160,5 +157,36 @@ public interface IAppManagerService {
      * @return 满足条记按的升级计划
      */
     List<PlatformUpdateSchemaInfo> queryPlatformUpdateSchema(String platformId);
+
+    /**
+     * 查询指定平台的拓扑接口
+     * @param platformId 平台id
+     * @return 平台的拓扑
+     * @throws ParamException 计划的参数异常
+     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
+     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
+     * @throws NexusException 调用nexus api返回调用失败或是解析nexus api返回结果失败
+     */
+    PlatformTopologyInfo getPlatformTopology(String platformId) throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException;
+
+    /**
+     * 查询所有平台简单拓扑结构
+     * @return 当前所有平台的状态
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     * @throws NotSupportAppException
+     */
+    List<PlatformTopologyInfo> queryAllPlatformTopology() throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException;
+
+    /**
+     * 向系统注册新的版本的应用
+     * @param appModule 被注册的版本信息
+     * @throws NotSupportAppException 不支持注册的应用
+     * @throws ParamException 应用参数错误，例如版本重复
+     * @throws InterfaceCallException 调用nexus的api失败
+     * @throws NexusException nexus的api返回调用失败或是解析nexus的返回结果失败
+     */
+    void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException;
 
 }

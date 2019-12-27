@@ -6,6 +6,7 @@ import com.channelsoft.ccod.support.cmdb.constant.AppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformResourceService;
@@ -669,6 +670,46 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("create demo schema exception"), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformTopologies", method = RequestMethod.GET)
+    public AjaxResultPo getAllPlatformTopology()
+    {
+        String uri = String.format("GET %s/platformTopologies", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<PlatformTopologyInfo> platformList = this.appManagerService.queryAllPlatformTopology();
+            resultPo = new AjaxResultPo(true, "query SUCCESS", platformList.size(), platformList);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformTopologies/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformTopologyByPlatformId(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/platformTopologies/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformTopologyInfo topology = this.appManagerService.getPlatformTopology(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, topology);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
             resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return resultPo;

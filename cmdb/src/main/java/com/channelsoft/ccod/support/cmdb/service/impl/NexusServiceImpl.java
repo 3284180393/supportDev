@@ -7,6 +7,7 @@ import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
+import com.channelsoft.ccod.support.cmdb.utils.CMDBTools;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import org.apache.http.HttpEntity;
@@ -55,19 +56,7 @@ import java.util.stream.Collectors;
 @Service
 public class NexusServiceImpl implements INexusService {
 
-    private String queryRepositoryUrlFmt = "%s/service/rest/v1/components?repository=%s";
-
-    private String queryComponentUrlFmt = "%s/service/rest/v1/components/%s";
-
-    private String queryAssetUrlFmt = "%s/service/rest/v1/assets/%s";
-
-    private String uploadRawUrlFmt = "%s/service/rest/v1/components?repository=%s";
-
-    private String downloadUrlFmt = "%s/%s/%s";
-
-    private String queryGroupItemsUrlFmt = "%s/service/rest/v1/search?repository=%s&group=%s";
-
-    private String queryAssetByNameFmt = "%s/service/rest/v1/search?repository=%s&name=%s";
+//    private String queryAssetByNameFmt = "%s/service/rest/v1/search?repository=%s&name=%s";
 
     @Value("${nexus.platform-app-cfg-repository}")
     private String platformAppCfgRepository;
@@ -204,7 +193,7 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public  List<NexusAssetInfo> uploadRawComponent(String nexusHostUrl, String userName, String password, String repository, String directory, DeployFileInfo[] componentFiles) throws InterfaceCallException, NexusException {
-        String url = String.format(this.uploadRawUrlFmt, nexusHostUrl, repository);
+        String url = CMDBTools.getNexusUploadRawUrl(nexusHostUrl, repository);
         HttpClient httpclient = HttpRequestTools.getCloseableHttpClient();
         HttpPost httpPost = new HttpPost(url);
         httpPost.addHeader("Authorization", HttpRequestTools.getBasicAuthPropValue(userName, password));
@@ -280,7 +269,7 @@ public class NexusServiceImpl implements INexusService {
      */
     private NexusComponentPo[] queryRepositoryAllComponent(String nexusHostUrl, String userName, String password, String repository) throws InterfaceCallException, NexusException
     {
-        String url = String.format(this.queryRepositoryUrlFmt, nexusHostUrl, repository);
+        String url = CMDBTools.getNexusRepositoryQueryUrl(nexusHostUrl, repository);
         logger.info(String.format("begin to query all components of repository=%s", repository));
         String conResult = HttpRequestTools.httpGetRequest(url, userName, password);
         try
@@ -320,7 +309,7 @@ public class NexusServiceImpl implements INexusService {
     public List<NexusAssetInfo> queryGroupAssetMap(String nexusHostUrl, String userName, String password, String repository, String group) throws InterfaceCallException, NexusException
     {
         Map<String, NexusAssetInfo> map = new HashMap<>();
-        String url = String.format(this.queryGroupItemsUrlFmt, nexusHostUrl, repository, group);
+        String url = CMDBTools.getNexusQueryGroupItemsUrl(nexusHostUrl, repository, group);
         String conResult = HttpRequestTools.httpGetRequest(url, userName, password);
         try
         {
@@ -354,7 +343,7 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public NexusAssetInfo queryAssetByNexusName(String nexusHostUrl, String userName, String password, String repository, String nexusName) throws InterfaceCallException, NexusException {
-        String url = String.format(this.queryAssetByNameFmt, nexusHostUrl, repository, nexusName);
+        String url = CMDBTools.getNexusQueryAssetByNameUrl(nexusHostUrl, repository, nexusName);
         String conResult = HttpRequestTools.httpGetRequest(url, userName, password);
         try
         {

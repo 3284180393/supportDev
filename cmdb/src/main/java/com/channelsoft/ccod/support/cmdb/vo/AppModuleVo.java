@@ -15,6 +15,7 @@ import java.util.List;
  * @Version: 1.0
  */
 public class AppModuleVo {
+
     private int appId; //部署应用的id
 
     private AppType appType; //应用类型

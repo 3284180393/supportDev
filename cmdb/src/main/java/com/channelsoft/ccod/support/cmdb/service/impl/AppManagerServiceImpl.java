@@ -11,6 +11,7 @@ import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
+import com.channelsoft.ccod.support.cmdb.utils.CMDBTools;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.sun.javafx.binding.StringFormatter;
 import org.apache.commons.lang3.StringUtils;
@@ -136,10 +137,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
     private Set<String> notCheckCfgAppSet;
 
     private final static Logger logger = LoggerFactory.getLogger(AppManagerServiceImpl.class);
-
-    private String appDirectoryFmt = "/%s/%s";
-
-    private String tmpSaveDirFmt = "%s/downloads/%s";
 
     private Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
 
@@ -404,7 +401,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         AppPo appPo = module.getAppInfo();
         String appName = appPo.getAppName();
         String appVersion = appPo.getVersion();
-        String appDirectory = String.format(this.appDirectoryFmt, appName, appVersion);
+        String appDirectory = CMDBTools.getAppDirectory(appPo);
         AppModuleVo moduleVo;
         if(appModuleMap.containsKey(appDirectory))
         {
@@ -556,89 +553,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         return sb.toString().replaceAll(",$", "");
     }
 
-//    private Map<String, Map<String, NexusAssetInfo>> uploadAppComponent(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception
-//    {
-//        List<DeployFileInfo> appFiles = new ArrayList<>();
-//        appFiles.add(module.getInstallPackage());
-//        appFiles.addAll(Arrays.asList(module.getCfgs()));
-//        Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.uploadRawComponent(this.appRepository, appDirectory, appFiles.toArray(new DeployFileInfo[0]));
-//        Date now = new Date();
-//        AppPo appPo = appMap.get(appDirectory);
-//        int appId = appPo.getAppId();
-//        AppInstallPackagePo packagePo = new AppInstallPackagePo();
-//        packagePo.setAppId(appId);
-//        packagePo.setCreateTime(now);
-//        packagePo.setDeployPath(module.getInstallPackage().getDeployPath());
-//        packagePo.setFileName(module.getInstallPackage().getExt());
-//        packagePo.setMd5(module.getInstallPackage().getFileMd5());
-//        NexusAssetInfo ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
-//        packagePo.setNexusAssetId(ipAsset.getId());
-//        packagePo.setNexusRepository(this.appRepository);
-//        this.appInstallPackageMapper.insert(packagePo);
-//        for(DeployFileInfo cfg : module.getCfgs())
-//        {
-//            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
-//            cfgFilePo.setAppId(appId);
-//            cfgFilePo.setCreateTime(now);
-//            cfgFilePo.setDeployPath(module.getInstallPackage().getDeployPath());
-//            cfgFilePo.setFileName(module.getInstallPackage().getExt());
-//            cfgFilePo.setMd5(module.getInstallPackage().getFileMd5());
-//            ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
-//            cfgFilePo.setNexusAssetId(ipAsset.getId());
-//            cfgFilePo.setNexusRepository(this.appRepository);
-//            this.appCfgFileMapper.insert(cfgFilePo);
-//        }
-//        return appFileAssetMap;
-//    }
-//
-//    private Map<String, Map<String, NexusAssetInfo>> addNewApp(String appDirectory, PlatformAppModuleVo module, Map<String, AppPo> appMap) throws Exception
-//    {
-//        Date now = new Date();
-////        String appDirectory = String.format(this.appDirectoryFmt, module.getModuleName(), module.getModuleAliasName(), module.getVersion());
-//        List<DeployFileInfo> appFiles = new ArrayList<>();
-//        appFiles.add(module.getInstallPackage());
-//        appFiles.addAll(Arrays.asList(module.getCfgs()));
-//        Map<String, Map<String, NexusAssetInfo>> appFileAssetMap = this.nexusService.uploadRawComponent(this.appRepository, appDirectory, appFiles.toArray(new DeployFileInfo[0]));
-//        AppPo appPo = new AppPo();
-//        appPo.setAppAlias(module.getModuleAliasName());
-//        appPo.setAppName(module.getModuleName());
-//        appPo.setAppType(module.getModuleType());
-//        appPo.setBasePath(module.getBasePath());
-//        appPo.setCcodVersion(module.getCcodVersion());
-//        appPo.setComment("");
-//        appPo.setCreateReason("client collect");
-//        appPo.setCreateTime(now);
-//        appPo.setUpdateTime(now);
-//        appPo.setVersion(module.getVersion());
-//        this.appMapper.insert(appPo);
-//        int appId = appPo.getAppId();
-//        AppInstallPackagePo packagePo = new AppInstallPackagePo();
-//        packagePo.setAppId(appId);
-//        packagePo.setCreateTime(now);
-//        packagePo.setDeployPath(module.getInstallPackage().getDeployPath());
-//        packagePo.setFileName(module.getInstallPackage().getExt());
-//        packagePo.setMd5(module.getInstallPackage().getFileMd5());
-//        NexusAssetInfo ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
-//        packagePo.setNexusAssetId(ipAsset.getId());
-//        packagePo.setNexusRepository(this.appRepository);
-//        this.appInstallPackageMapper.insert(packagePo);
-//        for(DeployFileInfo cfg : module.getCfgs())
-//        {
-//            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
-//            cfgFilePo.setAppId(appId);
-//            cfgFilePo.setCreateTime(now);
-//            cfgFilePo.setDeployPath(module.getInstallPackage().getDeployPath());
-//            cfgFilePo.setFileName(module.getInstallPackage().getExt());
-//            cfgFilePo.setMd5(module.getInstallPackage().getFileMd5());
-//            ipAsset = appFileAssetMap.get(appDirectory).get(module.getInstallPackage().getFileName());
-//            cfgFilePo.setNexusAssetId(ipAsset.getId());
-//            cfgFilePo.setNexusRepository(this.appRepository);
-//            this.appCfgFileMapper.insert(cfgFilePo);
-//        }
-//        appMap.put(appDirectory, appPo);
-//        return appFileAssetMap;
-//    }
-
     @Override
     public void createNewPlatformAppDataCollectTask(String platformId, String platformName, String domainId, String hostIp, String appName, String version) throws Exception {
         logger.info(String.format("begin to create platformId=%s, domainId=%s, hostIp=%s, appName=%s, version=%s app collect task",
@@ -672,7 +586,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.info(String.format("prepare to add new app version from app publish nexus %s : appName=%s, appAlias=%s, version=%s, installPackage=%s, cfgs=%s",
                 this.publishNexusHostUrl, appName, appAlias, version, JSONObject.toJSONString(installPackage),
                 JSONArray.toJSONString(cfgs)));
-        String appDirectory = String.format(this.appDirectoryFmt, appName, appAlias, version);
+        AppPo appPo = new AppPo();
+        appPo.setAppName(appName);
+        appPo.setAppAlias(appAlias);
+        appPo.setVersion(version);
+        String appDirectory = CMDBTools.getAppDirectory(appPo);
         Date now = new Date();
         List<DeployFileInfo> appFileInfoList = new ArrayList<>();
         DeployFileInfo pkgInfo = getFileFromTargetNexus(this.publishNexusHostUrl, this.publishNexusUserName,
@@ -684,15 +602,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     this.nexusPassword, cfg);
             appFileInfoList.add(cfgInfo);
         }
-//        Map<String, NexusAssetInfo> fileAssetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl,
-//                this.nexusUserName, this.nexusPassword, this.appRepository, appDirectory, appFileInfoList.toArray(new DeployFileInfo[0]));
-        AppPo appPo = new AppPo();
         appPo.setVersionControlUrl(installPackage.getNexusName());
         appPo.setVersionControl("nexus");
-        appPo.setAppAlias(appAlias);
+
         appPo.setCcodVersion(ccodVersion);
         appPo.setAppType(appType);
-        appPo.setVersion(version);
+
         appPo.setBasePath(basePath);
         appPo.setComment(String.format("version %s for %s", version, appName));
         appPo.setCreateReason("RELEASE");
@@ -731,12 +646,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
     {
         NexusAssetInfo assetInfo = this.nexusService.queryAssetByNexusName(nexusUrl, userName, password,
                 nexusInfo.getRepository(), nexusInfo.getNexusName());
-        String fileName = getFileNameFromDownloadUrl(assetInfo.getDownloadUrl());
+        String fileName = CMDBTools.getFileNameFromDownloadUrl(assetInfo.getDownloadUrl());
         String repository = nexusInfo.getRepository();
-        String directory = "/" + nexusInfo.getNexusName().replaceAll("/" + fileName + "$", "");
+        String directory = CMDBTools.getDirectoryFromAppModuleFileNexusInfo(nexusInfo);
         String key = String.format("%s/%s%s", nexusUrl, repository, directory);
-        String saveDir = String.format(this.tmpSaveDirFmt,
-                System.getProperty("user.dir"), DigestUtils.md5DigestAsHex(key.getBytes()));
+        String saveDir = CMDBTools.getTempSaveDir(DigestUtils.md5DigestAsHex(key.getBytes()));
         saveDir = saveDir.replaceAll("\\\\", "/");
         String savePath = this.nexusService.downloadFile(userName, password,
                 assetInfo.getDownloadUrl(), saveDir, fileName);
@@ -751,16 +665,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         return info;
     }
 
-    private String getFileNameFromDownloadUrl(String downloadUrl)
-    {
-        String url = downloadUrl;
-        if(url.lastIndexOf("/") == url.length() - 1)
-        {
-            url = url.substring(0, downloadUrl.length()-1);
-        }
-        String[] arr = url.split("/");
-        return arr[arr.length - 1];
-    }
+
 
     /**
      * 部署应用到域主机
@@ -822,13 +727,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<PlatformAppCfgFilePo> cfgFileList = new ArrayList<>();
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-        String directory = String.format("%s/%s/%s/%s/%s/%s/%s", platformAppPo.getPlatformId(),
-                platformAppPo.getDomainId(), platformAppPo.getHostIp(), appPo.getAppName(), appPo.getVersion(),
-                platformAppPo.getAppAlias(), sf.format(now));
+        String directory = CMDBTools.getPlatformAppDirectory(appPo, platformAppPo);
         logger.debug(String.format("begin to handle %s cfgs", directory));
         for(AppFileNexusInfo cfg : cfgs)
         {
-            String tmpSaveDir = String.format(this.tmpSaveDirFmt, System.getProperty("user.dir"), directory);
+            String tmpSaveDir = CMDBTools.getTempSaveDir(directory);
             String downloadUrl = String.format("%s/%s/%s", this.nexusHostUrl, cfg.getNexusRepository(), cfg.getNexusPath());
             logger.debug(String.format("download cfg from %s", downloadUrl));
             String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
@@ -1350,80 +1253,80 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
-    private DomainUpdatePlanInfo generateDomainUpdatePlan(DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, int domId, String domainName, String domainId, List<CCODModuleInfo> deployApps, List<AppPo> appList)
-    {
-        Date now = new Date();
-        DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
-        planInfo.setDomainId(domainId);
-        planInfo.setDomainName(domainName);
-        planInfo.setCreateTime(now);
-        planInfo.setUpdateTime(now);
-        planInfo.setExecuteTime(now);
-        List<AppUpdateOperationInfo> operationList = new ArrayList<>();
-        Map<String, List<AppPo>> nameAppMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
-        for(CCODModuleInfo deployApp : deployApps)
-        {
-            Map<String, AppPo> versionAppMap = nameAppMap.get(deployApp.getModuleName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity()));
-            AppPo chosenApp = versionAppMap.get(deployApp.getVersion());
-            if(!DomainUpdateType.ADD.equals(updateType))
-            {
-                for(String version : versionAppMap.keySet())
-                {
-                    if(!version.equals(deployApp.getVersion()))
-                    {
-                        chosenApp = versionAppMap.get(version);
-                        break;
-                    }
-                }
-            }
-            AppUpdateOperationInfo operationInfo = generateAppUpdateOperation(operation, deployApp, chosenApp, updateStatus);
-            operationList.add(operationInfo);
-        }
-        planInfo.setAppUpdateOperationList(operationList);
-        return planInfo;
-    }
+//    private DomainUpdatePlanInfo generateDomainUpdatePlan(DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, int domId, String domainName, String domainId, List<CCODModuleInfo> deployApps, List<AppPo> appList)
+//    {
+//        Date now = new Date();
+//        DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+//        planInfo.setDomainId(domainId);
+//        planInfo.setDomainName(domainName);
+//        planInfo.setCreateTime(now);
+//        planInfo.setUpdateTime(now);
+//        planInfo.setExecuteTime(now);
+//        List<AppUpdateOperationInfo> operationList = new ArrayList<>();
+//        Map<String, List<AppPo>> nameAppMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
+//        for(CCODModuleInfo deployApp : deployApps)
+//        {
+//            Map<String, AppPo> versionAppMap = nameAppMap.get(deployApp.getModuleName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity()));
+//            AppPo chosenApp = versionAppMap.get(deployApp.getVersion());
+//            if(!DomainUpdateType.ADD.equals(updateType))
+//            {
+//                for(String version : versionAppMap.keySet())
+//                {
+//                    if(!version.equals(deployApp.getVersion()))
+//                    {
+//                        chosenApp = versionAppMap.get(version);
+//                        break;
+//                    }
+//                }
+//            }
+//            AppUpdateOperationInfo operationInfo = generateAppUpdateOperation(operation, deployApp, chosenApp, updateStatus);
+//            operationList.add(operationInfo);
+//        }
+//        planInfo.setAppUpdateOperationList(operationList);
+//        return planInfo;
+//    }
 
-    private AppUpdateOperationInfo generateAppUpdateOperation(AppUpdateOperation operation, CCODModuleInfo deployApp, AppPo targetApp, UpdateStatus updateStatus)
-    {
-        Date now = new Date();
-        AppUpdateOperationInfo info = new AppUpdateOperationInfo();
-//        info.setAppRunner(deployApp.getAppRunner());
-//        info.setBasePath(deployApp.getBasePath());
-//        info.setHostIp(deployApp.getHostIp());
-//        info.setCfgs(new ArrayList<>());
-//        for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
-//        {
-//            AppFileNexusInfo fileInfo = new AppFileNexusInfo();
-//            fileInfo.setDeployPath(deployApp.get);
-//            NexusAssetInfo assetInfo = new NexusAssetInfo();
-//            Checksum checksum = new Checksum();
-//            checksum.md5 = cfg.getMd5();
-//            assetInfo.setChecksum(checksum);
-//            assetInfo.setId(cfg.getNexusAssetId());
-//            assetInfo.setPath(cfg.getNexusDirectory());
-//            assetInfo.setRepository(cfg.getNexusRepository());
-//            info.getCfgs().add(assetInfo);
-//        }
-//        info.setOperation(operation);
-//        info.setOriginalAppId(deployApp.getAppId());
-//        info.setTargetAppId(deployApp.getAppId());
-//        switch (operation)
-//        {
-//            case ADD:
-//                info.setOriginalAppId(0);
-//                break;
-//            case DELETE:
-//                info.setTargetAppId(0);
-//                info.setCfgs(new ArrayList<>());
-//                break;
-//            case CFG_UPDATE:
-//                info.setTargetAppId(0);
-//                break;
-//            default:
-//                break;
-//        }
-        return info;
-    }
+//    private AppUpdateOperationInfo generateAppUpdateOperation(AppUpdateOperation operation, CCODModuleInfo deployApp, AppPo targetApp, UpdateStatus updateStatus)
+//    {
+//        Date now = new Date();
+//        AppUpdateOperationInfo info = new AppUpdateOperationInfo();
+////        info.setAppRunner(deployApp.getAppRunner());
+////        info.setBasePath(deployApp.getBasePath());
+////        info.setHostIp(deployApp.getHostIp());
+////        info.setCfgs(new ArrayList<>());
+////        for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
+////        {
+////            AppFileNexusInfo fileInfo = new AppFileNexusInfo();
+////            fileInfo.setDeployPath(deployApp.get);
+////            NexusAssetInfo assetInfo = new NexusAssetInfo();
+////            Checksum checksum = new Checksum();
+////            checksum.md5 = cfg.getMd5();
+////            assetInfo.setChecksum(checksum);
+////            assetInfo.setId(cfg.getNexusAssetId());
+////            assetInfo.setPath(cfg.getNexusDirectory());
+////            assetInfo.setRepository(cfg.getNexusRepository());
+////            info.getCfgs().add(assetInfo);
+////        }
+////        info.setOperation(operation);
+////        info.setOriginalAppId(deployApp.getAppId());
+////        info.setTargetAppId(deployApp.getAppId());
+////        switch (operation)
+////        {
+////            case ADD:
+////                info.setOriginalAppId(0);
+////                break;
+////            case DELETE:
+////                info.setTargetAppId(0);
+////                info.setCfgs(new ArrayList<>());
+////                break;
+////            case CFG_UPDATE:
+////                info.setTargetAppId(0);
+////                break;
+////            default:
+////                break;
+////        }
+//        return info;
+//    }
 
     /**
      * 将某个域从平台移除
@@ -1701,7 +1604,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
         for(PlatformAppDeployDetailVo deployApp : deployApps)
         {
-            if(appSetRelationMap.containsKey(deployApp.getAppName()))
+            if(!appSetRelationMap.containsKey(deployApp.getAppName()))
             {
                 logger.error(String.format("%s没有在配置文件的lj-paas.set-apps节点中定义", deployApp.getAppName()));
                 throw new NotSupportAppException(String.format("%s未定义所属的set信息", deployApp.getAppName()));
@@ -1769,6 +1672,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         return setList;
     }
 
+    @Override
     public PlatformTopologyInfo getPlatformTopology(String platformId) throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException
     {
         logger.debug(String.format("begin to query %s platform topology", platformId));
@@ -1784,39 +1688,144 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("unknown ccod platform status %d", platform.getStatus()));
             throw new ParamException(String.format("unknown ccod platform status %d", platform.getStatus()));
         }
-        List<LJHostInfo> idleHostList = new ArrayList<>();
-        PlatformUpdateSchemaInfo schema = this.platformUpdateSchemaMap.containsKey(platformId) ? this.platformUpdateSchemaMap.get(platformId) : null;
-        switch (topology.getStatus())
-        {
-            case SUSPEND:
-            case STOP:
-            case UNKNOWN:
-                return topology;
-        }
+        List<LJHostInfo> idleHostList;
+        PlatformUpdateSchemaInfo schema;
+        List<CCODSetInfo> setList;
+        List<PlatformAppDeployDetailVo> deployAppList;
         switch (topology.getStatus())
         {
             case SCHEMA_CREATE_PLATFORM:
+                setList = new ArrayList<>();
                 idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
-
+                schema = this.platformUpdateSchemaMap.containsKey(platformId) ? this.platformUpdateSchemaMap.get(platformId) : null;
                 break;
             case RUNNING:
-                List<PlatformAppDeployDetailVo> deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
-                List<CCODSetInfo> setList = generateCCODSetInfo(deployAppList);
-                topology.setSetList(setList);
+                if(!this.platformUpdateSchemaMap.containsKey(platformId))
+                {
+                    logger.error(String.format("%s status is %s, but it has an update schema",
+                            platformId, topology.getStatus().name));
+                    throw new ParamException(String.format("%s status is %s, but it has an update schema",
+                            platformId, topology.getStatus().name));
+                }
+                deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+                setList = generateCCODSetInfo(deployAppList);
+                idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
+                schema = null;
+                break;
             case SCHEMA_UPDATE_PLATFORM:
+                if(!this.platformUpdateSchemaMap.containsKey(platformId))
+                {
+                    logger.error(String.format("%s status is %s, but can not find its update schema",
+                            platformId, topology.getStatus().name));
+                    throw new ParamException(String.format("%s status is %s, but can not find its update schema",
+                            platformId, topology.getStatus().name));
+                }
+                deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+                setList = generateCCODSetInfo(deployAppList);
+                idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
+                schema = this.platformUpdateSchemaMap.get(platformId);
+                break;
             case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
+                if(this.platformUpdateSchemaMap.containsKey(platformId))
+                {
+                    logger.error(String.format("%s status is %s, but it has an update schema",
+                            platformId, topology.getStatus().name));
+                    throw new ParamException(String.format("%s status is %s, but it has an update schema",
+                            platformId, topology.getStatus().name));
+                }
+                deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+                deployAppList = makeUpBizInfoForDeployApps(platform.getBkBizId(), deployAppList);
+                setList = generateCCODSetInfo(deployAppList);
+                idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
+                schema = null;
+                break;
             default:
-
+                idleHostList = new ArrayList<>();
+                setList = new ArrayList<>();
+                schema = null;
         }
+        topology.setSetList(setList);
+        topology.setSchema(schema);
+        topology.setIdleHosts(idleHostList);
         return topology;
     }
 
-    @Test
-    public void fileNameTest()
+    @Override
+    public List<PlatformTopologyInfo> queryAllPlatformTopology() throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException {
+        List<PlatformTopologyInfo> topoList = new ArrayList<>();
+        List<PlatformPo> platforms = platformMapper.select(null);
+        for(PlatformPo platformPo : platforms)
+        {
+            PlatformTopologyInfo topo = new PlatformTopologyInfo(platformPo);
+            if(topo.getStatus() == null)
+            {
+                logger.error(String.format("%s status %d is unknown", platformPo.getPlatformId(), platformPo.getStatus()));
+                continue;
+            }
+            switch (topo.getStatus())
+            {
+                case RUNNING:
+                case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
+                case SCHEMA_UPDATE_PLATFORM:
+                case SCHEMA_CREATE_PLATFORM:
+                    topoList.add(topo);
+                    break;
+                default:
+            }
+        }
+        return topoList;
+    }
+
+    @Override
+    public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException {
+        logger.debug(String.format("begin to register app=[%s] into cmdb", JSONObject.toJSONString(appModule)));
+        Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
+        if (!appSetRelationMap.containsKey(appModule.getAppName())) {
+            logger.error(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
+            throw new NotSupportAppException(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
+        }
+        String moduleCheckResult = checkModuleParam(appModule);
+        if (StringUtils.isNotBlank(moduleCheckResult)) {
+            logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
+            throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
+        }
+        List<AppPo> appList = this.appMapper.select(null, appModule.getAppName(), null, appModule.getVersion());
+        if (appList.size() > 0) {
+            logger.error(String.format("appName=%s and version=%s app has registered", appModule.getAppName(), appModule.getVersion()));
+            throw new ParamException(String.format("appName=%s and version=%s app has registered", appModule.getAppName(), appModule.getVersion()));
+        }
+        String directory = CMDBTools.getAppModuleDirectory(appModule);
+
+        String tmpSaveDir = CMDBTools.getTempSaveDir(directory);
+        String downloadUrl = String.format("%s/%s/%s", this.publishNexusHostUrl, appModule.getInstallPackage().getFileName());
+        logger.debug(String.format("download cfg from %s", downloadUrl));
+//        String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+    }
+
+    private String checkModuleParam(AppModuleVo appModuleVo)
     {
-        String url = "http://10.130.41.216:8081/service/rest/v1/search?repository=CCOD1&name=CCOD/MONITOR_MODULE/ivr/3.0.0.0/test1.ini";
-        String fileName = getFileNameFromDownloadUrl(url);
-        System.out.println(fileName);
+        StringBuffer sb = new StringBuffer();
+        if(StringUtils.isBlank(appModuleVo.getAppName()))
+        {
+            sb.append("appName is blank,");
+        }
+        if(StringUtils.isBlank(appModuleVo.getVersion()))
+        {
+            sb.append("appVersion is blank,");
+        }
+        if(StringUtils.isBlank(appModuleVo.getBasePath()))
+        {
+            sb.append("default base path is blank,");
+        }
+        if(appModuleVo.getInstallPackage() == null)
+        {
+            sb.append("install package is null,");
+        }
+        if(appModuleVo.getCfgs() == null || appModuleVo.getCfgs().size() == 0)
+        {
+            sb.append("cfg is null,");
+        }
+        return sb.toString().replaceAll(",$", "");
     }
 
     @Test
