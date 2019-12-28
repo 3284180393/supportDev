@@ -132,14 +132,14 @@ public interface IAppManagerService {
 
     /**
      * 更新平台升级计划
-     * @param platformUpdateSchemaInfo 需要更新的平台计划
+     * @param updateSchema 需要更新的平台计划
      * @throws ParamException 计划的参数异常
      * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
      * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
      * @throws NexusException 调用nexus api返回调用失败或是解析nexus api返回结果失败
      * @throws IOException 处理文件失败
      */
-    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo platformUpdateSchemaInfo) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
+    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
 
     /**
      * 创建一个平台升级计划demo

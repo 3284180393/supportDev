@@ -1211,45 +1211,187 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo platformUpdateSchemaInfo) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException {
-        logger.debug(String.format("begin to update platform update schema : %s", JSONObject.toJSONString(platformUpdateSchemaInfo)));
-        if(UpdateStatus.FAIL.equals(platformUpdateSchemaInfo.getStatus()) || UpdateStatus.CANCEL.equals(platformUpdateSchemaInfo.getStatus()))
+    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException {
+        logger.debug(String.format("begin to update platform update schema : %s", JSONObject.toJSONString(updateSchema)));
+        Date now = new Date();
+        if(StringUtils.isBlank(updateSchema.getPlatformId()))
         {
-            logger.info(String.format("%s report platform update schema is %s", platformUpdateSchemaInfo.getPlatformId(), platformUpdateSchemaInfo.getStatus().name));
-            if(this.platformUpdateSchemaMap.containsKey(platformUpdateSchemaInfo.getPlatformId()))
-            {
-                this.platformUpdateSchemaMap.remove(platformUpdateSchemaInfo.getPlatformId());
-            }
+            logger.error(String.format("platformId of update schema is blank"));
+            throw new ParamException(String.format("platformId of update schema is blank"));
         }
-        else
+        else if(StringUtils.isBlank(updateSchema.getPlatformName()))
         {
-            PlatformPo platformPo = platformMapper.selectByPrimaryKey(platformUpdateSchemaInfo.getPlatformId());
-            if(platformPo == null)
+            logger.error(String.format("platformName of update schema is blank"));
+            throw new ParamException(String.format("platformName of update schema is blank"));
+        }
+        else if(updateSchema.getBkBizId() <= 0)
+        {
+            logger.error(String.format("bkBizId of update schema is 0"));
+            throw new ParamException(String.format("not bkBizId of update schema"));
+        }
+        LJBizInfo bkBiz = paasService.queryBizInfoById(updateSchema.getBkBizId());
+        if(bkBiz == null)
+        {
+            logger.error(String.format("bkBizId=%d biz not exist", updateSchema.getBkBizId()));
+            throw new ParamException(String.format("bkBizId=%d biz not exist", updateSchema.getBkBizId()));
+        }
+        if(!updateSchema.getPlatformName().equals(bkBiz.getBkBizName()))
+        {
+            logger.error(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
+            throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
+        }
+        PlatformPo platformPo = platformMapper.selectByPrimaryKey(updateSchema.getPlatformId());
+        if(platformPo == null)
+        {
+            if(!updateSchema.getStatus().equals(PlatformUpdateTaskType.CREATE))
             {
-                logger.error(String.format("%s platform not exist", platformUpdateSchemaInfo.getPlatformId()));
-                throw new ParamException(String.format("%s platform not exist", platformUpdateSchemaInfo.getPlatformId()));
-            }
-            List<DomainPo> domainList = domainMapper.select(platformUpdateSchemaInfo.getPlatformId(), null);
-            List<AppModuleVo> appList = appModuleMapper.select(null, null, null, null);
-            List<PlatformAppPo> deployApps = platformAppMapper.select(platformUpdateSchemaInfo.getPlatformId(), null, null, null, null, null);
-            LJBizInfo bkBiz = paasService.queryBizInfoById(platformPo.getBkBizId());
-            List<LJSetInfo> bkSetList = paasService.queryBkBizSet(platformPo.getBkBizId());
-            List<LJHostInfo> bkHostList = paasService.queryBKHost(platformPo.getBkBizId(),  null, null, null, null);
-            List<PlatformAppBkModulePo> appBkModuleList = platformAppBkModuleMapper.select(platformUpdateSchemaInfo.getPlatformId(), null, null, null, null, null);
-            String schemaCheckResult = checkPlatformUpdateTask(platformUpdateSchemaInfo, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
-            if(StringUtils.isNotBlank(schemaCheckResult))
-            {
-                logger.error(String.format("platform update schema check FAIL : %s", schemaCheckResult));
-                throw new ParamException(String.format("platform update schema check FAIL : %s", schemaCheckResult));
-            }
-            if(UpdateStatus.SUCCESS.equals(platformUpdateSchemaInfo.getStatus()))
-            {
-                recordPlatformUpdateResult(platformUpdateSchemaInfo, platformPo, domainList, appList, deployApps, appBkModuleList, bkSetList, bkHostList);
+                logger.error(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
+                throw new ParamException(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
             }
             else
             {
-                this.platformUpdateSchemaMap.put(platformUpdateSchemaInfo.getPlatformId(), platformUpdateSchemaInfo);
+                platformPo = new PlatformPo();
+                platformPo.setPlatformId(updateSchema.getPlatformId());
+                platformPo.setPlatformName(updateSchema.getPlatformName());
+                platformPo.setComment("create by platform create schema");
+                platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
+                platformPo.setCreateTime(new Date());
+                platformPo.setBkBizId(updateSchema.getBkBizId());
+                platformPo.setBkCloudId(updateSchema.getBkCloudId());
+                platformPo.setUpdateTime(new Date());
+                this.platformMapper.insert(platformPo);
             }
+        }
+        if(!platformPo.getPlatformName().equals(updateSchema.getPlatformName()))
+        {
+            logger.error(String.format("platformName of %s is %s, not %s",
+                    platformPo.getPlatformId(), platformPo.getPlatformName(), updateSchema.getPlatformName()));
+            throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
+        }
+        CCODPlatformStatus platformStatus = CCODPlatformStatus.getEnumById(platformPo.getStatus());
+        if(platformStatus == null)
+        {
+            logger.error(String.format("%s status %d is unknown", platformPo.getPlatformId(), platformPo.getStatus()));
+            throw new ParamException(String.format("%s status %d is unknown", platformPo.getPlatformId(), platformPo.getStatus()));
+        }
+        switch (updateSchema.getTaskType())
+        {
+            case CREATE:
+                switch (platformStatus)
+                {
+                    case SCHEMA_CREATE_PLATFORM:
+                        break;
+                    default:
+                        logger.error(String.format("not support %s platform %s which status is %s",
+                                updateSchema.getTaskType().name, updateSchema.getPlatformId(), platformStatus.name));
+                        throw new ParamException(String.format("not support %s platform %s which status is %s",
+                                updateSchema.getTaskType().name, updateSchema.getPlatformId(), platformStatus.name));
+                }
+                break;
+            case UPDATE:
+                switch (platformStatus)
+                {
+                    case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
+                    case UNKNOWN:
+                    case SCHEMA_CREATE_PLATFORM:
+                        logger.error(String.format("not support %s platform %s which status is %s",
+                                updateSchema.getTaskType().name, updateSchema.getPlatformId(), platformStatus.name));
+                        throw new ParamException(String.format("not support %s platform %s which status is %s",
+                                updateSchema.getTaskType().name, updateSchema.getPlatformId(), platformStatus.name));
+                    default:
+                        break;
+                }
+                break;
+            default:
+                logger.error(String.format("current version not support %s %s", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
+                throw new ParamException(String.format("current version not support %s %s", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
+        }
+        List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
+        List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
+        List<PlatformAppPo> deployApps = this.platformAppMapper.select(updateSchema.getPlatformId(), null, null, null, null, null);
+        List<LJSetInfo> bkSetList = this.paasService.queryBkBizSet(updateSchema.getBkBizId());
+        List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
+        List<PlatformAppBkModulePo> appBkModuleList = this.platformAppBkModuleMapper.select(updateSchema.getPlatformId(), null, null, null, null, null);
+        String schemaCheckResult;
+        logger.debug(String.format("%s %s has been %s", updateSchema.getTaskType().name, updateSchema.getPlatformId(), updateSchema.getStatus().name));
+        switch (updateSchema.getTaskType())
+        {
+            case CREATE:
+                switch (updateSchema.getStatus())
+                {
+                    case CANCEL:
+                    case FAIL:
+                        this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+                        this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
+                        this.platformMapper.delete(updateSchema.getPlatformId());
+                        break;
+                    case SUCCESS:
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        if(StringUtils.isNotBlank(schemaCheckResult))
+                        {
+                            logger.error(String.format("schema is not legal : %s", schemaCheckResult));
+                            throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
+                        }
+                        recordPlatformUpdateResult(updateSchema, platformPo, domainList, appList, deployApps, appBkModuleList, bkSetList, bkHostList);
+                        if(this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
+                            this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+                        platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+                        platformPo.setUpdateTime(now);
+                        this.platformMapper.update(platformPo);
+                        break;
+                    default:
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        if(StringUtils.isNotBlank(schemaCheckResult))
+                        {
+                            logger.error(String.format("schema is not legal : %s", schemaCheckResult));
+                            throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
+                        }
+                        this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
+                        break;
+                }
+                break;
+            case UPDATE:
+                switch (updateSchema.getStatus())
+                {
+                    case CANCEL:
+                    case FAIL:
+                        this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+                        this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
+                        platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+                        platformPo.setUpdateTime(now);
+                        this.platformMapper.update(platformPo);
+                        break;
+                    case SUCCESS:
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        if(StringUtils.isNotBlank(schemaCheckResult))
+                        {
+                            logger.error(String.format("schema is not legal : %s", schemaCheckResult));
+                            throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
+                        }
+                        recordPlatformUpdateResult(updateSchema, platformPo, domainList, appList, deployApps, appBkModuleList, bkSetList, bkHostList);
+                        if(this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
+                            this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+                        platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+                        platformPo.setUpdateTime(now);
+                        this.platformMapper.update(platformPo);
+                        break;
+                    default:
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        if(StringUtils.isNotBlank(schemaCheckResult))
+                        {
+                            logger.error(String.format("schema is not legal : %s", schemaCheckResult));
+                            throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
+                        }
+                        this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
+                        platformPo.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
+                        platformPo.setUpdateTime(now);
+                        platformMapper.update(platformPo);
+                        break;
+                }
+                break;
+            default:
+                logger.error(String.format("current version not support platform %s", updateSchema.getTaskType().name));
+                throw new ParamException(String.format("current version not support platform %s", updateSchema.getTaskType().name));
         }
     }
 
