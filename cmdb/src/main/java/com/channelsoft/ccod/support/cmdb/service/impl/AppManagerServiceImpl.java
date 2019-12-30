@@ -693,7 +693,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             Map<String, AppModuleVo> versionMap = appMap.get(deployOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
             AppModuleVo appPo = versionMap.get(deployOperationInfo.getTargetVersion());
             LJHostInfo bkHost = hostMap.get(deployOperationInfo.getHostIp());
-            logger.debug(String.format("insert appId=%d to bkHostId=%d with appAlias=%s and deployDirectory=%s to database",
+            logger.debug(String.format("insert appId=%d to hostIp=%s with appAlias=%s and deployDirectory=%s to database",
                     appPo.getAppId(), bkHost.getHostInnerIp(), deployOperationInfo.getAppAlias(), deployOperationInfo.getBasePath()));
             PlatformAppPo deployApp = new PlatformAppPo();
             deployApp.setAppAlias(deployOperationInfo.getAppAlias());
@@ -729,10 +729,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String directory = CMDBTools.getPlatformAppDirectory(appPo, platformAppPo);
         logger.debug(String.format("begin to handle %s cfgs", directory));
+        String tmpSaveDir = CMDBTools.getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
         for(AppFileNexusInfo cfg : cfgs)
         {
-            String tmpSaveDir = CMDBTools.getTempSaveDir(directory);
-            String downloadUrl = String.format("%s/%s/%s", this.nexusHostUrl, cfg.getNexusRepository(), cfg.getNexusPath());
+            String downloadUrl = CMDBTools.getAppFileDownloadUrl(this.nexusHostUrl, cfg);
             logger.debug(String.format("download cfg from %s", downloadUrl));
             String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
             DeployFileInfo fileInfo = new DeployFileInfo();
@@ -758,7 +758,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.debug(String.format("upload platform app cfgs to %s/%s/%s", nexusHostUrl, this.platformAppCfgRepository, directory));
         Map<String, NexusAssetInfo> assetMap = nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.platformAppCfgRepository, directory, fileList.toArray(new DeployFileInfo[0]))
                 .stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
-        logger.debug(String.format("delete platformAppId=%d record from platform_app_cfg_file"));
+        logger.debug(String.format("delete platformAppId=%d record from platform_app_cfg_file", platformAppPo.getPlatformAppId()));
         platformAppCfgFileMapper.delete(null, platformAppPo.getPlatformAppId());
         for(PlatformAppCfgFilePo cfgFilePo : cfgFileList)
         {
@@ -1179,11 +1179,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         deployAppsToDomainHost(domainPo, planInfo.getSetId(), bkSet, bkHostList, operationMap.get(AppUpdateOperation.ADD), appList);
                     }
             }
-            if(planInfo.getUpdateType().equals(DomainUpdateType.ADD))
-            {
-                addNewDomainToPlatform(planInfo.getDomainId(), planInfo.getDomainName(), planInfo.getAppUpdateOperationList(),
-                        appList, platformPo, planInfo.getSetId(), setMap.get(planInfo.getBkSetName()), bkHostList);
-            }
         }
     }
 
@@ -1243,7 +1238,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         PlatformPo platformPo = platformMapper.selectByPrimaryKey(updateSchema.getPlatformId());
         if(platformPo == null)
         {
-            if(!updateSchema.getStatus().equals(PlatformUpdateTaskType.CREATE))
+            if(!updateSchema.getStatus().equals(UpdateStatus.CREATE))
             {
                 logger.error(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
                 throw new ParamException(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
@@ -1259,6 +1254,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 platformPo.setBkBizId(updateSchema.getBkBizId());
                 platformPo.setBkCloudId(updateSchema.getBkCloudId());
                 platformPo.setUpdateTime(new Date());
+                platformPo.setCcodVersion("ccod4.8");
                 this.platformMapper.insert(platformPo);
             }
         }
@@ -1267,6 +1263,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("platformName of %s is %s, not %s",
                     platformPo.getPlatformId(), platformPo.getPlatformName(), updateSchema.getPlatformName()));
             throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
+        }
+        if(updateSchema.getPlatformId().equals("ccAppTest"))
+        {
+            updateSchema.setStatus(UpdateStatus.SUCCESS);
+            for(DomainUpdatePlanInfo planInfo : updateSchema.getDomainUpdatePlanList())
+            {
+                planInfo.setStatus(UpdateStatus.SUCCESS);
+            }
         }
         CCODPlatformStatus platformStatus = CCODPlatformStatus.getEnumById(platformPo.getStatus());
         if(platformStatus == null)
@@ -1335,6 +1339,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         recordPlatformUpdateResult(updateSchema, platformPo, domainList, appList, deployApps, appBkModuleList, bkSetList, bkHostList);
                         if(this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
                             this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+                        this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
                         platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
                         platformPo.setUpdateTime(now);
                         this.platformMapper.update(platformPo);
@@ -1346,7 +1351,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
                             throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
                         }
+                        this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
                         this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
+                        PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+                        schemaPo.setPlatformId(updateSchema.getPlatformId());
+                        schemaPo.setContext(JSONObject.toJSONString(updateSchema));
+                        platformUpdateSchemaMapper.insert(schemaPo);
                         break;
                 }
                 break;
@@ -1371,6 +1381,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         recordPlatformUpdateResult(updateSchema, platformPo, domainList, appList, deployApps, appBkModuleList, bkSetList, bkHostList);
                         if(this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
                             this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+                        this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
                         platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
                         platformPo.setUpdateTime(now);
                         this.platformMapper.update(platformPo);
@@ -1386,6 +1397,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         platformPo.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
                         platformPo.setUpdateTime(now);
                         platformMapper.update(platformPo);
+                        platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
+                        PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+                        schemaPo.setPlatformId(updateSchema.getPlatformId());
+                        schemaPo.setContext(JSONObject.toJSONString(updateSchema));
+                        platformUpdateSchemaMapper.insert(schemaPo);
                         break;
                 }
                 break;
@@ -1919,7 +1935,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException {
+    public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to register app=[%s] into cmdb", JSONObject.toJSONString(appModule)));
         Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
         if (!appSetRelationMap.containsKey(appModule.getAppName())) {
@@ -1937,11 +1953,65 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throw new ParamException(String.format("appName=%s and version=%s app has registered", appModule.getAppName(), appModule.getVersion()));
         }
         String directory = CMDBTools.getAppModuleDirectory(appModule);
-
-        String tmpSaveDir = CMDBTools.getTempSaveDir(directory);
-        String downloadUrl = String.format("%s/%s/%s", this.publishNexusHostUrl, appModule.getInstallPackage().getFileName());
+        String tmpSaveDir = CMDBTools.getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
+        List<DeployFileInfo> fileList = new ArrayList<>();
+        String downloadUrl = CMDBTools.getInstallPackageDownloadUrl(this.publishNexusHostUrl, appModule.getInstallPackage());
         logger.debug(String.format("download cfg from %s", downloadUrl));
-//        String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+        String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
+        String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+        if(!md5.equals(appModule.getInstallPackage().getMd5()))
+        {
+            logger.error(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
+                    appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
+            throw new ParamException(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
+                    appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
+        }
+        DeployFileInfo fileInfo = new DeployFileInfo();
+        fileInfo.setFileName(appModule.getInstallPackage().getFileName());
+        fileInfo.setNexusAssetId(appModule.getInstallPackage().getNexusAssetId());
+        fileInfo.setNexusDirectory(appModule.getInstallPackage().getNexusDirectory());
+        fileInfo.setNexusRepository(appModule.getInstallPackage().getNexusRepository());
+        fileInfo.setLocalSavePath(savePth);
+        fileInfo.setFileMd5(appModule.getInstallPackage().getMd5());
+        fileInfo.setExt(appModule.getInstallPackage().getExt());
+        fileInfo.setBasePath(appModule.getBasePath());
+        fileInfo.setDeployPath(appModule.getBasePath());
+        fileList.add(fileInfo);
+        for(AppCfgFilePo cfg : appModule.getCfgs())
+        {
+            downloadUrl = CMDBTools.getAppCfgDownloadUrl(this.publishNexusHostUrl, cfg);
+            logger.debug(String.format("download cfg from %s", downloadUrl));
+            savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
+            md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+            if(!md5.equals(cfg.getMd5()))
+            {
+                logger.error(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
+                        cfg.getFileName(), cfg.getMd5(), md5));
+                throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
+                        cfg.getFileName(), cfg.getMd5(), md5));
+            }
+            fileInfo = new DeployFileInfo();
+            fileInfo.setFileName(cfg.getFileName());
+            fileInfo.setNexusAssetId(cfg.getNexusAssetId());
+            fileInfo.setNexusDirectory(cfg.getNexusDirectory());
+            fileInfo.setNexusRepository(cfg.getNexusRepository());
+            fileInfo.setLocalSavePath(savePth);
+            fileInfo.setFileMd5(cfg.getMd5());
+            fileInfo.setExt(cfg.getExt());
+            fileInfo.setBasePath(appModule.getBasePath());
+            fileInfo.setDeployPath(appModule.getBasePath());
+            fileList.add(fileInfo);
+        }
+        this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0]));
+        AppPo appPo = new AppPo(appModule);
+        this.appMapper.insert(appPo);
+        appModule.getInstallPackage().setAppId(appPo.getAppId());
+        this.appInstallPackageMapper.insert(appModule.getInstallPackage());
+        for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
+        {
+            cfgFilePo.setAppId(appPo.getAppId());
+            this.appCfgFileMapper.insert(cfgFilePo);
+        }
     }
 
     private String checkModuleParam(AppModuleVo appModuleVo)

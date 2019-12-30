@@ -230,7 +230,8 @@ public class NexusServiceImpl implements INexusService {
             logger.error(String.format("upload component to exception", url), ex);
             throw new InterfaceCallException(String.format("upload component to exception", url));
         }
-        List<NexusAssetInfo> assetList = this.queryGroupAssetMap(nexusHostUrl, userName, password, repository, directory);
+        String group = String.format("/%s", directory);
+        List<NexusAssetInfo> assetList = this.queryGroupAssetMap(nexusHostUrl, userName, password, repository, group);
         Map<String, NexusAssetInfo> fileAssetMap = assetList.stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
         for(DeployFileInfo fileInfo : componentFiles)
         {
@@ -382,11 +383,7 @@ public class NexusServiceImpl implements INexusService {
         {
             dir.mkdirs();
         }
-        String savePath = String.format("%s/%s", saveDir, saveFileName).replace("//", "/");
-        if(this.isWindows)
-        {
-            savePath = savePath.replaceAll("/", "\\").replace("\\\\\\\\", "\\\\");
-        }
+        String savePath = String.format("%s/%s", saveDir, saveFileName).replaceAll("\\\\", "/");
         logger.debug(String.format("begin to download file from %s and save to %s", downloadUrl, savePath));
         BufferedInputStream bis = null;
         BufferedOutputStream bos = null;

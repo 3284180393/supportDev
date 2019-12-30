@@ -187,6 +187,6 @@ public interface IAppManagerService {
      * @throws InterfaceCallException 调用nexus的api失败
      * @throws NexusException nexus的api返回调用失败或是解析nexus的返回结果失败
      */
-    void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException;
+    void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException;
 
 }

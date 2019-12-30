@@ -1013,7 +1013,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
 
     @Override
-    public void transferModulesToHost(int bkBizId, Integer[] hostIdList, Integer[] moduleIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
+    public void transferModulesToHost(int bkBizId, Integer[] moduleIdList, Integer[] hostIdList, boolean isIncrement) throws InterfaceCallException, LJPaasException
     {
         Map<String, Object> paramsMap = getLJPaasCallBaseParams();
         paramsMap.put("bk_biz_id", bkBizId);

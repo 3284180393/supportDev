@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
+
 import java.util.Date;
 
 /**
@@ -36,6 +38,27 @@ public class AppPo {
     private String versionControl; //版本控制方式
 
     private String versionControlUrl; //版本控制的连接url
+
+    public AppPo()
+    {
+
+    }
+
+    public AppPo(AppModuleVo moduleVo)
+    {
+        this.appId = moduleVo.getAppId();
+        this.appName = moduleVo.getAppName();
+        this.appAlias = moduleVo.getAppAlias();
+        this.appType = moduleVo.getAppType().name;
+        this.version = moduleVo.getVersion();
+        this.ccodVersion = moduleVo.getCcodVersion();
+        this.createTime = moduleVo.getCreateTime();
+        this.updateTime = moduleVo.getUpdateTime();
+        this.createReason = moduleVo.getCreateReason();
+        this.comment = moduleVo.getComment();
+        this.versionControl = moduleVo.getVersionControl().name;
+        this.versionControlUrl = moduleVo.getVersionControlUrl();
+    }
 
     public int getAppId() {
         return appId;

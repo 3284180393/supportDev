@@ -1,7 +1,10 @@
 package com.channelsoft.ccod.support.cmdb.utils;
 
+import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
+import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
 
@@ -69,7 +72,7 @@ public class CMDBTools {
 
     public static String getNexusQueryGroupItemsUrl(String nexusHostUrl, String repository, String group)
     {
-        String url = String.format("%s/service/rest/v1/search?repository=%s&name=%s", nexusHostUrl, repository, group);
+        String url = String.format("%s/service/rest/v1/search?repository=%s&group=%s", nexusHostUrl, repository, group);
         return url;
     }
 
@@ -79,4 +82,21 @@ public class CMDBTools {
         return url;
     }
 
+    public static String getAppFileDownloadUrl(String nexusHostUrl, AppFileNexusInfo nexusInfo)
+    {
+        String downloadUrl = String.format("%s/repository/%s%s", nexusHostUrl, nexusInfo.getNexusRepository(), nexusInfo.getNexusPath());
+        return downloadUrl;
+    }
+
+    public static String getInstallPackageDownloadUrl(String nexusHostUrl, AppInstallPackagePo installPackage)
+    {
+        String downloadUrl = String.format("%s/repository/%s/%s/%s", nexusHostUrl, installPackage.getNexusRepository(), installPackage.getNexusDirectory(), installPackage.getFileName());
+        return downloadUrl;
+    }
+
+    public static String getAppCfgDownloadUrl(String nexusHostUrl, AppCfgFilePo cfgFilePo)
+    {
+        String downloadUrl = String.format("%s/repository/%s/%s/%s", nexusHostUrl, cfgFilePo.getNexusRepository(), cfgFilePo.getNexusDirectory(), cfgFilePo.getFileName());
+        return downloadUrl;
+    }
 }

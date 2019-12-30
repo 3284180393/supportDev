@@ -120,8 +120,8 @@ public interface ILJPaasService {
     /**
      * 将指定平台的一组modules迁移到一组指定的主机上
      * @param bkBizId 平台的biz id
+     * @param moduleIdList 需要迁移的模块
      * @param hostIdList 迁移的目标主机
-     * @param moduleIdList 需要迁移的模块i
      * @param isIncrement 追加还是覆盖,true追加，false覆盖
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
