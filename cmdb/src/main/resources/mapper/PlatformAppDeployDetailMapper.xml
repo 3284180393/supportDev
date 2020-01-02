@@ -20,6 +20,14 @@
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
+
+        <result column="set_id" property="setId" jdbcType="VARCHAR" />
+        <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
+        <result column="bk_set_id" property="bkSetId" jdbcType="INTEGER" />
+        <result column="bk_set_name" property="bkSetName" jdbcType="VARCHAR" />
+        <result column="bk_module_id" property="bkModuleId" jdbcType="INTEGER" />
+        <result column="bk_host_id" property="bkHostId" jdbcType="INTEGER" />
+
         <association property="installPackage"
                      javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
                      resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"

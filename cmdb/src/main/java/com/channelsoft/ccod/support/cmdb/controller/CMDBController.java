@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.constant.AppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformUpdateTaskType;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
@@ -45,32 +46,53 @@ public class CMDBController {
     private String apiBasePath = "/cmdb/api";
 
 
+//    @RequestMapping(value = "/apps", method = RequestMethod.POST)
+//    public AjaxResultPo addNewApp(@RequestBody AppParamVo param)
+//    {
+//        String uri = String.format("POST %s/apps", this.apiBasePath);
+//        logger.debug(String.format("enter %s controller and app param=%s", uri, JSONObject.toJSONString(param)));
+//        if(param.getMethod() != AppOperationMethod.ADD_BY_SCAN_NEXUS_REPOSITORY.id)
+//        {
+//            logger.error(String.format("not not support method=%d app operation", param.getMethod()));
+//            return new AjaxResultPo(false, String.format("not not support method=%d app operation", param.getMethod()));
+//        }
+//        AjaxResultPo resultPo;
+//        try
+//        {
+//            String data = param.getData().toString();
+//            JSONObject jsonObject = JSONObject.parseObject(data);
+//            AppModuleFileNexusInfo instPkg = JSONObject.parseObject(jsonObject.get("installPackage").toString(), AppModuleFileNexusInfo.class);
+//            List<AppModuleFileNexusInfo> cfgs = JSONArray.parseArray(jsonObject.get("cfgs").toString(), AppModuleFileNexusInfo.class);
+//            AppPo appPo = this.appManagerService.addNewAppFromPublishNexus(param.getAppType(), param.getAppName(),
+//                    param.getAppAlias(), param.getVersion(), param.getCcodVersion(), instPkg,
+//                    cfgs.toArray(new AppModuleFileNexusInfo[0]), param.getBasePath());
+//            logger.info(String.format("query SUCCESS add app=%s, quit %s", JSONObject.toJSONString(appPo), uri));
+//            resultPo = new AjaxResultPo(true, "add new app SUCCESS");
+//        }
+//        catch (Exception e)
+//        {
+//            logger.error(String.format("query app modules exception, quit %s controller", uri), e);
+//            resultPo = AjaxResultPo.failed(e);
+//        }
+//        return resultPo;
+//    }
+
+
     @RequestMapping(value = "/apps", method = RequestMethod.POST)
-    public AjaxResultPo addNewApp(@RequestBody AppParamVo param)
+    public AjaxResultPo addNewApp(@RequestBody AppModuleVo moduleVo)
     {
         String uri = String.format("POST %s/apps", this.apiBasePath);
-        logger.debug(String.format("enter %s controller and app param=%s", uri, JSONObject.toJSONString(param)));
-        if(param.getMethod() != AppOperationMethod.ADD_BY_SCAN_NEXUS_REPOSITORY.id)
-        {
-            logger.error(String.format("not not support method=%d app operation", param.getMethod()));
-            return new AjaxResultPo(false, String.format("not not support method=%d app operation", param.getMethod()));
-        }
+        logger.debug(String.format("enter %s controller and app param=%s", uri, JSONObject.toJSONString(moduleVo)));
         AjaxResultPo resultPo;
         try
         {
-            String data = param.getData().toString();
-            JSONObject jsonObject = JSONObject.parseObject(data);
-            AppModuleFileNexusInfo instPkg = JSONObject.parseObject(jsonObject.get("installPackage").toString(), AppModuleFileNexusInfo.class);
-            List<AppModuleFileNexusInfo> cfgs = JSONArray.parseArray(jsonObject.get("cfgs").toString(), AppModuleFileNexusInfo.class);
-            AppPo appPo = this.appManagerService.addNewAppFromPublishNexus(param.getAppType(), param.getAppName(),
-                    param.getAppAlias(), param.getVersion(), param.getCcodVersion(), instPkg,
-                    cfgs.toArray(new AppModuleFileNexusInfo[0]), param.getBasePath());
-            logger.info(String.format("query SUCCESS add app=%s, quit %s", JSONObject.toJSONString(appPo), uri));
-            resultPo = new AjaxResultPo(true, "add new app SUCCESS");
+            this.appManagerService.registerNewAppModule(moduleVo);
+            logger.info(String.format("register %s SUCCESS, quit %s", JSONObject.toJSONString(moduleVo), uri));
+            resultPo = new AjaxResultPo(true, "register new app SUCCESS");
         }
         catch (Exception e)
         {
-            logger.error(String.format("query app modules exception, quit %s controller", uri), e);
+            logger.error(String.format("register app module exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;
@@ -710,6 +732,35 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/demoPlatforms", method = RequestMethod.POST)
+    public AjaxResultPo createDemoPlatform(@RequestBody PlatformUpdateSchemaParamVo param)
+    {
+        String uri = String.format("POST %s/demoPlatform", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            switch (param.getTaskType())
+            {
+                case CREATE:
+                    appManagerService.createDemoNewPlatform(param.getPlatformId(), param.getPlatformName(), param.getBkCloudId(), param.getPlanAppList());
+                    logger.info(String.format("demo new create platform %s create SUCCESS", param.getPlatformId()));
+                    resultPo = new AjaxResultPo(true, String.format("demo new create platform %s create SUCCESS", param.getPlatformId()));
+                    break;
+                default:
+                    logger.error(String.format("demo %s platform not been implement", param.getTaskType().name));
+                    resultPo = new AjaxResultPo(false, String.format("demo %s platform not been implement", param.getTaskType().name));
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create demo platform exception"), e);
             resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return resultPo;

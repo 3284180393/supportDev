@@ -52,6 +52,7 @@ public class AppPo {
         this.appType = moduleVo.getAppType().name;
         this.version = moduleVo.getVersion();
         this.ccodVersion = moduleVo.getCcodVersion();
+        this.basePath = moduleVo.getBasePath();
         this.createTime = moduleVo.getCreateTime();
         this.updateTime = moduleVo.getUpdateTime();
         this.createReason = moduleVo.getCreateReason();

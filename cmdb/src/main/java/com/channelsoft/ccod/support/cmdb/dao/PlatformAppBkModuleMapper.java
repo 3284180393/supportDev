@@ -30,9 +30,14 @@ public interface PlatformAppBkModuleMapper {
      * 删除一条已有的平台应用关联蓝鲸paas模块信息
      * @param platformAppId 需要删除的平台应用id
      * @param bkBizId 需要删除的平台应用模块对应的biz id
+     * @param platformId 需要删除的平台应用模块对应的平台id
+     * @param domainId 需要删除的平台应用模块对应的域id
      * @throws DataAccessException
      */
-    void delete(@Param("platformAppId")Integer platformAppId, @Param("bkBizId")Integer bkBizId) throws DataAccessException;
+    void delete(@Param("platformAppId")Integer platformAppId,
+                @Param("bkBizId")Integer bkBizId,
+                @Param("platformId")String platformId,
+                @Param("domainId")String domainId) throws DataAccessException;
 
     /**
      * 根据主键查询应用和蓝鲸paas模块关系

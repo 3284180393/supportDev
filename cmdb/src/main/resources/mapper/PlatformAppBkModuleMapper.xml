@@ -4,6 +4,8 @@
     <resultMap id="PlatformAppBkModuleMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformAppBkModulePo" >
         <id column="app_bk_module_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="platform_app_id" property="appId" jdbcType="INTEGER" />
+        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="set_id" property="appAlias" jdbcType="VARCHAR" />
         <result column="bk_biz_id" property="platformId" jdbcType="INTEGER" />
         <result column="bk_set_id" property="domainId" jdbcType="INTEGER" />
@@ -14,6 +16,8 @@
     <sql id="Base_Column_List" >
         pakm.app_bk_module_id AS app_bk_module_id,
 	    pakm.platform_app_id AS platform_app_id,
+	    pakm.platform_id AS platform_id,
+	    pakm.domain_id AS domain_id,
 	    pakm.set_id AS set_id,
 	    pakm.bk_biz_id AS bk_biz_id,
 	    pakm.bk_set_id AS bk_set_id,
@@ -22,14 +26,11 @@
 	    pakm.bk_host_id AS bk_host_id
         FROM
 	    platform_app_bk_module pakm
-        INNER JOIN platform_app pa ON pakm.platform_app_id = pa.platform_app_id
-        INNER JOIN platform pf ON pf.platform_id = pa.platform_id
-        INNER JOIN domain dm ON dm.domain_id = pa.domain_id
     </sql>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppBkModulePo"
             useGeneratedKeys="true" keyProperty="appBkModuleId">
-        insert into platform_app_bk_module(platform_app_id, set_id, bk_biz_id, bk_set_id, bk_set_name, bk_module_id, bk_host_id)
-        values (#{platformAppId,jdbcType=INTEGER}, #{setId,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkSetId,jdbcType=INTEGER}, #{bkSetName,jdbcType=VARCHAR}, #{bkModuleId,jdbcType=INTEGER}, #{bkHostId,jdbcType=INTEGER})
+        insert into platform_app_bk_module(platform_app_id, platform_id, domain_id, set_id, bk_biz_id, bk_set_id, bk_set_name, bk_module_id, bk_host_id)
+        values (#{platformAppId,jdbcType=INTEGER}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{setId,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkSetId,jdbcType=INTEGER}, #{bkSetName,jdbcType=VARCHAR}, #{bkModuleId,jdbcType=INTEGER}, #{bkHostId,jdbcType=INTEGER})
     </insert>
     <delete id="delete">
         delete
@@ -43,6 +44,12 @@
             And
             bk_biz_id=#{bkBizId,jdbcType=INTEGER}
         </if>
+        <if test="platformId!=null">
+            And platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="domainId!=null">
+            And domain_id=#{domainId,jdbcType=VARCHAR}
+        </if>
     </delete>
     <select id="selectByPrimaryKey" resultMap="PlatformAppBkModuleMap" parameterType="java.lang.Integer">
         select
@@ -54,10 +61,10 @@
         <include refid="Base_Column_List" />
         where 1=1
         <if test="platformId!=null">
-            And pa.platform_id=#{platformId,jdbcType=VARCHAR}
+            And pakm.platform_id=#{platformId,jdbcType=VARCHAR}
         </if>
         <if test="domainId!=null">
-            And pa.domain_id=#{domainId,jdbcType=VARCHAR}
+            And pakm.domain_id=#{domainId,jdbcType=VARCHAR}
         </if>
         <if test="bkBizId!=null">
             And pakm.bk_biz_id=#{bkBizId,jdbcType=INTEGER}

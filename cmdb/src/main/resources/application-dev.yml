@@ -192,6 +192,7 @@ lj-paas:
       fixedDomainId: portal
       apps:
         - glsServer
+        - gls
         - httpd
         - IBcustomWebs
         - IBsafetymoni
@@ -215,4 +216,6 @@ develop: true
 
 test:
   new-create-biz-id: 12
-  template_platform_id: shltPA
+  demo-new-create-platform-id: ccodDevelopTestPlatform
+  demo-new-create-platform-name: ccod开发测试平台
+  demo-update-platform-id: updateDemoPlatform

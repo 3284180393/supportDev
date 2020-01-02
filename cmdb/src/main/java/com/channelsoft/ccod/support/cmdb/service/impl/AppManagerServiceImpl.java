@@ -78,6 +78,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${lj-paas.idle-pool-set-name}")
     private String paasIdlePoolSetName;
 
+    @Value("${test.demo-new-create-platform-id}")
+    private String newDemoCreatePlatformId;
+
+    @Value("${test.demo-new-create-platform-name}")
+    private String newDemoCreatePlatformName;
+
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
 
@@ -1858,7 +1864,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 schema = this.platformUpdateSchemaMap.containsKey(platformId) ? this.platformUpdateSchemaMap.get(platformId) : null;
                 break;
             case RUNNING:
-                if(!this.platformUpdateSchemaMap.containsKey(platformId))
+                if(this.platformUpdateSchemaMap.containsKey(platformId))
                 {
                     logger.error(String.format("%s status is %s, but it has an update schema",
                             platformId, topology.getStatus().name));
@@ -1981,7 +1987,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             downloadUrl = CMDBTools.getAppCfgDownloadUrl(this.publishNexusHostUrl, cfg);
             logger.debug(String.format("download cfg from %s", downloadUrl));
-            savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
+            savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
             md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
             if(!md5.equals(cfg.getMd5()))
             {
@@ -2002,14 +2008,19 @@ public class AppManagerServiceImpl implements IAppManagerService {
             fileInfo.setDeployPath(appModule.getBasePath());
             fileList.add(fileInfo);
         }
-        this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0]));
+        Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
         AppPo appPo = new AppPo(appModule);
+        Date now = new Date();
+        appPo.setCreateTime(now);
+        appPo.setUpdateTime(now);
         this.appMapper.insert(appPo);
         appModule.getInstallPackage().setAppId(appPo.getAppId());
+        appModule.getInstallPackage().setNexusAssetId(assetMap.get(String.format("%s/%s", directory, appModule.getInstallPackage().getFileName())).getId());
         this.appInstallPackageMapper.insert(appModule.getInstallPackage());
         for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
         {
             cfgFilePo.setAppId(appPo.getAppId());
+            cfgFilePo.setNexusAssetId(assetMap.get(String.format("%s/%s", directory, cfgFilePo.getFileName())).getId());
             this.appCfgFileMapper.insert(cfgFilePo);
         }
     }
@@ -2038,6 +2049,148 @@ public class AppManagerServiceImpl implements IAppManagerService {
             sb.append("cfg is null,");
         }
         return sb.toString().replaceAll(",$", "");
+    }
+
+    @Override
+    public PlatformUpdateSchemaInfo createDemoNewPlatform(String platformId, String platformName, int bkCloudId, List<String> planAppList) throws ParamException, InterfaceCallException, LJPaasException
+    {
+        Date now = new Date();
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo != null)
+        {
+            logger.error(String.format("demo platform[id=%s, name=%s] exist", platformId, platformName));
+            throw new ParamException(String.format("demo platform[id=%s, name=%s] exist", platformId, platformName));
+        }
+        platformPo = new PlatformPo();
+        platformPo.setUpdateTime(now);
+        platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
+        platformPo.setCcodVersion("CCOD4.1");
+        platformPo.setBkCloudId(bkCloudId);
+        platformPo.setCreateTime(now);
+        platformPo.setComment("create by tools for test");
+        platformPo.setPlatformId(platformId);
+        platformPo.setPlatformName(platformName);
+        this.platformMapper.insert(platformPo);
+        List<LJBizInfo> bizList = paasService.queryAllBiz();
+        Map<String, LJBizInfo> bizMap = bizList.stream().collect(Collectors.toMap(LJBizInfo::getBkBizName, Function.identity()));
+        if(bizMap.containsKey(platformName))
+        {
+            logger.error(String.format("biz %s has exist at lj paas", platformName));
+            throw new ParamException(String.format("biz %s has exist at lj paas", platformName));
+        }
+        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        List<LJSetInfo> setList = paasService.createNewBiz(platformName, new ArrayList<String>(setDefineMap.keySet()));
+        int bkBizId = setList.get(0).getBkBizId();
+        Map<String, List<String>> planAppMap = new HashMap<>();
+        for(String planApp : planAppList)
+        {
+            String[] arr = planApp.split("##");
+            if(!planAppMap.containsKey(arr[0]))
+            {
+                planAppMap.put(arr[0], new ArrayList<>());
+            }
+            planAppMap.get(arr[0]).add(planApp);
+        }
+        List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
+        Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo();
+        schema.setTitle(String.format("%s(%s)平台新建计划", platformName, platformId));
+        schema.setPlatformName(platformName);
+        schema.setComment(String.format("通过程序自动创建的%s(%s)平台新建计划", platformName, platformId));
+        schema.setCreateTime(now);
+        schema.setBkBizId(bkBizId);
+        schema.setStatus(UpdateStatus.CREATE);
+        schema.setTaskType(PlatformUpdateTaskType.CREATE);
+        schema.setExecuteTime(now);
+        schema.setDeadline(now);
+        schema.setUpdateTime(now);
+        schema.setPlatformId(platformId);
+        schema.setDomainUpdatePlanList(new ArrayList<>());
+        Set<String> ipSet = new HashSet<>();
+        for(BizSetDefine setDefine : setDefineMap.values())
+        {
+            if(setDefine.getApps().length == 0)
+                continue;
+            DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+            planInfo.setUpdateType(DomainUpdateType.ADD);
+            planInfo.setStatus(UpdateStatus.CREATE);
+            planInfo.setComment("由程序自动生成的新建域");
+            String domainId = setDefine.getFixedDomainId();
+            String domainName = setDefine.getFixedDomainName();
+            if(StringUtils.isBlank(domainId))
+            {
+                domainId = "newCreateTestDomain";
+                domainName = "新建测试域";
+            }
+            planInfo.setDomainId(domainId);
+            planInfo.setDomainName(domainName);
+            planInfo.setCreateTime(now);
+            planInfo.setUpdateTime(now);
+            planInfo.setExecuteTime(now);
+            planInfo.setAppUpdateOperationList(new ArrayList<>());
+            planInfo.setBkSetName(setDefine.getName());
+            planInfo.setSetId(setDefine.getId());
+            for(String appName : setDefine.getApps())
+            {
+                if(planAppMap.containsKey(appName))
+                {
+                    for(String planApp : planAppMap.get(appName))
+                    {
+                        String[] arr = planApp.split("##");
+                        String appAlias = arr[1];
+                        String version = arr[2];
+                        String hostIp = arr[3].split("@")[1];
+                        ipSet.add(hostIp);
+                        String[] pathArr = arr[3].split("@")[0].split("/");
+                        pathArr[1] = appAlias;
+                        String basePath = String.format("/%s", String.join("/", pathArr));
+                        Map<String, AppModuleVo> versionMap = appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+                        if(!version.contains(version))
+                        {
+                            logger.error(String.format("create demo platform create schema FAIL : %s has not version=%s",
+                                    appName, version));
+                            throw new ParamException(String.format("create demo platform create schema FAIL : %s has not version=%s",
+                                    appName, version));
+                        }
+                        AppModuleVo appModuleVo = versionMap.get(version);
+                        AppUpdateOperationInfo addOperationInfo = new AppUpdateOperationInfo();
+                        addOperationInfo.setHostIp(hostIp);
+                        addOperationInfo.setOperation(AppUpdateOperation.ADD);
+                        addOperationInfo.setCfgs(new ArrayList<>());
+                        for(AppCfgFilePo appCfgFilePo : appModuleVo.getCfgs())
+                        {
+                            AppFileNexusInfo info = new AppFileNexusInfo();
+                            info.setDeployPath(appCfgFilePo.getDeployPath());
+                            info.setExt(appCfgFilePo.getExt());
+                            info.setFileName(appCfgFilePo.getFileName());
+                            info.setFileSize(0);
+                            info.setMd5(appCfgFilePo.getMd5());
+                            info.setNexusAssetId(appCfgFilePo.getNexusAssetId());
+                            info.setNexusPath(String.format("%s/%s", appCfgFilePo.getNexusDirectory(), appCfgFilePo.getFileName()));
+                            info.setNexusRepository(appCfgFilePo.getNexusRepository());
+                            addOperationInfo.getCfgs().add(info);
+                        }
+                        addOperationInfo.setBasePath(basePath);
+                        addOperationInfo.setAppRunner(appAlias);
+                        addOperationInfo.setAppAlias(appAlias);
+                        addOperationInfo.setAppName(appName);
+                        addOperationInfo.setTargetVersion(version);
+                        planInfo.getAppUpdateOperationList().add(addOperationInfo);
+                    }
+
+                }
+
+            }
+            schema.getDomainUpdatePlanList().add(planInfo);
+        }
+        Map<String, LJSetInfo> setMap = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
+        paasService.addNewHostToIdlePool(bkBizId, setMap.get(this.paasIdlePoolSetName).getBkSetId(), new ArrayList<>(ipSet), bkCloudId);
+        PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+        schemaPo.setContext(JSONObject.toJSONString(schema));
+        schemaPo.setPlatformId(platformId);
+        this.platformUpdateSchemaMapper.insert(schemaPo);
+
+        return schema;
     }
 
     @Test
@@ -2073,6 +2226,46 @@ public class AppManagerServiceImpl implements IAppManagerService {
         paramVo.setCcodVersion("4.5");
         paramVo.setMethod(1);
         paramVo.setVersion("3434:5656");
+        System.out.println(JSONObject.toJSONString(paramVo));
+    }
+
+    @Test
+    public void schemaParamTest()
+    {
+        PlatformUpdateSchemaParamVo paramVo = new PlatformUpdateSchemaParamVo();
+        paramVo.setBkBizId(0);
+        paramVo.setBkCloudId(8);
+        paramVo.setPlatformId("ccodDevelopTestPlatform");
+        paramVo.setPlatformName("ccod开发测试平台");
+        paramVo.setTaskType(PlatformUpdateTaskType.CREATE);
+        String script = "glsServer##glsServer##ece10ef28dce83ab36e4d79213ec4f69##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "LicenseServer##license##5214##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "configserver##configserver##aca2af60caa0fb9f4af57f37f869dafc90472525##/home/cfs/Platform@10.130.41.218\n" +
+                "gls##gls##10309##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "dcms##dcms##11110##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "dcmsWebservice##dcmsWebservice##20503##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "dcmsRecord##dcmsRecord##21763##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "dcmsStaticsReport##dcmsStatics##20537##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "dcmsStaticsReport##dcmsStaticsReport##20528##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "safetyMonitor##safetyMonitor##20383##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "dcmssg##dcmsSG##20070##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "customWebservice##customWebservice##19553##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "dcmsx##dcmsx##master_8efabf4##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
+                "slee##slee##3.1.5.0##/home/slee/Platform/slee/ChannelSoft/CsCCP/SoftSwitch/lib@10.130.41.218\n" +
+                "UCGateway##UCGateway##b4c50cc9602c11c9cbfae23d07f134dc##/home/ccodrunner/SmartDialer4.1/Service@10.130.41.218\n" +
+                "AppGateWay##AppGateWay##c03e1e3fedf73f25a1565c602b8e4040##/home/ccodrunner/SmartDialer4.1/Service@10.130.41.218\n" +
+                "DialEngine##DialEngine##24ae5d2c45523ab5c7e0da7b86db4c18##/home/ccodrunner/SmartDialer4.1/Service@10.130.41.218\n" +
+                "cmsserver##cms##4c303e2a4b97a047f63eb01b247303c9306fbda5##/home/channelsoft/Platform@10.130.41.218\n" +
+                "cmsserver##cms##4c303e2a4b97a047f63eb01b247303c9306fbda5##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "UCDServer##ucds##deb3c3c4bf62c5ae5b3f8a467029a03ed95fb39e##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "ucxserver##ucx##1fef2157ea07c483979b424c758192bd709e6c2a##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "DDSServer##dds##150:18722##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "dcs##dcs##155:21974##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "StatSchedule##ss##154:21104##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "EAService##eas##216:11502##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "dcproxy##dcproxy##195:21857##/home/ccodrunner/Platform@10.130.41.218\n" +
+                "daengine##daengine##179:20744##/home/ccodrunner/Platform@10.130.41.218";
+        paramVo.setPlanAppList(Arrays.asList(script.split("\n")));
         System.out.println(JSONObject.toJSONString(paramVo));
     }
 }

@@ -80,6 +80,12 @@ public class LJPaasTools {
         String url = String.format("%s/api/c/compapi/v2/cc/transfer_host_to_resourcemodule/", paasHostUrl);
         return url;
     }
+
+    public static String getCreateNewBizUrl(String paasHostUrl)
+    {
+        String url = String.format("%s/api/c/compapi/v2/cc/create_business/", paasHostUrl);
+        return url;
+    }
 }
 
 

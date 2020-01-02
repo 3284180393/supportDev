@@ -32,7 +32,7 @@ public interface ILJPaasService {
      * @return 查询结果
      * @throws Exception
      */
-    LJBizInfo[] queryBizInfo() throws Exception;
+    List<LJBizInfo> queryAllBiz() throws InterfaceCallException, LJPaasException;
 
     /**
      * 查询所有的ccod biz平台
@@ -249,4 +249,15 @@ public interface ILJPaasService {
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api结果异常
      */
     List<LJHostInfo> queryBizIdleHost(int bkBizId) throws InterfaceCallException, LJPaasException;
+
+    /**
+     * 创建新的biz
+     * @param bkBizName 被创建的biz名
+     * @param setNames 该biz下的set名称
+     * @return 被创建的biz下所有set
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    List<LJSetInfo> createNewBiz(String bkBizName, List<String> setNames) throws ParamException, InterfaceCallException, LJPaasException;
 }

@@ -13,6 +13,10 @@ public class PlatformAppBkModulePo {
 
     private int platformAppId; //平台应用id,外键platform_app表
 
+    private String platformId; //部署应用的平台id
+
+    private String domainId; //部署应用的域id
+
     private String setId; //平台应用归属ccod的set id
 
     private int bkBizId; //该应用在蓝鲸paas的biz的id
@@ -39,6 +43,22 @@ public class PlatformAppBkModulePo {
 
     public void setPlatformAppId(int platformAppId) {
         this.platformAppId = platformAppId;
+    }
+
+    public String getPlatformId() {
+        return platformId;
+    }
+
+    public void setPlatformId(String platformId) {
+        this.platformId = platformId;
+    }
+
+    public String getDomainId() {
+        return domainId;
+    }
+
+    public void setDomainId(String domainId) {
+        this.domainId = domainId;
     }
 
     public String getSetId() {

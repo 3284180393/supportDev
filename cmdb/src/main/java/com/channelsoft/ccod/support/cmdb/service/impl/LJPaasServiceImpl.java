@@ -138,7 +138,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         logger.info(String.format("%s will be excluded from ccod biz", JSONObject.toJSONString(this.excludeBizSet)));
         this.waitSyncUpdateToPaasBiz = initWaitToSyncPaasBiz();
         logger.info(String.format("biz=%s wait to sync update detail from cmdb to paas", JSONObject.toJSONString(this.waitSyncUpdateToPaasBiz)));
-        this.allPlatformBiz = this.queryAllCCODBiz();
+//        this.allPlatformBiz = this.queryAllCCODBiz();
 //        resetExistBiz(14, new ArrayList<>());
         try
         {
@@ -174,8 +174,23 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public LJBizInfo[] queryBizInfo() throws Exception {
-        return new LJBizInfo[0];
+    public List<LJBizInfo> queryAllBiz() throws InterfaceCallException, LJPaasException {
+        Map<String, Object> paramsMap = getLJPaasCallBaseParams();
+        paramsMap.put("condition", new HashMap<String, String>());
+        String url = LJPaasTools.getQueryBizUrl(this.paasHostUrl);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramsMap);
+        String data = parsePaasInterfaceResult(retVal);
+        try
+        {
+            List<LJBizInfo> bizList = JSONArray.parseArray(JSONObject.parseObject(data).getString("info"), LJBizInfo.class);
+            logger.info(String.format("find %d biz at lj paas", bizList.size()));
+            return bizList;
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("parse biz info from api return Exception"), ex);
+            throw new LJPaasException(String.format("parse biz info from api return Exception"));
+        }
     }
 
     private void someTest() throws Exception
@@ -1208,7 +1223,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         platform.setBkCloudId(hostCloudId);
         platformMapper.update(platform);
         //需要删除已有的平台应用和蓝鲸模块关系表记录
-        platformAppBkModuleMapper.delete(null, bkBizId);
+        platformAppBkModuleMapper.delete(null, bkBizId, null, null);
         for(String setName : setAppMap.keySet())
         {
             List<LJModuleInfo> setModuleList = new ArrayList<>();
@@ -1217,14 +1232,14 @@ public class LJPaasServiceImpl implements ILJPaasService {
             {
                 int bkHostId = idleHostMap.get(deployApp.getHostIp()).getBkHostId();
                 int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, setInfo.getBkSetId(), bkHostId, setModuleList);
-                insertPlatformAppBkModule(deployApp.getPlatformAppId(), bkBizId, deployApp.getSetId(),  setInfo.getBkSetId(), setInfo.getBkSetName(), bkModuleId, bkHostId);
+                insertPlatformAppBkModule(deployApp.getPlatformAppId(), deployApp.getPlatformId(), deployApp.getDomainId(), bkBizId, deployApp.getSetId(),  setInfo.getBkSetId(), setInfo.getBkSetName(), bkModuleId, bkHostId);
             }
         }
         logger.info(String.format("sync bizName=%s and bizId=%d app deploy info to lj paas SUCCESS, timeUsage=%d(second)",
                 platform.getPlatformName(), bkBizId, (System.currentTimeMillis()-currentTime)/1000));
     }
 
-    private PlatformAppBkModulePo insertPlatformAppBkModule(int platformAppId, int bkBizId, String setId, int bkSetId,
+    private PlatformAppBkModulePo insertPlatformAppBkModule(int platformAppId, String platformId, String domainId, int bkBizId, String setId, int bkSetId,
                                              String bkSetName, int bkModuleId, int bkHostId)
     {
         PlatformAppBkModulePo bkModulePo = new PlatformAppBkModulePo();
@@ -1235,6 +1250,8 @@ public class LJPaasServiceImpl implements ILJPaasService {
         bkModulePo.setBkSetName(bkSetName);
         bkModulePo.setPlatformAppId(platformAppId);
         bkModulePo.setSetId(setId);
+        bkModulePo.setPlatformId(platformId);
+        bkModulePo.setDomainId(domainId);
         this.platformAppBkModuleMapper.insert(bkModulePo);
         return bkModulePo;
     }
@@ -1285,7 +1302,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         for(PlatformAppPo deployApp : deployAppList)
         {
             int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, bkSetId, hostMap.get(deployApp.getHostIp()).getBkHostId(), bkModuleList);
-            insertPlatformAppBkModule(deployApp.getPlatformAppId(), bkBizId, setId, bkSetId, bkSetName, bkModuleId, hostMap.get(deployApp.getHostIp()).getBkHostId());
+            insertPlatformAppBkModule(deployApp.getPlatformAppId(), deployApp.getPlatformId(), deployApp.getDomainId(), bkBizId, setId, bkSetId, bkSetName, bkModuleId, hostMap.get(deployApp.getHostIp()).getBkHostId());
         }
     }
 
@@ -1294,7 +1311,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         for(PlatformAppBkModulePo disBindApp : disBindAppList)
         {
             disBindModuleFromBkHost(disBindApp.getBkModuleId(), disBindApp.getBkBizId(), disBindApp.getBkSetId(), disBindApp.getBkHostId());
-            this.platformAppBkModuleMapper.delete(disBindApp.getPlatformAppId(), null);
+            this.platformAppBkModuleMapper.delete(disBindApp.getPlatformAppId(), null, null, null);
         }
     }
 
@@ -1428,6 +1445,40 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Override
     public Map<String, List<BizSetDefine>> getAppBizSetRelation() {
         return this.appSetRelationMap;
+    }
+
+    @Override
+    public List<LJSetInfo> createNewBiz(String bkBizName, List<String> setNames) throws ParamException, InterfaceCallException, LJPaasException {
+        Map<String, Object> paramMap = getLJPaasCallBaseParams();
+        Map<String, String> dataMap = new HashMap<>();
+        dataMap.put("bk_biz_name", bkBizName);
+        dataMap.put("bk_biz_maintainer", this.bkUserName);
+        dataMap.put("bk_biz_productor", this.bkUserName);
+        dataMap.put("bk_biz_developer", this.bkUserName);
+        dataMap.put("bk_biz_tester", this.bkUserName);
+        dataMap.put("time_zone", "Asia/Shanghai");
+        paramMap.put("data", dataMap);
+        String url = LJPaasTools.getCreateNewSetUrl(this.paasHostUrl);
+        String retVal = HttpRequestTools.httpPostRequest(url, paramMap);
+        String data = parsePaasInterfaceResult(retVal);
+        int bkBizId;
+        try
+        {
+            bkBizId = JSONObject.parseObject(data).getInteger("bk_biz_id");
+            logger.info(String.format("biz create SUCCESS : bkBizId=%d and bkBizName=%s", bkBizId, bkBizName));
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("get bkBizId from %s FAIL", data));
+            throw new LJPaasException(String.format("get bkBizId from %s FAIL", data));
+        }
+        List<LJSetInfo> setList = new ArrayList<>();
+        for(String bkSetName : setNames)
+        {
+            LJSetInfo newSet = createNewBizSet(bkBizId, bkSetName, "create by tools", 1000);
+            setList.add(newSet);
+        }
+        return setList;
     }
 
     @Test

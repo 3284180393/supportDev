@@ -189,4 +189,17 @@ public interface IAppManagerService {
      */
     void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException;
 
+    /**
+     * 创建demo新平台
+     * @param platformId 平台id
+     * @param platformName 平台名
+     * @param bkCloudId 平台服务器所在的机房id
+     * @param planAppList 新建平台计划部署的应用
+     * @return 创建的平台
+     * @throws ParamException 计划的参数异常
+     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
+     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
+     */
+    PlatformUpdateSchemaInfo createDemoNewPlatform(String platformId, String platformName, int bkCloudId, List<String> planAppList) throws ParamException, InterfaceCallException, LJPaasException;
+
 }

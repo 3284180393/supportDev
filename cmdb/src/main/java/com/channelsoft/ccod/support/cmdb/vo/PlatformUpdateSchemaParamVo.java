@@ -2,6 +2,8 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.PlatformUpdateTaskType;
 
+import java.util.List;
+
 /**
  * @ClassName: PlatformUpdateSchemaParamVo
  * @Author: lanhb
@@ -20,6 +22,8 @@ public class PlatformUpdateSchemaParamVo {
     private int bkBizId; //平台对应蓝鲸paas的biz id
 
     private int bkCloudId; //平台服务器所在云的id
+
+    private List<String> planAppList; //计划的应用列表
 
     public PlatformUpdateTaskType getTaskType() {
         return taskType;
@@ -59,5 +63,13 @@ public class PlatformUpdateSchemaParamVo {
 
     public void setBkCloudId(int bkCloudId) {
         this.bkCloudId = bkCloudId;
+    }
+
+    public List<String> getPlanAppList() {
+        return planAppList;
+    }
+
+    public void setPlanAppList(List<String> planAppList) {
+        this.planAppList = planAppList;
     }
 }

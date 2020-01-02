@@ -23,7 +23,9 @@ public enum AppType
 
     MYSQL(7, "MYSQL", "mySql数据库"),
 
-    OTHER(99, "OTHER", "其它");
+    CCOD_WEBAPPS_MODULE(8, "CCOD_WEBAPPS_MODULE", "ccod门户web应用"),
+
+    OTHER(99, "OTHER", "其它"),;
 
     public int id;
 
