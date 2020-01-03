@@ -128,6 +128,8 @@ lj-paas:
       fixedDomainId: modules
       apps:
         - LicenseServer
+        - configserver
+        - glsServer
     set[2]:
       name: 网关接入
       id: gatewayAccess
@@ -146,13 +148,15 @@ lj-paas:
         - agentProxy
         - cci2
         - customWebservice
-        - dcms;dcmsDialer
+        - dcms
+        - dcmsDialer
         - dcmsDialerWebservice
         - dcmsMonitor
         - dcmsNEWSG
         - dcmsRecord
         - dcmsRecordCXM
-        - dcmssg;dcmsSG
+        - dcmssg
+        - dcmsSG
         - dcmsSR
         - dcmsStatics
         - dcmsStaticsIB
@@ -169,7 +173,8 @@ lj-paas:
         - IBsafetymonitor
         - interfaceAdapter
         - ivrprocessinterface
-        - omsp;PADnStatistics
+        - omsp
+        - PADnStatistics
         - PADnStatisticsbilibili
         - PAreload
         - portal
@@ -191,7 +196,6 @@ lj-paas:
       fixedDomainName: 门户
       fixedDomainId: portal
       apps:
-        - glsServer
         - gls
         - httpd
         - IBcustomWebs

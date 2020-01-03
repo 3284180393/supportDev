@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 /**
@@ -842,10 +843,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
                                            List<LJSetInfo> bkSetList, List<LJHostInfo> bkHostList,
                                            List<PlatformAppBkModulePo> appBkModuleList)
     {
+        if(schema.getDomainUpdatePlanList() == null)
+        {
+            schema.setDomainUpdatePlanList(new ArrayList<>());
+        }
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<String, LJSetInfo> setMap = bkSetList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
         PlatformUpdateTaskType taskType = schema.getTaskType();
         StringBuffer sb = new StringBuffer();
+        List<AppUpdateOperationInfo> allOperationList = new ArrayList<>();
         for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
         {
             DomainUpdateType updateType = planInfo.getUpdateType();
@@ -865,6 +871,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
             {
                 sb.append(String.format("current version not support PlatformUpdateTaskType=%s of %s", taskType.name, JSONObject.toJSONString(planInfo)));
             }
+            if(planInfo.getAppUpdateOperationList() == null)
+            {
+                planInfo.setAppUpdateOperationList(new ArrayList<>());
+            }
+            allOperationList.addAll(planInfo.getAppUpdateOperationList());
             switch (taskType)
             {
                 case CREATE:
@@ -934,6 +945,27 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     }
                     break;
                 default:
+            }
+        }
+        Map<String, List<AppUpdateOperationInfo>> ipAppMap = allOperationList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
+        for(String hostIp : ipAppMap.keySet())
+        {
+            Map<String, List<AppUpdateOperationInfo>> appNameMap = ipAppMap.get(hostIp).stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+            for(String appName : appNameMap.keySet())
+            {
+                if(appNameMap.get(appName).size() > 1)
+                {
+                    Set<String> aliasSet = new HashSet<>();
+                    for(AppUpdateOperationInfo opt : appNameMap.get(appName))
+                    {
+                        if(aliasSet.contains(opt.getAppAlias()))
+                        {
+                            sb.append(String.format("%s at %s alias duplicate;", appName, hostIp));
+                            break;
+                        }
+                        aliasSet.add(opt.getAppAlias());
+                    }
+                }
             }
         }
         return sb.toString();
@@ -1361,7 +1393,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
                         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
                         schemaPo.setPlatformId(updateSchema.getPlatformId());
-                        schemaPo.setContext(JSONObject.toJSONString(updateSchema));
+                        schemaPo.setContext(JSONObject.toJSONString(updateSchema).getBytes());
                         platformUpdateSchemaMapper.insert(schemaPo);
                         break;
                 }
@@ -1406,7 +1438,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
                         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
                         schemaPo.setPlatformId(updateSchema.getPlatformId());
-                        schemaPo.setContext(JSONObject.toJSONString(updateSchema));
+                        schemaPo.setContext(JSONObject.toJSONString(updateSchema).getBytes());
                         platformUpdateSchemaMapper.insert(schemaPo);
                         break;
                 }
@@ -1731,7 +1763,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         platformUpdateSchemaMapper.delete(paramVo.getPlatformId());
         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
         schemaPo.setPlatformId(paramVo.getPlatformId());
-        schemaPo.setContext(JSONObject.toJSONString(schemaInfo));
+        schemaPo.setContext(JSONObject.toJSONString(schemaInfo).getBytes());
         platformUpdateSchemaMapper.insert(schemaPo);
         this.platformUpdateSchemaMap.put(paramVo.getPlatformId(), schemaInfo);
         return schemaInfo;
@@ -1953,10 +1985,53 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
             throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
         }
-        List<AppPo> appList = this.appMapper.select(null, appModule.getAppName(), null, appModule.getVersion());
-        if (appList.size() > 0) {
-            logger.error(String.format("appName=%s and version=%s app has registered", appModule.getAppName(), appModule.getVersion()));
-            throw new ParamException(String.format("appName=%s and version=%s app has registered", appModule.getAppName(), appModule.getVersion()));
+        AppModuleVo oldModuleVo = this.appModuleMapper.selectByNameAndVersion(appModule.getAppName(), appModule.getVersion());
+        if (oldModuleVo != null) {
+            if(!oldModuleVo.getInstallPackage().getFileName().equals(appModule.getInstallPackage().getFileName()))
+            {
+                logger.error(String.format("%s's version %s has been registered, but old install package fileName is %s and new install package fileName is %s",
+                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getFileName(), oldModuleVo.getInstallPackage().getFileName()));
+                throw new ParamException(String.format("%s's version %s has been registered, but old install package fileName is %s and new install package fileName is %s",
+                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getFileName(), oldModuleVo.getInstallPackage().getFileName()));
+            }
+            else if(!oldModuleVo.getInstallPackage().getMd5().equals(appModule.getInstallPackage().getMd5()))
+            {
+                logger.error(String.format("%s's version %s has been registered, but old install package md5 is %s and new install package md5 is %s",
+                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getFileName(), oldModuleVo.getInstallPackage().getFileName()));
+                throw new ParamException(String.format("%s's version %s has been registered, but old install package fileName is %s and new install package fileName is %s",
+                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getMd5(), oldModuleVo.getInstallPackage().getMd5()));
+            }
+            else if(oldModuleVo.getCfgs().size() != appModule.getCfgs().size())
+            {
+                logger.error(String.format("%s's version %s has been registered, but old has %d cfg and new has is %d",
+                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getFileName(), oldModuleVo.getInstallPackage().getFileName()));
+                throw new ParamException(String.format("%s's version %s has been registered, but old install package fileName is %s and new install package fileName is %s",
+                        appModule.getAppName(), appModule.getVersion(), appModule.getCfgs().size(), oldModuleVo.getCfgs().size()));
+            }
+            else
+            {
+                Map<String, AppCfgFilePo> cfgFileMap = oldModuleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
+                for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
+                {
+                    if(!cfgFileMap.containsKey(cfgFilePo.getFileName()))
+                    {
+                        logger.error(String.format("%s's version %s has been registered, but cfg fileName not equal",
+                                appModule.getAppName(), appModule.getVersion()));
+                        throw new ParamException(String.format("%s's version %s has been registered, but cfg fileName not equal",
+                                appModule.getAppName(), appModule.getVersion()));
+                    }
+                    else if(!cfgFileMap.get(cfgFilePo.getFileName()).getDeployPath().equals(cfgFilePo.getDeployPath()))
+                    {
+                        logger.error(String.format("%s's version %s has been registered, but cfg deploy path not equal",
+                                appModule.getAppName(), appModule.getVersion()));
+                        throw new ParamException(String.format("%s's version %s has been registered, but cfg deploy path not equal",
+                                appModule.getAppName(), appModule.getVersion()));
+                    }
+                }
+            }
+
+            logger.error(String.format("%s's version %s has been registered", appModule.getAppName(), appModule.getVersion()));
+            throw new ParamException(String.format("%s's version %s has been registered", appModule.getAppName(), appModule.getVersion()));
         }
         String directory = CMDBTools.getAppModuleDirectory(appModule);
         String tmpSaveDir = CMDBTools.getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
@@ -1999,13 +2074,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
             fileInfo = new DeployFileInfo();
             fileInfo.setFileName(cfg.getFileName());
             fileInfo.setNexusAssetId(cfg.getNexusAssetId());
-            fileInfo.setNexusDirectory(cfg.getNexusDirectory());
-            fileInfo.setNexusRepository(cfg.getNexusRepository());
+            fileInfo.setNexusDirectory(directory);
+            fileInfo.setNexusRepository(this.appRepository);
             fileInfo.setLocalSavePath(savePth);
             fileInfo.setFileMd5(cfg.getMd5());
             fileInfo.setExt(cfg.getExt());
             fileInfo.setBasePath(appModule.getBasePath());
-            fileInfo.setDeployPath(appModule.getBasePath());
+            fileInfo.setDeployPath(cfg.getDeployPath());
             fileList.add(fileInfo);
         }
         Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
@@ -2052,7 +2127,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public PlatformUpdateSchemaInfo createDemoNewPlatform(String platformId, String platformName, int bkCloudId, List<String> planAppList) throws ParamException, InterfaceCallException, LJPaasException
+    public PlatformUpdateSchemaInfo createDemoNewPlatform(String platformId, String platformName, int bkBizId, int bkCloudId, List<String> planAppList) throws ParamException, InterfaceCallException, LJPaasException
     {
         Date now = new Date();
         PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
@@ -2061,26 +2136,19 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("demo platform[id=%s, name=%s] exist", platformId, platformName));
             throw new ParamException(String.format("demo platform[id=%s, name=%s] exist", platformId, platformName));
         }
-        platformPo = new PlatformPo();
-        platformPo.setUpdateTime(now);
-        platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
-        platformPo.setCcodVersion("CCOD4.1");
-        platformPo.setBkCloudId(bkCloudId);
-        platformPo.setCreateTime(now);
-        platformPo.setComment("create by tools for test");
-        platformPo.setPlatformId(platformId);
-        platformPo.setPlatformName(platformName);
-        this.platformMapper.insert(platformPo);
         List<LJBizInfo> bizList = paasService.queryAllBiz();
         Map<String, LJBizInfo> bizMap = bizList.stream().collect(Collectors.toMap(LJBizInfo::getBkBizName, Function.identity()));
-        if(bizMap.containsKey(platformName))
+        if(!bizMap.containsKey(platformName))
         {
-            logger.error(String.format("biz %s has exist at lj paas", platformName));
-            throw new ParamException(String.format("biz %s has exist at lj paas", platformName));
+            logger.error(String.format("biz %s not exist at lj paas", platformName));
+            throw new ParamException(String.format("biz %s not exist at lj paas", platformName));
         }
-        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
-        List<LJSetInfo> setList = paasService.createNewBiz(platformName, new ArrayList<String>(setDefineMap.keySet()));
-        int bkBizId = setList.get(0).getBkBizId();
+        else if(bizMap.get(platformName).getBkBizId() != bkBizId)
+        {
+            logger.error(String.format("%s bkBizId is %d not %d", bizMap.get(platformName).getBkBizId(), bkBizId));
+            throw new ParamException(String.format("%s bkBizId is %d not %d", bizMap.get(platformName).getBkBizId(), bkBizId));
+
+        }
         Map<String, List<String>> planAppMap = new HashMap<>();
         for(String planApp : planAppList)
         {
@@ -2098,7 +2166,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         schema.setPlatformName(platformName);
         schema.setComment(String.format("通过程序自动创建的%s(%s)平台新建计划", platformName, platformId));
         schema.setCreateTime(now);
-        schema.setBkBizId(bkBizId);
         schema.setStatus(UpdateStatus.CREATE);
         schema.setTaskType(PlatformUpdateTaskType.CREATE);
         schema.setExecuteTime(now);
@@ -2107,6 +2174,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         schema.setPlatformId(platformId);
         schema.setDomainUpdatePlanList(new ArrayList<>());
         Set<String> ipSet = new HashSet<>();
+        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         for(BizSetDefine setDefine : setDefineMap.values())
         {
             if(setDefine.getApps().length == 0)
@@ -2141,7 +2209,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         String version = arr[2];
                         String hostIp = arr[3].split("@")[1];
                         ipSet.add(hostIp);
-                        String[] pathArr = arr[3].split("@")[0].split("/");
+                        String[] pathArr = arr[3].split("@")[0].replaceAll("^/", "").split("/");
                         pathArr[1] = appAlias;
                         String basePath = String.format("/%s", String.join("/", pathArr));
                         Map<String, AppModuleVo> versionMap = appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
@@ -2177,19 +2245,47 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         addOperationInfo.setTargetVersion(version);
                         planInfo.getAppUpdateOperationList().add(addOperationInfo);
                     }
-
                 }
 
             }
             schema.getDomainUpdatePlanList().add(planInfo);
         }
-        Map<String, LJSetInfo> setMap = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
-        paasService.addNewHostToIdlePool(bkBizId, setMap.get(this.paasIdlePoolSetName).getBkSetId(), new ArrayList<>(ipSet), bkCloudId);
+        Map<String, LJHostInfo> hostMap = paasService.queryBKHost(bkBizId, null, null, null, null)
+                .stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        for(String hostIp : ipSet)
+        {
+            if(!hostMap.containsKey(hostIp))
+            {
+                logger.error(String.format("%s has not %s host", platformName, hostIp));
+                throw new LJPaasException(String.format("%s has not %s host", platformName, hostIp));
+            }
+        }
+        paasService.resetExistBiz(bkBizId, new ArrayList<>(setDefineMap.keySet()));
+        schema.setBkBizId(bkBizId);
+        platformPo = new PlatformPo();
+        platformPo.setUpdateTime(now);
+        platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
+        platformPo.setCcodVersion("CCOD4.1");
+        platformPo.setBkBizId(bkBizId);
+        platformPo.setBkCloudId(bkCloudId);
+        platformPo.setCreateTime(now);
+        platformPo.setComment("create by tools for test");
+        platformPo.setPlatformId(platformId);
+        platformPo.setPlatformName(platformName);
+        this.platformMapper.insert(platformPo);
+        List<LJSetInfo> setList = this.paasService.queryBkBizSet(bkBizId);
+        List<LJHostInfo> idleHostList = paasService.queryBizIdleHost(bkBizId);
+        String checkResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, idleHostList, new ArrayList<>());
+        if(StringUtils.isNotBlank(checkResult))
+        {
+            logger.error(String.format("demo platform generate fail : %s", checkResult));
+            throw new ParamException(String.format("demo platform generate fail : %s", checkResult));
+        }
         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
-        schemaPo.setContext(JSONObject.toJSONString(schema));
+        schemaPo.setContext(JSONObject.toJSONString(schema).getBytes());
         schemaPo.setPlatformId(platformId);
         this.platformUpdateSchemaMapper.insert(schemaPo);
-
+        this.platformUpdateSchemaMap.put(platformId, schema);
         return schema;
     }
 
@@ -2267,5 +2363,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 "daengine##daengine##179:20744##/home/ccodrunner/Platform@10.130.41.218";
         paramVo.setPlanAppList(Arrays.asList(script.split("\n")));
         System.out.println(JSONObject.toJSONString(paramVo));
+    }
+
+    @Test
+    public void splitTest()
+    {
+        String path = "/home/ccodrunner/resin-4.0.13/webapps";
+        String appAlias = "dcmsx";
+        path = path.replaceAll("^/", "");
+        String[] arr = path.split("/");
+        arr[1] = appAlias;
+        System.out.println(String.join("/", arr));
     }
 }

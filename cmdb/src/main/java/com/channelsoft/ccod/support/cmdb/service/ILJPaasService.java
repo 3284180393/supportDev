@@ -254,10 +254,10 @@ public interface ILJPaasService {
      * 创建新的biz
      * @param bkBizName 被创建的biz名
      * @param setNames 该biz下的set名称
-     * @return 被创建的biz下所有set
+     * @return 该biz的id
      * @throws ParamException
      * @throws InterfaceCallException
      * @throws LJPaasException
      */
-    List<LJSetInfo> createNewBiz(String bkBizName, List<String> setNames) throws ParamException, InterfaceCallException, LJPaasException;
+    int createNewBiz(String bkBizName, List<String> setNames) throws ParamException, InterfaceCallException, LJPaasException;
 }

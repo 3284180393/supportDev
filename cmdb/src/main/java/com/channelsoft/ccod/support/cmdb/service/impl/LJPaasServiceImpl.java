@@ -1448,7 +1448,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public List<LJSetInfo> createNewBiz(String bkBizName, List<String> setNames) throws ParamException, InterfaceCallException, LJPaasException {
+    public int createNewBiz(String bkBizName, List<String> setNames) throws ParamException, InterfaceCallException, LJPaasException {
         Map<String, Object> paramMap = getLJPaasCallBaseParams();
         Map<String, String> dataMap = new HashMap<>();
         dataMap.put("bk_biz_name", bkBizName);
@@ -1457,8 +1457,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
         dataMap.put("bk_biz_developer", this.bkUserName);
         dataMap.put("bk_biz_tester", this.bkUserName);
         dataMap.put("time_zone", "Asia/Shanghai");
+        dataMap.put("language", "1");
+        dataMap.put("bk_supplier_id", "0");
         paramMap.put("data", dataMap);
-        String url = LJPaasTools.getCreateNewSetUrl(this.paasHostUrl);
+        String url = LJPaasTools.getCreateNewBizUrl(this.paasHostUrl);
         String retVal = HttpRequestTools.httpPostRequest(url, paramMap);
         String data = parsePaasInterfaceResult(retVal);
         int bkBizId;
@@ -1472,13 +1474,11 @@ public class LJPaasServiceImpl implements ILJPaasService {
             logger.error(String.format("get bkBizId from %s FAIL", data));
             throw new LJPaasException(String.format("get bkBizId from %s FAIL", data));
         }
-        List<LJSetInfo> setList = new ArrayList<>();
         for(String bkSetName : setNames)
         {
-            LJSetInfo newSet = createNewBizSet(bkBizId, bkSetName, "create by tools", 1000);
-            setList.add(newSet);
+            addNewBizSet(bkBizId, bkSetName, String.format("%s is created by cmdb", bkSetName), 2000);;
         }
-        return setList;
+        return bkBizId;
     }
 
     @Test

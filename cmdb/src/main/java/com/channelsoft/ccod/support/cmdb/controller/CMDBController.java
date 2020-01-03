@@ -748,7 +748,7 @@ public class CMDBController {
             switch (param.getTaskType())
             {
                 case CREATE:
-                    appManagerService.createDemoNewPlatform(param.getPlatformId(), param.getPlatformName(), param.getBkCloudId(), param.getPlanAppList());
+                    appManagerService.createDemoNewPlatform(param.getPlatformId(), param.getPlatformName(), param.getBkBizId(), param.getBkCloudId(), param.getPlanAppList());
                     logger.info(String.format("demo new create platform %s create SUCCESS", param.getPlatformId()));
                     resultPo = new AjaxResultPo(true, String.format("demo new create platform %s create SUCCESS", param.getPlatformId()));
                     break;

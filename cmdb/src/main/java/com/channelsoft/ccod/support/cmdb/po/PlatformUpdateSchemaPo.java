@@ -18,7 +18,7 @@ public class PlatformUpdateSchemaPo {
 
     private String platformId; //该计划对应的平台
 
-    private String context; //计划类容
+    private byte[] context; //计划类容
 
     public int getSchemaId() {
         return schemaId;
@@ -36,11 +36,11 @@ public class PlatformUpdateSchemaPo {
         this.platformId = platformId;
     }
 
-    public String getContext() {
+    public byte[] getContext() {
         return context;
     }
 
-    public void setContext(String context) {
+    public void setContext(byte[] context) {
         this.context = context;
     }
 }
