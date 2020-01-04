@@ -84,7 +84,7 @@ public class CMDBTools {
 
     public static String getAppFileDownloadUrl(String nexusHostUrl, AppFileNexusInfo nexusInfo)
     {
-        String downloadUrl = String.format("%s/repository/%s%s", nexusHostUrl, nexusInfo.getNexusRepository(), nexusInfo.getNexusPath());
+        String downloadUrl = String.format("%s/repository/%s/%s", nexusHostUrl, nexusInfo.getNexusRepository(), nexusInfo.getNexusPath());
         return downloadUrl;
     }
 

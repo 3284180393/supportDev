@@ -1,8 +1,8 @@
 spring:
   datasource:
     username : root
-    password :
-    url: jdbc:mysql://10.130.44.108:3306/cmdb_new
+    password : qnsoft
+    url: jdbc:mysql://10.130.76.80:3306/cmdb_new
     driver-class-name : com.mysql.jdbc.Driver
 
 mybatis:
@@ -142,8 +142,8 @@ lj-paas:
       name: 管理门户
       id: managerPortal
       isBasic: 1
-      fixedDomainName: 门户
-      fixedDomainId: portal
+      fixedDomainName: 管理门户域
+      fixedDomainId: managerPortalDomain
       apps:
         - agentProxy
         - cci2
@@ -193,8 +193,8 @@ lj-paas:
       name: 运营门户
       id: supportPortal
       isBasic: 1
-      fixedDomainName: 门户
-      fixedDomainId: portal
+      fixedDomainName: 运营门户域
+      fixedDomainId: supportPortalDomain
       apps:
         - gls
         - httpd

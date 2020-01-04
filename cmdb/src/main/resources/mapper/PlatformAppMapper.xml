@@ -41,18 +41,16 @@
         FROM
             platform_app pa
         INNER JOIN app a ON pa.app_id = a.app_id
-        INNER JOIN platform pf ON pa.platform_id = pf.platform_id
-        INNER JOIN domain dm ON pa.domain_id = dm.domain_id
         WHERE
             1 = 1
         <if test="platformId!=null">
-            And pf.platform_id=#{platformId,jdbcType=VARCHAR}
+            And pa.platform_id=#{platformId,jdbcType=VARCHAR}
         </if>
         <if test="domainId!=null">
-            And dm.domain_id=#{domainId,jdbcType=VARCHAR}
+            And pa.domain_id=#{domainId,jdbcType=VARCHAR}
         </if>
         <if test="hostIp!=null">
-            And svr.host_ip=#{hostIp,jdbcType=VARCHAR}
+            And pa.host_ip=#{hostIp,jdbcType=VARCHAR}
         </if>
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}

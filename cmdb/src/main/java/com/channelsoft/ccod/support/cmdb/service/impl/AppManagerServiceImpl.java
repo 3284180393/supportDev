@@ -852,6 +852,32 @@ public class AppManagerServiceImpl implements IAppManagerService {
         PlatformUpdateTaskType taskType = schema.getTaskType();
         StringBuffer sb = new StringBuffer();
         List<AppUpdateOperationInfo> allOperationList = new ArrayList<>();
+        Map<String, List<DomainUpdatePlanInfo>> updateDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId));
+        for(String domainId : updateDomainMap.keySet())
+        {
+            if(updateDomainMap.get(domainId).size() > 1)
+            {
+                logger.error(String.format("domainId %s duplicate", domainId));
+                sb.append(String.format("%s;", domainId));
+            }
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            return String.format("domainId %s duplicate", sb.toString().replaceAll(";$", ""));
+        }
+        updateDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainName));
+        for(String domainName : updateDomainMap.keySet())
+        {
+            if(updateDomainMap.get(domainName).size() > 1)
+            {
+                logger.error(String.format("domainName %s duplicate", domainName));
+                sb.append(String.format("%s;", domainName));
+            }
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            return String.format("domainName %s duplicate", sb.toString().replaceAll(";$", ""));
+        }
         for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
         {
             DomainUpdateType updateType = planInfo.getUpdateType();
@@ -2089,12 +2115,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
         appPo.setCreateTime(now);
         appPo.setUpdateTime(now);
         this.appMapper.insert(appPo);
+        appModule.getInstallPackage().setNexusRepository(this.appRepository);
+        appModule.getInstallPackage().setNexusDirectory(directory);
         appModule.getInstallPackage().setAppId(appPo.getAppId());
         appModule.getInstallPackage().setNexusAssetId(assetMap.get(String.format("%s/%s", directory, appModule.getInstallPackage().getFileName())).getId());
         this.appInstallPackageMapper.insert(appModule.getInstallPackage());
         for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
         {
             cfgFilePo.setAppId(appPo.getAppId());
+            cfgFilePo.setNexusDirectory(directory);
+            cfgFilePo.setNexusRepository(this.appRepository);
             cfgFilePo.setNexusAssetId(assetMap.get(String.format("%s/%s", directory, cfgFilePo.getFileName())).getId());
             this.appCfgFileMapper.insert(cfgFilePo);
         }
@@ -2213,7 +2243,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         pathArr[1] = appAlias;
                         String basePath = String.format("/%s", String.join("/", pathArr));
                         Map<String, AppModuleVo> versionMap = appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
-                        if(!version.contains(version))
+                        if(!versionMap.containsKey(version))
                         {
                             logger.error(String.format("create demo platform create schema FAIL : %s has not version=%s",
                                     appName, version));

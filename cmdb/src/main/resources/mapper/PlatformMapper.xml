@@ -13,7 +13,7 @@
         <result column="comment" property="comment" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        pf.platform_id, pf.platform_name, pf.bk_biz_id, pf.bk_cloud_id, pf.create_time, pf.update_time, pf.`status`, pf.`comment`
+        pf.platform_id, pf.platform_name, pf.bk_biz_id, pf.bk_cloud_id, pf.create_time, pf.update_time, pf.`status`, pf.ccod_version, pf.`comment`
     </sql>
     <select id="selectByPrimaryKey" resultMap="PlatformMap" parameterType="java.lang.String">
         select
