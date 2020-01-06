@@ -10,6 +10,7 @@ mybatis:
   type-aliases-package : com.example.entity
 
 ccod:
+  domain-id-regex: ^[0-9a-z][0-9a-z\\-]*[0-9a-z]$
   notCheckCfgApps:
     - cmsserver
   ccod-kernel-module:
@@ -143,7 +144,7 @@ lj-paas:
       id: managerPortal
       isBasic: 1
       fixedDomainName: 管理门户域
-      fixedDomainId: managerPortalDomain
+      fixedDomainId: manager-portal-domain
       apps:
         - agentProxy
         - cci2
@@ -194,7 +195,7 @@ lj-paas:
       id: supportPortal
       isBasic: 1
       fixedDomainName: 运营门户域
-      fixedDomainId: supportPortalDomain
+      fixedDomainId: support-portal-domain
       apps:
         - gls
         - httpd
@@ -206,7 +207,7 @@ lj-paas:
       id: apgModules
       isBasic: 0
       fixedDomainName: 外拨域
-      fixedDomainId: apgDomain
+      fixedDomainId: apg-domain
       apps:
         - AppGateWay
         - DialEngine

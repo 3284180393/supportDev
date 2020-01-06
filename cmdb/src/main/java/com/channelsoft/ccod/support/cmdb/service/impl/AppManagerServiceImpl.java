@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -84,6 +85,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Value("${test.demo-new-create-platform-name}")
     private String newDemoCreatePlatformName;
+
+    @Value("${ccod.domain-id-regex}")
+    private String domainIdRegex;
 
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
@@ -852,7 +856,21 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Map<String, LJSetInfo> setMap = bkSetList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
         PlatformUpdateTaskType taskType = schema.getTaskType();
         StringBuffer sb = new StringBuffer();
-        List<AppUpdateOperationInfo> allOperationList = new ArrayList<>();
+        for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
+        {
+            if(StringUtils.isBlank(planInfo.getDomainId()) || StringUtils.isBlank(planInfo.getDomainName()))
+            {
+                return "domainId and domainName of domain update plan can not be blank";
+            }
+            else if(!Pattern.matches(this.domainIdRegex, planInfo.getDomainId()))
+            {
+                sb.append(String.format("%s,", planInfo.getDomainId()));
+            }
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            return String.format("domainId %s is not regal : only wanted 0-9a-z or - and - can not be beginning or end", sb.toString().replaceAll(",$", ""));
+        }
         Map<String, List<DomainUpdatePlanInfo>> updateDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId));
         Map<String, List<PlatformAppPo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppPo::getDomainId));
         for(String domainId : updateDomainMap.keySet())
@@ -943,6 +961,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                                     taskType.name, schema.getPlatformId(), DomainUpdateType.ADD.name, planInfo.getDomainId(), updateType.name));
                             continue;
                     }
+                    break;
                 case DELETE:
                     switch (updateType)
                     {
@@ -953,12 +972,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
                                     taskType.name, schema.getPlatformId(), DomainUpdateType.ADD.name, planInfo.getDomainId(), updateType.name));
                             continue;
                     }
+                    break;
                 case UPDATE:
                     break;
             }
             if(planInfo.getAppUpdateOperationList() == null || planInfo.getAppUpdateOperationList().size() == 0)
             {
-                sb.append(String.format("operation of %s %s is blank;", updateType.name, planInfo.getDomainId()));
+//                sb.append(String.format("operation of %s %s is blank;", updateType.name, planInfo.getDomainId()));
                 continue;
             }
             List<PlatformAppPo> domainAppList = new ArrayList<>();
@@ -1898,7 +1918,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @throws DBPAASDataNotConsistentException
      * @throws NotSupportAppException
      */
-    private List<CCODSetInfo> generateCCODSetInfo(List<PlatformAppDeployDetailVo> deployAppList) throws ParamException, NotSupportAppException
+    private List<CCODSetInfo> generateCCODSetInfo(List<PlatformAppDeployDetailVo> deployAppList, List<String> setNames) throws ParamException, NotSupportAppException
     {
         Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
         Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
@@ -1937,6 +1957,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
             set.setDomains(domainList);
             setList.add(set);
         }
+        for(String setName : setNames)
+        {
+            if(!setAppMap.containsKey(setName))
+            {
+                CCODSetInfo setInfo = new CCODSetInfo(setName);
+                setList.add(setInfo);
+            }
+        }
         return setList;
     }
 
@@ -1959,6 +1987,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<LJHostInfo> idleHostList;
         PlatformUpdateSchemaInfo schema;
         List<CCODSetInfo> setList;
+        Map<String, BizSetDefine> bizSetMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<PlatformAppDeployDetailVo> deployAppList;
         switch (topology.getStatus())
         {
@@ -1976,7 +2005,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             platformId, topology.getStatus().name));
                 }
                 deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
-                setList = generateCCODSetInfo(deployAppList);
+                setList = generateCCODSetInfo(deployAppList, new ArrayList<>(bizSetMap.keySet()));
                 idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
                 schema = null;
                 break;
@@ -1989,7 +2018,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             platformId, topology.getStatus().name));
                 }
                 deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
-                setList = generateCCODSetInfo(deployAppList);
+                setList = generateCCODSetInfo(deployAppList, new ArrayList<>(bizSetMap.keySet()));
                 idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
                 schema = this.platformUpdateSchemaMap.get(platformId);
                 break;
@@ -2003,7 +2032,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 }
                 deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
                 deployAppList = makeUpBizInfoForDeployApps(platform.getBkBizId(), deployAppList);
-                setList = generateCCODSetInfo(deployAppList);
+                setList = generateCCODSetInfo(deployAppList, new ArrayList<>(bizSetMap.keySet()));
                 idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
                 schema = null;
                 break;
@@ -2263,7 +2292,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             String domainName = setDefine.getFixedDomainName();
             if(StringUtils.isBlank(domainId))
             {
-                domainId = "newCreateTestDomain";
+                domainId = "new-create-test-domain";
                 domainName = "新建测试域";
             }
             planInfo.setDomainId(domainId);
@@ -2455,7 +2484,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     planInfo.setUpdateTime(now);
                     planInfo.setCreateTime(now);
                     planInfo.setDomainName(String.format("新建%s%d", domainAppList.get(0).getDomainName(), index));
-                    planInfo.setDomainId(String.format("newCreate%s%d", domainAppList.get(0).getDomainId(), index));
+                    planInfo.setDomainId(String.format("new-create-%s-%d", domainAppList.get(0).getDomainId(), index));
                     index++;
                     planInfo.setComment(String.format("域%s新建方案", planInfo.getDomainId()));
                     planInfo.setUpdateType(DomainUpdateType.ADD);
