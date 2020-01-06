@@ -1,9 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.utils;
 
-import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
-import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
-import com.channelsoft.ccod.support.cmdb.po.AppPo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
@@ -40,6 +37,18 @@ public class CMDBTools {
         String fileName = arr[arr.length - 1];
         String directory = "/" + nexusInfo.getNexusName().replaceAll("/" + fileName + "$", "");
         return directory;
+    }
+
+    public static String getPlatformAppCfgFilePath(PlatformAppCfgFilePo cfgFilePo)
+    {
+        String path = String.format("/%s/%s", cfgFilePo.getNexusDirectory(), cfgFilePo.getFileName());
+        return path;
+    }
+
+    public static String getAppCfgFilePath(AppCfgFilePo cfgFilePo)
+    {
+        String path = String.format("/%s/%s", cfgFilePo.getNexusDirectory(), cfgFilePo.getFileName());
+        return path;
     }
 
     public static String getFileNameFromDownloadUrl(String downloadUrl) {

@@ -8,18 +8,18 @@
         <result column="platform_name" property="platformName" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
-        <result column="server_id" property="serverId" jdbcType="INTEGER" />
-        <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
-        <result column="host_name" property="hostname" jdbcType="VARCHAR" />
-        <result column="runner_id" property="runnerId" jdbcType="INTEGER" />
-        <result column="runner_name" property="runnerName" jdbcType="VARCHAR" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
         <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
         <result column="app_type" property="appType" jdbcType="VARCHAR" />
-        <result column="version" property="version" jdbcType="VARCHAR" />
+        <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
+        <result column="version" property="version" jdbcType="VARCHAR" />
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+        <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
+        <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
 
         <result column="set_id" property="setId" jdbcType="VARCHAR" />
         <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
@@ -46,20 +46,23 @@
     </resultMap>
     <sql id="Base_Column_List" >
         pacf.platform_app_id AS platform_app_id,
+        a.app_id,
 	    pf.platform_name,
 	    pf.platform_id,
 	    dm.domain_id,
 	    dm.domain_name,
-	    a.app_id,
 	    a.app_name,
 	    pa.app_alias AS app_alias,
 	    a.app_type,
-	    a.version,
-	    a.ccod_version,
 	    pa.host_ip AS host_ip,
+	    a.version,
 	    pa.app_runner AS app_runner,
+	    a.ccod_version,
 	    pa.base_path,
 	    pa.deploy_time,
+	    a.create_time,
+	    a.version_control,
+	    a.version_control_url,
 	    aip.app_id AS aip_app_id,
 	    aip.create_time AS aip_create_time,
 	    aip.deploy_path AS aip_deploy_path,

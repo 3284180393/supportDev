@@ -848,11 +848,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
             schema.setDomainUpdatePlanList(new ArrayList<>());
         }
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        Map<String, DomainPo> domainNameMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
         Map<String, LJSetInfo> setMap = bkSetList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
         PlatformUpdateTaskType taskType = schema.getTaskType();
         StringBuffer sb = new StringBuffer();
         List<AppUpdateOperationInfo> allOperationList = new ArrayList<>();
         Map<String, List<DomainUpdatePlanInfo>> updateDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId));
+        Map<String, List<PlatformAppPo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppPo::getDomainId));
         for(String domainId : updateDomainMap.keySet())
         {
             if(updateDomainMap.get(domainId).size() > 1)
@@ -884,116 +886,120 @@ public class AppManagerServiceImpl implements IAppManagerService {
             if(updateType == null)
             {
                 sb.append(String.format("DomainUpdateType of %s is blank;", JSONObject.toJSONString(planInfo)));
+                continue;
             }
-            else if(PlatformUpdateTaskType.CREATE.equals(taskType))
+            switch (updateType)
             {
-                if(!DomainUpdateType.ADD.equals(updateType))
-                {
-                    sb.append(String.format("%s of %s only support DomainUpdateType=%s, not %s",
-                            taskType.name, JSONObject.toJSONString(planInfo), DomainUpdateType.ADD.name, updateType.name));
-                }
+                case ADD:
+                    if(domainMap.containsKey(planInfo.getDomainId()))
+                    {
+                        sb.append(String.format("%s domain %s, but %s exist;",
+                                updateType.name, planInfo.getDomainId(), planInfo.getDomainId()));
+                        continue;
+                    }
+                    else if(domainNameMap.containsKey(planInfo.getDomainName()))
+                    {
+                        sb.append(String.format("%s domain %s, but %s exist;",
+                                updateType.name, planInfo.getDomainName(), planInfo.getDomainName()));
+                        continue;
+                    }
+                    else if(!setMap.containsKey(planInfo.getBkSetName()))
+                    {
+                        sb.append(String.format("bkSetName=%s of domain %s not exist;",
+                                planInfo.getBkSetName(), planInfo.getDomainId()));
+                        continue;
+                    }
+                    break;
+                default:
+                    if(!domainMap.containsKey(planInfo.getDomainId()))
+                    {
+                        sb.append(String.format("%s domain %s, but %s not exist;",
+                                updateType.name, planInfo.getDomainId(), planInfo.getDomainId()));
+                        continue;
+                    }
+                    else if(!domainNameMap.containsKey(planInfo.getDomainName()))
+                    {
+                        sb.append(String.format("%s domain %s, but %s not exist;",
+                                updateType.name, planInfo.getDomainName(), planInfo.getDomainName()));
+                        continue;
+                    }
+                    else if(!setMap.containsKey(planInfo.getBkSetName()))
+                    {
+                        sb.append(String.format("%s %s of %s of domain %s not exist;",
+                                updateType.name, planInfo.getDomainId(), planInfo.getBkSetName()));
+                        continue;
+                    }
+                    break;
             }
-            else if(PlatformUpdateTaskType.DELETE.equals(taskType))
-            {
-                sb.append(String.format("current version not support PlatformUpdateTaskType=%s of %s", taskType.name, JSONObject.toJSONString(planInfo)));
-            }
-            if(planInfo.getAppUpdateOperationList() == null)
-            {
-                planInfo.setAppUpdateOperationList(new ArrayList<>());
-            }
-            allOperationList.addAll(planInfo.getAppUpdateOperationList());
             switch (taskType)
             {
                 case CREATE:
                     switch (updateType)
                     {
                         case ADD:
-                            if(domainMap.containsKey(planInfo.getDomainId()))
-                            {
-                                sb.append(String.format("new add domain[%s] of %s has exist;",
-                                        planInfo.getDomainId(), JSONObject.toJSONString(planInfo)));
-                            }
-                            else if(!setMap.containsKey(planInfo.getBkSetName()))
-                            {
-                                sb.append(String.format("bkSetName=%s of new add domain %s not exist;",
-                                        planInfo.getBkSetName(), JSONObject.toJSONString(planInfo)));
-                            }
-                            else
-                            {
-                                String operationCheckResult = updateOperationCheck(updateType, planInfo.getAppUpdateOperationList(), appList, deployApps, appBkModuleList, bkHostList);
-                                sb.append(operationCheckResult);
-                            }
                             break;
                         default:
-                            sb.append(String.format("CREATE platform only support ADD new domain not %s of %s;",
-                                    updateType.name, JSONObject.toJSONString(planInfo)));
+                            sb.append(String.format("%s of %s only support %s %s, not %s;",
+                                    taskType.name, schema.getPlatformId(), DomainUpdateType.ADD.name, planInfo.getDomainId(), updateType.name));
+                            continue;
                     }
-                    break;
-                case UPDATE:
+                case DELETE:
                     switch (updateType)
                     {
-                        case ADD:
-                            if(domainMap.containsKey(planInfo.getDomainId()))
-                            {
-                                sb.append(String.format("new add domain[%s] of %s has exist;",
-                                        planInfo.getDomainId(), JSONObject.toJSONString(planInfo)));
-                            }
-                            else if(!setMap.containsKey(planInfo.getBkSetName()))
-                            {
-                                sb.append(String.format("bkSetName=%s of new add domain %s not exist;",
-                                        planInfo.getBkSetName(), JSONObject.toJSONString(planInfo)));
-                            }
-                            else
-                            {
-                                String operationCheckResult = updateOperationCheck(updateType, planInfo.getAppUpdateOperationList(), appList, deployApps, appBkModuleList, bkHostList);
-                                sb.append(operationCheckResult);
-                            }
-                            break;
-                        case UPDATE:
                         case DELETE:
-                            if(!domainMap.containsKey(planInfo.getDomainId()))
-                            {
-                                sb.append(String.format("%s domain[%s] of %s not exist;",
-                                        updateType.name, planInfo.getDomainId(), JSONObject.toJSONString(planInfo)));
-                            }
-                            else if(!setMap.containsKey(planInfo.getBkSetName()))
-                            {
-                                sb.append(String.format("bkSetName=%s of %s domain %s not exist;",
-                                        planInfo.getBkSetName(), updateType.name, JSONObject.toJSONString(planInfo)));
-                            }
-                            else
-                            {
-                                String operationCheckResult = updateOperationCheck(updateType, planInfo.getAppUpdateOperationList(), appList, deployApps, appBkModuleList, bkHostList);
-                                sb.append(operationCheckResult);
-                            }
                             break;
                         default:
+                            sb.append(String.format("%s of %s only support %s %s, not %s;",
+                                    taskType.name, schema.getPlatformId(), DomainUpdateType.ADD.name, planInfo.getDomainId(), updateType.name));
+                            continue;
                     }
+                case UPDATE:
                     break;
-                default:
             }
-        }
-        Map<String, List<AppUpdateOperationInfo>> ipAppMap = allOperationList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
-        for(String hostIp : ipAppMap.keySet())
-        {
-            Map<String, List<AppUpdateOperationInfo>> appNameMap = ipAppMap.get(hostIp).stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-            for(String appName : appNameMap.keySet())
+            if(planInfo.getAppUpdateOperationList() == null || planInfo.getAppUpdateOperationList().size() == 0)
             {
-                if(appNameMap.get(appName).size() > 1)
-                {
-                    Set<String> aliasSet = new HashSet<>();
-                    for(AppUpdateOperationInfo opt : appNameMap.get(appName))
-                    {
-                        if(aliasSet.contains(opt.getAppAlias()))
-                        {
-                            sb.append(String.format("%s at %s alias duplicate;", appName, hostIp));
-                            break;
-                        }
-                        aliasSet.add(opt.getAppAlias());
-                    }
-                }
+                sb.append(String.format("operation of %s %s is blank;", updateType.name, planInfo.getDomainId()));
+                continue;
             }
+            List<PlatformAppPo> domainAppList = new ArrayList<>();
+            if(domainAppMap.containsKey(planInfo.getDomainId()))
+            {
+                domainAppList = domainAppMap.get(planInfo.getDomainId());
+            }
+            String operationCheckResult = updateOperationCheck(updateType, planInfo.getAppUpdateOperationList(), appList, domainAppList, appBkModuleList, bkHostList);
+            sb.append(operationCheckResult);
         }
+//        Map<String, List<AppUpdateOperationInfo>> ipAppMap = allOperationList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
+//        for(String hostIp : ipAppMap.keySet())
+//        {
+//            Map<String, List<AppUpdateOperationInfo>> appNameMap = ipAppMap.get(hostIp).stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+//            for(String appName : appNameMap.keySet())
+//            {
+//                if(appNameMap.get(appName).size() > 1)
+//                {
+//                    Set<String> aliasSet = new HashSet<>();
+//                    for(AppUpdateOperationInfo opt : appNameMap.get(appName))
+//                    {
+//                        switch (opt.getOperation())
+//                        {
+//                            case ADD:
+//                            case CFG_UPDATE:
+//                            case VERSION_UPDATE:
+//                                if(aliasSet.contains(opt.getAppAlias()))
+//                                {
+//                                    sb.append(String.format("%s at %s alias duplicate;", appName, hostIp));
+//                                }
+//                                else
+//                                {
+//                                    aliasSet.add(opt.getAppAlias());
+//                                }
+//                            default:
+//                                break;
+//                        }
+//                    }
+//                }
+//            }
+//        }
         return sb.toString();
     }
 
@@ -1003,7 +1009,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param updateType 域升级方案类型
      * @param operationList 域升级的应用升级操作明细
      * @param appList 当前应用列表
-     * @param deployApps 平台升级前已经部署的应用列表
+     * @param deployApps 域已经部署的应用列表
      * @param appBkModuleList 已经部署的应用和蓝鲸模块的关系表
      * @param hostList 平台下所有服务器列表
      * @return 检查结果,如果为空则表示检查通过，否则返回检查失败原因
@@ -1015,6 +1021,22 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Map<Integer, PlatformAppBkModulePo> appBkModuleMap = appBkModuleList.stream().collect(Collectors.toMap(PlatformAppBkModulePo::getPlatformAppId, Function.identity()));
         Map<Integer, PlatformAppPo> platformAppMap = deployApps.stream().collect(Collectors.toMap(PlatformAppPo::getPlatformAppId, Function.identity()));
         StringBuffer sb = new StringBuffer();
+        Set<String> deployAppSet = new HashSet<>();
+        for(PlatformAppPo po : deployApps)
+        {
+            if(deployAppSet.contains(po.getAppAlias()))
+            {
+                sb.append(String.format("%s,", po.getAppAlias()));
+            }
+            else
+            {
+                deployAppSet.add(po.getAppAlias());
+            }
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            return String.format("alias %s duplicate;", sb.toString().replaceAll(",$", ""));
+        }
         for(AppUpdateOperationInfo operationInfo : operationList)
         {
             if(operationInfo.getOperation() == null)
@@ -1056,59 +1078,71 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     case ADD:
                         if(StringUtils.isBlank(operationInfo.getTargetVersion()))
                         {
-                            sb.append(String.format("%s : version of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : version of %s is blank;", operation.name, operationInfo.getAppName()));
                         }
                         else if(!versionMap.containsKey(operationInfo.getTargetVersion()))
                         {
-                            sb.append(String.format("%s : version %s of %s not exist;", operation.name, operationInfo.getTargetVersion(), JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : version %s of %s not exist;", operation.name, operationInfo.getTargetVersion(), operationInfo.getAppName()));
                         }
                         if(StringUtils.isBlank(operationInfo.getAppAlias()))
                         {
-                            sb.append(String.format("%s : alias of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : alias of %s is blank;", operation.name, operationInfo.getAppName()));
+                        }
+                        else if(deployAppSet.contains(operationInfo.getAppAlias()))
+                        {
+                            sb.append(String.format("%s : alias %s duplicate;", operation.name, operationInfo.getAppAlias()));
+                        }
+                        else
+                        {
+                            deployAppSet.add(operationInfo.getAppAlias());
                         }
                         if(StringUtils.isBlank(operationInfo.getBasePath()))
                         {
-                            sb.append(String.format("%s : basePath of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : basePath of %s is blank;", operation.name, operationInfo.getAppAlias()));
                         }
                         if(StringUtils.isBlank(operationInfo.getAppRunner()))
                         {
-                            sb.append(String.format("%s : appRunner of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : appRunner of %s is blank;", operation.name, operationInfo.getAppAlias()));
                         }
                         if(operationInfo.getCfgs() == null || operationInfo.getCfgs().size() == 0)
                         {
-                            sb.append(String.format("%s : cfg of %s is 0;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : cfg of %s is 0;", operation.name, operationInfo.getAppAlias()));
                         }
                         else
                         {
                             String compareResult = cfgFileCompare(versionMap.get(operationInfo.getTargetVersion()), operationInfo.getCfgs());
                             if(StringUtils.isNotBlank(compareResult))
-                                sb.append(String.format("%s : cfg of %s is not match [%s];", operation.name, JSONObject.toJSONString(operationInfo), compareResult));
+                                sb.append(String.format("%s : cfg of %s is not match [%s];",  operation.name, operationInfo.getAppAlias(), compareResult));
                         }
                         break;
                     case VERSION_UPDATE:
                         if(!platformAppMap.containsKey(operationInfo.getPlatformAppId()))
                         {
-                            sb.append(String.format("%s : platformAppId=%d of %s not exist", operation.name, operationInfo.getPlatformAppId(), JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : platformAppId=%d of %s not exist", operation.name, operationInfo.getPlatformAppId(), operationInfo.getAppName()));
                         }
                         if(StringUtils.isBlank(operationInfo.getTargetVersion()))
                         {
-                            sb.append(String.format("%s : target version of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : target version of %s is blank;", operation.name, operationInfo.getAppName()));
                         }
                         else if(!versionMap.containsKey(operationInfo.getTargetVersion()))
                         {
-                            sb.append(String.format("%s  : target version %s of %s not exist;", operation.name, operationInfo.getTargetVersion(), JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s  : target version %s of %s not exist;", operation.name, operationInfo.getTargetVersion(), operationInfo.getAppName()));
                         }
                         if(StringUtils.isBlank(operationInfo.getOriginalVersion()))
                         {
-                            sb.append(String.format("%s : original version of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : original version of %s is blank;", operation.name, operationInfo.getAppName()));
                         }
                         else if(!versionMap.containsKey(operationInfo.getOriginalVersion()))
                         {
-                            sb.append(String.format("%s : original version %s of %s not exist;", operation.name, operationInfo.getOriginalVersion(), JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : original version %s of %s not exist;", operation.name, operationInfo.getOriginalVersion(), operationInfo.getAppName()));
                         }
                         if(StringUtils.isBlank(operationInfo.getAppAlias()))
                         {
-                            sb.append(String.format("%s : alias of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : alias of %s is blank;", operation.name, operationInfo.getAppName()));
+                        }
+                        else if(!deployAppSet.contains(operationInfo.getAppAlias()))
+                        {
+                            sb.append(String.format("%s : alias of %s not exist;", operation.name, operationInfo.getAppName()));
                         }
                         if(operationInfo.getCfgs() == null || operationInfo.getCfgs().size() == 0)
                         {
@@ -1128,15 +1162,19 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     case CFG_UPDATE:
                         if(StringUtils.isBlank(operationInfo.getOriginalVersion()))
                         {
-                            sb.append(String.format("%s : original version of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : original version of %s is blank;", operation.name, operationInfo.getAppName()));
                         }
                         else if(!versionMap.containsKey(operationInfo.getOriginalVersion()))
                         {
-                            sb.append(String.format("%s : original version %s of %s not exist;", operation.name, operationInfo.getTargetVersion(), JSONObject.toJSONString(operationInfo)));
+                            sb.append(String.format("%s : original version %s of %s not exist;", operation.name, operationInfo.getOriginalVersion(), operationInfo.getAppName()));
                         }
                         if(StringUtils.isBlank(operationInfo.getAppAlias()))
                         {
                             sb.append(String.format("%s : alias of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                        }
+                        else if(!deployAppSet.contains(operationInfo.getAppAlias()))
+                        {
+                            sb.append(String.format("%s : %s of %s not exist;", operation.name, operationInfo.getAppAlias(), operationInfo.getAppName()));
                         }
                         if(operationInfo.getCfgs() == null || operationInfo.getCfgs().size() == 0)
                         {
@@ -1148,7 +1186,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         }
                         else
                         {
-                            String compareResult = cfgFileCompare(versionMap.get(operationInfo.getTargetVersion()), operationInfo.getCfgs());
+                            String compareResult = cfgFileCompare(versionMap.get(operationInfo.getOriginalVersion()), operationInfo.getCfgs());
                             if(StringUtils.isNotBlank(compareResult))
                                 sb.append(String.format("%s : cfg of %s is not match[%s];", operation.name, JSONObject.toJSONString(operationInfo), compareResult));
                         }
@@ -1165,6 +1203,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         if(StringUtils.isBlank(operationInfo.getAppAlias()))
                         {
                             sb.append(String.format("%s : alias of %s is blank;", operation.name, JSONObject.toJSONString(operationInfo)));
+                        }
+                        else if(!deployAppSet.contains(operationInfo.getAppAlias()))
+                        {
+                            sb.append(String.format("%s : %s of %s not exist;", operation.name, operationInfo.getAppAlias(), operationInfo.getAppName()));
+                        }
+                        else
+                        {
+                            deployAppSet.remove(operationInfo.getAppAlias());
                         }
                         if(!appBkModuleMap.containsKey(operationInfo.getPlatformAppId()))
                         {
@@ -2316,6 +2362,254 @@ public class AppManagerServiceImpl implements IAppManagerService {
         schemaPo.setPlatformId(platformId);
         this.platformUpdateSchemaMapper.insert(schemaPo);
         this.platformUpdateSchemaMap.put(platformId, schema);
+        return schema;
+    }
+
+    @Override
+    public PlatformUpdateSchemaInfo createDemoUpdatePlatform(String platformId, String platformName, int bkBizId) throws ParamException, InterfaceCallException, LJPaasException {
+        logger.debug(String.format("begin to create demo update platform[platformId=%s,platformName=%s,bkBizId=%d]",
+                platformId, platformName, bkBizId));
+        Date now = new Date();
+        PlatformPo platform = platformMapper.selectByPrimaryKey(platformId);
+        if(platform == null)
+        {
+            logger.error(String.format("platformId=%s not exist", platformId));
+            throw new ParamException(String.format("platformId=%s not exist", platformId));
+        }
+        if(!platform.getPlatformName().equals(platformName))
+        {
+            logger.error(String.format("name of platformId=%s is %s not %s",
+                    platformId, platform.getPlatformName(), platformName));
+            throw new ParamException(String.format("name of platformId=%s is %s not %s",
+                    platformId, platform.getPlatformName(), platformName));
+        }
+       LJBizInfo bkBiz = this.paasService.queryBizInfoById(bkBizId);
+        if(bkBiz == null)
+        {
+            logger.error(String.format("bkBizId=%d biz not exist", bkBizId));
+            throw new ParamException(String.format("bkBizId=%d biz not exist", bkBizId));
+        }
+        if(!bkBiz.getBkBizName().equals(platformName))
+        {
+            logger.error(String.format("bkBizId=%d biz name is %s not %s",
+                    bkBizId, bkBiz.getBkBizName(), platformName));
+            throw new ParamException(String.format("bkBizId=%d biz name is %s not %s",
+                    bkBizId, bkBiz.getBkBizName(), platformName));
+        }
+        List<DomainPo> domainList = domainMapper.select(platformId, null);
+        if(domainList.size() == 0)
+        {
+            logger.error(String.format("%s has 0 domain", platformId));
+            throw new ParamException(String.format("%s has 0 domain", platformId));
+        }
+        List<PlatformAppDeployDetailVo> deployApps = platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+        if(deployApps.size() == 0)
+        {
+            logger.error(String.format("%s has deployed 0 app", platformId));
+            throw new ParamException(String.format("%s has deployed 0 app", platformId));
+        }
+        List<AppModuleVo> appModuleList = appModuleMapper.select(null, null, null, null);
+        Map<String, List<AppModuleVo>> appModuleMap = appModuleList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
+        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
+        for(String bkSetName : setAppMap.keySet())
+        {
+            List<PlatformAppDeployDetailVo> setAppList = setAppMap.get(bkSetName);
+            Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = setAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+            int index = 1;
+            for(String domainId : domainAppMap.keySet())
+            {
+                List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.get(domainId);
+                if("域服务".equals(bkSetName))
+                {
+                    DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+                    planInfo.setAppUpdateOperationList(new ArrayList<>());
+                    planInfo.setStatus(UpdateStatus.CREATE);
+                    planInfo.setSetId(domainAppList.get(0).getSetId());
+                    planInfo.setBkSetName(bkSetName);
+                    planInfo.setExecuteTime(now);
+                    planInfo.setUpdateTime(now);
+                    planInfo.setCreateTime(now);
+                    planInfo.setDomainName(domainAppList.get(0).getDomainName());
+                    planInfo.setDomainId(domainId);
+                    planInfo.setComment(String.format("域%s移除方案", domainId));
+                    planInfo.setUpdateType(DomainUpdateType.DELETE);
+                    for(PlatformAppDeployDetailVo deployApp : domainAppList)
+                    {
+                        AppUpdateOperationInfo opt = new AppUpdateOperationInfo();
+                        opt.setAppName(deployApp.getAppName());
+                        opt.setAppAlias(deployApp.getAppAlias());
+                        opt.setOperation(AppUpdateOperation.DELETE);
+                        opt.setHostIp(deployApp.getHostIp());
+                        opt.setPlatformAppId(deployApp.getPlatformAppId());
+                        opt.setOriginalVersion(deployApp.getVersion());
+                        planInfo.getAppUpdateOperationList().add(opt);
+                    }
+                    planList.add(planInfo);
+                    planInfo = new DomainUpdatePlanInfo();
+                    planInfo.setAppUpdateOperationList(new ArrayList<>());
+                    planInfo.setStatus(UpdateStatus.CREATE);
+                    planInfo.setSetId(domainAppList.get(0).getSetId());
+                    planInfo.setBkSetName(bkSetName);
+                    planInfo.setExecuteTime(now);
+                    planInfo.setUpdateTime(now);
+                    planInfo.setCreateTime(now);
+                    planInfo.setDomainName(String.format("新建%s%d", domainAppList.get(0).getDomainName(), index));
+                    planInfo.setDomainId(String.format("newCreate%s%d", domainAppList.get(0).getDomainId(), index));
+                    index++;
+                    planInfo.setComment(String.format("域%s新建方案", planInfo.getDomainId()));
+                    planInfo.setUpdateType(DomainUpdateType.ADD);
+                    for(PlatformAppDeployDetailVo deployApp : domainAppList)
+                    {
+                        AppUpdateOperationInfo opt = new AppUpdateOperationInfo();
+                        opt.setCfgs(new ArrayList<>());
+                        for(PlatformAppCfgFilePo cfgFilePo : deployApp.getCfgs())
+                        {
+                            AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
+                            nexusInfo.setNexusRepository(cfgFilePo.getNexusRepository());
+                            nexusInfo.setNexusPath(CMDBTools.getPlatformAppCfgFilePath(cfgFilePo));
+                            nexusInfo.setNexusAssetId(nexusInfo.getNexusAssetId());
+                            nexusInfo.setMd5(cfgFilePo.getMd5());
+                            nexusInfo.setFileSize(0);
+                            nexusInfo.setFileName(cfgFilePo.getFileName());
+                            nexusInfo.setExt(cfgFilePo.getExt());
+                            nexusInfo.setDeployPath(cfgFilePo.getDeployPath());
+                            opt.getCfgs().add(nexusInfo);
+                        }
+                        opt.setHostIp(deployApp.getHostIp());
+                        opt.setOperation(AppUpdateOperation.ADD);
+                        opt.setBasePath(deployApp.getBasePath());
+                        opt.setAppRunner(deployApp.getAppRunner());
+                        opt.setAppAlias(deployApp.getAppAlias());
+                        opt.setAppName(deployApp.getAppName());
+                        opt.setTargetVersion(deployApp.getVersion());
+                        planInfo.getAppUpdateOperationList().add(opt);
+                    }
+                    planList.add(planInfo);
+                }
+                else
+                {
+                    DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+                    planInfo.setAppUpdateOperationList(new ArrayList<>());
+                    planInfo.setStatus(UpdateStatus.CREATE);
+                    planInfo.setSetId(domainAppList.get(0).getSetId());
+                    planInfo.setBkSetName(bkSetName);
+                    planInfo.setExecuteTime(now);
+                    planInfo.setUpdateTime(now);
+                    planInfo.setCreateTime(now);
+                    planInfo.setDomainName(domainAppList.get(0).getDomainName());
+                    planInfo.setDomainId(domainId);
+                    planInfo.setComment(String.format("域%s升级方案", domainId));
+                    planInfo.setUpdateType(DomainUpdateType.UPDATE);
+                    planList.add(planInfo);
+                    for(PlatformAppDeployDetailVo deployApp : domainAppList)
+                    {
+                        if(index % 2 == 1)
+                        {
+                            if(appModuleMap.get(deployApp.getAppName()).size() > 1)
+                            {
+                                for(AppModuleVo moduleVo : appModuleMap.get(deployApp.getAppName()))
+                                {
+                                    if(!moduleVo.getVersion().equals(deployApp.getVersion()))
+                                    {
+                                        AppUpdateOperationInfo opt = new AppUpdateOperationInfo();
+                                        opt.setTargetVersion(moduleVo.getVersion());
+                                        opt.setAppName(deployApp.getAppName());
+                                        opt.setAppAlias(deployApp.getAppAlias());
+                                        opt.setAppRunner(deployApp.getAppRunner());
+                                        opt.setBasePath(deployApp.getBasePath());
+                                        opt.setOperation(AppUpdateOperation.VERSION_UPDATE);
+                                        opt.setHostIp(deployApp.getHostIp());
+                                        opt.setOriginalVersion(deployApp.getVersion());
+                                        opt.setPlatformAppId(deployApp.getPlatformAppId());
+                                        opt.setCfgs(new ArrayList<>());
+                                        for(AppCfgFilePo cfgFilePo : moduleVo.getCfgs())
+                                        {
+                                            AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
+                                            nexusInfo.setNexusRepository(cfgFilePo.getNexusRepository());
+                                            nexusInfo.setNexusPath(CMDBTools.getAppCfgFilePath(cfgFilePo));
+                                            nexusInfo.setNexusAssetId(nexusInfo.getNexusAssetId());
+                                            nexusInfo.setMd5(cfgFilePo.getMd5());
+                                            nexusInfo.setFileSize(0);
+                                            nexusInfo.setFileName(cfgFilePo.getFileName());
+                                            nexusInfo.setExt(cfgFilePo.getExt());
+                                            nexusInfo.setDeployPath(cfgFilePo.getDeployPath());
+                                            opt.getCfgs().add(nexusInfo);
+                                        }
+                                        planInfo.getAppUpdateOperationList().add(opt);
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                AppUpdateOperationInfo opt = new AppUpdateOperationInfo();
+                                opt.setPlatformAppId(deployApp.getPlatformAppId());
+                                opt.setOriginalVersion(deployApp.getVersion());
+                                opt.setHostIp(deployApp.getHostIp());
+                                opt.setOperation(AppUpdateOperation.CFG_UPDATE);
+                                opt.setBasePath(deployApp.getBasePath());
+                                opt.setAppRunner(deployApp.getAppRunner());
+                                opt.setAppAlias(deployApp.getAppAlias());
+                                opt.setAppName(deployApp.getAppName());
+                                opt.setCfgs(new ArrayList<>());
+                                for(PlatformAppCfgFilePo cfgFilePo : deployApp.getCfgs())
+                                {
+                                    AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
+                                    nexusInfo.setNexusRepository(cfgFilePo.getNexusRepository());
+                                    nexusInfo.setNexusPath(CMDBTools.getPlatformAppCfgFilePath(cfgFilePo));
+                                    nexusInfo.setNexusAssetId(nexusInfo.getNexusAssetId());
+                                    nexusInfo.setMd5(cfgFilePo.getMd5());
+                                    nexusInfo.setFileSize(0);
+                                    nexusInfo.setFileName(cfgFilePo.getFileName());
+                                    nexusInfo.setExt(cfgFilePo.getExt());
+                                    nexusInfo.setDeployPath(cfgFilePo.getDeployPath());
+                                    opt.getCfgs().add(nexusInfo);
+                                }
+                                planInfo.getAppUpdateOperationList().add(opt);
+                            }
+                        }
+                        else
+                        {
+                            AppUpdateOperationInfo opt = new AppUpdateOperationInfo();
+                            opt.setAppName(deployApp.getAppName());
+                            opt.setAppAlias(deployApp.getAppAlias());
+                            opt.setAppRunner(deployApp.getAppRunner());
+                            opt.setBasePath(deployApp.getBasePath());
+                            opt.setOperation(AppUpdateOperation.DELETE);
+                            opt.setHostIp(deployApp.getHostIp());
+                            opt.setOriginalVersion(deployApp.getVersion());
+                            opt.setPlatformAppId(deployApp.getPlatformAppId());
+                            planInfo.getAppUpdateOperationList().add(opt);
+                        }
+                    }
+                }
+            }
+        }
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo();
+        schema.setDomainUpdatePlanList(planList);
+        schema.setStatus(UpdateStatus.CREATE);
+        schema.setTaskType(PlatformUpdateTaskType.UPDATE);
+        schema.setPlatformId(platformId);
+        schema.setUpdateTime(now);
+        schema.setDeadline(now);
+        schema.setExecuteTime(now);
+        List<PlatformAppPo> platformAppList = platformAppMapper.select(platformId, null, null, null, null, null);
+        List<LJSetInfo> bkSetList = paasService.queryBkBizSet(bkBizId);
+        List<LJHostInfo> bkHostList = paasService.queryBKHost(bkBizId, null, null, null, null);
+        List<PlatformAppBkModulePo> appBkModuleList = platformAppBkModuleMapper.select(platformId, null, null, null, null, null);
+        String schemaCheckResult = checkPlatformUpdateTask(schema, domainList, appModuleList, platformAppList, bkSetList, bkHostList, appBkModuleList);
+        if(StringUtils.isNotBlank(schemaCheckResult))
+        {
+            logger.error(String.format("generate schema fail : %s", schemaCheckResult));
+            throw new ParamException(String.format("generate schema fail : %s", schemaCheckResult));
+        }
+        PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+        schemaPo.setPlatformId(platformId);
+        schemaPo.setContext(JSONObject.toJSONString(schema).getBytes());
+        this.platformUpdateSchemaMapper.insert(schemaPo);
+        platform.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
+        platformMapper.update(platform);
         return schema;
     }
 

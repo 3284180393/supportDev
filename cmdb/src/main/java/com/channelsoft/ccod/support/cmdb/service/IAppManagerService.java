@@ -202,4 +202,16 @@ public interface IAppManagerService {
      */
     PlatformUpdateSchemaInfo createDemoNewPlatform(String platformId, String platformName, int bkBizId, int bkCloudId, List<String> planAppList) throws ParamException, InterfaceCallException, LJPaasException;
 
+    /**
+     * 创建demo的升级平台
+     * @param platformId 平台id
+     * @param platformName 平台名
+     * @param bkBizId 平台对应的biz id
+     * @return 创建的demo升级平台
+     * @throws ParamException 计划的参数异常
+     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
+     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
+     */
+    PlatformUpdateSchemaInfo createDemoUpdatePlatform(String platformId, String platformName, int bkBizId) throws ParamException, InterfaceCallException, LJPaasException;
+
 }

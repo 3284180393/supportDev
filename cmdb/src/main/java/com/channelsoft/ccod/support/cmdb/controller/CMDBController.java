@@ -684,10 +684,23 @@ public class CMDBController {
         String uri = String.format("POST %s/platformUpdateSchemaParamDemo", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
+        PlatformUpdateSchemaInfo schemaDemo;
         try
         {
-            PlatformUpdateSchemaInfo schemaDemo = appManagerService.createPlatformUpdateSchemaDemo(param);
-            resultPo = new AjaxResultPo(true, "create demo schema success", 1, schemaDemo);
+            switch (param.getTaskType())
+            {
+                case CREATE:
+                    schemaDemo = appManagerService.createPlatformUpdateSchemaDemo(param);
+                    resultPo = new AjaxResultPo(true, "create demo schema success", 1, schemaDemo);
+                    break;
+                case UPDATE:
+                    schemaDemo = appManagerService.createDemoUpdatePlatform(param.getPlatformId(), param.getPlatformName(), param.getBkBizId());
+                    resultPo = new AjaxResultPo(true, "create demo schema success", 1, schemaDemo);
+                    break;
+                default:
+                    resultPo = new AjaxResultPo(false, String.format("create demo schema fail : %s not support", param.getTaskType().name));
+                    break;
+            }
         }
         catch (Exception e)
         {
@@ -751,6 +764,11 @@ public class CMDBController {
                     appManagerService.createDemoNewPlatform(param.getPlatformId(), param.getPlatformName(), param.getBkBizId(), param.getBkCloudId(), param.getPlanAppList());
                     logger.info(String.format("demo new create platform %s create SUCCESS", param.getPlatformId()));
                     resultPo = new AjaxResultPo(true, String.format("demo new create platform %s create SUCCESS", param.getPlatformId()));
+                    break;
+                case UPDATE:
+                    appManagerService.createDemoUpdatePlatform(param.getPlatformId(), param.getPlatformName(), param.getBkBizId());
+                    logger.info(String.format("demo new update platform %s create SUCCESS", param.getPlatformId()));
+                    resultPo = new AjaxResultPo(true, "demo update platform create success");
                     break;
                 default:
                     logger.error(String.format("demo %s platform not been implement", param.getTaskType().name));

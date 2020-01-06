@@ -3,15 +3,15 @@
 <mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformAppBkModuleMapper" >
     <resultMap id="PlatformAppBkModuleMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformAppBkModulePo" >
         <id column="app_bk_module_id" property="platformAppId" jdbcType="INTEGER" />
-        <result column="platform_app_id" property="appId" jdbcType="INTEGER" />
+        <result column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
-        <result column="set_id" property="appAlias" jdbcType="VARCHAR" />
-        <result column="bk_biz_id" property="platformId" jdbcType="INTEGER" />
-        <result column="bk_set_id" property="domainId" jdbcType="INTEGER" />
-        <result column="bk_set_name" property="hostIp" jdbcType="VARCHAR" />
-        <result column="bk_module_id" property="appRunner" jdbcType="INTEGER" />
-        <result column="bk_host_id" property="basePath" jdbcType="INTEGER" />
+        <result column="set_id" property="setId" jdbcType="VARCHAR" />
+        <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
+        <result column="bk_set_id" property="bkSetId" jdbcType="INTEGER" />
+        <result column="bk_set_name" property="bkSetName" jdbcType="VARCHAR" />
+        <result column="bk_module_id" property="bkModuleId" jdbcType="INTEGER" />
+        <result column="bk_host_id" property="bkHostId" jdbcType="INTEGER" />
     </resultMap>
     <sql id="Base_Column_List" >
         pakm.app_bk_module_id AS app_bk_module_id,
