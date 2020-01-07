@@ -214,4 +214,11 @@ public interface IAppManagerService {
      */
     PlatformUpdateSchemaInfo createDemoUpdatePlatform(String platformId, String platformName, int bkBizId) throws ParamException, InterfaceCallException, LJPaasException;
 
+    /**
+     * 删除指定平台的升级计划
+     * @param platformId 指定的平台id
+     * @throws ParamException 指定的平台不存在
+     */
+    void deletePlatformUpdateSchema(String platformId) throws ParamException;
+
 }

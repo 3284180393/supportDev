@@ -2639,7 +2639,45 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.platformUpdateSchemaMapper.insert(schemaPo);
         platform.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
         platformMapper.update(platform);
+        this.platformUpdateSchemaMap.put(platformId, schema);
         return schema;
+    }
+
+    @Override
+    public void deletePlatformUpdateSchema(String platformId) throws ParamException {
+        logger.debug(String.format("begin to delete platform update schema of %s", platformId));
+        PlatformPo platformPo = platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+        {
+            logger.error(String.format("%s platform not exist", platformId));
+            throw new ParamException(String.format("%s platform not exist", platformId));
+        }
+        CCODPlatformStatus status = CCODPlatformStatus.getEnumById(platformPo.getStatus());
+        if(status == null)
+        {
+            logger.error(String.format("%s status value %d is unknown", platformId, platformPo.getStatus()));
+            throw new ParamException(String.format("%s status value %d is unknown", platformId, platformPo.getStatus()));
+        }
+        if(this.platformUpdateSchemaMap.containsKey(platformId))
+        {
+            logger.debug(String.format("remove schema of %s from memory", platformId));
+            this.platformUpdateSchemaMap.remove(platformId);
+        }
+        logger.debug(String.format("delete schema of %s from database", platformId));
+        this.platformUpdateSchemaMapper.delete(platformId);
+        switch (status)
+        {
+            case SCHEMA_CREATE_PLATFORM:
+                logger.debug(String.format("%s status is %s, so it should be deleted", platformId, status.name));
+                platformMapper.delete(platformId);
+                break;
+            default:
+                logger.debug(String.format("%s status is %s, so it should be updated to %s",
+                        platformId, status.name, CCODPlatformStatus.RUNNING.name));
+                platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+                platformMapper.update(platformPo);
+                break;
+        }
     }
 
     @Test

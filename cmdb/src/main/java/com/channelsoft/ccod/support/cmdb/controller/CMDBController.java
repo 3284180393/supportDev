@@ -783,4 +783,23 @@ public class CMDBController {
         }
         return resultPo;
     }
+
+    @DeleteMapping(value="/platformUpdateSchema")
+    public AjaxResultPo deletePlatformUpdateSchema(@RequestParam(value="platformId") String platformId)
+    {
+        String uri = String.format("delete %s/platformUpdateSchema", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            appManagerService.deletePlatformUpdateSchema(platformId);
+            resultPo = new AjaxResultPo(true, "delete platform update schema success");
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("delete platform update schema FAIL"), ex);
+            resultPo = new AjaxResultPo(false, String.format("delete platform update schema FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
+    }
 }
