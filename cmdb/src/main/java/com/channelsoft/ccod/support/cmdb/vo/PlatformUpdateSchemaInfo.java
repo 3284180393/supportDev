@@ -3,6 +3,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformUpdateTaskType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -25,6 +26,8 @@ public class PlatformUpdateSchemaInfo {
 
     private int bkCloudId; //该平台所有服务器所在云
 
+    private String ccodVersion; //该平台的ccod大版本
+
     private PlatformUpdateTaskType taskType; //升级计划的任务类型,由PlatformUpdateTaskType枚举定义
 
     private UpdateStatus status; //任务当前状态,由PlatformUpdateTaskStatus枚举定义
@@ -40,6 +43,31 @@ public class PlatformUpdateSchemaInfo {
     private String title; //升级任务标题
 
     private String comment; //备注
+
+    public PlatformUpdateSchemaInfo()
+    {
+
+    }
+
+    public PlatformUpdateSchemaInfo(String platformId, String platformName, int bkBizId, int bkCloudId, String ccodVersion,
+                                    PlatformUpdateTaskType taskType, String title, String comment)
+    {
+        this.platformId = platformId;
+        this.platformName = platformName;
+        this.bkBizId = bkBizId;
+        this.bkCloudId = bkCloudId;
+        this.ccodVersion = ccodVersion;
+        this.taskType = taskType;
+        this.status = UpdateStatus.CREATE;
+        Date now = new Date();
+        this.createTime = now;
+        this.updateTime = now;
+        this.executeTime = now;
+        this.deadline = now;
+        this.title = title;
+        this.comment = comment;
+        this.domainUpdatePlanList = new ArrayList<>();
+    }
 
     public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
         return domainUpdatePlanList;
@@ -143,5 +171,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setBkCloudId(int bkCloudId) {
         this.bkCloudId = bkCloudId;
+    }
+
+    public String getCcodVersion() {
+        return ccodVersion;
+    }
+
+    public void setCcodVersion(String ccodVersion) {
+        this.ccodVersion = ccodVersion;
     }
 }

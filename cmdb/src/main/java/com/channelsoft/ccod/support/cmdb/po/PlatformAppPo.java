@@ -1,5 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
+
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
@@ -99,5 +102,14 @@ public class PlatformAppPo {
 
     public void setHostIp(String hostIp) {
         this.hostIp = hostIp;
+    }
+
+    public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String directory = String.format("%s/%s/%s/%s/%s/%s/%s", platformAppPo.getPlatformId(),
+                platformAppPo.getDomainId(), platformAppPo.getHostIp(), appName, version,
+                platformAppPo.getAppAlias(), sf.format(now));
+        return directory;
     }
 }

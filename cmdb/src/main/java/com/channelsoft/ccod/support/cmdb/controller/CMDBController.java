@@ -45,39 +45,6 @@ public class CMDBController {
 
     private String apiBasePath = "/cmdb/api";
 
-
-//    @RequestMapping(value = "/apps", method = RequestMethod.POST)
-//    public AjaxResultPo addNewApp(@RequestBody AppParamVo param)
-//    {
-//        String uri = String.format("POST %s/apps", this.apiBasePath);
-//        logger.debug(String.format("enter %s controller and app param=%s", uri, JSONObject.toJSONString(param)));
-//        if(param.getMethod() != AppOperationMethod.ADD_BY_SCAN_NEXUS_REPOSITORY.id)
-//        {
-//            logger.error(String.format("not not support method=%d app operation", param.getMethod()));
-//            return new AjaxResultPo(false, String.format("not not support method=%d app operation", param.getMethod()));
-//        }
-//        AjaxResultPo resultPo;
-//        try
-//        {
-//            String data = param.getData().toString();
-//            JSONObject jsonObject = JSONObject.parseObject(data);
-//            AppModuleFileNexusInfo instPkg = JSONObject.parseObject(jsonObject.get("installPackage").toString(), AppModuleFileNexusInfo.class);
-//            List<AppModuleFileNexusInfo> cfgs = JSONArray.parseArray(jsonObject.get("cfgs").toString(), AppModuleFileNexusInfo.class);
-//            AppPo appPo = this.appManagerService.addNewAppFromPublishNexus(param.getAppType(), param.getAppName(),
-//                    param.getAppAlias(), param.getVersion(), param.getCcodVersion(), instPkg,
-//                    cfgs.toArray(new AppModuleFileNexusInfo[0]), param.getBasePath());
-//            logger.info(String.format("query SUCCESS add app=%s, quit %s", JSONObject.toJSONString(appPo), uri));
-//            resultPo = new AjaxResultPo(true, "add new app SUCCESS");
-//        }
-//        catch (Exception e)
-//        {
-//            logger.error(String.format("query app modules exception, quit %s controller", uri), e);
-//            resultPo = AjaxResultPo.failed(e);
-//        }
-//        return resultPo;
-//    }
-
-
     @RequestMapping(value = "/apps", method = RequestMethod.POST)
     public AjaxResultPo addNewApp(@RequestBody AppModuleVo moduleVo)
     {
@@ -662,7 +629,7 @@ public class CMDBController {
     @RequestMapping(value = "/platformUpdateSchema", method = RequestMethod.POST)
     public AjaxResultPo updatePlatformUpdateSchema(@RequestBody PlatformUpdateSchemaInfo schema)
     {
-        String uri = String.format("POST %s/platformUpdateSchema", this.apiBasePath);
+        String uri = String.format("POST %s/platformUpdateSchema, para=[%s]", this.apiBasePath, JSONObject.toJSONString(schema));
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
@@ -725,6 +692,26 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/newCCODBiz", method = RequestMethod.GET)
+    public AjaxResultPo getPossibleCCODNewBiz()
+    {
+        String uri = String.format("GET %s/newCCODBizs", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<LJBizInfo> bizList = this.ljPaasService.queryNewCCODBiz();
+            resultPo = new AjaxResultPo(true, "query SUCCESS", bizList.size(), bizList);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query new ccod biz exception, quit %s controller", uri), e);
             resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return resultPo;
@@ -799,6 +786,25 @@ public class CMDBController {
         {
             logger.error(String.format("delete platform update schema FAIL"), ex);
             resultPo = new AjaxResultPo(false, String.format("delete platform update schema FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
+    }
+
+    @DeleteMapping(value="/platforms")
+    public AjaxResultPo deletePlatform(@RequestParam(value="platformId") String platformId)
+    {
+        String uri = String.format("delete %s/platforms?platformId=%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            appManagerService.deletePlatform(platformId);
+            resultPo = new AjaxResultPo(true, "delete platform success");
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("delete platform FAIL"), ex);
+            resultPo = new AjaxResultPo(false, String.format("delete platform FAIL : %s", ex.getMessage()));
         }
         return resultPo;
     }

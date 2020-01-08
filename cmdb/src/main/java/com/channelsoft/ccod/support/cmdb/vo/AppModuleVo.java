@@ -188,4 +188,9 @@ public class AppModuleVo {
     public void setComment(String comment) {
         this.comment = comment;
     }
+
+    public String getAppModuleNexusDirectory() {
+        String directory = String.format("%s/%s/%s", this.appName, this.appAlias, this.version);
+        return directory;
+    }
 }

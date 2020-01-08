@@ -39,11 +39,11 @@
         delete
         from domain
         where 1=1
-        <if test="domainId!=VARCHAR">
+        <if test="domainId!=null">
             And
             domain_id=#{domainId,jdbcType=VARCHAR}
         </if>
-        <if test="platformId!=VARCHAR">
+        <if test="platformId!=null">
             And
             platform_id=#{platformId,jdbcType=VARCHAR}
         </if>

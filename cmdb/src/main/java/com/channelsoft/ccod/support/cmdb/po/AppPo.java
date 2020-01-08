@@ -164,4 +164,14 @@ public class AppPo {
     public void setVersionControlUrl(String versionControlUrl) {
         this.versionControlUrl = versionControlUrl;
     }
+
+    public String getAppNexusDirectory() {
+        String directory = String.format("%s/%s/%s", this.appName, this.appAlias, this.version);
+        return directory;
+    }
+
+    public String getAppNexusUploadUrl(String nexusHostUrl, String repository) {
+        String url = String.format("%s/service/rest/v1/components?repository=%s", nexusHostUrl, repository);
+        return url;
+    }
 }

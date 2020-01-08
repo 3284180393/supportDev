@@ -11,9 +11,7 @@ import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
-import com.channelsoft.ccod.support.cmdb.utils.CMDBTools;
 import com.channelsoft.ccod.support.cmdb.vo.*;
-import com.sun.javafx.binding.StringFormatter;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -34,7 +32,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.regex.Pattern;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 /**
@@ -194,6 +191,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             ex.printStackTrace();
         }
+    }
+
+    private String getTempSaveDir(String directory) {
+        String saveDir = String.format("%s/downloads/%s", System.getProperty("user.dir"), directory);
+        return saveDir;
     }
 
     @Override
@@ -412,7 +414,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         AppPo appPo = module.getAppInfo();
         String appName = appPo.getAppName();
         String appVersion = appPo.getVersion();
-        String appDirectory = CMDBTools.getAppDirectory(appPo);
+        String appDirectory = appPo.getAppNexusDirectory();
         AppModuleVo moduleVo;
         if(appModuleMap.containsKey(appDirectory))
         {
@@ -592,92 +594,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         executor.shutdown();
     }
 
-    @Override
-    public AppPo addNewAppFromPublishNexus(String appType, String appName, String appAlias, String version, String ccodVersion, AppModuleFileNexusInfo installPackage, AppModuleFileNexusInfo[] cfgs, String basePath) throws Exception {
-        logger.info(String.format("prepare to add new app version from app publish nexus %s : appName=%s, appAlias=%s, version=%s, installPackage=%s, cfgs=%s",
-                this.publishNexusHostUrl, appName, appAlias, version, JSONObject.toJSONString(installPackage),
-                JSONArray.toJSONString(cfgs)));
-        AppPo appPo = new AppPo();
-        appPo.setAppName(appName);
-        appPo.setAppAlias(appAlias);
-        appPo.setVersion(version);
-        String appDirectory = CMDBTools.getAppDirectory(appPo);
-        Date now = new Date();
-        List<DeployFileInfo> appFileInfoList = new ArrayList<>();
-        DeployFileInfo pkgInfo = getFileFromTargetNexus(this.publishNexusHostUrl, this.publishNexusUserName,
-                this.nexusPassword, installPackage);
-        appFileInfoList.add(pkgInfo);
-        for(AppModuleFileNexusInfo cfg : cfgs)
-        {
-            DeployFileInfo cfgInfo = getFileFromTargetNexus(this.publishNexusHostUrl, this.publishNexusUserName,
-                    this.nexusPassword, cfg);
-            appFileInfoList.add(cfgInfo);
-        }
-        appPo.setVersionControlUrl(installPackage.getNexusName());
-        appPo.setVersionControl("nexus");
-
-        appPo.setCcodVersion(ccodVersion);
-        appPo.setAppType(appType);
-
-        appPo.setBasePath(basePath);
-        appPo.setComment(String.format("version %s for %s", version, appName));
-        appPo.setCreateReason("RELEASE");
-        appPo.setCreateTime(now);
-        appPo.setUpdateTime(now);
-        this.appMapper.insert(appPo);
-        AppInstallPackagePo installPackagePo = new AppInstallPackagePo();
-        installPackagePo.setAppId(appPo.getAppId());
-        installPackagePo.setExt(appFileInfoList.get(0).getExt());
-        installPackagePo.setNexusDirectory(appDirectory);
-        installPackagePo.setCreateTime(now);
-        installPackagePo.setDeployPath(appFileInfoList.get(0).getDeployPath());
-        installPackagePo.setFileName(appFileInfoList.get(0).getFileName());
-        installPackagePo.setMd5(appFileInfoList.get(0).getFileMd5());
-        installPackagePo.setNexusAssetId(appFileInfoList.get(0).getNexusAssetId());
-        installPackagePo.setNexusRepository(this.appRepository);
-        this.appInstallPackageMapper.insert(installPackagePo);
-        for(int i = 1; i < appFileInfoList.size() - 1; i++)
-        {
-            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
-            cfgFilePo.setAppId(appPo.getAppId());
-            cfgFilePo.setExt(appFileInfoList.get(i).getExt());
-            cfgFilePo.setNexusDirectory(appDirectory);
-            cfgFilePo.setCreateTime(now);
-            cfgFilePo.setDeployPath(appFileInfoList.get(i).getDeployPath());
-            cfgFilePo.setFileName(appFileInfoList.get(i).getFileName());
-            cfgFilePo.setMd5(appFileInfoList.get(i).getFileMd5());
-            cfgFilePo.setNexusAssetId(appFileInfoList.get(i).getNexusAssetId());
-            cfgFilePo.setNexusRepository(this.appRepository);
-            this.appCfgFileMapper.insert(cfgFilePo);
-        }
-        return appPo;
-    }
-
-    private DeployFileInfo getFileFromTargetNexus(String nexusUrl, String userName, String password, AppModuleFileNexusInfo nexusInfo) throws Exception
-    {
-        NexusAssetInfo assetInfo = this.nexusService.queryAssetByNexusName(nexusUrl, userName, password,
-                nexusInfo.getRepository(), nexusInfo.getNexusName());
-        String fileName = CMDBTools.getFileNameFromDownloadUrl(assetInfo.getDownloadUrl());
-        String repository = nexusInfo.getRepository();
-        String directory = CMDBTools.getDirectoryFromAppModuleFileNexusInfo(nexusInfo);
-        String key = String.format("%s/%s%s", nexusUrl, repository, directory);
-        String saveDir = CMDBTools.getTempSaveDir(DigestUtils.md5DigestAsHex(key.getBytes()));
-        saveDir = saveDir.replaceAll("\\\\", "/");
-        String savePath = this.nexusService.downloadFile(userName, password,
-                assetInfo.getDownloadUrl(), saveDir, fileName);
-        DeployFileInfo info = new DeployFileInfo();
-        info.setFileName(fileName);
-        info.setLocalSavePath(savePath);
-        String cfgMd5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePath));
-        String[] arr = fileName.split("\\.");
-        String ext = arr.length>1 ? arr[arr.length-1] : "binary";
-        info.setExt(ext);
-        info.setFileMd5(cfgMd5);
-        return info;
-    }
-
-
-
     /**
      * 部署应用到域主机
      * @param domain 部署应用的域信息
@@ -738,12 +654,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<PlatformAppCfgFilePo> cfgFileList = new ArrayList<>();
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-        String directory = CMDBTools.getPlatformAppDirectory(appPo, platformAppPo);
+        String directory = platformAppPo.getPlatformAppDirectory(appPo.getAppName(), appPo.getVersion(), platformAppPo);
         logger.debug(String.format("begin to handle %s cfgs", directory));
-        String tmpSaveDir = CMDBTools.getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
+        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
         for(AppFileNexusInfo cfg : cfgs)
         {
-            String downloadUrl = CMDBTools.getAppFileDownloadUrl(this.nexusHostUrl, cfg);
+            String downloadUrl = cfg.getFileNexusDownloadUrl(this.nexusHostUrl);
             logger.debug(String.format("download cfg from %s", downloadUrl));
             String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
             DeployFileInfo fileInfo = new DeployFileInfo();
@@ -805,11 +721,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param bkSet 该域归属的蓝鲸paas的set
      * @param deleteOperationList 需要移除的应用操作列表
      * @param appBkModuleList 被移除的应用对应的蓝鲸模块关系列表
+     * @throws ParamException
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果失败
      */
     private void removeAppsFromDomainHost(DomainPo domain, LJSetInfo bkSet, List<AppUpdateOperationInfo> deleteOperationList, List<PlatformAppBkModulePo> appBkModuleList)
-            throws InterfaceCallException, LJPaasException
+            throws ParamException, InterfaceCallException, LJPaasException
     {
         logger.debug(String.format("begin to remove %d apps from platformId=%s and domainId=%s",
                 deleteOperationList.size(), domain.getPlatformId(), domain.getDomainId()));
@@ -1255,6 +1172,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param appBkModuleList 执行升级计划前部署应用同蓝鲸paas平台的关系
      * @param bkSetList 该平台对应蓝鲸biz下的所有set列表
      * @param bkHostList 该平台所有服务器列表
+     * @throws ParamException
      * @throws InterfaceCallException 调用蓝鲸api或是nexus的api失败
      * @throws LJPaasException 蓝鲸api返回接口调用失败或是解析蓝鲸api返回结果失败
      * @throws NexusException nexus api返回调用失败或是解析nexus api的返回结果失败
@@ -1263,7 +1181,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     private void recordPlatformUpdateResult(PlatformUpdateSchemaInfo schemaInfo, PlatformPo platformPo,
                                                               List<DomainPo> domainList, List<AppModuleVo> appList, List<PlatformAppPo> deployApps,
                                                               List<PlatformAppBkModulePo> appBkModuleList, List<LJSetInfo> bkSetList,
-                                                              List<LJHostInfo> bkHostList) throws InterfaceCallException, LJPaasException, NexusException, IOException
+                                                              List<LJHostInfo> bkHostList) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException
     {
         Map<String, LJSetInfo> setMap = bkSetList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
@@ -1298,7 +1216,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     }
                     if(operationMap.containsKey(AppUpdateOperation.CFG_UPDATE))
                     {
-                        for(AppUpdateOperationInfo cfgOperationInfo : operationMap.get(AppUpdateOperation.VERSION_UPDATE))
+                        for(AppUpdateOperationInfo cfgOperationInfo : operationMap.get(AppUpdateOperation.CFG_UPDATE))
                         {
                             Map<String, AppModuleVo> versionMap = appMap.get(cfgOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
                             modifyDeployAppModuleCfg(cfgOperationInfo, platformAppMap.get(cfgOperationInfo.getPlatformAppId()), versionMap.get(cfgOperationInfo.getOriginalVersion()));
@@ -1375,16 +1293,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             else
             {
-                platformPo = new PlatformPo();
-                platformPo.setPlatformId(updateSchema.getPlatformId());
-                platformPo.setPlatformName(updateSchema.getPlatformName());
-                platformPo.setComment("create by platform create schema");
-                platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
-                platformPo.setCreateTime(new Date());
-                platformPo.setBkBizId(updateSchema.getBkBizId());
-                platformPo.setBkCloudId(updateSchema.getBkCloudId());
-                platformPo.setUpdateTime(new Date());
-                platformPo.setCcodVersion("ccod4.8");
+                platformPo = new PlatformPo(updateSchema.getPlatformId(), updateSchema.getPlatformName(),
+                        updateSchema.getBkBizId(), updateSchema.getBkCloudId(), CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
+                        updateSchema.getCcodVersion(), "create by platform create schema");
+                if(StringUtils.isNotBlank(updateSchema.getCcodVersion()))
+                {
+                    platformPo.setCcodVersion("CCOD4.1");
+                }
                 this.platformMapper.insert(platformPo);
             }
         }
@@ -1625,7 +1540,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸返回消息失败
      */
     private void deleteDomainFromPlatform(DomainPo deleteDomain, LJSetInfo bkSet, List<AppUpdateOperationInfo> deleteOperationList, List<LJHostInfo> bkHostList)
-            throws InterfaceCallException, LJPaasException
+            throws ParamException, InterfaceCallException, LJPaasException
     {
         logger.debug(String.format("begin to remove domainId=%s and domainName=%s from platformId=%s",
                 deleteDomain.getDomainId(), deleteDomain.getDomainName(), deleteDomain.getPlatformId()));
@@ -1663,7 +1578,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         deployApp.setDeployTime(now);
         logger.debug(String.format("update platformAppId=%d platform_app record", deployApp.getPlatformAppId()));
         platformAppMapper.update(deployApp);
-        logger.info(String.format("update %s version from %s to %s at %s/%s/%s SUCCESS",
+        logger.info(String.format("update %s version from %s to %s at %s SUCCESS",
                 updateApp.getAppAlias(), originalApp.getVersion(), targetApp.getVersion(), deployApp.getHostIp()));
     }
 
@@ -1728,29 +1643,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<LJSetInfo> setList = this.paasService.resetExistBiz(bkBizId, new ArrayList<>(setDefineMap.keySet()));
-        platform = new PlatformPo();
-        platform.setBkCloudId(bkCloudId);
-        platform.setBkBizId(bkBizId);
-        platform.setCreateTime(now);
-        platform.setCcodVersion("ccod4.5");
-        platform.setStatus(1);
-        platform.setPlatformName(platformName);
-        platform.setPlatformId(platformId);
-        platform.setComment("通过程序自动创建的demo平台");
+        platform = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.RUNNING,
+                "CCOD4.1", "通过程序自动创建的demo平台");
         platformMapper.insert(platform);
-        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo();
-        schema.setTitle(String.format("%s(%s)平台新建计划", platformName, platformId));
-        schema.setPlatformName(platformName);
-        schema.setComment(String.format("通过程序自动创建的%s(%s)平台新建计划", platformName, platformId));
-        schema.setCreateTime(now);
-        schema.setBkBizId(bkBizId);
-        schema.setStatus(UpdateStatus.CREATE);
-        schema.setTaskType(PlatformUpdateTaskType.CREATE);
-        schema.setExecuteTime(now);
-        schema.setDeadline(now);
-        schema.setUpdateTime(now);
-        schema.setPlatformId(platformId);
-        schema.setDomainUpdatePlanList(new ArrayList<>());
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(platformId, platformName, bkBizId, bkCloudId,
+                "CCOD4.1", PlatformUpdateTaskType.CREATE,
+                String.format("%s(%s)平台新建计划", platformName, platformId),
+                String.format("通过程序自动创建的%s(%s)平台新建计划"));
         Random random = new Random();
         List<String> hostList = new ArrayList<>();
         for(BizSetDefine setDefine : setDefineMap.values())
@@ -2134,10 +2033,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("%s's version %s has been registered", appModule.getAppName(), appModule.getVersion()));
             throw new ParamException(String.format("%s's version %s has been registered", appModule.getAppName(), appModule.getVersion()));
         }
-        String directory = CMDBTools.getAppModuleDirectory(appModule);
-        String tmpSaveDir = CMDBTools.getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
+        String directory = appModule.getAppModuleNexusDirectory();
+        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
         List<DeployFileInfo> fileList = new ArrayList<>();
-        String downloadUrl = CMDBTools.getInstallPackageDownloadUrl(this.publishNexusHostUrl, appModule.getInstallPackage());
+        String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
         logger.debug(String.format("download cfg from %s", downloadUrl));
         String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
         String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
@@ -2161,7 +2060,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         fileList.add(fileInfo);
         for(AppCfgFilePo cfg : appModule.getCfgs())
         {
-            downloadUrl = CMDBTools.getAppCfgDownloadUrl(this.publishNexusHostUrl, cfg);
+            downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
             logger.debug(String.format("download cfg from %s", downloadUrl));
             savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
             md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
@@ -2266,18 +2165,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
         Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo();
-        schema.setTitle(String.format("%s(%s)平台新建计划", platformName, platformId));
-        schema.setPlatformName(platformName);
-        schema.setComment(String.format("通过程序自动创建的%s(%s)平台新建计划", platformName, platformId));
-        schema.setCreateTime(now);
-        schema.setStatus(UpdateStatus.CREATE);
-        schema.setTaskType(PlatformUpdateTaskType.CREATE);
-        schema.setExecuteTime(now);
-        schema.setDeadline(now);
-        schema.setUpdateTime(now);
-        schema.setPlatformId(platformId);
-        schema.setDomainUpdatePlanList(new ArrayList<>());
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(platformId, platformName, bkBizId, bkCloudId, "CCOD4.1",
+                PlatformUpdateTaskType.CREATE, String.format("%s(%s)平台新建计划", platformName, platformId),
+                String.format("通过程序自动创建的%s(%s)平台新建计划", platformName, platformId));
         Set<String> ipSet = new HashSet<>();
         Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         for(BizSetDefine setDefine : setDefineMap.values())
@@ -2367,16 +2257,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         paasService.resetExistBiz(bkBizId, new ArrayList<>(setDefineMap.keySet()));
         schema.setBkBizId(bkBizId);
-        platformPo = new PlatformPo();
-        platformPo.setUpdateTime(now);
-        platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
-        platformPo.setCcodVersion("CCOD4.1");
-        platformPo.setBkBizId(bkBizId);
-        platformPo.setBkCloudId(bkCloudId);
-        platformPo.setCreateTime(now);
-        platformPo.setComment("create by tools for test");
-        platformPo.setPlatformId(platformId);
-        platformPo.setPlatformName(platformName);
+        platformPo = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
+                "CCOD4.1", "create by tools for test");
         this.platformMapper.insert(platformPo);
         List<LJSetInfo> setList = this.paasService.queryBkBizSet(bkBizId);
         List<LJHostInfo> idleHostList = paasService.queryBizIdleHost(bkBizId);
@@ -2496,7 +2378,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         {
                             AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
                             nexusInfo.setNexusRepository(cfgFilePo.getNexusRepository());
-                            nexusInfo.setNexusPath(CMDBTools.getPlatformAppCfgFilePath(cfgFilePo));
+                            nexusInfo.setNexusPath(cfgFilePo.getFileNexusSavePath());
                             nexusInfo.setNexusAssetId(nexusInfo.getNexusAssetId());
                             nexusInfo.setMd5(cfgFilePo.getMd5());
                             nexusInfo.setFileSize(0);
@@ -2556,7 +2438,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                                         {
                                             AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
                                             nexusInfo.setNexusRepository(cfgFilePo.getNexusRepository());
-                                            nexusInfo.setNexusPath(CMDBTools.getAppCfgFilePath(cfgFilePo));
+                                            nexusInfo.setNexusPath(cfgFilePo.getNexusFileSavePath());
                                             nexusInfo.setNexusAssetId(nexusInfo.getNexusAssetId());
                                             nexusInfo.setMd5(cfgFilePo.getMd5());
                                             nexusInfo.setFileSize(0);
@@ -2586,7 +2468,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                                 {
                                     AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
                                     nexusInfo.setNexusRepository(cfgFilePo.getNexusRepository());
-                                    nexusInfo.setNexusPath(CMDBTools.getPlatformAppCfgFilePath(cfgFilePo));
+                                    nexusInfo.setNexusPath(cfgFilePo.getFileNexusSavePath());
                                     nexusInfo.setNexusAssetId(nexusInfo.getNexusAssetId());
                                     nexusInfo.setMd5(cfgFilePo.getMd5());
                                     nexusInfo.setFileSize(0);
@@ -2615,14 +2497,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 }
             }
         }
-        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo();
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(platformId, platformName, bkBizId, platform.getBkCloudId(),
+                "CCOD4.1", PlatformUpdateTaskType.UPDATE, "create demo update platform",
+                "demo update platform create by program");
         schema.setDomainUpdatePlanList(planList);
-        schema.setStatus(UpdateStatus.CREATE);
-        schema.setTaskType(PlatformUpdateTaskType.UPDATE);
-        schema.setPlatformId(platformId);
-        schema.setUpdateTime(now);
-        schema.setDeadline(now);
-        schema.setExecuteTime(now);
         List<PlatformAppPo> platformAppList = platformAppMapper.select(platformId, null, null, null, null, null);
         List<LJSetInfo> bkSetList = paasService.queryBkBizSet(bkBizId);
         List<LJHostInfo> bkHostList = paasService.queryBKHost(bkBizId, null, null, null, null);
@@ -2680,40 +2558,30 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
-    @Test
-    public void appParamTest()
-    {
-        AppParamVo paramVo = new AppParamVo();
-        AppModuleFileNexusInfo installPackage = new AppModuleFileNexusInfo();
-        installPackage.setDeployPath("./bin");
-        installPackage.setNexusName("CCOD_DCMS/2.0.1.0/cas/be23fd608a/cas.war");
-        installPackage.setMd5("43ce23175e26e87c8460717da6984678");
-        installPackage.setRepository("CCOD");
-        Map<String, Object> dataMap = new HashMap<>();
-        dataMap.put("installPackage", JSONObject.toJSONString(installPackage));
-        List<AppModuleFileNexusInfo> cfgs = new ArrayList<>();
-        AppModuleFileNexusInfo cfg = new AppModuleFileNexusInfo();
-        cfg.setRepository("CCOD");
-        cfg.setNexusName("DDSServer/dds/14551:27035/dds_config.cfg");
-        cfg.setDeployPath("./cfg");
-        cfg.setMd5("6198271820863529d2b025e985c03527");
-        cfgs.add(cfg);
-        cfg = new AppModuleFileNexusInfo();
-        cfg.setRepository("CCOD");
-        cfg.setNexusName("DDSServer/dds/14551:27035/dds_logger.cfg");
-        cfg.setDeployPath("./cfg");
-        cfg.setMd5("afdc1796d7a8e3e26b87fc3235f0c6bf");
-        cfgs.add(cfg);
-        dataMap.put("cfgs", JSONArray.toJSONString(cfgs.toArray(new AppModuleFileNexusInfo[0])));
-        paramVo.setData(JSONObject.toJSONString(dataMap));
-        paramVo.setAppAlias("cas");
-        paramVo.setAppName("cas");
-        paramVo.setAppType("CCOD_KERNEL_MODULE");
-        paramVo.setBasePath("/home/platform");
-        paramVo.setCcodVersion("4.5");
-        paramVo.setMethod(1);
-        paramVo.setVersion("3434:5656");
-        System.out.println(JSONObject.toJSONString(paramVo));
+    @Override
+    public void deletePlatform(String platformId) throws ParamException {
+        logger.debug(String.format("begin to delete %s from cmdb", platformId));
+        PlatformPo platformPo = platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+        {
+            logger.error(String.format("%s not exist", platformId));
+            throw new ParamException(String.format("%s not exist", platformId));
+        }
+        if(this.platformUpdateSchemaMap.containsKey(platformId))
+        {
+            this.platformUpdateSchemaMap.remove(platformId);
+        }
+        this.platformUpdateSchemaMapper.delete(platformId);
+        List<PlatformAppPo> deployApps = platformAppMapper.select(platformId, null, null, null, null, null);
+        this.platformAppBkModuleMapper.delete(null, null, platformId, null);
+        for(PlatformAppPo deployApp : deployApps)
+        {
+            platformAppCfgFileMapper.delete(null, deployApp.getPlatformAppId());
+        }
+        this.platformAppMapper.delete(null, platformId, null);
+        this.domainMapper.delete(null, platformId);
+        this.platformMapper.delete(platformId);
+        logger.info(String.format("%s delete success", platformId));
     }
 
     @Test

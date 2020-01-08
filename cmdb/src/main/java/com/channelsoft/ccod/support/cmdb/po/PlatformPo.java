@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
+
 import java.util.Date;
 
 /**
@@ -28,6 +30,25 @@ public class PlatformPo {
     private String ccodVersion; //该平台采用的ccod版本
 
     private String comment; //平台描述
+
+    public PlatformPo()
+    {
+
+    }
+
+    public PlatformPo(String platformId, String platformName, int bkBizId, int bkCloudId, CCODPlatformStatus status, String ccodVersion, String comment)
+    {
+        Date now = new Date();
+        this.platformId = platformId;
+        this.platformName = platformName;
+        this.bkBizId = bkBizId;
+        this.bkCloudId = bkCloudId;
+        this.createTime = now;
+        this.updateTime = now;
+        this.status = status.id;
+        this.ccodVersion = ccodVersion;
+        this.comment = comment;
+    }
 
     public String getPlatformId() {
         return platformId;

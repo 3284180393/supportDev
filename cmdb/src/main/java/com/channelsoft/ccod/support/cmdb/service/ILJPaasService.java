@@ -178,6 +178,17 @@ public interface ILJPaasService {
     List<LJModuleInfo> queryBkModule(int bkBizId, int bkSetId, Integer moduleId, String moduleName) throws InterfaceCallException, LJPaasException;
 
     /**
+     * 查询指定ip上部署了哪些应用模块
+     * @param bkBizId biz的id
+     * @param bkSetId set的id
+     * @param hostIp 主机ip
+     * @return 主机上部署了哪些模块
+     * @throws ParamException 指定host的ip不存在
+     * @throws InterfaceCallException 调用蓝鲸api失败
+     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
+     */
+    List<LJModuleInfo> queryBkModuleAtHost(int bkBizId, int bkSetId, String hostIp) throws ParamException, InterfaceCallException, LJPaasException;
+    /**
      * 向平台的指定set添加一个新的module
      * @param bkBizId 平台的biz id
      * @param bkSetId  指定的set的id
@@ -223,10 +234,11 @@ public interface ILJPaasService {
      * @param bkBizId 指定的平台biz id
      * @param bkSetId 需要解绑应用的set id
      * @param deployAppList 需要解绑的应用列表
+     * @throws ParamException
      * @throws InterfaceCallException 调用蓝鲸api异常
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api结果异常
      */
-    void disBindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppBkModulePo> deployAppList) throws InterfaceCallException, LJPaasException;
+    void disBindDeployAppsToBizSet(int bkBizId, int bkSetId, List<PlatformAppBkModulePo> deployAppList) throws ParamException, InterfaceCallException, LJPaasException;
 
     /**
      * 查询指定biz的所有set
@@ -260,4 +272,12 @@ public interface ILJPaasService {
      * @throws LJPaasException
      */
     int createNewBiz(String bkBizName, List<String> setNames) throws ParamException, InterfaceCallException, LJPaasException;
+
+    /**
+     * 查询可能的ccod biz
+     * @return 可能的新ccod biz
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    List<LJBizInfo> queryNewCCODBiz() throws InterfaceCallException, LJPaasException;
 }

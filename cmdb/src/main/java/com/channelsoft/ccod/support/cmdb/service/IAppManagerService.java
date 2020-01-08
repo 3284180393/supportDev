@@ -116,21 +116,6 @@ public interface IAppManagerService {
     void createNewPlatformAppDataCollectTask(String platformId, String platformName,String domainId, String hostIp, String appName, String version) throws Exception;
 
     /**
-     * 通过扫描应用发布nexus仓库的方式添加新的app
-     * @param appType 应用类型
-     * @param appName 应用名
-     * @param appAlias 应用别名
-     * @param version 发布版本
-     * @param ccodVersion 应用适用的ccod版本
-     * @param installPackage 安装包信息
-     * @param cfgs 配置文件信息
-     * @param basePath 应用安装的根路径
-     * @return 添加后的应用信息
-     * @throws Exception
-     */
-    AppPo addNewAppFromPublishNexus(String appType, String appName, String appAlias, String version, String ccodVersion, AppModuleFileNexusInfo installPackage, AppModuleFileNexusInfo[] cfgs, String basePath) throws Exception;
-
-    /**
      * 更新平台升级计划
      * @param updateSchema 需要更新的平台计划
      * @throws ParamException 计划的参数异常
@@ -220,5 +205,12 @@ public interface IAppManagerService {
      * @throws ParamException 指定的平台不存在
      */
     void deletePlatformUpdateSchema(String platformId) throws ParamException;
+
+    /**
+     * 删除某个平台
+     * @param platformId 需要删除的平台id
+     * @throws ParamException
+     */
+    void deletePlatform(String platformId) throws ParamException;
 
 }

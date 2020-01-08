@@ -88,4 +88,10 @@ public class AppFileNexusInfo {
     public void setFileSize(long fileSize) {
         this.fileSize = fileSize;
     }
+
+    public String getFileNexusDownloadUrl(String nexusHostUrl)
+    {
+        String downloadUrl = String.format("%s/repository/%s/%s", nexusHostUrl, this.nexusRepository, this.nexusPath);
+        return downloadUrl;
+    }
 }

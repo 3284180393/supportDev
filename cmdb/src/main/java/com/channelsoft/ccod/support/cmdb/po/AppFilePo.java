@@ -5,40 +5,35 @@ import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import java.util.Date;
 
 /**
- * @ClassName: PlatformAppCfgFilePo
+ * @ClassName: AppFilePo
  * @Author: lanhb
- * @Description: 用来定义平台配置文件信息的类
- * @Date: 2019/11/20 10:49
+ * @Description: 应用文件纯虚基类
+ * @Date: 2020/1/7 10:18
  * @Version: 1.0
  */
-public class PlatformAppCfgFilePo {
+public class AppFilePo {
 
-    private int cfgFileId; //配置文件id,数据库唯一生成
+    protected int appId; //该配置文件是哪个app的关联文件,外键app表的app_id
 
-    private int platformAppId; //平台app id,引用 platform_app表id为外键
+    protected String fileName; //文件名
 
-    private String fileName; //配置文件名
+    protected String ext; //文件类型，例如zip,tar,war,binary等,由FileType枚举预定义
 
-    private String ext; //安装包类型，例如zip,tar,war,binary等,由FileType枚举预定义
+    protected String deployPath; //文件存放路径,可以是相对app的base path的相对路径也可以是绝对路径
 
-    private String deployPath; //文件存放路径,可以是相对app的base path的相对路径,
+    protected String nexusRepository; //文件保存在nexus的仓库名
 
-    private String nexusRepository; //保存在nexus的仓库名
+    protected String nexusDirectory; //文件保存在nexus的路径
 
-    private String nexusDirectory; //保存在nexus的路径
+    protected String nexusAssetId; //文件保存在nexus中的assetId
 
-    private String nexusAssetId; //在nexus中的assetId
+    protected Date createTime; //该文件在nexus的创建时间
 
-    private Date createTime; //该文件在nexus的创建时间
+    protected String md5; //该配置文件的md5特征值
 
-    private String md5; //该配置文件的md5特征值
-
-    public PlatformAppCfgFilePo()
-    {}
-
-    public PlatformAppCfgFilePo(int platformAppId, DeployFileInfo cfgFileInfo)
+    public AppFilePo(int appId, DeployFileInfo cfgFileInfo)
     {
-        this.platformAppId = platformAppId;
+        this.appId = appId;
         this.nexusAssetId = cfgFileInfo.getNexusAssetId();
         this.fileName = cfgFileInfo.getFileName();
         this.ext = cfgFileInfo.getExt();
@@ -50,20 +45,17 @@ public class PlatformAppCfgFilePo {
         this.md5 = cfgFileInfo.getFileMd5();
     }
 
-    public int getCfgFileId() {
-        return cfgFileId;
+    public AppFilePo()
+    {
+
     }
 
-    public void setCfgFileId(int cfgFileId) {
-        this.cfgFileId = cfgFileId;
+    public int getAppId() {
+        return appId;
     }
 
-    public int getPlatformAppId() {
-        return platformAppId;
-    }
-
-    public void setPlatformAppId(int platformAppId) {
-        this.platformAppId = platformAppId;
+    public void setAppId(int appId) {
+        this.appId = appId;
     }
 
     public String getFileName() {
@@ -72,6 +64,22 @@ public class PlatformAppCfgFilePo {
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
+    }
+
+    public String getExt() {
+        return ext;
+    }
+
+    public void setExt(String ext) {
+        this.ext = ext;
+    }
+
+    public String getDeployPath() {
+        return deployPath;
+    }
+
+    public void setDeployPath(String deployPath) {
+        this.deployPath = deployPath;
     }
 
     public String getNexusRepository() {
@@ -114,25 +122,15 @@ public class PlatformAppCfgFilePo {
         this.md5 = md5;
     }
 
-    public String getExt() {
-        return ext;
-    }
-
-    public void setExt(String ext) {
-        this.ext = ext;
-    }
-
-    public String getDeployPath() {
-        return deployPath;
-    }
-
-    public void setDeployPath(String deployPath) {
-        this.deployPath = deployPath;
-    }
-
-    public String getFileNexusSavePath()
+    public String getFileNexusDownloadUrl(String nexusHostUrl)
     {
-        String path = String.format("/%s/%s", this.getNexusDirectory(), this.fileName);
+        String downloadUrl = String.format("%s/repository/%s/%s/%s", nexusHostUrl, this.nexusRepository, this.nexusDirectory, this.fileName);
+        return downloadUrl;
+    }
+
+    public String getNexusFileSavePath()
+    {
+        String path = String.format("/%s/%s", this.nexusDirectory, this.getFileName());
         return path;
     }
 }
