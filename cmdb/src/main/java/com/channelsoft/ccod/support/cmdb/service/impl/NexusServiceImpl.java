@@ -13,6 +13,8 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 
@@ -344,7 +346,34 @@ public class NexusServiceImpl implements INexusService {
         return savePath;
     }
 
-//    private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws InterfaceCallException, NexusException
+    @Override
+    public void deleteAsset(String nexusHostUrl, String userName, String password, String assetId) throws InterfaceCallException {
+        CloseableHttpClient httpClient = HttpRequestTools.getCloseableHttpClient();
+        String url = String.format("%s/service/rest/v1/assets/%s", nexusHostUrl, assetId);
+        HttpDelete httpdelete = new HttpDelete(url);
+        httpdelete.addHeader("Authorization", HttpRequestTools.getBasicAuthPropValue(userName, password));
+        int retCode;
+        try
+        {
+            CloseableHttpResponse httpResponse = httpClient.execute(httpdelete);
+            retCode = httpResponse.getStatusLine().getStatusCode();
+
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("delete %s from %s exception", assetId, nexusHostUrl), e);
+            throw new InterfaceCallException(e.getMessage());
+        }
+        if(retCode != 204)
+        {
+            logger.error(String.format("delete %s from %s FAIL, errorCode=%d", assetId, nexusHostUrl, retCode));
+            throw new InterfaceCallException(String.format("delete %s from %s FAIL, errorCode=%d", assetId, nexusHostUrl, retCode));
+        }
+        logger.info(String.format("delete %s from %s success", assetId, nexusHostUrl));
+    }
+
+
+    //    private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws InterfaceCallException, NexusException
 //    {
 //        String url = String.format(this.queryAssetUrlFmt, nexusUrl, nexusAssetId);
 //        CloseableHttpClient client = getBasicHttpClient(userName, password);

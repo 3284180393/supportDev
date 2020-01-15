@@ -43,6 +43,12 @@
             And a.version=#{version,jdbcType=VARCHAR}
         </if>
     </select>
+    <select id="selectByNameAndVersion" resultMap="AppMap">
+        select
+        <include refid="Base_Column_List" />
+        And a.app_name=#{appName,jdbcType=VARCHAR}
+        And a.version=#{version,jdbcType=VARCHAR}
+    </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppPo"
             useGeneratedKeys="true" keyProperty="appId">
         insert into app(app_name, app_alias, app_type, version, ccod_version, base_path, create_time, update_time, create_reason, `comment`, version_control, version_control_url)

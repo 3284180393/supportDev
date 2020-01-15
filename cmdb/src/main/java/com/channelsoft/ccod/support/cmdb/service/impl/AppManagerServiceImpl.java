@@ -762,7 +762,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     private String checkPlatformUpdateTask(PlatformUpdateSchemaInfo schema, List<DomainPo> domainList,
                                            List<AppModuleVo> appList, List<PlatformAppPo> deployApps,
                                            List<LJSetInfo> bkSetList, List<LJHostInfo> bkHostList,
-                                           List<PlatformAppBkModulePo> appBkModuleList)
+                                           List<PlatformAppBkModulePo> appBkModuleList, Map<String, BizSetDefine> bizSetDefineMap)
     {
         if(schema.getDomainUpdatePlanList() == null)
         {
@@ -838,12 +838,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
                                 updateType.name, planInfo.getDomainName(), planInfo.getDomainName()));
                         continue;
                     }
-                    else if(!setMap.containsKey(planInfo.getBkSetName()))
-                    {
-                        sb.append(String.format("bkSetName=%s of domain %s not exist;",
-                                planInfo.getBkSetName(), planInfo.getDomainId()));
-                        continue;
-                    }
                     break;
                 default:
                     if(!domainMap.containsKey(planInfo.getDomainId()))
@@ -872,6 +866,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     switch (updateType)
                     {
                         case ADD:
+                            if(!bizSetDefineMap.containsKey(planInfo.getBkSetName()))
+                            {
+                                sb.append(String.format("setName %s of new create domain %s not exist",
+                                        planInfo.getBkSetName(), planInfo.getDomainId()));
+                                continue;
+                            }
                             break;
                         default:
                             sb.append(String.format("%s of %s only support %s %s, not %s;",
@@ -891,6 +891,19 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     }
                     break;
                 case UPDATE:
+                    switch (updateType)
+                    {
+                        case ADD:
+                            if(!setMap.containsKey(planInfo.getBkSetName()))
+                            {
+                                sb.append(String.format("bkSetName=%s of domain %s not exist;",
+                                        planInfo.getBkSetName(), planInfo.getDomainId()));
+                                continue;
+                            }
+                            break;
+                        default:
+                            break;
+                    }
                     break;
             }
             if(planInfo.getAppUpdateOperationList() == null || planInfo.getAppUpdateOperationList().size() == 0)
@@ -1329,6 +1342,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 switch (platformStatus)
                 {
                     case SCHEMA_CREATE_PLATFORM:
+                        if(StringUtils.isBlank(updateSchema.getCcodVersion()))
+                        {
+                            logger.error(String.format("ccod version of %s is blank", updateSchema.getPlatformId()));
+                            throw new ParamException(String.format("ccod version of %s is blank", updateSchema.getPlatformId()));
+                        }
                         break;
                     default:
                         logger.error(String.format("not support %s platform %s which status is %s",
@@ -1361,6 +1379,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<LJSetInfo> bkSetList = this.paasService.queryBkBizSet(updateSchema.getBkBizId());
         List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
         List<PlatformAppBkModulePo> appBkModuleList = this.platformAppBkModuleMapper.select(updateSchema.getPlatformId(), null, null, null, null, null);
+        Map<String, BizSetDefine> bizSetDefineMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         String schemaCheckResult;
         logger.debug(String.format("%s %s has been %s", updateSchema.getTaskType().name, updateSchema.getPlatformId(), updateSchema.getStatus().name));
         switch (updateSchema.getTaskType())
@@ -1375,7 +1394,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.delete(updateSchema.getPlatformId());
                         break;
                     case SUCCESS:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1390,7 +1409,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     default:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1417,7 +1436,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     case SUCCESS:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1432,7 +1451,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     default:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1709,7 +1728,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         LJSetInfo idlePoolSet = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity())).get(this.paasIdlePoolSetName);
         List<LJHostInfo> bkHostList = this.paasService.addNewHostToIdlePool(bkBizId, idlePoolSet.getBkSetId(), hostList, bkCloudId);
-        String planCheckResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, bkHostList, new ArrayList<>());
+        Map<String, BizSetDefine> bizSetDefineMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        String planCheckResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, bkHostList, new ArrayList<>(), bizSetDefineMap);
         if(StringUtils.isNotBlank(planCheckResult))
         {
             logger.error(String.format("check platform update schema FAIL : %s", planCheckResult));
@@ -2104,6 +2124,79 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
+    @Override
+    public void modifyAppModuleCfg(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
+        logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", JSONObject.toJSONString(appModule)));
+        if(StringUtils.isBlank(appModule.getAppName()))
+        {
+            logger.error(String.format("app name is blank"));
+            throw new ParamException(String.format("app name is blank"));
+        }
+        if(StringUtils.isBlank(appModule.getVersion()))
+        {
+            logger.error(String.format("version of %s is blank", appModule.getAppName()));
+            throw new ParamException(String.format("version of %s is blank", appModule.getAppName()));
+        }
+        if(appModule.getCfgs() == null || appModule.getCfgs().size() == 0)
+        {
+            logger.error(String.format("cfg of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
+            throw new ParamException(String.format("cfg of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
+        }
+        Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
+        if (!appSetRelationMap.containsKey(appModule.getAppName())) {
+            logger.error(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
+            throw new NotSupportAppException(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
+        }
+        AppModuleVo oldModuleVo = this.appModuleMapper.selectByNameAndVersion(appModule.getAppName(), appModule.getVersion());
+        if (oldModuleVo == null)
+        {
+            logger.error(String.format("%s version %s has not registered", appModule.getAppName(), appModule.getVersion()));
+            throw new ParamException(String.format("%s version %s has not registered", appModule.getAppName(), appModule.getVersion()));
+        }
+        for(AppCfgFilePo cfg : oldModuleVo.getCfgs())
+        {
+            this.nexusService.deleteAsset(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, cfg.getNexusAssetId());
+        }
+        String directory = appModule.getAppModuleNexusDirectory();
+        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
+        List<DeployFileInfo> fileList = new ArrayList<>();
+        for(AppCfgFilePo cfg : appModule.getCfgs())
+        {
+            String downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
+            logger.debug(String.format("download cfg from %s", downloadUrl));
+            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+            String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+            if(!md5.equals(cfg.getMd5()))
+            {
+                logger.error(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
+                        cfg.getFileName(), cfg.getMd5(), md5));
+                throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
+                        cfg.getFileName(), cfg.getMd5(), md5));
+            }
+            DeployFileInfo fileInfo = new DeployFileInfo();
+            fileInfo.setFileName(cfg.getFileName());
+            fileInfo.setNexusAssetId(cfg.getNexusAssetId());
+            fileInfo.setNexusDirectory(directory);
+            fileInfo.setNexusRepository(this.appRepository);
+            fileInfo.setLocalSavePath(savePth);
+            fileInfo.setFileMd5(cfg.getMd5());
+            fileInfo.setExt(cfg.getExt());
+            fileInfo.setBasePath(appModule.getBasePath());
+            fileInfo.setDeployPath(cfg.getDeployPath());
+            fileList.add(fileInfo);
+        }
+        Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
+        this.appCfgFileMapper.delete(null, oldModuleVo.getAppId());
+        for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
+        {
+            cfgFilePo.setAppId(oldModuleVo.getAppId());
+            cfgFilePo.setNexusDirectory(directory);
+            cfgFilePo.setNexusRepository(this.appRepository);
+            cfgFilePo.setNexusAssetId(assetMap.get(String.format("%s/%s", directory, cfgFilePo.getFileName())).getId());
+            this.appCfgFileMapper.insert(cfgFilePo);
+        }
+    }
+
     private String checkModuleParam(AppModuleVo appModuleVo)
     {
         StringBuffer sb = new StringBuffer();
@@ -2262,7 +2355,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.platformMapper.insert(platformPo);
         List<LJSetInfo> setList = this.paasService.queryBkBizSet(bkBizId);
         List<LJHostInfo> idleHostList = paasService.queryBizIdleHost(bkBizId);
-        String checkResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, idleHostList, new ArrayList<>());
+        Map<String, BizSetDefine> bizSetDefineMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        String checkResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, idleHostList, new ArrayList<>(), bizSetDefineMap);
         if(StringUtils.isNotBlank(checkResult))
         {
             logger.error(String.format("demo platform generate fail : %s", checkResult));
@@ -2505,7 +2599,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<LJSetInfo> bkSetList = paasService.queryBkBizSet(bkBizId);
         List<LJHostInfo> bkHostList = paasService.queryBKHost(bkBizId, null, null, null, null);
         List<PlatformAppBkModulePo> appBkModuleList = platformAppBkModuleMapper.select(platformId, null, null, null, null, null);
-        String schemaCheckResult = checkPlatformUpdateTask(schema, domainList, appModuleList, platformAppList, bkSetList, bkHostList, appBkModuleList);
+        Map<String, BizSetDefine> bizSetDefineMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        String schemaCheckResult = checkPlatformUpdateTask(schema, domainList, appModuleList, platformAppList, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
         if(StringUtils.isNotBlank(schemaCheckResult))
         {
             logger.error(String.format("generate schema fail : %s", schemaCheckResult));

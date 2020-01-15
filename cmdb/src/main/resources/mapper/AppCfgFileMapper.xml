@@ -48,15 +48,13 @@
     </update>
     <delete id="delete">
         delete
-        from app_cfg_file acf
+        from app_cfg_file
         where 1=1
         <if test="cfgFileId!=null">
-            And
-            acf.cfg_file_id=#{cfgFileId,jdbcType=INTEGER}
+            And cfg_file_id=#{cfgFileId,jdbcType=INTEGER}
         </if>
         <if test="appId!=null">
-            And
-            acf.app_id=#{appId,jdbcType=INTEGER}
+            And app_id=#{appId,jdbcType=INTEGER}
         </if>
     </delete>
 </mapper>

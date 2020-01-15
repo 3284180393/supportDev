@@ -131,6 +131,7 @@ lj-paas:
         - LicenseServer
         - configserver
         - glsServer
+        - RMServer
     set[2]:
       name: 网关接入
       id: gatewayAccess
@@ -147,6 +148,7 @@ lj-paas:
       fixedDomainId: manager-portal-domain
       apps:
         - agentProxy
+        - cas
         - cci2
         - customWebservice
         - dcms

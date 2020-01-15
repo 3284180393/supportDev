@@ -122,4 +122,14 @@ public interface INexusService {
      * @throws Exception
      */
     String downloadFile(String userName, String password, String downloadUrl, String saveDir, String saveFileName) throws IOException, InterfaceCallException;
+
+    /**
+     * 从nexus删除指定id的asset
+     * @param nexusHostUrl nexus主机url
+     * @param userName nexus的用户名
+     * @param password nexus的用户密码
+     * @param assetId 需要删除的asset的id
+     * @throws InterfaceCallException 调用nexus api异常
+     */
+    void deleteAsset(String nexusHostUrl, String userName, String password, String assetId) throws InterfaceCallException;
 }

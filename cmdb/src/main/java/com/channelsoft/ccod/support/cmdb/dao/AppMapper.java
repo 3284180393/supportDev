@@ -34,6 +34,15 @@ public interface AppMapper {
     AppPo selectByPrimaryKey(int appId) throws DataAccessException;
 
     /**
+     * 根据指定的应用名和版本查询应用信息
+     * @param appName 应用名
+     * @param version 应用版本
+     * @return 该应用的定义信息，如果不存在返回空
+     * @throws DataAccessException
+     */
+    AppPo selectByNameAndVersion(@Param("appName")String appName, @Param("version")String version) throws DataAccessException;
+
+    /**
      * 根据指定条件查询app记录，如果某个参数为空，则查询时忽略该参数，如果所有参数为空则查询所有记录
      * @param appType 应用类型
      * @param appName 应用名
