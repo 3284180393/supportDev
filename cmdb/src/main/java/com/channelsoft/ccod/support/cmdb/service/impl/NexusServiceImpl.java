@@ -227,10 +227,7 @@ public class NexusServiceImpl implements INexusService {
             logger.info(String.format("repository=%s has %d components", repository, components.size()));
             for(NexusComponentPo componentPo : components)
             {
-                for(NexusAssetInfo assetInfo : componentPo.getAssets())
-                {
-                    assetList.addAll(Arrays.asList(componentPo.getAssets()));
-                }
+                assetList.addAll(Arrays.asList(componentPo.getAssets()));
             }
             return assetList;
         }

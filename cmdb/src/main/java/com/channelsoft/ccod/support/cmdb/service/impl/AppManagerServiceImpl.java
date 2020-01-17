@@ -2125,7 +2125,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public void modifyAppModuleCfg(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
+    public void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", JSONObject.toJSONString(appModule)));
         if(StringUtils.isBlank(appModule.getAppName()))
         {
@@ -2136,6 +2136,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             logger.error(String.format("version of %s is blank", appModule.getAppName()));
             throw new ParamException(String.format("version of %s is blank", appModule.getAppName()));
+        }
+        if(appModule.getInstallPackage() == null)
+        {
+            logger.error(String.format("install package of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
+            throw new ParamException(String.format("install package of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
         }
         if(appModule.getCfgs() == null || appModule.getCfgs().size() == 0)
         {
@@ -2153,19 +2158,37 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("%s version %s has not registered", appModule.getAppName(), appModule.getVersion()));
             throw new ParamException(String.format("%s version %s has not registered", appModule.getAppName(), appModule.getVersion()));
         }
-        for(AppCfgFilePo cfg : oldModuleVo.getCfgs())
-        {
-            this.nexusService.deleteAsset(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, cfg.getNexusAssetId());
-        }
         String directory = appModule.getAppModuleNexusDirectory();
         String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
         List<DeployFileInfo> fileList = new ArrayList<>();
+        String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
+        logger.debug(String.format("download cfg from %s", downloadUrl));
+        String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
+        String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+        if(!md5.equals(appModule.getInstallPackage().getMd5()))
+        {
+            logger.error(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
+                    appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
+            throw new ParamException(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
+                    appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
+        }
+        DeployFileInfo fileInfo = new DeployFileInfo();
+        fileInfo.setFileName(appModule.getInstallPackage().getFileName());
+        fileInfo.setNexusAssetId(appModule.getInstallPackage().getNexusAssetId());
+        fileInfo.setNexusDirectory(appModule.getInstallPackage().getNexusDirectory());
+        fileInfo.setNexusRepository(appModule.getInstallPackage().getNexusRepository());
+        fileInfo.setLocalSavePath(savePth);
+        fileInfo.setFileMd5(appModule.getInstallPackage().getMd5());
+        fileInfo.setExt(appModule.getInstallPackage().getExt());
+        fileInfo.setBasePath(appModule.getBasePath());
+        fileInfo.setDeployPath(appModule.getBasePath());
+        fileList.add(fileInfo);
         for(AppCfgFilePo cfg : appModule.getCfgs())
         {
-            String downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
+            downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
             logger.debug(String.format("download cfg from %s", downloadUrl));
-            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
-            String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+            savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+            md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
             if(!md5.equals(cfg.getMd5()))
             {
                 logger.error(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
@@ -2173,7 +2196,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
                         cfg.getFileName(), cfg.getMd5(), md5));
             }
-            DeployFileInfo fileInfo = new DeployFileInfo();
+            fileInfo = new DeployFileInfo();
             fileInfo.setFileName(cfg.getFileName());
             fileInfo.setNexusAssetId(cfg.getNexusAssetId());
             fileInfo.setNexusDirectory(directory);
@@ -2186,7 +2209,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
             fileList.add(fileInfo);
         }
         Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
+        logger.debug(String.format("delete old version install package"));
+        this.appInstallPackageMapper.delete(null, oldModuleVo.getAppId());
+        logger.debug(String.format("delete old version cfgs"));
         this.appCfgFileMapper.delete(null, oldModuleVo.getAppId());
+        oldModuleVo.getInstallPackage().setNexusAssetId(assetMap.get(String.format("%s/%s", directory, appModule.getInstallPackage().getFileName())).getId());
+        this.appInstallPackageMapper.insert(oldModuleVo.getInstallPackage());
         for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
         {
             cfgFilePo.setAppId(oldModuleVo.getAppId());

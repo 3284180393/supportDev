@@ -193,4 +193,9 @@ public class AppModuleVo {
         String directory = String.format("%s/%s/%s", this.appName, this.appAlias, this.version);
         return directory;
     }
+
+    public String getAppModuleNexusGroup() {
+        String group = String.format("/%s/%s/%s", this.appName, this.appAlias, this.version);
+        return group;
+    }
 }

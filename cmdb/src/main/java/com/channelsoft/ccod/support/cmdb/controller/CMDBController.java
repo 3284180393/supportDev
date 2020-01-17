@@ -65,15 +65,15 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/appCfgs", method = RequestMethod.POST)
-    public AjaxResultPo modifyAppCfgs(@RequestBody AppModuleVo moduleVo)
+    @RequestMapping(value = "/appModules", method = RequestMethod.POST)
+    public AjaxResultPo updateExistAppModule(@RequestBody AppModuleVo moduleVo)
     {
         String uri = String.format("POST %s/appCfgs", this.apiBasePath);
         logger.debug(String.format("enter %s controller and param=%s", uri, JSONObject.toJSONString(moduleVo)));
         AjaxResultPo resultPo;
         try
         {
-            this.appManagerService.modifyAppModuleCfg(moduleVo);
+            this.appManagerService.updateAppModule(moduleVo);
             logger.info(String.format("modify %s cfg SUCCESS, quit %s", JSONObject.toJSONString(moduleVo), uri));
             resultPo = new AjaxResultPo(true, "modify %s cfg SUCCESS");
         }

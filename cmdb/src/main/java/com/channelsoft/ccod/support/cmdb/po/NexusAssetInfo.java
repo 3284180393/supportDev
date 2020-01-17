@@ -72,5 +72,10 @@ public class NexusAssetInfo {
         return this.checksum != null ? this.checksum.md5 : null;
     }
 
+    public String getNexusAssetFileName()
+    {
+        String[] arr = this.path.split("/");
+        return arr[arr.length - 1];
+    }
 
 }
