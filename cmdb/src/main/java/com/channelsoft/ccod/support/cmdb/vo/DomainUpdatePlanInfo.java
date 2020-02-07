@@ -2,7 +2,9 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
+import com.channelsoft.ccod.support.cmdb.po.DomainPo;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -36,6 +38,12 @@ public class DomainUpdatePlanInfo {
     private Date executeTime; //计划执行时间
 
     private String comment; //备注
+
+    private int occurs; //域的设计并发数
+
+    private int maxOccurs; //域的最大并发数
+
+    private String tags; //域的标签,例如:入呼叫、外呼、
 
     public List<AppUpdateOperationInfo> getAppUpdateOperationList() {
         return appUpdateOperationList;
@@ -124,4 +132,29 @@ public class DomainUpdatePlanInfo {
     public void setBkSetName(String bkSetName) {
         this.bkSetName = bkSetName;
     }
+
+    public int getOccurs() {
+        return occurs;
+    }
+
+    public void setOccurs(int occurs) {
+        this.occurs = occurs;
+    }
+
+    public int getMaxOccurs() {
+        return maxOccurs;
+    }
+
+    public void setMaxOccurs(int maxOccurs) {
+        this.maxOccurs = maxOccurs;
+    }
+
+    public String getTags() {
+        return tags;
+    }
+
+    public void setTags(String tags) {
+        this.tags = tags;
+    }
+
 }

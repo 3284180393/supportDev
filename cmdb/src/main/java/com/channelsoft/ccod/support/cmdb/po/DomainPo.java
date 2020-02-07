@@ -25,6 +25,12 @@ public class DomainPo {
 
     private String comment; //备注
 
+    private int occurs; //域的设计并发数
+
+    private int maxOccurs; //域的最大并发数
+
+    private String tags; //域的标签,例如:入呼叫、外呼、自动外拨
+
     public String getDomainId() {
         return domainId;
     }
@@ -81,4 +87,27 @@ public class DomainPo {
         this.status = status;
     }
 
+    public int getOccurs() {
+        return occurs;
+    }
+
+    public void setOccurs(int occurs) {
+        this.occurs = occurs;
+    }
+
+    public int getMaxOccurs() {
+        return maxOccurs;
+    }
+
+    public void setMaxOccurs(int maxOccurs) {
+        this.maxOccurs = maxOccurs;
+    }
+
+    public String getTags() {
+        return tags;
+    }
+
+    public void setTags(String tags) {
+        this.tags = tags;
+    }
 }

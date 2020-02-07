@@ -17,7 +17,13 @@
         select
         <include refid="Base_Column_List" />
         from domain dm
-        where dm.domain_id=#{domainId,jdbcType=VARCHAR}
+        where dm.platform_id=#{platformId,jdbcType=VARCHAR} AND dm.domain_id=#{domainId,jdbcType=VARCHAR}
+    </select>
+    <select id="selectByName" resultMap="DomainMap" parameterType="java.lang.String">
+        select
+        <include refid="Base_Column_List" />
+        from domain dm
+        where dm.platform_id=#{platformId,jdbcType=VARCHAR} AND dm.domain_name=#{domainName,jdbcType=VARCHAR}
     </select>
     <select id="select" resultMap="DomainMap" >
         select
@@ -25,7 +31,7 @@
         from domain dm
         where 1=1
         <if test="platformId!=null">
-            And dm.platform_id=#{platformId,jdbcType=INTEGER}
+            And dm.platform_id=#{platformId,jdbcType=VARCHAR}
         </if>
         <if test="status!=null">
             And dm.status=#{status,jdbcType=INTEGER}

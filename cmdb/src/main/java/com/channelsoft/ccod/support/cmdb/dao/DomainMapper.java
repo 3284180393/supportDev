@@ -25,11 +25,21 @@ public interface DomainMapper {
 
     /**
      * 根据域id查询指定域信息
+     * @param platformId 域所在的平台id
      * @param domainId 指定的域id
      * @return 查询到的记录
      * @throws DataAccessException
      */
-    DomainPo selectByPrimaryKey(String domainId) throws DataAccessException;
+    DomainPo selectByPrimaryKey(@Param("platformId")String platformId, @Param("domainId")String domainId) throws DataAccessException;
+
+    /**
+     * 根据域名查询指定域信息
+     * @param platformId 域所在平台id
+     * @param domainName 域名
+     * @return 查询到的记录
+     * @throws DataAccessException
+     */
+    DomainPo selectByName(@Param("platformId")String platformId, @Param("domainName")String domainName) throws DataAccessException;
 
     /**
      * 根据指定条件查询域记录,如果某个参数为空则忽略该参数
