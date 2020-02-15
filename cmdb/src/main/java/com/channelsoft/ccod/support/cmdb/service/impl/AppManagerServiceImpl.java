@@ -86,6 +86,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${ccod.domain-id-regex}")
     private String domainIdRegex;
 
+    @Value("${ccod.domain-id-fmt}")
+    private String domainIdFmt;
+
+    @Value("${ccod.app-alias-fmt}")
+    private String appAliasFmt;
+
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
 
@@ -2641,6 +2647,61 @@ public class AppManagerServiceImpl implements IAppManagerService {
         platform.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
         platformMapper.update(platform);
         this.platformUpdateSchemaMap.put(platformId, schema);
+        return schema;
+    }
+
+    /**
+     * 为平台创建计划的新建域自动生成域id，为域部署的应用自动生成应用别名
+     * @param schema 原始平台创建计划
+     * @param setDefineList 预定义的ccod集群
+     * @return
+     * @throws NotSupportAppException
+     * @throws NotSupportSetException
+     */
+    PlatformUpdateSchemaInfo makeupPlatformCreateSchema(PlatformUpdateSchemaInfo schema, List<BizSetDefine> setDefineList) throws NotSupportAppException, NotSupportSetException
+    {
+        Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getId, Function.identity()));
+        Map<String, List<DomainUpdatePlanInfo>> setDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
+        for(String setName : setDefineMap.keySet())
+        {
+            List<DomainUpdatePlanInfo> planList = setDomainMap.get(setName);
+            if(!setDefineMap.containsKey(setName))
+            {
+                logger.error(String.format("set name %s is not support", setName));
+                throw new NotSupportSetException(String.format("set name %s is not support", setName));
+            }
+            BizSetDefine setDefine = setDefineMap.get(setName);
+            for(int i = 1; i <= planList.size(); i++)
+            {
+                DomainUpdatePlanInfo planInfo = planList.get(i - 1);
+                planInfo.setDomainId(String.format(this.domainIdFmt, setDefine.getFixedDomainId(), i));
+                Map<String, List<AppUpdateOperationInfo>> appOptMap = planInfo.getAppUpdateOperationList().stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+                for(String appName : appOptMap.keySet())
+                {
+                    if(!setDefine.getAppAliasMap().containsKey(appName))
+                    {
+                        logger.error(String.format("set %s not support %s", setName, appName));
+                        throw new NotSupportAppException(String.format("set %s not support %s", setName, appName));
+                    }
+                    String appAlias = setDefine.getAppAliasMap().get(appName);
+                    List<AppUpdateOperationInfo> optList = appOptMap.get(appName);
+                    if(optList.size() == 1)
+                    {
+                        optList.get(0).setAppAlias(appAlias);
+                        optList.get(0).setAppRunner(appAlias);
+                    }
+                    else
+                    {
+                        for(int j = 1; j <= optList.size(); j++)
+                        {
+                            AppUpdateOperationInfo opt = optList.get(j);
+                            opt.setAppAlias(String.format(this.appAliasFmt, appAlias, j));
+                            opt.setAppRunner(String.format(this.appAliasFmt, appAlias, j));
+                        }
+                    }
+                }
+            }
+        }
         return schema;
     }
 

@@ -105,13 +105,36 @@ public class LJPaasServiceImpl implements ILJPaasService {
     private List<CCODPlatformInfo> allPlatformBiz;
 
     @PostConstruct
-    void init() throws Exception
+    void init() throws ParamException
     {
         this.basicBizSetMap  = new HashMap<>();
         this.extendBizSetMap = new HashMap<>();
         this.appSetRelationMap = new HashMap<>();
         for(BizSetDefine define : this.bizSetInfo.getSet())
         {
+            Set<String> appSet = new HashSet<>();
+            Map<String, String> aliasMap = new HashMap<>();
+            for(String app : define.getApps())
+            {
+                String[] arr = app.split("/");
+                if(arr.length == 1)
+                {
+                    appSet.add(arr[0]);
+                    aliasMap.put(arr[0], arr[0]);
+                }
+                else if(arr.length == 2)
+                {
+                    appSet.add(arr[0]);
+                    aliasMap.put(arr[0], arr[1]);
+                }
+                else
+                {
+                    logger.error(String.format("error app define %s", app));
+                    throw new ParamException(String.format("error app define %s", app));
+                }
+            }
+            define.setApps(appSet.toArray(new String[0]));
+            define.setAppAliasMap(aliasMap);
             if(define.getIsBasic() == 1)
             {
                 this.basicBizSetMap.put(define.getName(), define);

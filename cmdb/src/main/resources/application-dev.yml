@@ -11,6 +11,8 @@ mybatis:
 
 ccod:
   domain-id-regex: ^[0-9a-z][0-9a-z\\-]*[0-9a-z]$
+  domain-id-fmt: %s-%d
+  app-alias-fmt: %s%d
   notCheckCfgApps:
     - cmsserver
   ccod-kernel-module:
@@ -103,6 +105,7 @@ lj-paas:
       isBasic: 1
       fixedDomainName:
       fixedDomainId:
+      domainType: 1
       apps:
         - cmsserver
         - daengine
@@ -127,6 +130,7 @@ lj-paas:
       isBasic: 1
       fixedDomainName: 相关模块
       fixedDomainId: modules
+      domainType: 2
       apps:
         - LicenseServer
         - configserver
@@ -138,6 +142,7 @@ lj-paas:
       isBasic: 1
       fixedDomainName: 网关
       fixedDomainId: gateway
+      domainType: 3
       apps:
         - umg
     set[3]:
@@ -146,6 +151,7 @@ lj-paas:
       isBasic: 1
       fixedDomainName: 管理门户域
       fixedDomainId: manager-portal-domain
+      domainType: 4
       apps:
         - agentProxy
         - cas
@@ -191,6 +197,7 @@ lj-paas:
       isBasic: 1
       fixedDomainName: 接口
       fixedDomainId: interface
+      domainType: 5
       apps:
     set[5]:
       name: 运营门户
@@ -198,6 +205,7 @@ lj-paas:
       isBasic: 1
       fixedDomainName: 运营门户域
       fixedDomainId: support-portal-domain
+      domainType: 6
       apps:
         - gls
         - httpd
@@ -210,6 +218,7 @@ lj-paas:
       isBasic: 0
       fixedDomainName: 外拨域
       fixedDomainId: apg-domain
+      domainType: 7
       apps:
         - AppGateWay
         - DialEngine

@@ -1,7 +1,9 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @ClassName: BizSetDefine
@@ -22,7 +24,11 @@ public class BizSetDefine {
 
     private String fixedDomainId; //如果非空,将用它作为set下面域的固定id
 
+    private int domainType; //该set下域域类型
+
     private String[] apps; //该set关联的apps
+
+    private Map<String, String> appAliasMap; //set下的app别名
 
     public String getName() {
         return name;
@@ -72,6 +78,22 @@ public class BizSetDefine {
         this.apps = apps;
     }
 
+    public Map<String, String> getAppAliasMap() {
+        return appAliasMap;
+    }
+
+    public void setAppAliasMap(Map<String, String> appAliasMap) {
+        this.appAliasMap = appAliasMap;
+    }
+
+    public int getDomainType() {
+        return domainType;
+    }
+
+    public void setDomainType(int domainType) {
+        this.domainType = domainType;
+    }
+
     @Override
     public BizSetDefine clone()
     {
@@ -86,6 +108,13 @@ public class BizSetDefine {
         {
             setDefine.apps[i] = this.apps[i];
         }
+        Map<String, String> aliasMap = new HashMap<>();
+        for(String key : this.appAliasMap.keySet())
+        {
+            aliasMap.put(key, this.appAliasMap.get(key));
+        }
+        setDefine.setAppAliasMap(aliasMap);
+        setDefine.domainType = this.domainType;
         return setDefine;
     }
 }

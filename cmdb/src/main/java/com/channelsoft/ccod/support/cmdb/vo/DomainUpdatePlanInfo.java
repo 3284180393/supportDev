@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.constant.DomainType;
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 import com.channelsoft.ccod.support.cmdb.po.DomainPo;
@@ -24,6 +25,8 @@ public class DomainUpdatePlanInfo {
     private String setId; //域归属的set id
 
     private String bkSetName; //域归属的set名
+
+    private DomainType domainType; //域类型
 
     private List<AppUpdateOperationInfo> appUpdateOperationList; //应用升级操作列表
 
@@ -157,4 +160,11 @@ public class DomainUpdatePlanInfo {
         this.tags = tags;
     }
 
+    public DomainType getDomainType() {
+        return domainType;
+    }
+
+    public void setDomainType(DomainType domainType) {
+        this.domainType = domainType;
+    }
 }
