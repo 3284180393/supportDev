@@ -124,7 +124,7 @@ public interface IAppManagerService {
      * @throws NexusException 调用nexus api返回调用失败或是解析nexus api返回结果失败
      * @throws IOException 处理文件失败
      */
-    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
+    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
 
     /**
      * 创建一个平台升级计划demo

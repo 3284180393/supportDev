@@ -13,6 +13,7 @@ import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.ibatis.annotations.Param;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -1273,7 +1275,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException {
+
+    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException {
         logger.debug(String.format("begin to update platform update schema : %s", JSONObject.toJSONString(updateSchema)));
         Date now = new Date();
         if(StringUtils.isBlank(updateSchema.getPlatformId()))
@@ -1328,23 +1331,19 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     platformPo.getPlatformId(), platformPo.getPlatformName(), updateSchema.getPlatformName()));
             throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
         }
-        if(updateSchema.getPlatformId().equals("ccAppTest"))
-        {
-            updateSchema.setStatus(UpdateStatus.SUCCESS);
-            for(DomainUpdatePlanInfo planInfo : updateSchema.getDomainUpdatePlanList())
-            {
-                planInfo.setStatus(UpdateStatus.SUCCESS);
-            }
-        }
         CCODPlatformStatus platformStatus = CCODPlatformStatus.getEnumById(platformPo.getStatus());
         if(platformStatus == null)
         {
             logger.error(String.format("%s status %d is unknown", platformPo.getPlatformId(), platformPo.getStatus()));
             throw new ParamException(String.format("%s status %d is unknown", platformPo.getPlatformId(), platformPo.getStatus()));
         }
+        List<BizSetDefine> setDefineList = paasService.queryCCODBizSet(false);
+        Map<String, BizSetDefine> bizSetDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
         switch (updateSchema.getTaskType())
         {
             case CREATE:
+                makeupPlatform4CreateSchema(updateSchema, setDefineList);
                 switch (platformStatus)
                 {
                     case SCHEMA_CREATE_PLATFORM:
@@ -1362,6 +1361,66 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 }
                 break;
             case UPDATE:
+                Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null)
+                        .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+                List<DomainUpdatePlanInfo> addDomainPlanList = new ArrayList<>();
+                for(DomainUpdatePlanInfo planInfo : updateSchema.getDomainUpdatePlanList())
+                {
+                    if(planInfo.getUpdateType().equals(DomainUpdateType.ADD))
+                    {
+                        addDomainPlanList.add(planInfo);
+                    }
+                    else if(planInfo.getUpdateType().equals(DomainUpdateType.UPDATE))
+                    {
+                        if(StringUtils.isBlank(planInfo.getDomainId()))
+                        {
+                            logger.error(String.format("domainId of domain update plan is blank"));
+                            throw new ParamException(String.format("domainId of domain update plan is blank"));
+                        }
+                        else if(!domainAppMap.containsKey(planInfo.getDomainId()))
+                        {
+                            logger.error(String.format("updated domain %s not deploy any app", planInfo.getDomainId()));
+                            throw new ParamException(String.format("updated domain %s not deploy any app", planInfo.getDomainId()));
+                        }
+                        else if(!bizSetDefineMap.containsKey(planInfo.getBkSetName()))
+                        {
+                            logger.error(String.format("set %s not support", planInfo.getBkSetName()));
+                            throw new NotSupportSetException(String.format("set %s not support", planInfo.getBkSetName()));
+                        }
+                        else
+                        {
+                            List<AppUpdateOperationInfo> addAppOptList = new ArrayList<>();
+                            for(AppUpdateOperationInfo opt : planInfo.getAppUpdateOperationList())
+                            {
+                                if(opt.getOperation().equals(AppUpdateOperation.ADD))
+                                {
+                                    addAppOptList.add(opt);
+                                }
+                            }
+                            if(addAppOptList.size() > 0)
+                            {
+                                BizSetDefine setDefine = bizSetDefineMap.get(planInfo.getBkSetName());
+                                List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.get(planInfo.getDomainId());
+                                autoDefineAlias4DomainNewApp(addAppOptList, domainAppList, setDefine);
+                            }
+
+                        }
+                    }
+                }
+                if(addDomainPlanList.size() > 0)
+                {
+                    Map<String, List<DomainUpdatePlanInfo>> setNewDomainMap = addDomainPlanList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
+                    for(String bkSetName : setNewDomainMap.keySet())
+                    {
+                        if(!bizSetDefineMap.containsKey(bkSetName))
+                        {
+                            logger.error(String.format("set %s not support", bkSetName));
+                            throw new NotSupportSetException(String.format("set %s not support", bkSetName));
+                        }
+                        BizSetDefine setDefine = bizSetDefineMap.get(bkSetName);
+                        autoDefineDomainId4SetDomain(setNewDomainMap.get(bkSetName), domainList, setDefine);
+                    }
+                }
                 switch (platformStatus)
                 {
                     case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
@@ -1379,13 +1438,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.error(String.format("current version not support %s %s", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
                 throw new ParamException(String.format("current version not support %s %s", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
         }
-        List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
         List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
         List<PlatformAppPo> deployApps = this.platformAppMapper.select(updateSchema.getPlatformId(), null, null, null, null, null);
         List<LJSetInfo> bkSetList = this.paasService.queryBkBizSet(updateSchema.getBkBizId());
         List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
         List<PlatformAppBkModulePo> appBkModuleList = this.platformAppBkModuleMapper.select(updateSchema.getPlatformId(), null, null, null, null, null);
-        Map<String, BizSetDefine> bizSetDefineMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         String schemaCheckResult;
         logger.debug(String.format("%s %s has been %s", updateSchema.getTaskType().name, updateSchema.getPlatformId(), updateSchema.getStatus().name));
         switch (updateSchema.getTaskType())
@@ -2654,11 +2711,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * 为平台创建计划的新建域自动生成域id，为域部署的应用自动生成应用别名
      * @param schema 原始平台创建计划
      * @param setDefineList 预定义的ccod集群
-     * @return
      * @throws NotSupportAppException
      * @throws NotSupportSetException
      */
-    PlatformUpdateSchemaInfo makeupPlatformCreateSchema(PlatformUpdateSchemaInfo schema, List<BizSetDefine> setDefineList) throws NotSupportAppException, NotSupportSetException
+    void makeupPlatform4CreateSchema(PlatformUpdateSchemaInfo schema, List<BizSetDefine> setDefineList) throws NotSupportAppException, NotSupportSetException
     {
         Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getId, Function.identity()));
         Map<String, List<DomainUpdatePlanInfo>> setDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
@@ -2702,7 +2758,117 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 }
             }
         }
-        return schema;
+    }
+
+    private void makeupDomain4AddDomainPlan(List<DomainUpdatePlanInfo> addPlanList, List<DomainPo> oldDomainList, List<BizSetDefine> setDefineList) throws NotSupportSetException, NotSupportAppException
+    {
+        Map<String, List<DomainUpdatePlanInfo>> setPlanMap = addPlanList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
+        Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        for(String setName : setPlanMap.keySet())
+        {
+            if(!setDefineMap.containsKey(setName))
+            {
+                logger.error(String.format("%s set is not supported", setName));
+                throw new NotSupportSetException(String.format("%s set is not supported", setName));
+            }
+            List<DomainUpdatePlanInfo> planList = setPlanMap.get(setName);
+
+        }
+    }
+
+    /**
+     * 为新加域自动生成域id
+     * @param setDefine 新加域归属的集群定义
+     * @param newDomainPlanList 新加的域列表
+     * @param oldDomainList 平台已有域列表
+     */
+    void autoDefineDomainId4SetDomain(List<DomainUpdatePlanInfo> newDomainPlanList, List<DomainPo> oldDomainList, BizSetDefine setDefine)
+    {
+        String standId = setDefine.getFixedDomainId();
+        String standIdRegex = String.format("^%s-?\\d+$", standId);
+        int index = 0;
+        for(DomainPo domainPo : oldDomainList)
+        {
+            int oldIndex = getIndexFromId(domainPo.getDomainId(), standIdRegex);
+            if(oldIndex > index)
+            {
+                index = oldIndex;
+            }
+        }
+
+        for(int i = 1; i <= newDomainPlanList.size(); i++)
+        {
+            DomainUpdatePlanInfo planInfo = newDomainPlanList.get(i - 1);
+            planInfo.setDomainId(String.format(domainIdFmt, standId, i + index));
+        }
+    }
+
+    /**
+     * 为域新加app自动生成别名以及运行用户
+     * @param newAddAppList 域所有的新加应用操作列表
+     * @param domainExistAppList 该域已经部署的应用列表
+     * @param setDefine 该域归属的集群定义
+     * @throws NotSupportAppException 如果新加的域不被集群支持则抛出此异常
+     */
+    void autoDefineAlias4DomainNewApp(List<AppUpdateOperationInfo> newAddAppList, List<PlatformAppDeployDetailVo> domainExistAppList, BizSetDefine setDefine) throws NotSupportAppException
+    {
+        Map<String, List<AppUpdateOperationInfo>> addAppMap = newAddAppList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+        Map<String, List<PlatformAppDeployDetailVo>> deployedAppMap = domainExistAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName));
+        for(String appName : addAppMap.keySet())
+        {
+            if(!setDefine.getAppAliasMap().containsKey(appName))
+            {
+                logger.error(String.format("%s set not support %s app", setDefine.getName(), appName));
+                throw new NotSupportAppException(String.format("%s set not support %s app", setDefine.getName(), appName));
+            }
+            String standAlias = setDefine.getAppAliasMap().get(appName);
+            String aliasRegex = String.format("^%s-?\\d+$", standAlias);
+            int index = 0;
+            List<AppUpdateOperationInfo> newAddList = addAppMap.get(appName);
+            if(deployedAppMap.containsKey(appName))
+            {
+                List<PlatformAppDeployDetailVo> deployedList = deployedAppMap.get(appName);
+                for(PlatformAppDeployDetailVo deployApp : deployedList)
+                {
+                    int deployIndex = getIndexFromId(deployApp.getAppAlias(), aliasRegex);
+                    if(deployIndex > index)
+                    {
+                        index = deployIndex;
+                    }
+                }
+            }
+            if(index == 0 && newAddList.size() == 1)
+            {
+                newAddList.get(0).setAppRunner(standAlias);
+                newAddList.get(0).setAppAlias(standAlias);
+            }
+            else
+            {
+                for(int j = 1; j < newAddList.size(); j++)
+                {
+                    newAddList.get(j - 1).setAppAlias(String.format(this.appAliasFmt, standAlias, index + j));
+                    newAddList.get(j - 1).setAppRunner(String.format(this.appAliasFmt, standAlias, index + j));
+                }
+            }
+        }
+    }
+
+    private int getIndexFromId(String id, String idRegex)
+    {
+        int index = 0;
+        Pattern idPattern = Pattern.compile(idRegex);
+        Matcher idMatter = idPattern.matcher(id);
+        if(idMatter.find())
+        {
+            String indexRegex = "\\d+$";
+            Pattern indexPatter = Pattern.compile(indexRegex);
+            Matcher indexMatcher = indexPatter.matcher(id);
+            if(indexMatcher.find())
+            {
+                index = Integer.parseInt(indexMatcher.group());
+            }
+        }
+        return index;
     }
 
     @Override
@@ -3064,5 +3230,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             System.out.println("ok");
         }
+    }
+
+    @Test
+    public void indexTest()
+    {
+        String idFmt = "%s-%d";
+        String domainId = "service112";
+        String standId = "service";
+        String regex = String.format("^%s-?\\d+", standId);
+        int index = getIndexFromId(domainId, regex);
+        System.out.println(index);
     }
 }

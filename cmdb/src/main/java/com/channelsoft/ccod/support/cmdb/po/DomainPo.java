@@ -25,7 +25,7 @@ public class DomainPo {
 
     private String comment; //备注
 
-    private int type; //域类型
+    private String type; //域类型
 
     private int occurs; //域的设计并发数
 
@@ -89,11 +89,11 @@ public class DomainPo {
         this.status = status;
     }
 
-    public int getType() {
+    public String getType() {
         return type;
     }
 
-    public void setType(int type) {
+    public void setType(String type) {
         this.type = type;
     }
 
