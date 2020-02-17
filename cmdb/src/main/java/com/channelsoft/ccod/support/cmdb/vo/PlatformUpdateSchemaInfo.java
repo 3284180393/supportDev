@@ -44,6 +44,12 @@ public class PlatformUpdateSchemaInfo {
 
     private String comment; //备注
 
+    private String deployScriptRepository; //平台升级计划部署脚本在nexus的存储仓库
+
+    private String deployScriptPath; //平台升级计划部署脚本的path
+
+    private String deployScriptMd5;  //平台升级计划的md5
+
     public PlatformUpdateSchemaInfo()
     {
 
@@ -179,5 +185,29 @@ public class PlatformUpdateSchemaInfo {
 
     public void setCcodVersion(String ccodVersion) {
         this.ccodVersion = ccodVersion;
+    }
+
+    public String getDeployScriptRepository() {
+        return deployScriptRepository;
+    }
+
+    public void setDeployScriptRepository(String deployScriptRepository) {
+        this.deployScriptRepository = deployScriptRepository;
+    }
+
+    public String getDeployScriptPath() {
+        return deployScriptPath;
+    }
+
+    public void setDeployScriptPath(String deployScriptPath) {
+        this.deployScriptPath = deployScriptPath;
+    }
+
+    public String getDeployScriptMd5() {
+        return deployScriptMd5;
+    }
+
+    public void setDeployScriptMd5(String deployScriptMd5) {
+        this.deployScriptMd5 = deployScriptMd5;
     }
 }

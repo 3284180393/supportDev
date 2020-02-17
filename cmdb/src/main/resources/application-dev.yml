@@ -61,6 +61,14 @@ nexus:
   host-url : http://10.130.41.216:8081
   app-module-repository : ccod_modules
   platform-app-cfg-repository : platform_app_cfg
+  tmp-platform-app-cfg-repository: tmp
+  platform-deploy-script-repository: platform_deploy_script
+  nexus-docker-url: nexus.io:5000
+  image-repository: ccod
+
+git:
+  k8s_deploy_git_url: http://10.130.24.101/wuph/payaml.git
+
 
 app-publish-nexus:
   user: admin
@@ -72,6 +80,7 @@ activemq:
   receive-time-span: 300
 
 cmdb:
+  url: http://10.130.41.216:8086/cmdb
   server-name: support_dev_cmdb_server3
   share-secret: ae12139afadabde12345r
   app-collect:
@@ -103,8 +112,8 @@ lj-paas:
       name: 域服务
       id: domainService
       isBasic: 1
-      fixedDomainName:
-      fixedDomainId:
+      fixedDomainName: 服务域
+      fixedDomainId: service
       domainType: 1
       apps:
         - cmsserver
@@ -150,7 +159,7 @@ lj-paas:
       id: managerPortal
       isBasic: 1
       fixedDomainName: 管理门户域
-      fixedDomainId: manager-portal-domain
+      fixedDomainId: portal
       domainType: 4
       apps:
         - agentProxy
@@ -196,7 +205,7 @@ lj-paas:
       id: api
       isBasic: 1
       fixedDomainName: 接口
-      fixedDomainId: interface
+      fixedDomainId: api
       domainType: 5
       apps:
     set[5]:
@@ -204,7 +213,7 @@ lj-paas:
       id: supportPortal
       isBasic: 1
       fixedDomainName: 运营门户域
-      fixedDomainId: support-portal-domain
+      fixedDomainId: support
       domainType: 6
       apps:
         - gls

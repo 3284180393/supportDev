@@ -11,6 +11,7 @@ import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
+import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.annotations.Param;
@@ -49,11 +50,29 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //    @Autowired
 //    AppMapper appMapper;
 
+    @Value("${cmdb.url}")
+    private String cmdbUrl;
+
     @Value("${nexus.platform-app-cfg-repository}")
     private String platformAppCfgRepository;
 
     @Value("${nexus.app-module-repository}")
     private String appRepository;
+
+    @Value("${nexus.tmp-platform-app-cfg-repository}")
+    private String platformTmpCfgRepository;
+
+    @Value("${nexus.nexus-docker-url}")
+    private String nexusDockerUrl;
+
+    @Value("${nexus.image-repository}")
+    private String imageRepository;
+
+    @Value("${nexus.platform-deploy-script-repository}")
+    private String platformDeployScriptRepository;
+
+    @Value("${git.k8s_deploy_git_url}")
+    private String k8sDeployGitUrl;
 
     @Value("${debug}")
     private boolean debug;
@@ -3168,6 +3187,24 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.domainMapper.delete(null, platformId);
         this.platformMapper.delete(platformId);
         logger.info(String.format("%s delete success", platformId));
+    }
+
+    private void generatePlatformDeployScript(PlatformUpdateSchemaInfo schemaInfo)
+    {
+        String platformId = schemaInfo.getPlatformId();
+        Map<String, String> params = new HashMap<>();
+        params.put("Authorization", HttpRequestTools.getBasicAuthPropValue(this.nexusUserName, this.nexusPassword));
+        params.put("app_repository", this.appRepository);
+        params.put("image_repository", this.imageRepository);
+        params.put("nexus_host_url", this.nexusHostUrl);
+        params.put("nexus_user", this.nexusUserName);
+        params.put("nexus_user_pwd", this.nexusPassword);
+        params.put("cfg_repository", this.platformTmpCfgRepository);
+        params.put("docker_image_repository_uri", this.nexusDockerUrl);
+        params.put("cmdb_host_url", this.cmdbUrl);
+        params.put("k8s_deploy_git_url", this.k8sDeployGitUrl);
+        schemaInfo.setDeployScriptRepository(this.platformDeployScriptRepository);
+        schemaInfo.setDeployScriptPath(String.format("%s/deploy.py", platformId));
     }
 
     @Test
