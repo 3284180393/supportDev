@@ -697,6 +697,26 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/platformTopologies", method = RequestMethod.POST)
+    public AjaxResultPo createNewPlatform(@RequestBody PlatformCreateParamVo param)
+    {
+        String uri = String.format("POST %s/platformTopologies", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+           PlatformUpdateSchemaInfo schemaInfo = appManagerService.createNewPlatform(param);
+            resultPo = new AjaxResultPo(true, "create platform SUCCESS", 1, schemaInfo);
+            logger.info(String.format("create platform SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
     @RequestMapping(value = "/platformTopologies", method = RequestMethod.GET)
     public AjaxResultPo getAllPlatformTopology()
     {

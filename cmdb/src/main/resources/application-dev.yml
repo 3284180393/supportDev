@@ -54,6 +54,8 @@ ccod:
       alias : tsrl
     AgentProxy:
       alias : agentproxy
+  app-deploy-order: DDSServer,UCDServer,dcs,cmsserver,ucxserver,daengine
+  platform-deploy-template: platform_deploy.py
 
 nexus:
   user : admin

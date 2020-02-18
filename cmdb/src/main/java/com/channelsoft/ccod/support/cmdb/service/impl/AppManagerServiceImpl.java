@@ -25,8 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.PostConstruct;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -71,8 +70,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${nexus.platform-deploy-script-repository}")
     private String platformDeployScriptRepository;
 
+    @Value("${ccod.platform-deploy-template}")
+    private String platformDeployScriptFileName;
+
     @Value("${git.k8s_deploy_git_url}")
     private String k8sDeployGitUrl;
+
+    @Value("${ccod.app-deploy-order}")
+    private String appDeployOrder;
 
     @Value("${debug}")
     private boolean debug;
@@ -1497,6 +1502,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
                             throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
                         }
+                        generatePlatformDeployParamAndScript(updateSchema);
                         this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
                         this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
                         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
@@ -1539,6 +1545,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
                             throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
                         }
+                        generatePlatformDeployParamAndScript(updateSchema);
                         this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
                         platformPo.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
                         platformPo.setUpdateTime(now);
@@ -2334,6 +2341,46 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
+    public PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, InterfaceCallException, LJPaasException {
+        PlatformUpdateSchemaInfo schemaInfo;
+        if(paramVo.getCreateMethod() == PlatformCreateParamVo.MANUAL)
+        {
+            schemaInfo = createNewEmptyPlatformSchema(paramVo.getPlatformId(), paramVo.getPlatformName(), paramVo.getBkBizId(), paramVo.getBkCloudId());
+        }
+        else if(paramVo.getCreateMethod() == PlatformCreateParamVo.CLONE)
+        {
+            if(StringUtils.isBlank(paramVo.getParams()))
+            {
+                logger.error(String.format("cloned platform id is blank"));
+                throw new ParamException(String.format("cloned platform id is blank"));
+            }
+            schemaInfo = cloneExistPlatform(paramVo.getParams(), paramVo.getPlatformId(), paramVo.getPlatformName(), paramVo.getBkBizId(), paramVo.getBkCloudId());
+        }
+        else if(paramVo.getCreateMethod() == PlatformCreateParamVo.PREDEFINE)
+        {
+            if(StringUtils.isBlank(paramVo.getParams()))
+            {
+                logger.error(String.format("apps of pre define is blank"));
+                throw new ParamException(String.format("apps of pre define is blank"));
+            }
+            List<String> planAppList = new ArrayList<>();
+            String[] planApps = paramVo.getParams().split("\n");
+            for(String planApp : planApps)
+            {
+                if(StringUtils.isNotBlank(planApp))
+                    planAppList.add(planApp);
+            }
+            schemaInfo = createDemoNewPlatform(paramVo.getPlatformId(), paramVo.getPlatformName(), paramVo.getBkBizId(), paramVo.getBkCloudId(), planAppList);
+        }
+        else
+        {
+            logger.error(String.format("unknown platform create method %d", paramVo.getCreateMethod()));
+            throw new ParamException(String.format("unknown platform create method %d", paramVo.getCreateMethod()));
+        }
+        return schemaInfo;
+    }
+
+    @Override
     public PlatformUpdateSchemaInfo createDemoNewPlatform(String platformId, String platformName, int bkBizId, int bkCloudId, List<String> planAppList) throws ParamException, InterfaceCallException, LJPaasException
     {
         Date now = new Date();
@@ -2478,6 +2525,57 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.platformUpdateSchemaMapper.insert(schemaPo);
         this.platformUpdateSchemaMap.put(platformId, schema);
         return schema;
+    }
+
+
+    private PlatformUpdateSchemaInfo createNewEmptyPlatformSchema(String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, InterfaceCallException, LJPaasException
+    {
+        Date now = new Date();
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo != null)
+        {
+            logger.error(String.format("demo platform[id=%s, name=%s] exist", platformId, platformName));
+            throw new ParamException(String.format("demo platform[id=%s, name=%s] exist", platformId, platformName));
+        }
+        List<LJBizInfo> bizList = paasService.queryAllBiz();
+        Map<String, LJBizInfo> bizMap = bizList.stream().collect(Collectors.toMap(LJBizInfo::getBkBizName, Function.identity()));
+        if(!bizMap.containsKey(platformName))
+        {
+            logger.error(String.format("biz %s not exist at lj paas", platformName));
+            throw new ParamException(String.format("biz %s not exist at lj paas", platformName));
+        }
+        else if(bizMap.get(platformName).getBkBizId() != bkBizId)
+        {
+            logger.error(String.format("%s bkBizId is %d not %d", bizMap.get(platformName).getBkBizId(), bkBizId));
+            throw new ParamException(String.format("%s bkBizId is %d not %d", bizMap.get(platformName).getBkBizId(), bkBizId));
+
+        }
+        List<LJHostInfo> hostList = paasService.queryBKHost(bkBizId, null, null, null, null);
+        if(hostList.size() == 0)
+        {
+            logger.error(String.format("%s has not any host", platformName));
+            throw new ParamException(String.format("%s has not any host", platformName));
+        }
+        PlatformUpdateSchemaInfo schemaInfo = new PlatformUpdateSchemaInfo();
+        schemaInfo.setDomainUpdatePlanList(new ArrayList<>());
+        schemaInfo.setBkCloudId(bkCloudId);
+        schemaInfo.setBkBizId(bkBizId);
+        schemaInfo.setExecuteTime(now);
+        schemaInfo.setDeadline(now);
+        schemaInfo.setUpdateTime(now);
+        schemaInfo.setPlatformId(platformId);
+        schemaInfo.setTaskType(PlatformUpdateTaskType.CREATE);
+        schemaInfo.setStatus(UpdateStatus.CREATE);
+        schemaInfo.setCreateTime(now);
+        schemaInfo.setComment("auto created");
+        schemaInfo.setPlatformName(platformName);
+        platformPo = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
+                "CCOD4.1", "create by tools for test");
+        this.platformMapper.insert(platformPo);
+        PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+        schemaPo.setContext(JSONObject.toJSONString(schemaInfo).getBytes());
+        schemaPo.setPlatformId(platformId);
+        return schemaInfo;
     }
 
     @Override
@@ -3189,7 +3287,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.info(String.format("%s delete success", platformId));
     }
 
-    private void generatePlatformDeployScript(PlatformUpdateSchemaInfo schemaInfo)
+    private void generatePlatformDeployParamAndScript(PlatformUpdateSchemaInfo schemaInfo) throws IOException, InterfaceCallException, NexusException
     {
         String platformId = schemaInfo.getPlatformId();
         Map<String, String> params = new HashMap<>();
@@ -3200,11 +3298,49 @@ public class AppManagerServiceImpl implements IAppManagerService {
         params.put("nexus_user", this.nexusUserName);
         params.put("nexus_user_pwd", this.nexusPassword);
         params.put("cfg_repository", this.platformTmpCfgRepository);
-        params.put("docker_image_repository_uri", this.nexusDockerUrl);
+        params.put("nexus_image_repository_url", this.nexusDockerUrl);
         params.put("cmdb_host_url", this.cmdbUrl);
         params.put("k8s_deploy_git_url", this.k8sDeployGitUrl);
+        String[] deployOrder = this.appDeployOrder.split(",");
+        params.put("app_deploy_order", JSONArray.toJSONString(deployOrder));
+        String templatePath = this.getClass().getClassLoader().getResource("")
+                .getPath() + "/" + this.platformDeployScriptFileName;
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(templatePath)),
+                "UTF-8"));
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String dateStr = sf.format(now);
+        String tmpSaveDir = String.format("%s/%s/%s", System.getProperty("user.dir"), platformId, dateStr);
+        File saveDir = new File(tmpSaveDir);
+        if(!saveDir.exists())
+        {
+            saveDir.mkdirs();
+        }
+        String savePath = String.format("%s/%s", tmpSaveDir, platformDeployScriptFileName);
+        File scriptFile = new File(savePath);
+        scriptFile.createNewFile();
+        BufferedWriter out = new BufferedWriter(new FileWriter(scriptFile));
+        String lineTxt = null;
+        while ((lineTxt = br.readLine()) != null)
+        {
+            if(lineTxt == "platform_deploy_params_json = \"\"\"\"\"\"")
+                lineTxt = String.format("platform_deploy_params_json = \"\"\"%s\"\"\"", JSONObject.toJSONString(params));
+            out.write(lineTxt);
+        }
+        br.close();
+        out.close();
+        String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePath));
+        DeployFileInfo fileInfo = new DeployFileInfo();
+        fileInfo.setExt(".py");
+        fileInfo.setFileMd5(md5);
+        fileInfo.setLocalSavePath(savePath);
+        fileInfo.setFileName(this.platformDeployScriptFileName);
+        String scriptNexusDirectory = String.format("%s/%s", platformId, dateStr);
+        String scriptPath = String.format("%s/%s/%s", platformId, dateStr, this.platformDeployScriptFileName);
+        nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.platformDeployScriptRepository, scriptNexusDirectory, new DeployFileInfo[]{fileInfo});
         schemaInfo.setDeployScriptRepository(this.platformDeployScriptRepository);
-        schemaInfo.setDeployScriptPath(String.format("%s/deploy.py", platformId));
+        schemaInfo.setDeployScriptPath(scriptPath);
+        schemaInfo.setDeployScriptMd5(md5);
     }
 
     @Test

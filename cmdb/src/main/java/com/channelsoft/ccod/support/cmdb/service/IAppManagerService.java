@@ -200,6 +200,16 @@ public interface IAppManagerService {
     PlatformUpdateSchemaInfo createDemoNewPlatform(String platformId, String platformName, int bkBizId, int bkCloudId, List<String> planAppList) throws ParamException, InterfaceCallException, LJPaasException;
 
     /**
+     * 创建新的升级计划
+     * @param paramVo 被创建的平台相关参数
+     * @return 新建的平台创建计划
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, InterfaceCallException, LJPaasException;
+
+    /**
      * 创建demo的升级平台
      * @param platformId 平台id
      * @param platformName 平台名
