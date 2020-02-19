@@ -207,7 +207,7 @@ public interface IAppManagerService {
      * @throws InterfaceCallException
      * @throws LJPaasException
      */
-    PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, InterfaceCallException, LJPaasException;
+    PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
 
     /**
      * 创建demo的升级平台

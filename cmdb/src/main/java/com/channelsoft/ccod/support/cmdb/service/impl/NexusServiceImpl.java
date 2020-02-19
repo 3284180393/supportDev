@@ -154,13 +154,13 @@ public class NexusServiceImpl implements INexusService {
             else
             {
                 NexusAssetInfo assetInfo = fileAssetMap.get(filePath);
-                if(!assetInfo.getMd5().equals(fileInfo.getFileMd5()))
-                {
-                    logger.error(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
-                            fileInfo.getLocalSavePath(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
-                    throw new NexusException(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
-                            fileInfo.getLocalSavePath(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
-                }
+//                if(!assetInfo.getMd5().equals(fileInfo.getFileMd5()))
+//                {
+//                    logger.error(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
+//                            fileInfo.getLocalSavePath(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
+//                    throw new NexusException(String.format("%s up to repository=%s and directory=%s FAIL : srcFileMd5=%s and nexusFileMd5=%s",
+//                            fileInfo.getLocalSavePath(), repository, directory, fileInfo.getFileMd5(), assetInfo.getMd5()));
+//                }
                 fileInfo.setNexusAssetId(assetInfo.getId());
                 fileInfo.setNexusDirectory(directory);
                 fileInfo.setNexusRepository(repository);

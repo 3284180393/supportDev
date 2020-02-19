@@ -24,6 +24,9 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * @ClassName: LJPaasServiceImpl
  * @Author: lanhb
@@ -88,6 +91,9 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @Value("${lj-paas.host-default-cloud-id}")
     private int defaultCloudId;
 
+    @Value("${ccod.app-standard-alias-regex}")
+    private String appStandardAliasRegex;
+
     private final static Logger logger = LoggerFactory.getLogger(LJPaasServiceImpl.class);
 
     private Map<String, BizSetDefine> basicBizSetMap;
@@ -110,6 +116,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         this.basicBizSetMap  = new HashMap<>();
         this.extendBizSetMap = new HashMap<>();
         this.appSetRelationMap = new HashMap<>();
+        Pattern pattern = Pattern.compile(this.appStandardAliasRegex);
         for(BizSetDefine define : this.bizSetInfo.getSet())
         {
             Set<String> appSet = new HashSet<>();
@@ -120,11 +127,23 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 if(arr.length == 1)
                 {
                     appSet.add(arr[0]);
-                    aliasMap.put(arr[0], arr[0]);
+                    Matcher matcher = pattern.matcher(arr[0].toLowerCase());
+                    if(!matcher.find())
+                    {
+                        logger.error(String.format("can not auto generate standard alias from %s", arr[0]));
+                        throw new ParamException(String.format("can not auto generate standard alias from %s", arr[0]));
+                    }
+                    aliasMap.put(arr[0], arr[0].toLowerCase());
                 }
                 else if(arr.length == 2)
                 {
                     appSet.add(arr[0]);
+                    Matcher matcher = pattern.matcher(arr[1]);
+                    if(!matcher.find())
+                    {
+                        logger.error(String.format("%s is not a legal standard alias for %s", arr[0], arr[0]));
+                        throw new ParamException(String.format("%s is not a legal standard alias for %s", arr[0], arr[0]));
+                    }
                     aliasMap.put(arr[0], arr[1]);
                 }
                 else

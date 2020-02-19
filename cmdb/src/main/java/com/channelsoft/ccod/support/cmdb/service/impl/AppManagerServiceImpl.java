@@ -20,9 +20,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+import org.springframework.util.ResourceUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.*;
@@ -112,11 +115,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${ccod.domain-id-regex}")
     private String domainIdRegex;
 
-    @Value("${ccod.domain-id-fmt}")
-    private String domainIdFmt;
+    private String domainIdFmt = "%s%s";
 
-    @Value("${ccod.app-alias-fmt}")
-    private String appAliasFmt;
+    private String appAliasFmt = "%s%d";
 
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
@@ -1487,6 +1488,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
                             throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
                         }
+                        Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+                        bkSetList = this.paasService.resetExistBiz(updateSchema.getBkBizId(), new ArrayList<>(setDefineMap.keySet()));
                         recordPlatformUpdateResult(updateSchema, platformPo, domainList, appList, deployApps, appBkModuleList, bkSetList, bkHostList);
                         if(this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
                             this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
@@ -1503,6 +1506,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
                         }
                         generatePlatformDeployParamAndScript(updateSchema);
+                        logger.info(String.format("updateSchema=%s", JSONObject.toJSONString(updateSchema)));
                         this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
                         this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
                         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
@@ -1546,6 +1550,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
                         }
                         generatePlatformDeployParamAndScript(updateSchema);
+                        logger.info(String.format("updateSchema=%s", JSONObject.toJSONString(updateSchema)));
                         this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
                         platformPo.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
                         platformPo.setUpdateTime(now);
@@ -2341,7 +2346,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, InterfaceCallException, LJPaasException {
+    public PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
         PlatformUpdateSchemaInfo schemaInfo;
         if(paramVo.getCreateMethod() == PlatformCreateParamVo.MANUAL)
         {
@@ -2377,6 +2382,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("unknown platform create method %d", paramVo.getCreateMethod()));
             throw new ParamException(String.format("unknown platform create method %d", paramVo.getCreateMethod()));
         }
+        List<BizSetDefine> setDefineList = paasService.queryCCODBizSet(false);
+        makeupPlatform4CreateSchema(schemaInfo, setDefineList);
         return schemaInfo;
     }
 
@@ -2833,10 +2840,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
      */
     void makeupPlatform4CreateSchema(PlatformUpdateSchemaInfo schema, List<BizSetDefine> setDefineList) throws NotSupportAppException, NotSupportSetException
     {
-        Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getId, Function.identity()));
+        Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         Map<String, List<DomainUpdatePlanInfo>> setDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
         for(String setName : setDefineMap.keySet())
         {
+            if(!setDomainMap.containsKey(setName))
+                continue;
             List<DomainUpdatePlanInfo> planList = setDomainMap.get(setName);
             if(!setDefineMap.containsKey(setName))
             {
@@ -2846,8 +2855,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
             BizSetDefine setDefine = setDefineMap.get(setName);
             for(int i = 1; i <= planList.size(); i++)
             {
+                String index = String.format("0%d", i);
+                if(i > 9)
+                {
+                    index = String.format("%d", i);
+                }
                 DomainUpdatePlanInfo planInfo = planList.get(i - 1);
-                planInfo.setDomainId(String.format(this.domainIdFmt, setDefine.getFixedDomainId(), i));
+                planInfo.setDomainId(String.format(this.domainIdFmt, setDefine.getFixedDomainId(), index));
                 Map<String, List<AppUpdateOperationInfo>> appOptMap = planInfo.getAppUpdateOperationList().stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
                 for(String appName : appOptMap.keySet())
                 {
@@ -2867,12 +2881,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     {
                         for(int j = 1; j <= optList.size(); j++)
                         {
-                            AppUpdateOperationInfo opt = optList.get(j);
+                            AppUpdateOperationInfo opt = optList.get(j - 1);
                             opt.setAppAlias(String.format(this.appAliasFmt, appAlias, j));
                             opt.setAppRunner(String.format(this.appAliasFmt, appAlias, j));
                         }
                     }
                 }
+                break;
             }
         }
     }
@@ -2977,7 +2992,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Matcher idMatter = idPattern.matcher(id);
         if(idMatter.find())
         {
-            String indexRegex = "\\d+$";
+            String indexRegex = "0*\\d+$";
             Pattern indexPatter = Pattern.compile(indexRegex);
             Matcher indexMatcher = indexPatter.matcher(id);
             if(indexMatcher.find())
@@ -3005,13 +3020,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throw new ParamException(String.format("%s has not any domain", clonedPlatform));
         }
         PlatformPo platform = platformMapper.selectByPrimaryKey(platformId);
-        if(platform == null)
+        if(platform != null)
         {
             logger.error(String.format("id=%s platform has exist", platformId));
             throw new ParamException(String.format("id=%s platform has exist", platformId));
         }
         platform = platformMapper.selectByNameBizId(platformName, null);
-        if(platform == null)
+        if(platform != null)
         {
             logger.error(String.format("name=%s platform has exist", platformName));
             throw new ParamException(String.format("name=%s platform has exist", platformName));
@@ -3084,7 +3099,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             i++;
         }
-        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(platformId, platformName, bkBizId, platform.getBkCloudId(),
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(platformId, platformName, bkBizId, bkCloudId,
                 clonedPlatform.getCcodVersion(), PlatformUpdateTaskType.CREATE, String.format("新建%s(%s)计划", platformName, platformId),
                 String.format("create %s(%s) by clone %s(%s)", platformName, platformId, clonedPlatformId, clonedPlatform.getPlatformName()));
         schema.setDomainUpdatePlanList(new ArrayList<>(planMap.values()));
@@ -3214,8 +3229,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         planInfo.setCreateTime(now);
         planInfo.setUpdateTime(now);
         planInfo.setExecuteTime(now);
-        planInfo.setBkSetName(setId);
-        planInfo.setSetId(setName);
+        planInfo.setBkSetName(setName);
+        planInfo.setSetId(setId);
         planInfo.setStatus(UpdateStatus.CREATE);
         planInfo.setAppUpdateOperationList(new ArrayList<>());
         planInfo.setMaxOccurs(clonedDomain.getMaxOccurs());
@@ -3303,9 +3318,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
         params.put("k8s_deploy_git_url", this.k8sDeployGitUrl);
         String[] deployOrder = this.appDeployOrder.split(",");
         params.put("app_deploy_order", JSONArray.toJSONString(deployOrder));
-        String templatePath = this.getClass().getClassLoader().getResource("")
-                .getPath() + "/" + this.platformDeployScriptFileName;
-        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(templatePath)),
+        String templatePath = ResourceUtils.getURL("classpath:").getPath() + "/" + this.platformDeployScriptFileName;
+        templatePath = templatePath.replaceAll("//", "/");
+        Resource resource = new ClassPathResource(this.platformDeployScriptFileName);
+        File sourceFile =  resource.getFile();
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(sourceFile),
                 "UTF-8"));
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
@@ -3317,13 +3334,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
             saveDir.mkdirs();
         }
         String savePath = String.format("%s/%s", tmpSaveDir, platformDeployScriptFileName);
+        savePath = savePath.replaceAll("\\\\", "/");
         File scriptFile = new File(savePath);
         scriptFile.createNewFile();
         BufferedWriter out = new BufferedWriter(new FileWriter(scriptFile));
         String lineTxt = null;
         while ((lineTxt = br.readLine()) != null)
         {
-            if(lineTxt == "platform_deploy_params_json = \"\"\"\"\"\"")
+            if("platform_deploy_params_json = \"\"\"\"\"\"".equals(lineTxt))
                 lineTxt = String.format("platform_deploy_params_json = \"\"\"%s\"\"\"", JSONObject.toJSONString(params));
             out.write(lineTxt);
         }
@@ -3408,10 +3426,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Test
     public void indexTest()
     {
-        String idFmt = "%s-%d";
-        String domainId = "service112";
+        String domainId = "service0112";
         String standId = "service";
-        String regex = String.format("^%s-?\\d+", standId);
+        String regex = String.format("^%s-?0*\\d+", standId);
         int index = getIndexFromId(domainId, regex);
         System.out.println(index);
     }

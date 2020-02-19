@@ -1,8 +1,8 @@
 spring:
   datasource:
     username : root
-    password :
-    url: jdbc:mysql://10.130.44.108:3306/cmdb_new
+    password : qnsoft
+    url: jdbc:mysql://10.130.76.80:3306/cmdb_new
     driver-class-name : com.mysql.jdbc.Driver
 
 mybatis:
@@ -11,49 +11,9 @@ mybatis:
 
 ccod:
   domain-id-regex: ^[0-9a-z][0-9a-z\\-]*[0-9a-z]$
-  domain-id-fmt: %s-%d
-  app-alias-fmt: %s%d
+  app-standard-alias-regex: ^[a-z]+[0-9a-z\\-]*[a-z0-9]$
   notCheckCfgApps:
     - cmsserver
-  ccod-kernel-module:
-    Glsserver:
-      alias : gls
-    LicenseServer:
-      alias : license
-    DDSServer:
-      alias : dds
-    cmsserver:
-      alias : cms
-    ucxserver:
-      alias : ucx
-    DataKeeper:
-      alias : datakeeper
-    RMServer:
-      alias : rm
-    UCDServer:
-      alias : ucds
-    dcs:
-      alias : dcs
-    StatSchedule:
-      alias : ss
-    EAService:
-      alias : eas
-    dae:
-      alias : dae
-    psr:
-      alias : psr
-    fpsvr:
-      alias : fps
-    dcproxy:
-      alias : dcproxy
-    daengine:
-      alias : daengine
-    tsrecadsrv:
-      alias : tsr
-    tsr-longlink:
-      alias : tsrl
-    AgentProxy:
-      alias : agentproxy
   app-deploy-order: DDSServer,UCDServer,dcs,cmsserver,ucxserver,daengine
   platform-deploy-template: platform_deploy.py
 
@@ -64,7 +24,7 @@ nexus:
   app-module-repository : ccod_modules
   platform-app-cfg-repository : platform_app_cfg
   tmp-platform-app-cfg-repository: tmp
-  platform-deploy-script-repository: platform_deploy_script
+  platform-deploy-script-repository: some_test
   nexus-docker-url: nexus.io:5000
   image-repository: ccod
 
@@ -115,37 +75,37 @@ lj-paas:
       id: domainService
       isBasic: 1
       fixedDomainName: 服务域
-      fixedDomainId: service
+      fixedDomainId: cloud
       domainType: 1
       apps:
-        - cmsserver
-        - daengine
+        - cmsserver/cms
+        - daengine/daengine
         - DataKeeper
-        - dcproxy
-        - dcs
+        - dcproxy/dcproxy
+        - dcs/dcs
         - ddaengine
         - ddcs
-        - DDSServer
+        - DDSServer/dds
         - tsrecadsrv
         - tsr2
-        - UCDServer
-        - ucxserver
+        - UCDServer/ucds
+        - ucxserver/ucx
         - EAService
         - fpsvr
         - psr
         - slee
-        - StatSchedule
+        - StatSchedule/ss
     set[1]:
       name: 公共组件
       id: publicModules
       isBasic: 1
       fixedDomainName: 相关模块
-      fixedDomainId: modules
+      fixedDomainId: public
       domainType: 2
       apps:
-        - LicenseServer
-        - configserver
-        - glsServer
+        - LicenseServer/licenseserver
+        - configserver/configserver
+        - glsServer/glsserver
         - RMServer
     set[2]:
       name: 网关接入
@@ -161,33 +121,33 @@ lj-paas:
       id: managerPortal
       isBasic: 1
       fixedDomainName: 管理门户域
-      fixedDomainId: portal
+      fixedDomainId: manage
       domainType: 4
       apps:
         - agentProxy
-        - cas
+        - cas/cas
         - cci2
-        - customWebservice
-        - dcms
+        - customWebservice/customwebservice
+        - dcms/dcms
         - dcmsDialer
         - dcmsDialerWebservice
         - dcmsMonitor
         - dcmsNEWSG
-        - dcmsRecord
+        - dcmsRecord/dcmsrecord
         - dcmsRecordCXM
-        - dcmssg
+        - dcmssg/dcmssg
         - dcmsSG
         - dcmsSR
         - dcmsStatics
         - dcmsStaticsIB
-        - dcmsStaticsReport
+        - dcmsStaticsReport/dcmsstaticsreport
         - dcmsStaticsReportfj
         - dcmsStaticsReportNew
-        - dcmsWebservice
+        - dcmsWebservice/dcmswebservice
         - dcmsWebservicespeed
         - dcmsWebservicespeednew
         - dcmsWebserviceucds
-        - dcmsx
+        - dcmsx/dcmsx
         - httpd
         - IBcustomWebservice
         - IBsafetymonitor
@@ -198,7 +158,7 @@ lj-paas:
         - PADnStatisticsbilibili
         - PAreload
         - portal
-        - safetyMonitor
+        - safetyMonitor/safetymonitor
         - safetyStatics
         - safetyStaticsQT
         - tomcat
@@ -215,10 +175,10 @@ lj-paas:
       id: supportPortal
       isBasic: 1
       fixedDomainName: 运营门户域
-      fixedDomainId: support
+      fixedDomainId: ops
       domainType: 6
       apps:
-        - gls
+        - gls/gls
         - httpd
         - IBcustomWebs
         - IBsafetymoni
