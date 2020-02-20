@@ -19,8 +19,7 @@ sys.setdefaultencoding("utf-8")
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 logging.basicConfig(filename='my.log', level=logging.DEBUG, format=LOG_FORMAT)
-platform_deploy_params_json = """"""
-platform_deploy_params = json.loads(platform_deploy_params_json)
+platform_deploy_params = """"""
 app_repository = platform_deploy_params['app_repository']
 image_repository = platform_deploy_params['image_repository']
 nexus_host_url = platform_deploy_params['nexus_host_url']
@@ -34,7 +33,7 @@ app_register_url = "%s/cmdb/api/apps" % cmdb_host_url
 schema_update_url = '%s/cmdb/api/platformUpdateSchema' % cmdb_host_url
 k8s_deploy_git_url = platform_deploy_params['k8s_deploy_git_url']
 app_image_query_url = "%s/v2/%%s/%%s/tags/list" % nexus_image_repository_url
-platform_deploy_schema = json.loads(platform_deploy_params['schema_json'])
+platform_deploy_schema = platform_deploy_params['update_schema']
 app_deploy_order = platform_deploy_params['app_deploy_order']
 ccod_apps = """dcms##dcms##11110##dcms.war##war"""
 make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
@@ -543,12 +542,11 @@ def delete_app_module_from_k8s(platform_id, domain_id, app_name, version, alias)
     return opt
 
 
-def generate_platform_deploy_operation(update_schema, work_dir):
-    parse_schema_info(update_schema)
+def generate_platform_deploy_operation(work_dir):
     del_list = list()
     add_list = list()
-    platform_id = update_schema['platformId']
-    for update_plan in update_schema['domainUpdatePlanList']:
+    platform_id = platform_deploy_schema['platformId']
+    for update_plan in platform_deploy_schema['domainUpdatePlanList']:
         domain_id = update_plan['domainId']
         for app_opt in update_plan['appUpdateOperationList']:
             op = app_opt['operation']
@@ -642,7 +640,7 @@ def sort_app_opt(domain_plan, app_add_order):
         return
     dt = dict()
     for opt in domain_plan['appUpdateOperationList']:
-        app_name = dt['app_name']
+        app_name = opt['appName']
         if app_name not in dt.keys():
             dt[app_name] = list()
         dt[app_name].append(opt)
@@ -659,15 +657,17 @@ def sort_app_opt(domain_plan, app_add_order):
 def deloy_platform():
     for plan in platform_deploy_schema['domainUpdatePlanList']:
         sort_app_opt(plan, app_deploy_order)
-    delete_opt_list, add_opt_list = generate_platform_deploy_operation(platform_deploy_params)
+    delete_opt_list, add_opt_list = generate_platform_deploy_operation(make_image_base_path)
     for opt in delete_opt_list:
         helm_command = opt['helm_command']
-        exec_result = __run_shell_command(helm_command, None)
-        print(exec_result)
+        print(helm_command)
+        # exec_result = __run_shell_command(helm_command, None)
+        # print(exec_result)
     for opt in add_opt_list:
         helm_command = opt['helm_command']
-        exec_result = __run_shell_command(helm_command, None)
-        print(exec_result)
+        print(helm_command)
+        # exec_result = __run_shell_command(helm_command, None)
+        # print(exec_result)
         app_name = opt['app_name']
         if app_name == 'glsServer':
             print('%s start, so sleep 60s' % app_name)

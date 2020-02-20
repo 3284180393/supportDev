@@ -3500,7 +3500,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     private void generatePlatformDeployParamAndScript(PlatformUpdateSchemaInfo schemaInfo) throws IOException, InterfaceCallException, NexusException
     {
         String platformId = schemaInfo.getPlatformId();
-        Map<String, String> params = new HashMap<>();
+        Map<String, Object> params = new HashMap<>();
         params.put("Authorization", HttpRequestTools.getBasicAuthPropValue(this.nexusUserName, this.nexusPassword));
         params.put("app_repository", this.appRepository);
         params.put("image_repository", this.imageRepository);
@@ -3511,6 +3511,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         params.put("nexus_image_repository_url", this.nexusDockerUrl);
         params.put("cmdb_host_url", this.cmdbUrl);
         params.put("k8s_deploy_git_url", this.k8sDeployGitUrl);
+        params.put("update_schema", schemaInfo);
         String[] deployOrder = this.appDeployOrder.split(",");
         params.put("app_deploy_order", JSONArray.toJSONString(deployOrder));
         Resource resource = new ClassPathResource(this.platformDeployScriptFileName);
@@ -3534,8 +3535,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String lineTxt = null;
         while ((lineTxt = br.readLine()) != null)
         {
-            if("platform_deploy_params_json = \"\"\"\"\"\"".equals(lineTxt))
-                lineTxt = String.format("platform_deploy_params_json = \"\"\"%s\"\"\"", JSONObject.toJSONString(params));
+            if("platform_deploy_params = \"\"\"\"\"\"".equals(lineTxt))
+            {
+                lineTxt = String.format("platform_deploy_params = %s", JSONObject.toJSONString(params));
+            }
             out.write(lineTxt + "\n");
         }
         br.close();
