@@ -9,9 +9,13 @@
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
         <result column="status" property="status" jdbcType="INTEGER" />
         <result column="comment" property="comment" jdbcType="VARCHAR" />
+        <result column="type" property="type" jdbcType="VARCHAR" />
+        <result column="occurs" property="occurs" jdbcType="INTEGER" />
+        <result column="max_occurs" property="maxOccurs" jdbcType="INTEGER" />
+        <result column="tags" property="tags" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        dm.domain_id, dm.domain_name, dm.platform_id, dm.create_time, dm.update_time, dm.`status`, dm.`comment`
+        dm.domain_id, dm.domain_name, dm.platform_id, dm.create_time, dm.update_time, dm.`status`, dm.`comment`, dm.type, dm.occurs, dm.max_occurs, dm.tags
     </sql>
     <select id="selectByPrimaryKey" resultMap="DomainMap" parameterType="java.lang.String">
         select
@@ -38,8 +42,8 @@
         </if>
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.DomainPo">
-        insert into domain(domain_id, domain_name, platform_id, create_time, update_time, `status`, `comment`)
-        values (#{domainId,jdbcType=VARCHAR}, #{domainName,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{comment,jdbcType=VARCHAR})
+        insert into domain(domain_id, domain_name, platform_id, create_time, update_time, `status`, `comment`, type, occurs, max_occurs, tags)
+        values (#{domainId,jdbcType=VARCHAR}, #{domainName,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{comment,jdbcType=VARCHAR}, #{type,jdbcType=VARCHAR}, #{occurs,jdbcType=INTEGER}, #{maxOccurs,jdbcType=INTEGER}, #{tags,jdbcType=VARCHAR})
     </insert>
     <delete id="delete">
         delete
@@ -59,7 +63,10 @@
             domain_name = #{domainName,jdbcType=VARCHAR},
             status = #{status,jdbcType=INTEGER},
             comment = #{comment,jdbcType=VARCHAR},
-            update_time = #{updateTime,jdbcType=TIMESTAMP}
+            update_time = #{updateTime,jdbcType=TIMESTAMP},
+            occurs = #{occurs,jdbcType=INTEGER},
+            max_occurs = #{maxOccurs,jdbcType=INTEGER},
+            tags = #{tags,jdbcType=INTEGER}
         where domain_id = #{domainId,jdbcType=VARCHAR}
-  </update>
+    </update>
 </mapper>
