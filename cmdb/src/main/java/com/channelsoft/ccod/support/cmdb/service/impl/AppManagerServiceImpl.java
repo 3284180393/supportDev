@@ -79,9 +79,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${git.k8s_deploy_git_url}")
     private String k8sDeployGitUrl;
 
-    @Value("${ccod.app-deploy-order}")
-    private String appDeployOrder;
-
     @Value("${debug}")
     private boolean debug;
 
@@ -2986,15 +2983,49 @@ public class AppManagerServiceImpl implements IAppManagerService {
         for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
         {
             Map<String, List<String>> appAliasMap = new HashMap<>();
-            List<AppUpdateOperationInfo> addOpts = new ArrayList<>();
+            List<AppUpdateOperationInfo> addOptNotAliasList = new ArrayList<>();
+            BizSetDefine setDefine = setDefineMap.get(planInfo.getBkSetName());
             for(AppUpdateOperationInfo opt : planInfo.getAppUpdateOperationList())
             {
-                if(AppUpdateOperation.ADD.equals(opt.getOperation()) && StringUtils.isBlank(opt.getAppAlias()))
+                if(!setDefine.getAppAliasMap().containsKey(opt.getAppName()))
                 {
-                    addOpts.add(opt);
+                    logger.error(String.format("set %s does not support %s", planInfo.getBkSetName(), opt.getAppName()));
+                    throw new ParamException(String.format("set %s does not support %s", planInfo.getBkSetName(), opt.getAppName()));
+                }
+                if(StringUtils.isNotBlank(opt.getAppAlias()))
+                {
+                    String standAlias = setDefine.getAppAliasMap().get(opt.getAppName());
+                    String regex = String.format("^%s($|[1-9]\\d*$)", standAlias);
+                    Pattern pattern = Pattern.compile(regex);
+                    Matcher matcher = pattern.matcher(opt.getAppAlias());
+                    if(!matcher.find())
+                    {
+                        logger.error(String.format("%s is not a legal alias for appName=%s and standardAlias=%s",
+                                opt.getAppAlias(), opt.getAppName(), standAlias));
+                        throw new ParamException(String.format("%s is not a legal alias for appName=%s and standardAlias=%s",
+                                opt.getAppAlias(), opt.getAppName(), standAlias));
+                    }
+                }
+                if(AppUpdateOperation.ADD.equals(opt.getOperation()))
+                {
+                    if(StringUtils.isBlank(opt.getAppAlias()))
+                        addOptNotAliasList.add(opt);
+                    else
+                    {
+                        if(!appAliasMap.containsKey(opt.getAppName()))
+                        {
+                            appAliasMap.put(opt.getAppName(), new ArrayList<>());
+                        }
+                        appAliasMap.get(opt.getAppName()).add(opt.getAppAlias());
+                    }
                 }
                 else
                 {
+                    if(StringUtils.isBlank(opt.getAppAlias()))
+                    {
+                        logger.error(String.format("alias of %s %s is blank", opt.getOperation().name, opt.getAppName()));
+                        throw new ParamException(String.format("alias of %s %s is blank", opt.getOperation().name, opt.getAppName()));
+                    }
                     if(!appAliasMap.containsKey(opt.getAppName()))
                     {
                         appAliasMap.put(opt.getAppName(), new ArrayList<>());
@@ -3002,13 +3033,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     appAliasMap.get(opt.getAppName()).add(opt.getAppAlias());
                 }
             }
-            if(addOpts.size() == 0)
+            if(addOptNotAliasList.size() == 0)
                 continue;
-            BizSetDefine setDefine = setDefineMap.get(planInfo.getBkSetName());
             String domainId = planInfo.getDomainId();
             List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
             Map<String, List<PlatformAppDeployDetailVo>> existAppMap = domainAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName));
-            Map<String, List<AppUpdateOperationInfo>> appAddOptMapp = addOpts.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+            Map<String, List<AppUpdateOperationInfo>> appAddOptMapp = addOptNotAliasList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+
             for(String appName : appAddOptMapp.keySet())
             {
                 if(!setDefine.getAppAliasMap().containsKey(appName))
@@ -3030,17 +3061,45 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     usedAliasList.addAll(appAliasMap.get(appName));
                 }
                 List<AppUpdateOperationInfo> opts = appAddOptMapp.get(appName);
-                boolean onlyOne = opts.size() > 1 ? true : false;
+                boolean onlyOne = opts.size() > 1 ? false : true;
                 for(AppUpdateOperationInfo opt : opts)
                 {
                     String alias = autoGenerateAlias(standardAlias, usedAliasList, onlyOne);
                     logger.debug(String.format("auto generate alias %s for %s/%s/%s",
                             alias, planInfo.getBkSetName(), domainId, appName));
                     opt.setAppAlias(alias);
+                    opt.setAppRunner(alias);
                     usedAliasList.add(alias);
                 }
             }
         }
+        //对域下的应用按照别名排序
+        for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
+        {
+            BizSetDefine setDefine = setDefineMap.get(planInfo.getBkSetName());
+            List<AppUpdateOperationInfo> sortedOptList = sortAppUpdateOperations(planInfo.getAppUpdateOperationList(), setDefine);
+            planInfo.setAppUpdateOperationList(sortedOptList);
+        }
+        //对set以及set下的domain排序
+        List<DomainUpdatePlanInfo> sortedPlanList = new ArrayList<>();
+        Map<String, List<DomainUpdatePlanInfo>> setDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
+        for(BizSetDefine setDefine : setDefineList)
+        {
+            if(!setDomainMap.containsKey(setDefine.getName()))
+                continue;
+            final String standardDomainId = setDefine.getFixedDomainId();
+            List<DomainUpdatePlanInfo> setPlanList = setDomainMap.get(setDefine.getName());
+            Collections.sort(setPlanList, new Comparator<DomainUpdatePlanInfo>(){
+                @Override
+                public int compare(DomainUpdatePlanInfo o1, DomainUpdatePlanInfo o2) {
+                    int index1 = Integer.parseInt(o1.getDomainId().replaceAll(standardDomainId, ""));
+                    int index2 = Integer.parseInt(o2.getDomainId().replaceAll(standardDomainId, ""));
+                    return index1 - index2;
+                }
+            });
+            sortedPlanList.addAll(setPlanList);
+        }
+        schema.setDomainUpdatePlanList(sortedPlanList);
     }
 
     private String autoGenerateDomainId(String standardDomainId, List<String> usedId) throws ParamException
@@ -3065,7 +3124,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     index = oldIndex;
                 }
             }
-
         }
         index++;
         String domainId = String.format("%s%s", standardDomainId, (index > 9 ? index + "" : "0" + index));
@@ -3199,7 +3257,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public PlatformUpdateSchemaInfo cloneExistPlatform(String clonedPlatformId, String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, InterfaceCallException, LJPaasException {
+    public PlatformUpdateSchemaInfo cloneExistPlatform(String clonedPlatformId, String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
         logger.debug(String.format("begin to clone platform from %s with platformId=%s, platformName=%s, bkBizId=%s and bkCloudId=%s",
                 clonedPlatformId, platformId, platformName, bkBizId, bkCloudId));
         PlatformPo clonedPlatform = platformMapper.selectByPrimaryKey(clonedPlatformId);
@@ -3298,6 +3356,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 clonedPlatform.getCcodVersion(), PlatformUpdateTaskType.CREATE, String.format("新建%s(%s)计划", platformName, platformId),
                 String.format("create %s(%s) by clone %s(%s)", platformName, platformId, clonedPlatformId, clonedPlatform.getPlatformName()));
         schema.setDomainUpdatePlanList(new ArrayList<>(planMap.values()));
+        List<BizSetDefine> setDefineList = paasService.queryCCODBizSet(false);
+        makeupPlatformUpdateSchema(schema, new ArrayList<>(), new ArrayList<>(), setDefineList);
         platform = new PlatformPo();
         platform.setCcodVersion(clonedPlatform.getCcodVersion());
         platform.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
@@ -3512,8 +3572,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         params.put("cmdb_host_url", this.cmdbUrl);
         params.put("k8s_deploy_git_url", this.k8sDeployGitUrl);
         params.put("update_schema", schemaInfo);
-        String[] deployOrder = this.appDeployOrder.split(",");
-        params.put("app_deploy_order", JSONArray.toJSONString(deployOrder));
         Resource resource = new ClassPathResource(this.platformDeployScriptFileName);
         File sourceFile =  resource.getFile();
         BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(sourceFile),
@@ -3555,6 +3613,103 @@ public class AppManagerServiceImpl implements IAppManagerService {
         schemaInfo.setDeployScriptRepository(this.platformDeployScriptRepository);
         schemaInfo.setDeployScriptPath(scriptPath);
         schemaInfo.setDeployScriptMd5(md5);
+    }
+
+    private List<AppUpdateOperationInfo> sortAppUpdateOperations(List<AppUpdateOperationInfo> optList, BizSetDefine setDefine) throws NotSupportAppException
+    {
+        List<AppUpdateOperationInfo> addOptList = new ArrayList<>();
+        List<AppUpdateOperationInfo> deleteOptList = new ArrayList<>();
+        for(AppUpdateOperationInfo opt : optList)
+        {
+            switch (opt.getOperation())
+            {
+                case ADD:
+                case VERSION_UPDATE:
+                case CFG_UPDATE:
+                case START:
+                    addOptList.add(opt);
+                    break;
+                default:
+                    deleteOptList.add(opt);
+            }
+        }
+        List<AppUpdateOperationInfo> sortedOptList = new ArrayList<>();
+        if(deleteOptList.size() > 0)
+        {
+            Map<String, List<AppUpdateOperationInfo>> appDelMap = deleteOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+            for(int i= setDefine.getApps().length - 1; i >=0; i--)
+            {
+                String appName = setDefine.getApps()[i];
+                if(appDelMap.containsKey(appName))
+                {
+                    final String standardAlias = setDefine.getAppAliasMap().get(appName);
+                    List<AppUpdateOperationInfo> appOptList = appDelMap.get(appName);
+                    Collections.sort(appOptList,new Comparator<AppUpdateOperationInfo>() {
+                        @Override
+                        public int compare(AppUpdateOperationInfo o1, AppUpdateOperationInfo o2) {
+                            int index1 = 1;
+                            if(!o1.getAppAlias().equals(standardAlias))
+                            {
+                                index1 = Integer.parseInt(o1.getAppAlias().replaceAll(standardAlias, ""));
+                            }
+                            int index2 = 1;
+                            if(!o2.getAppAlias().equals(standardAlias))
+                            {
+                                index2 = Integer.parseInt(o2.getAppAlias().replaceAll(standardAlias, ""));
+                            }
+                            return index1 - index2;
+                        }
+                    });
+                    sortedOptList.addAll(appOptList);
+                    appDelMap.remove(appName);
+                }
+            }
+            if(appDelMap.size() > 0)
+            {
+                logger.error(String.format("app %s is not supported by %s", JSONArray.toJSONString(appDelMap.keySet()), setDefine.getName()));
+                throw new NotSupportAppException(String.format("app %s is not supported by %s", JSONArray.toJSONString(appDelMap.keySet()), setDefine.getName()));
+            }
+        }
+        if(addOptList.size() > 0)
+        {
+            Map<String, List<AppUpdateOperationInfo>> appAddMap = addOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+            for(String appName : setDefine.getApps())
+            {
+                if(appAddMap.containsKey(appName))
+                {
+                    final String standardAlias = setDefine.getAppAliasMap().get(appName);
+                    List<AppUpdateOperationInfo> appOptList = appAddMap.get(appName);
+                    for(AppUpdateOperationInfo opt : appOptList)
+                    {
+                        opt.setAddDelay(setDefine.getAppAddDelayMap().get(appName));
+                    }
+                    Collections.sort(appOptList,new Comparator<AppUpdateOperationInfo>() {
+                        @Override
+                        public int compare(AppUpdateOperationInfo o1, AppUpdateOperationInfo o2) {
+                            int index1 = 1;
+                            if(!o1.getAppAlias().equals(standardAlias))
+                            {
+                                index1 = Integer.parseInt(o1.getAppAlias().replaceAll(standardAlias, ""));
+                            }
+                            int index2 = 1;
+                            if(!o2.getAppAlias().equals(standardAlias))
+                            {
+                                index2 = Integer.parseInt(o2.getAppAlias().replaceAll(standardAlias, ""));
+                            }
+                            return index1 - index2;
+                        }
+                    });
+                    sortedOptList.addAll(appOptList);
+                    appAddMap.remove(appName);
+                }
+            }
+            if(appAddMap.size() > 0)
+            {
+                logger.error(String.format("app %s is not supported by %s", JSONArray.toJSONString(appAddMap.keySet()), setDefine.getName()));
+                throw new NotSupportAppException(String.format("app %s is not supported by %s", JSONArray.toJSONString(appAddMap.keySet()), setDefine.getName()));
+            }
+        }
+        return sortedOptList;
     }
 
     @Test

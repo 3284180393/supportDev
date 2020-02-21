@@ -14,7 +14,6 @@ ccod:
   app-standard-alias-regex: ^[a-z]+[0-9a-z\\-]*[a-z0-9]$
   notCheckCfgApps:
     - cmsserver
-  app-deploy-order: DDSServer,UCDServer,dcs,cmsserver,ucxserver,daengine
   platform-deploy-template: platform_deploy.py
 
 nexus:
@@ -71,31 +70,6 @@ lj-paas:
   host-default-cloud-id: 5
   set-apps:
     set[0]:
-      name: 域服务
-      id: domainService
-      isBasic: 1
-      fixedDomainName: 服务域
-      fixedDomainId: cloud
-      domainType: 1
-      apps:
-        - cmsserver/cms
-        - daengine/daengine
-        - DataKeeper
-        - dcproxy/dcproxy
-        - dcs/dcs
-        - ddaengine
-        - ddcs
-        - DDSServer/dds
-        - tsrecadsrv
-        - tsr2
-        - UCDServer/ucds
-        - ucxserver/ucx
-        - EAService
-        - fpsvr
-        - psr
-        - slee
-        - StatSchedule/ss
-    set[1]:
       name: 公共组件
       id: publicModules
       isBasic: 1
@@ -105,9 +79,9 @@ lj-paas:
       apps:
         - LicenseServer/licenseserver
         - configserver/configserver
-        - glsServer/glsserver
+        - glsServer/glsserver:30
         - RMServer
-    set[2]:
+    set[1]:
       name: 网关接入
       id: gatewayAccess
       isBasic: 1
@@ -116,6 +90,31 @@ lj-paas:
       domainType: 3
       apps:
         - umg
+    set[2]:
+      name: 域服务
+      id: domainService
+      isBasic: 1
+      fixedDomainName: 服务域
+      fixedDomainId: cloud
+      domainType: 1
+      apps:
+        - DDSServer/dds:20
+        - UCDServer/ucds:20
+        - dcs/dcs:20
+        - cmsserver/cms:20
+        - ucxserver/ucx:20
+        - daengine/daengine:20
+        - DataKeeper
+        - dcproxy/dcproxy
+        - ddaengine
+        - ddcs
+        - tsrecadsrv
+        - tsr2
+        - EAService
+        - fpsvr
+        - psr
+        - slee
+        - StatSchedule/ss
     set[3]:
       name: 管理门户
       id: managerPortal

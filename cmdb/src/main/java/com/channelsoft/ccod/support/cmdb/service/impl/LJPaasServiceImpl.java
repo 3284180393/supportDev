@@ -50,12 +50,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
     private ExcludeBiz excludeBiz;
 
     @Autowired
-    private DomainMapper domainMapper;
-
-    @Autowired
-    private PlatformAppMapper platformAppMapper;
-
-    @Autowired
     private AppMapper appMapper;
 
     @Autowired
@@ -100,6 +94,8 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     private Map<String, BizSetDefine> extendBizSetMap;
 
+    private List<BizSetDefine> ccodSetList;
+
     private Map<String, List<BizSetDefine>> appSetRelationMap;
 
     private Set<String> excludeBizSet;
@@ -116,17 +112,30 @@ public class LJPaasServiceImpl implements ILJPaasService {
         this.basicBizSetMap  = new HashMap<>();
         this.extendBizSetMap = new HashMap<>();
         this.appSetRelationMap = new HashMap<>();
+        this.ccodSetList = new ArrayList<>();
         Pattern pattern = Pattern.compile(this.appStandardAliasRegex);
         for(BizSetDefine define : this.bizSetInfo.getSet())
         {
-            Set<String> appSet = new HashSet<>();
+            List<String> appList = new ArrayList<>();
             Map<String, String> aliasMap = new HashMap<>();
+            Map<String, Integer> addDelayMap = new HashMap<>();
             for(String app : define.getApps())
             {
-                String[] arr = app.split("/");
+                String[] tmpArr = app.split("\\:");
+                int appAddDelay = 0;
+                if(tmpArr.length == 2)
+                {
+                    appAddDelay = Integer.parseInt(tmpArr[1]);
+                }
+                else if(tmpArr.length > 2)
+                {
+                    logger.error(String.format("error app of set define:%s", app));
+                    throw new ParamException(String.format("error app of set define:%s", app));
+                }
+                String[] arr = tmpArr[0].split("/");
                 if(arr.length == 1)
                 {
-                    appSet.add(arr[0]);
+                    appList.add(arr[0]);
                     Matcher matcher = pattern.matcher(arr[0].toLowerCase());
                     if(!matcher.find())
                     {
@@ -137,7 +146,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 }
                 else if(arr.length == 2)
                 {
-                    appSet.add(arr[0]);
+                    appList.add(arr[0]);
                     Matcher matcher = pattern.matcher(arr[1]);
                     if(!matcher.find())
                     {
@@ -151,9 +160,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
                     logger.error(String.format("error app define %s", app));
                     throw new ParamException(String.format("error app define %s", app));
                 }
+                addDelayMap.put(arr[0], appAddDelay);
             }
-            define.setApps(appSet.toArray(new String[0]));
+            define.setApps(appList.toArray(new String[0]));
             define.setAppAliasMap(aliasMap);
+            define.setAppAddDelayMap(addDelayMap);
+            this.ccodSetList.add(define);
             if(define.getIsBasic() == 1)
             {
                 this.basicBizSetMap.put(define.getName(), define);
@@ -891,19 +903,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         if(isCheckApp)
         {
             Map<String, List<AppPo>> appMap = appMapper.select(null, null, null, null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
-            for(BizSetDefine setDefine : this.basicBizSetMap.values())
-            {
-                BizSetDefine cloneSet = setDefine.clone();
-                List<String> appList = new ArrayList<>();
-                for(String appName : setDefine.getApps())
-                {
-                    if(appMap.containsKey(appName))
-                        appList.add(appName);
-                }
-                cloneSet.setApps(appList.toArray(new String[0]));
-                setList.add(cloneSet);
-            }
-            for(BizSetDefine setDefine : this.extendBizSetMap.values())
+            for(BizSetDefine setDefine : this.ccodSetList)
             {
                 BizSetDefine cloneSet = setDefine.clone();
                 List<String> appList = new ArrayList<>();
@@ -918,10 +918,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
         else
         {
-            setList.addAll(new ArrayList<>(this.basicBizSetMap.values()));
-            setList.addAll(new ArrayList<>(this.extendBizSetMap.values()));
+            for(BizSetDefine setDefine : this.ccodSetList)
+            {
+                BizSetDefine cloneSet = setDefine.clone();
+                setList.add(setDefine);
+            }
         }
-
         logger.info(String.format("ccod biz has %d set", setList.size()));
         return setList;
     }

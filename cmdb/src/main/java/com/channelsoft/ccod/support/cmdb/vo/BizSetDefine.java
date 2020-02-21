@@ -30,6 +30,8 @@ public class BizSetDefine {
 
     private Map<String, String> appAliasMap; //set下的app别名
 
+    private Map<String, Integer> appAddDelayMap; //执行完ADD操作后需要延迟多少时间执行下一条ADD操作
+
     public String getName() {
         return name;
     }
@@ -94,6 +96,14 @@ public class BizSetDefine {
         this.domainType = domainType;
     }
 
+    public Map<String, Integer> getAppAddDelayMap() {
+        return appAddDelayMap;
+    }
+
+    public void setAppAddDelayMap(Map<String, Integer> appAddDelayMap) {
+        this.appAddDelayMap = appAddDelayMap;
+    }
+
     @Override
     public BizSetDefine clone()
     {
@@ -109,11 +119,14 @@ public class BizSetDefine {
             setDefine.apps[i] = this.apps[i];
         }
         Map<String, String> aliasMap = new HashMap<>();
+        Map<String, Integer> addDelayMap = new HashMap<>();
         for(String key : this.appAliasMap.keySet())
         {
             aliasMap.put(key, this.appAliasMap.get(key));
+            addDelayMap.put(key, this.appAddDelayMap.get(key));
         }
         setDefine.setAppAliasMap(aliasMap);
+        setDefine.setAppAddDelayMap(appAddDelayMap);
         setDefine.domainType = this.domainType;
         return setDefine;
     }

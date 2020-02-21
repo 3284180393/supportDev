@@ -37,6 +37,8 @@ public class AppUpdateOperationInfo {
 
     private List<AppFileNexusInfo> cfgs; //如果升级成功,需要返回升级后的应用配置在nexus中的存储信息
 
+    private int addDelay; //完成这条操作后延迟多少秒后执行下一条操作
+
     public AppUpdateOperation getOperation() {
         return operation;
     }
@@ -115,6 +117,14 @@ public class AppUpdateOperationInfo {
 
     public void setPlatformAppId(int platformAppId) {
         this.platformAppId = platformAppId;
+    }
+
+    public int getAddDelay() {
+        return addDelay;
+    }
+
+    public void setAddDelay(int addDelay) {
+        this.addDelay = addDelay;
     }
 
     @Override

@@ -247,7 +247,7 @@ public interface IAppManagerService {
      * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
      * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
      */
-    PlatformUpdateSchemaInfo cloneExistPlatform(String clonedPlatformId, String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, InterfaceCallException, LJPaasException;
+    PlatformUpdateSchemaInfo cloneExistPlatform(String clonedPlatformId, String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
 
     /**
      * 克隆指定的域

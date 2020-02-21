@@ -34,7 +34,6 @@ schema_update_url = '%s/cmdb/api/platformUpdateSchema' % cmdb_host_url
 k8s_deploy_git_url = platform_deploy_params['k8s_deploy_git_url']
 app_image_query_url = "%s/v2/%%s/%%s/tags/list" % nexus_image_repository_url
 platform_deploy_schema = platform_deploy_params['update_schema']
-app_deploy_order = platform_deploy_params['app_deploy_order']
 ccod_apps = """dcms##dcms##11110##dcms.war##war"""
 make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
 
@@ -556,10 +555,12 @@ def generate_platform_deploy_operation(work_dir):
                 version = app_opt['targetVersion']
                 app_module = query_app_module(app_name, version)
                 opt = add_app_module_to_k8s(platform_id, domain_id, app_module, alias, work_dir)
+                opt['delay'] = app_opt['addDelay']
                 add_list.append(opt)
             elif op == 'DELETE' or op == 'STOP':
                 version = app_opt['originalVersion']
                 opt = delete_app_module_from_k8s(platform_id, domain_id, app_name, version, alias, work_dir)
+                opt['delay'] = app_opt['addDelay']
                 del_list.append(opt)
             elif op == 'VERSION_UPDATE' or op == 'CFG_UPDATE':
                 version = app_opt['originalVersion']
@@ -655,8 +656,6 @@ def sort_app_opt(domain_plan, app_add_order):
 
 
 def deloy_platform():
-    for plan in platform_deploy_schema['domainUpdatePlanList']:
-        sort_app_opt(plan, app_deploy_order)
     delete_opt_list, add_opt_list = generate_platform_deploy_operation(make_image_base_path)
     for opt in delete_opt_list:
         helm_command = opt['helm_command']
