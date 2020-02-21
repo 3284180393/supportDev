@@ -40,7 +40,7 @@ make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
 
 
 def __get_app_query_url(app_name, version):
-    return '%s/cmdb/api/apps/%s/%s' % (cmdb_host_url, app_name, version)
+    return '%s/api/apps/%s/%s' % (cmdb_host_url, app_name, version)
 
 
 def __get_image_query_url(app_name, version):
@@ -348,7 +348,7 @@ def test_image(image_uri):
 
 def app_image_exist_check(app_name, version):
     logging.debug('confirm %s(%s) image exist at server', app_name, version)
-    exec_command = "docker image ls| grep %s | grep %s | awk '{print $3}'" % (app_name.lower(), version)
+    exec_command = "docker image ls| grep %s | grep %s | awk '{print $3}'" % (app_name.lower(), re.sub('\\:', '\\-', version))
     exec_result = __run_shell_command(exec_command, None)
     if exec_result:
         return True
@@ -510,7 +510,7 @@ def exec_platform_create_schema(schema):
 
 def add_app_module_to_k8s(platform_id, domain_id, app_module, alias, work_dir):
     app_name = app_module['appName']
-    version = app_module['appVersion']
+    version = app_module['version']
     image_exist = app_image_exist_check(app_name, version)
     if not image_exist:
         app_dir = '%s/%s/%s' % (work_dir, app_name, version)
@@ -526,7 +526,7 @@ def add_app_module_to_k8s(platform_id, domain_id, app_module, alias, work_dir):
     opt['version'] = version
     opt['alias'] = alias
     opt['operation'] = 'ADD'
-    opt['helm_command'] = get_add_app_helm_command(platform_id, domain_id, app_module, alias, work_dir)
+    opt['helm_command'] = get_add_app_helm_command(platform_id, domain_id, app_name, app_module['appType'], version, alias, app_module['cfgs'], work_dir)
     return opt
 
 
@@ -683,4 +683,3 @@ if __name__ == '__main__':
     logging.debug('now begin to deploy app')
     deloy_platform()
     logging.info('app deploy finish')
-

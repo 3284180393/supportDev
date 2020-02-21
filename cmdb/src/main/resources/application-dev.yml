@@ -42,7 +42,7 @@ activemq:
   receive-time-span: 300
 
 cmdb:
-  url: http://192.168.0.102:8086/cmdb
+  url: http://10.130.41.218:8086/cmdb
   server-name: support_dev_cmdb_server3
   share-secret: ae12139afadabde12345r
   app-collect:
