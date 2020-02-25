@@ -728,19 +728,23 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
 
-    private void addNewDomainToPlatform(String domainId, String domainName, List<AppUpdateOperationInfo> domainApps,
+    private void addNewDomainToPlatform(DomainUpdatePlanInfo planInfo, List<AppUpdateOperationInfo> domainApps,
                               List<AppModuleVo> appList, PlatformPo platform, String setId, LJSetInfo bkSet, List<LJHostInfo> bkHostList)
             throws InterfaceCallException, LJPaasException, NexusException, IOException
     {
         Date now = new Date();
         DomainPo newDomain = new DomainPo();
         newDomain.setComment("");
-        newDomain.setDomainId(domainId);
+        newDomain.setDomainId(planInfo.getDomainId());
         newDomain.setPlatformId(platform.getPlatformId());
         newDomain.setStatus(1);
         newDomain.setUpdateTime(now);
         newDomain.setCreateTime(now);
-        newDomain.setDomainName(domainName);
+        newDomain.setDomainName(planInfo.getDomainName());
+        newDomain.setType(planInfo.getBkSetName());
+        newDomain.setMaxOccurs(planInfo.getMaxOccurs());
+        newDomain.setOccurs(planInfo.getOccurs());
+        newDomain.setTags(planInfo.getTags());
         this.domainMapper.insert(newDomain);
         deployAppsToDomainHost(newDomain, setId, bkSet, bkHostList, domainApps, appList);
     }
@@ -1235,7 +1239,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             switch (planInfo.getUpdateType())
             {
                 case ADD:
-                    addNewDomainToPlatform(planInfo.getDomainId(), planInfo.getDomainName(), planInfo.getAppUpdateOperationList(),
+                    addNewDomainToPlatform(planInfo, planInfo.getAppUpdateOperationList(),
                             appList, platformPo, planInfo.getSetId(), setMap.get(planInfo.getBkSetName()), bkHostList);
                     break;
                 case DELETE:
@@ -3573,9 +3577,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         params.put("k8s_deploy_git_url", this.k8sDeployGitUrl);
         params.put("update_schema", schemaInfo);
         Resource resource = new ClassPathResource(this.platformDeployScriptFileName);
-        File sourceFile =  resource.getFile();
-        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(sourceFile),
-                "UTF-8"));
+        InputStreamReader isr = new InputStreamReader(resource.getInputStream(), "UTF-8");
+        BufferedReader br = new BufferedReader(isr);
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String dateStr = sf.format(now);
