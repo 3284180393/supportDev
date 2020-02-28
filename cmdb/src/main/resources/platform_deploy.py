@@ -32,7 +32,7 @@ upload_url = "%s/service/rest/v1/components?repository=%s" % (nexus_host_url, ap
 app_register_url = "%s/cmdb/api/apps" % cmdb_host_url
 schema_update_url = '%s/cmdb/api/platformUpdateSchema' % cmdb_host_url
 k8s_deploy_git_url = platform_deploy_params['k8s_deploy_git_url']
-app_image_query_url = "%s/v2/%%s/%%s/tags/list" % nexus_image_repository_url
+app_image_query_url = "http://%s/v2/%s/%%s/tags/list" % (nexus_image_repository_url, image_repository)
 platform_deploy_schema = platform_deploy_params['update_schema']
 ccod_apps = """dcms##dcms##11110##dcms.war##war"""
 make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
@@ -84,7 +84,7 @@ def get_add_app_helm_command(platform_id, domain_id, app_name, app_type, version
         else:
             app_work_path = 'cd %s;cd payaml/resin-4.0.13_jre-1.6.0_21/' % work_dir
     cfg_params_for_k8s = get_app_cfg_params_for_k8s(platform_id, domain_id, alias, cfgs)
-    exec_command = '%s;helm install --set module.vsersion=%s --set module.name=%s --set module.alias=%s-%s %s %s-%s . -n %s' % (
+    exec_command = '%s;/usr/local/bin/helm install --set module.vsersion=%s --set module.name=%s --set module.alias=%s-%s %s %s-%s . -n %s' % (
         app_work_path, version, app_name, alias, domain_id,  cfg_params_for_k8s, alias.lower(), domain_id.lower(), platform_id.lower()
     )
     logging.info('command for deploy %s/%s/%s/%s/%s is %s and app_work_dir is %s' % (
@@ -94,7 +94,7 @@ def get_add_app_helm_command(platform_id, domain_id, app_name, app_type, version
 
 
 def get_del_app_helm_command(platform_id, domain_id, app_name, app_alias):
-    exec_command = 'helm del %s-%s . -n %s' % (
+    exec_command = '/usr/local/bin/helm del %s-%s . -n %s' % (
         app_alias.lower(), domain_id.lower(), platform_id.lower()
     )
     logging.info('command for del %s/%s/%s/%s is %s' % (
@@ -312,9 +312,7 @@ def remove_generate_image(app_name, version):
 
 
 def __get_app_image_uri(app_name, version):
-    version = re.sub('\\:', '\\-', version)
-    image_tag = '%s:%s' % (app_name.lower(), version)
-    image_uri = '%s/%s/%s' % (nexus_image_repository_url, image_repository, image_tag)
+    image_uri = app_image_query_url % app_name
     return image_uri
 
 
@@ -323,7 +321,7 @@ def build_app_image(app_name, version, app_dir):
     # exec_command = 'cd %s;mkdir lib;cp %s/*.* ./lib' % (app_dir, gcc_depend_lib_path)
     # exec_result = __run_shell_command(exec_command, None)
     # print(exec_result)
-    version = re.sub('\\:', '\\-', version)
+    version = re.sub(':', '-', version)
     image_tag = '%s:%s' % (app_name.lower(), version)
     image_uri = '%s/%s/%s' % (nexus_image_repository_url, image_repository, image_tag)
     exec_command = 'cd %s;docker build -t %s .' % (app_dir, image_uri)
@@ -347,7 +345,7 @@ def test_image(image_uri):
 
 def app_image_exist_check(app_name, version):
     logging.debug('confirm %s(%s) image exist at server', app_name, version)
-    exec_command = "docker image ls| grep %s | grep %s | awk '{print $3}'" % (app_name.lower(), re.sub('\\:', '\\-', version))
+    exec_command = "docker image ls| grep %s | grep %s | awk '{print $3}'" % (app_name.lower(), re.sub(':', '-', version))
     exec_result = __run_shell_command(exec_command, None)
     if exec_result:
         return True
@@ -410,11 +408,53 @@ def generate_image_for_ccod_apps(base_path):
     return app_list
 
 
-def create_ccod_platform(platform_id, work_dir):
-    logging.debug('check platform %s created' % platform_id)
+def check_platform_exist(platform_id):
+    logging.debug('check platform %s existed' % platform_id)
     exec_command = "kubectl get namespace | awk '{print $1}' | grep -P \"^%s$\"" % platform_id
     exec_result = __run_shell_command(exec_command, None)
     if exec_result:
+        logging.debug('platform %s exist' % platform_id)
+        return True
+    logging.debug('platform %s not exist' % platform_id)
+    return False
+
+
+def delete_exist_platform(platform_id):
+    logging.debug('begin to delete platform %s' % platform_id)
+    exec_command = 'kubectl delete namespace %s' % platform_id
+    exec_result = __run_shell_command(exec_command, None)
+    print(exec_result)
+    exec_command = 'kubectl delete pv base-volume-%s' % platform_id
+    exec_result = __run_shell_command(exec_command, None)
+    print(exec_result)
+    logging.debug('%s deleted' % platform_id)
+
+
+def create_new_platform(platform_id, work_dir):
+    logging.debug('create platform %s' % platform_id)
+    exec_command = 'kubectl create namespace %s' % platform_id
+    exec_result = __run_shell_command(exec_command, None)
+    print(exec_result)
+    logging.debug('create base service for %s' % platform_id)
+    print('create base service for %s' % platform_id)
+    db_param = '--set oracle.ccod.name=oracle-ccod --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
+    exec_command = 'cd %s;cd payaml/baseService;/usr/local/bin/helm install %s -n %s baseservice .' % (
+        work_dir, db_param, platform_id)
+    exec_result = __run_shell_command(exec_command, None)
+    print(exec_result)
+    logging.debug('create cas cert for %s' % platform_id)
+    print('create cas cert for %s' % platform_id)
+    exec_command = """cd %s;kubectl get -n kube-system secret ssl -o yaml | grep -vE '(creationTimestamp|resourceVersion|selfLink|uid)'|sed "s/kube-system/%s/g" > ssl.yaml""" % (
+        work_dir, platform_id
+    )
+    exec_result = __run_shell_command(exec_command, None)
+    print(exec_result)
+    exec_command = 'cd %s;kubectl apply -f ssl.yaml' % work_dir
+    exec_result = __run_shell_command(exec_command, None)
+    print(exec_result)
+
+def create_ccod_platform(platform_id, work_dir):
+    if check_platform_exist(platform_id):
         logging.debug('%s exist, so delete %s and recreate ' % (platform_id, platform_id))
         exec_command = 'kubectl delete namespace %s' % platform_id
         exec_result = __run_shell_command(exec_command, None)
@@ -428,9 +468,11 @@ def create_ccod_platform(platform_id, work_dir):
     print(exec_result)
     logging.debug('create base service for %s' % platform_id)
     print('create base service for %s' % platform_id)
-    db_param = '--set oracle.ccod.ip=10.130.41.12 --set oracle.ccod.port=1521 --set oracle.ccod.sid=ccdev --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.ip=10.130.41.12 --set mysql.ccod.port=3306 --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
+    # db_param = '--set oracle.ccod.ip=10.130.41.12 --set oracle.ccod.port=1521 --set oracle.ccod.sid=ccdev --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.ip=10.130.41.12 --set mysql.ccod.port=3306 --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
     # exec_command = 'cd %s;cd payaml/baseService;helm install %s -n %s baseservice .' % (work_dir, db_param, platform_id)
-    exec_command = 'cd %s;cd payaml/baseService;helm install -n %s baseservice .' % (work_dir, platform_id)
+    db_param = '--set oracle.ccod.name=oracle-ccod --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
+    # exec_command = 'cd %s;cd payaml/baseService;helm install -n %s baseservice .' % (work_dir, platform_id)
+    exec_command = 'cd %s;cd payaml/baseService;/usr/local/bin/helm install %s -n %s baseservice .' % (work_dir, db_param, platform_id)
     exec_result = __run_shell_command(exec_command, None)
     print(exec_result)
     logging.debug('create cas cert for %s' % platform_id)
@@ -475,7 +517,7 @@ def get_md5_value(input_str):
 
 
 def exec_platform_create_schema(schema):
-    platform_id = schema['platformId'].lower()
+    platform_id = platform_deploy_schema['platformId'].lower()
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     work_dir = '/tmp/%s' % get_md5_value('%s%s' % (platform_id, now))
     exec_command = 'mkdir %s -p' % work_dir
@@ -656,26 +698,34 @@ def sort_app_opt(domain_plan, app_add_order):
 
 
 def deloy_platform():
-    delete_opt_list, add_opt_list = generate_platform_deploy_operation(make_image_base_path)
+    platform_id = platform_deploy_schema['platformId'].lower()
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    work_dir = '/tmp/%s' % get_md5_value('%s%s' % (platform_id, now))
+    exec_command = 'mkdir %s -p' % work_dir
+    __run_shell_command(exec_command, None)
+    exec_command = 'cd %s;git clone %s' % (work_dir, k8s_deploy_git_url)
+    __run_shell_command(exec_command, None)
+    if platform_deploy_schema['taskType'] == 'CREATE':
+        if check_platform_exist(platform_id):
+            delete_exist_platform(platform_id)
+        create_new_platform(platform_id, work_dir)
+    else:
+        if not check_platform_exist(platform_id):
+            logging.error('%s not existed %s fail' % (platform_id, platform_deploy_schema['taskType']))
+            raise ('%s not existed %s fail' % (platform_id, platform_deploy_schema['taskType']))
+    delete_opt_list, add_opt_list = generate_platform_deploy_operation(work_dir)
     for opt in delete_opt_list:
         helm_command = opt['helm_command']
         print(helm_command)
-        # exec_result = __run_shell_command(helm_command, None)
-        # print(exec_result)
+        exec_result = __run_shell_command(helm_command, None)
+        print(exec_result)
     for opt in add_opt_list:
         helm_command = opt['helm_command']
         print(helm_command)
-        # exec_result = __run_shell_command(helm_command, None)
-        # print(exec_result)
-        app_name = opt['app_name']
-        if app_name == 'glsServer':
-            print('%s start, so sleep 60s' % app_name)
-            time.sleep(30)
-            print('sleep end')
-        elif app_name == 'DDSServer' or app_name == 'UCDServer' or app_name == ' dcs' or app_name == 'cmsserver' or app_name == 'ucxserver' or app_name == 'daengine':
-            print('%s start, so sleep 20s' % app_name)
-            time.sleep(20)
-            print('sleep end')
+        exec_result = __run_shell_command(helm_command, None)
+        print(exec_result)
+        if opt['delay'] > 0:
+            time.sleep(opt['delay'])
 
 
 if __name__ == '__main__':

@@ -3156,6 +3156,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     index = oldIndex;
                 }
             }
+            else if(index == 0)
+            {
+                index = 1;
+            }
 
         }
         index++;
