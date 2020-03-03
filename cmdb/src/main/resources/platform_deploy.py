@@ -277,17 +277,17 @@ def download_install_package(app_name, app_alias, version, package_file_name, sa
     return save_path
 
 
-def generate_docker_file(app_package_file_name, save_dir, package_type='binary'):
+def generate_docker_file(app_package_file_name, save_dir, package_type='CCOD_KERNEL_MODULE'):
     save_file_path = '%s/%s' % (save_dir, 'Dockerfile')
     print(save_file_path)
     with open(save_file_path, 'w') as out_f:
-        if package_type == 'binary':
+        if package_type == 'CCOD_KERNEL_MODULE':
             out_f.write("FROM harbor.io:1180/ccod-base/centos-backend:0.4\n")
             # out_f.write("COPY lib/*.* /opt/\n")
         else:
             out_f.write("FROM nexus.io:5000/ccod-base/alpine-java:jdk8-slim\n")
         out_f.write("ADD %s /opt/%s\n" % (app_package_file_name, app_package_file_name))
-        if package_type == 'binary':
+        if package_type == 'CCOD_KERNEL_MODULE':
             out_f.write('RUN chmod a+x /opt/%s\n' % app_package_file_name)
             out_f.write('CMD ["/bin/bash", "-c", "ldd /opt/%s;/opt/%s"]"]\n' % (app_package_file_name, app_package_file_name))
 
