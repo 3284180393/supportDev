@@ -185,8 +185,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         try
         {
             List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
-            params = new HashMap<>();
-            params.put("platformId", platformId);
             modules = getPlatformAppInstallPackageAndCfg(platformId, modules, params, connection);
             return modules;
         }

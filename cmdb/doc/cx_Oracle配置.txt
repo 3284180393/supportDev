@@ -1,0 +1,6 @@
+cx_Oracle是python访问oracle的第三方库
+1、python连接oracle数据库报错"DatabaseError: DPI-1047: 64-bit Oracle Client library cannot be loaded
+按照https://jingyan.baidu.com/article/75ab0bcb9776ecd6864db2c9.html的方法安装Oracle对应版本的instantclient
+在windows下navicat用的是32位版的instantclient，这时需要重新安装一个64位版的instantclient
+2、cx_Oracle连接数据库错误ORA-21561: 生成 OID 失败
+linux上执行hostname查询主机的hostname，vi /etc/hosts将hostname加到127.0.0.1和::1后面

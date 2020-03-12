@@ -12,6 +12,7 @@ import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
+import com.channelsoft.ccod.support.cmdb.utils.ServiceUnitUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.annotations.Param;
@@ -202,7 +203,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 //            this.appMapper.selectByPrimaryKey(1);
 //            this.appMapper.select(null, null, null, null);
-//            platformAppCollectService.collectPlatformAppData("shltPA", null, null, null, null);
+            platformAppCollectService.collectPlatformAppData("gscsShlt", "公司测试上海联通", null, null, null, null);
 //            this.startCollectPlatformAppData("tool", null, null, null, null);
 //            this.appModuleMapper.select("jj","aa", "bb", "kk");
 //            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
@@ -3163,7 +3164,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
         }
         index++;
-        String appAlias = String.format("%s%s", standardAlias, (index > 1 ? index + "" : ""));
+        String appAlias = String.format("%s%s", standardAlias, index);
         if(index == 1 && onlyOne)
             appAlias = standardAlias;
         return appAlias;
@@ -3801,6 +3802,54 @@ public class AppManagerServiceImpl implements IAppManagerService {
             System.out.println(domainId);
             usedIds.add(domainId);
 
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
+    @Test
+    public void sqlTest()
+    {
+        DatabaseType dbType = DatabaseType.ORACLE;
+        String areaId = "010";
+        String domainId = "cloud01";
+        String alias = "cms1";
+        try
+        {
+            String insertSql = ServiceUnitUtils.getDefaultCMSServerInsertSql(dbType, areaId, domainId, alias);
+            System.out.println(String.format("insertSql=%s", insertSql));
+            alias = "ucds";
+            String dbName = "ucds";
+            String dbUser = "ucds";
+            String dbPwd = "ucds";
+            String ucdsIp = "10.130.41.218";
+            int ucdsPort = 32194;
+            String ucdsDataKeeperIp = "10.130.29.72";
+            String ucdsInnerIp = "10.130.29.75";
+            insertSql = ServiceUnitUtils.getDefaultUCDSServerInsertSql(dbType, areaId, domainId, alias, dbName, dbUser,
+                    dbPwd, ucdsIp, ucdsPort, ucdsDataKeeperIp, ucdsInnerIp);
+            System.out.println(String.format("insertSql=%s", insertSql));
+            alias = "dcs";
+            insertSql = ServiceUnitUtils.getDefaultDCSServerInsertSql(dbType, areaId, domainId, alias);
+            System.out.println(String.format("insertSql=%s", insertSql));
+            alias = "dds";
+            insertSql = ServiceUnitUtils.getDefaultDDSServerInsertSql(dbType, areaId, domainId, alias);
+            System.out.println(String.format("insertSql=%s", insertSql));
+
+            alias = "daengine";
+            insertSql = ServiceUnitUtils.getDefaultDAEInsertSql(dbType, areaId, domainId, alias);
+            System.out.println(String.format("insertSql=%s", insertSql));
+
+            alias = "ss";
+            insertSql = ServiceUnitUtils.getDefaultSSInsertSql(dbType, areaId, domainId, alias);
+            System.out.println(String.format("insertSql=%s", insertSql));
+
+            alias = "ucds";
+            ucdsPort = 33333;
+            String updateSql = ServiceUnitUtils.getDefaultUCDSServerUpdateSql(dbType, domainId, alias, ucdsPort);
+            System.out.println(String.format("updateSql=%s", updateSql));
         }
         catch (Exception ex)
         {

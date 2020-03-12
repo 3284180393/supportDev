@@ -437,7 +437,7 @@ def create_new_platform(platform_id, work_dir):
     print(exec_result)
     logging.debug('create base service for %s' % platform_id)
     print('create base service for %s' % platform_id)
-    db_param = '--set oracle.ccod.name=oracle-ccod --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
+    db_param = '--set oracle.ccod.name=oracle --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
     exec_command = 'cd %s;cd payaml/baseService;/usr/local/bin/helm install %s -n %s baseservice .' % (
         work_dir, db_param, platform_id)
     exec_result = __run_shell_command(exec_command, None)
@@ -470,7 +470,7 @@ def create_ccod_platform(platform_id, work_dir):
     print('create base service for %s' % platform_id)
     # db_param = '--set oracle.ccod.ip=10.130.41.12 --set oracle.ccod.port=1521 --set oracle.ccod.sid=ccdev --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.ip=10.130.41.12 --set mysql.ccod.port=3306 --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
     # exec_command = 'cd %s;cd payaml/baseService;helm install %s -n %s baseservice .' % (work_dir, db_param, platform_id)
-    db_param = '--set oracle.ccod.name=oracle-ccod --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
+    db_param = '--set oracle.ccod.name=oracle --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
     # exec_command = 'cd %s;cd payaml/baseService;helm install -n %s baseservice .' % (work_dir, platform_id)
     exec_command = 'cd %s;cd payaml/baseService;/usr/local/bin/helm install %s -n %s baseservice .' % (work_dir, db_param, platform_id)
     exec_result = __run_shell_command(exec_command, None)

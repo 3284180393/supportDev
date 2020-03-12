@@ -37,7 +37,7 @@ app-publish-nexus:
   host-url: http://10.130.41.216:8081
 
 activemq:
-  brokerUrl : failover:(tcp://10.130.44.108:61616)?timeout=3000
+  brokerUrl : failover:(tcp://119.57.255.4:61616)?timeout=3000
   receive-time-span: 300
 
 cmdb:

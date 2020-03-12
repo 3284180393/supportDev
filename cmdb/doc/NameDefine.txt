@@ -1,22 +1,22 @@
 1、域id规则
 standardId为小写字母组成
-例如: service
-域id为标准域id(standardId)加索引,index从1开始，每在集群下添加一个新的域索引自动加1
-例如:service-1
+例如: cloud
+域id为标准域id(standardId)加索引,index从1开始，每在集群下添加一个新的域索引自动加1,如果索引小于10，则在索引前补0
+例如:cloud01，cloud11等
 当前7个集群的standardId如下
-域服务： service
-公共组件： modules
+域服务： cloud
+公共组件： public
 网关接入： gateway
-管理门户： portal
+管理门户： manage
 对外接口： api
-运营门户: support
-外拨模块: apg
+运营门户: ops
+外拨模块: apg-domain
 
 2、别名规则:
 2.1、部署的时候域里面模块别名必须唯一，不同的域之间可以不唯一
 
 2.2、模块的通用别名（standardAlias）为小写的字母组成
-例如:DDSServer的通用别名为dds，如果某个模块没有专门定义通用别名，则该模块的通用别名为模块名的小写
+例如:DDSServer的通用别名为dds，如果某个模块没有专门定义通用别名(在配置文件的lj-paas节点下的set-apps定义)，则该模块的通用别名为模块名的小写
 
 2.3、模块的别名为通用别名或是通用别名（standardAlias）+数字标号（index），
 例如cms,cms1，cms2..
