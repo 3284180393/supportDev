@@ -10,6 +10,7 @@ import com.channelsoft.ccod.support.cmdb.po.AppPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
+import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformResourceService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
@@ -40,6 +41,9 @@ public class CMDBController {
 
     @Autowired
     ILJPaasService ljPaasService;
+
+    @Autowired
+    IPlatformAppCollectService platformAppCollectService;
 
     private final static Logger logger = LoggerFactory.getLogger(CMDBController.class);
 
@@ -660,6 +664,37 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("create demo schema exception"), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformData", method = RequestMethod.POST)
+    public AjaxResultPo collectPlatformData(@RequestBody PlatformDataCollectParamVo param)
+    {
+        String uri = String.format("POST %s/platformUpdateSchemaParamDemo", this.apiBasePath);
+        logger.debug(String.format("enter %s controller, param=%s", uri, JSONObject.toJSONString(param)));
+        AjaxResultPo resultPo;
+        PlatformUpdateSchemaInfo schemaDemo;
+        try
+        {
+            switch (param.getCollectContent())
+            {
+                case APP_MODULE:
+                    appManagerService.startCollectPlatformAppData(param.getPlatformId(), param.getPlatformName(), param.getDomainName(),
+                            param.getHostIp(), param.getAppName(), param.getVersion());
+                    logger.info(String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
+                    resultPo = new AjaxResultPo(true, String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
+                    break;
+                default:
+                    resultPo = new AjaxResultPo(false, String.format("start platform data collect task fail, not support content=%s", param.getCollectContent().name));
+                    logger.error(String.format("start platform data collect task fail, not support content=%s", param.getCollectContent().name));
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("start platform data collect task fail, content=%s", param.getCollectContent().name), e);
             resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return resultPo;

@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.constant.DomainStatus;
+
 import java.util.Date;
 
 /**
@@ -32,6 +34,28 @@ public class DomainPo {
     private int maxOccurs; //域的最大并发数
 
     private String tags; //域的标签,例如:入呼叫、外呼、自动外拨
+
+    public DomainPo()
+    {
+
+    }
+
+    public DomainPo(String domainId, String domainName, String platformId, DomainStatus status, String comment,
+                    String type, int occurs, int maxOccurs, String tags)
+    {
+        Date now = new Date();
+        this.domainId = domainId;
+        this.domainName = domainName;
+        this.platformId = platformId;
+        this.createTime = now;
+        this.updateTime = now;
+        this.status = status.id;
+        this.comment = comment;
+        this.type = type;
+        this.occurs = occurs;
+        this.maxOccurs = maxOccurs;
+        this.tags = tags;
+    }
 
     public String getDomainId() {
         return domainId;

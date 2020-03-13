@@ -203,8 +203,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 //            this.appMapper.selectByPrimaryKey(1);
 //            this.appMapper.select(null, null, null, null);
-            platformAppCollectService.collectPlatformAppData("gscsShlt", "公司测试上海联通", null, null, null, null);
-//            this.startCollectPlatformAppData("tool", null, null, null, null);
+//            platformAppCollectService.collectPlatformAppData("gscsShlt", "公司测试上海联通", null, null, null, null);
+//            this.startCollectPlatformAppData("gscsShlt", "公司测试上海联通", null, null, null, null);
 //            this.appModuleMapper.select("jj","aa", "bb", "kk");
 //            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
 //                    "55", "66", "77", "88");
@@ -342,8 +342,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             Map<String, DomainPo> domainMap = domainMapper.select(platformId, null).stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
             for(String reportDomainId : domainAppMap.keySet())
             {
-                Map<String, PlatformAppModuleVo> domainNameAppModuleMap = domainAppMap.get(reportDomainId)
-                        .stream().collect(Collectors.toMap(PlatformAppModuleVo::getDomainName, Function.identity()));
+                Map<String, List<PlatformAppModuleVo>> domainNameAppModuleMap = domainAppMap.get(reportDomainId)
+                        .stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
                 if(domainNameAppModuleMap.size() > 1)
                 {
                     logger.error(String.format("domainId=%s has not unique domainName=[%s]",
@@ -462,7 +462,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         else
         {
-            String group = String.format("/%s/%s", appName, appVersion);
+            String group = appPo.getAppNexusGroup();
             appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
         }
         if(moduleVo != null && appFileAssetList.size() == 0)
@@ -474,10 +474,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         if(moduleVo == null && appFileAssetList.size() > 0)
         {
-            logger.error(String.format("cmdb data is not matched with nexus : nexus has appName=%s and version=%s record but cmdb has not",
+            logger.error(String.format("cmdb data is not matched with nexus, so delete them first : nexus has appName=%s and version=%s record but cmdb has not",
                     appName, appVersion));
-            throw new DBNexusNotConsistentException(String.format("cmdb data is not matched with nexus : nexus has appName=%s and version=%s record but cmdb has not",
-                    appName, appVersion));
+            for(NexusAssetInfo assetInfo : appFileAssetList)
+            {
+                nexusService.deleteAsset(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, assetInfo.getId());
+            }
+            String group = appPo.getAppNexusGroup();
+            appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
+            if(appFileAssetList.size() != 0)
+            {
+                logger.error(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
+                throw new NexusException(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
+            }
+            logger.debug(String.format("delete assets at %s/%s/%s success", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
         }
         if(appFileAssetList.size() == 0)
         {
@@ -495,7 +505,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     module.toString(), module.getInstallPackage().getFileName()));
             return false;
         }
-        String compareResult = compareAppFileWithNexusRecord(appName, appVersion, moduleVo.getInstallPackage(), moduleVo.getCfgs(), appFileAssetList);
+        String compareResult = compareAppFileWithNexusRecord(moduleVo, appFileAssetList);
         if(StringUtils.isNotBlank(compareResult))
         {
             logger.error(String.format("collected appName=%s and version=%s files is not matched with nexus : %s",
@@ -552,20 +562,22 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     /**
      * 将安装包和配置文件和nexus存储的信息
-     * @param appName 应用名
-     * @param version 应用版本
-     * @param installPackage 安装包
-     * @param cfgs 配置文件
+     * @param moduleVo 应用模块
      * @param NexusFileList 该应用存储在nexus的文件信息
      * @return 对比结果,如果完全符合返回""
      */
-    private String compareAppFileWithNexusRecord(String appName, String version, AppInstallPackagePo installPackage, List<AppCfgFilePo> cfgs, List<NexusAssetInfo> NexusFileList)
+    private String compareAppFileWithNexusRecord(AppModuleVo moduleVo, List<NexusAssetInfo> NexusFileList)
     {
+        String appName = moduleVo.getAppName();
+        String version = moduleVo.getVersion();
+        AppInstallPackagePo installPackage= moduleVo.getInstallPackage();
+        List<AppCfgFilePo> cfgs = moduleVo.getCfgs();
         logger.debug(String.format("begin to compare appName=%s and version=%s installPackage and cfgs with nexus record",
                 appName, version));
         Map<String, NexusAssetInfo> nexusFileMap = NexusFileList.stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
         StringBuffer sb = new StringBuffer();
-        String path = String.format("%s/%s/%s", appName, version, installPackage.getFileName());
+        String directory = moduleVo.getAppNexusDirectory();
+        String path = String.format("%s/%s", directory, installPackage.getFileName());
         if(!nexusFileMap.containsKey(path))
         {
             sb.append(String.format("installPackageFile=%s not in nexus record,", installPackage.getFileName()));;
@@ -585,7 +597,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             {
                 for(AppCfgFilePo cfg : cfgs)
                 {
-                    path = String.format("%s/%s/%s", appName, version, cfg.getFileName());
+                    path = String.format("%s/%s", directory, cfg.getFileName());
                     if(!nexusFileMap.containsKey(path))
                     {
                         sb.append(String.format("cfg=%s not in nexus,", cfg.getFileName()));
@@ -593,7 +605,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 }
             }
         }
-        logger.info(String.format("the result of files of appName=%s with version=%s compare with nexus is : %s", sb.toString()));
+        logger.info(String.format("the result of files of appName=%s with version=%s compare with nexus is : %s",
+                appName, version, sb.toString()));
         return sb.toString().replaceAll(",$", "");
     }
 
@@ -734,18 +747,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throws InterfaceCallException, LJPaasException, NexusException, IOException
     {
         Date now = new Date();
-        DomainPo newDomain = new DomainPo();
-        newDomain.setComment("");
-        newDomain.setDomainId(planInfo.getDomainId());
-        newDomain.setPlatformId(platform.getPlatformId());
-        newDomain.setStatus(1);
-        newDomain.setUpdateTime(now);
-        newDomain.setCreateTime(now);
-        newDomain.setDomainName(planInfo.getDomainName());
-        newDomain.setType(planInfo.getBkSetName());
-        newDomain.setMaxOccurs(planInfo.getMaxOccurs());
-        newDomain.setOccurs(planInfo.getOccurs());
-        newDomain.setTags(planInfo.getTags());
+        DomainPo newDomain = new DomainPo(planInfo.getDomainId(), planInfo.getDomainName(), platform.getPlatformId(),
+                DomainStatus.RUNNING, "create by domain add plan", planInfo.getBkSetName(),
+                planInfo.getOccurs(), planInfo.getMaxOccurs(), planInfo.getTags());
+//        newDomain.setComment("");
+//        newDomain.setDomainId(planInfo.getDomainId());
+//        newDomain.setPlatformId(platform.getPlatformId());
+//        newDomain.setStatus(1);
+//        newDomain.setUpdateTime(now);
+//        newDomain.setCreateTime(now);
+//        newDomain.setDomainName(planInfo.getDomainName());
+//        newDomain.setType(planInfo.getBkSetName());
+//        newDomain.setMaxOccurs(planInfo.getMaxOccurs());
+//        newDomain.setOccurs(planInfo.getOccurs());
+//        newDomain.setTags(planInfo.getTags());
         this.domainMapper.insert(newDomain);
         deployAppsToDomainHost(newDomain, setId, bkSet, bkHostList, domainApps, appList);
     }
@@ -2154,7 +2169,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("%s's version %s has been registered", appModule.getAppName(), appModule.getVersion()));
             throw new ParamException(String.format("%s's version %s has been registered", appModule.getAppName(), appModule.getVersion()));
         }
-        String directory = appModule.getAppModuleNexusDirectory();
+        String directory = appModule.getAppNexusDirectory();
         String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
         List<DeployFileInfo> fileList = new ArrayList<>();
         String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
@@ -2259,7 +2274,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("%s version %s has not registered", appModule.getAppName(), appModule.getVersion()));
             throw new ParamException(String.format("%s version %s has not registered", appModule.getAppName(), appModule.getVersion()));
         }
-        String directory = appModule.getAppModuleNexusDirectory();
+        String directory = appModule.getAppNexusDirectory();
         String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
         List<DeployFileInfo> fileList = new ArrayList<>();
         String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
@@ -3367,17 +3382,18 @@ public class AppManagerServiceImpl implements IAppManagerService {
         schema.setDomainUpdatePlanList(new ArrayList<>(planMap.values()));
         List<BizSetDefine> setDefineList = paasService.queryCCODBizSet(false);
         makeupPlatformUpdateSchema(schema, new ArrayList<>(), new ArrayList<>(), setDefineList);
-        platform = new PlatformPo();
-        platform.setCcodVersion(clonedPlatform.getCcodVersion());
-        platform.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
-        platform.setBkBizId(bkBizId);
-        platform.setPlatformName(platformName);
-        platform.setPlatformId(platformId);
-        platform.setComment(String.format("create %s(%s) by clone %s(%s)", platformName, platformId, clonedPlatformId, clonedPlatform.getPlatformName()));
-        Date now = new Date();
-        platform.setCreateTime(now);
-        platform.setBkCloudId(bkCloudId);
-        platform.setUpdateTime(now);
+        platform = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
+                clonedPlatform.getCcodVersion(), String.format("create %s(%s) by clone %s(%s)", platformName, platformId, clonedPlatformId, clonedPlatform.getPlatformName()));
+//        platform.setCcodVersion(clonedPlatform.getCcodVersion());
+//        platform.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
+//        platform.setBkBizId(bkBizId);
+//        platform.setPlatformName(platformName);
+//        platform.setPlatformId(platformId);
+//        platform.setComment(String.format("create %s(%s) by clone %s(%s)", platformName, platformId, clonedPlatformId, clonedPlatform.getPlatformName()));
+//        Date now = new Date();
+//        platform.setCreateTime(now);
+//        platform.setBkCloudId(bkCloudId);
+//        platform.setUpdateTime(now);
         platformMapper.insert(platform);
         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
         schemaPo.setPlatformId(platformId);

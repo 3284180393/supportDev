@@ -45,7 +45,7 @@ cmdb:
   server-name: support_dev_cmdb_server3
   share-secret: ae12139afadabde12345r
   app-collect:
-    receipt-timeout: 500000
+    receipt-timeout: 10000
     collect-data-timeout: 28800000
     transfer-file-timeout: 28800000
     start-data-collect-instruction: START_APP_DATA_COLLECT

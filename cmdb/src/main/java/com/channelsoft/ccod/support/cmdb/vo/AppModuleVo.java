@@ -55,6 +55,7 @@ public class AppModuleVo {
     {
         this.appId = app.getAppId();
         this.appType = AppType.getEnum(app.getAppType());
+        this.appName = app.getAppName();
         this.appAlias = app.getAppAlias();
         this.version = app.getVersion();
         this.ccodVersion = app.getCcodVersion();
@@ -189,12 +190,18 @@ public class AppModuleVo {
         this.comment = comment;
     }
 
-    public String getAppModuleNexusDirectory() {
+    public String getAppNexusDirectory() {
         String directory = String.format("%s/%s/%s", this.appName, this.appAlias, this.version);
         return directory;
     }
 
-    public String getAppModuleNexusGroup() {
+    public String getAppNexusUploadUrl(String nexusHostUrl, String repository) {
+        String url = String.format("%s/service/rest/v1/components?repository=%s", nexusHostUrl, repository);
+        return url;
+    }
+
+    public String getAppNexusGroup()
+    {
         String group = String.format("/%s/%s/%s", this.appName, this.appAlias, this.version);
         return group;
     }

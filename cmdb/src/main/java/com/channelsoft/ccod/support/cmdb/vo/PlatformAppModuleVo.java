@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
+import com.channelsoft.ccod.support.cmdb.constant.DomainStatus;
 import com.channelsoft.ccod.support.cmdb.po.*;
 
 import java.util.ArrayList;
@@ -238,27 +240,29 @@ public class PlatformAppModuleVo {
 
     public PlatformPo getPlatform()
     {
-        PlatformPo po = new PlatformPo();
-        po.setCcodVersion(this.ccodVersion);
-        po.setComment("");
-        po.setCreateTime(this.checkTime);
-        po.setPlatformId(this.platformId);
-        po.setPlatformName(this.platformName);
-        po.setStatus(1);
-        po.setUpdateTime(new Date());
+        PlatformPo po = new PlatformPo(this.platformId, this.platformName, 0, 0,
+                CCODPlatformStatus.RUNNING, this.ccodVersion, "create by auto data collected");
+//        po.setCcodVersion(this.ccodVersion);
+//        po.setComment("");
+//        po.setCreateTime(this.checkTime);
+//        po.setPlatformId(this.platformId);
+//        po.setPlatformName(this.platformName);
+//        po.setStatus(1);
+//        po.setUpdateTime(new Date());
         return po;
     }
 
     public DomainPo getDomain()
     {
-        DomainPo po = new DomainPo();
-        po.setComment("");
-        po.setCreateTime(this.checkTime);
-        po.setDomainId(this.domainId);
-        po.setDomainName(this.domainName);
-        po.setPlatformId(platformId);
-        po.setStatus(1);
-        po.setUpdateTime(new Date());
+        DomainPo po = new DomainPo(this.domainId, this.domainName, this.platformId, DomainStatus.RUNNING,
+                "created from collected domain data", "未处理类型", 400, 600, "online");
+//        po.setComment("");
+//        po.setCreateTime(this.checkTime);
+//        po.setDomainId(this.domainId);
+//        po.setDomainName(this.domainName);
+//        po.setPlatformId(platformId);
+//        po.setStatus(1);
+//        po.setUpdateTime(new Date());
         return po;
     }
 

@@ -174,4 +174,10 @@ public class AppPo {
         String url = String.format("%s/service/rest/v1/components?repository=%s", nexusHostUrl, repository);
         return url;
     }
+
+    public String getAppNexusGroup()
+    {
+        String group = String.format("/%s/%s/%s", this.appName, this.appAlias, this.version);
+        return group;
+    }
 }
