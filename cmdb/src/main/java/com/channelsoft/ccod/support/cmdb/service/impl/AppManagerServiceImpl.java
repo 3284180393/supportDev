@@ -113,6 +113,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${ccod.domain-id-regex}")
     private String domainIdRegex;
 
+    @Value("${k8s.gls_oracle_svc_name}")
+    private String glsOracleSvcName;
+
+    @Value("${k8s.gls_oracle_sid}")
+    private String glsOracleSid;
+
     private String domainIdFmt = "%s%s";
 
     private String appAliasFmt = "%s%d";
@@ -1321,20 +1327,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
     public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException {
         logger.debug(String.format("begin to update platform update schema : %s", JSONObject.toJSONString(updateSchema)));
         Date now = new Date();
-        if(StringUtils.isBlank(updateSchema.getPlatformId()))
+        String schemaParamCheckResult = checkPlatformUpdateSchema(updateSchema);
+        if(StringUtils.isNotBlank(schemaParamCheckResult))
         {
-            logger.error(String.format("platformId of update schema is blank"));
-            throw new ParamException(String.format("platformId of update schema is blank"));
+            logger.error(String.format("platform update schema param check fail : %s", schemaParamCheckResult));
+            throw new ParamException(String.format("platform update schema param check fail : %s", schemaParamCheckResult));
         }
-        else if(StringUtils.isBlank(updateSchema.getPlatformName()))
+        if(!updateSchema.getGlsDBType().equals(DatabaseType.ORACLE))
         {
-            logger.error(String.format("platformName of update schema is blank"));
-            throw new ParamException(String.format("platformName of update schema is blank"));
-        }
-        else if(updateSchema.getBkBizId() <= 0)
-        {
-            logger.error(String.format("bkBizId of update schema is 0"));
-            throw new ParamException(String.format("not bkBizId of update schema"));
+            logger.error(String.format("this version cmdb not support glsserver with database %s", updateSchema.getGlsDBType().name));
+            throw new ParamException(String.format("this version cmdb not support glsserver with database %s", updateSchema.getGlsDBType().name));
         }
         LJBizInfo bkBiz = paasService.queryBizInfoById(updateSchema.getBkBizId());
         if(bkBiz == null)
@@ -1589,6 +1591,48 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.error(String.format("current version not support platform %s", updateSchema.getTaskType().name));
                 throw new ParamException(String.format("current version not support platform %s", updateSchema.getTaskType().name));
         }
+    }
+
+    private String checkPlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema)
+    {
+        StringBuffer sb = new StringBuffer();
+        if(StringUtils.isBlank(updateSchema.getPlatformId()))
+        {
+            sb.append("platformId of update schema is blank;");
+        }
+        if(StringUtils.isBlank(updateSchema.getPlatformName()))
+        {
+            sb.append("platformName of update schema is blank;");
+        }
+        if(updateSchema.getBkBizId() <= 0)
+        {
+            sb.append("bkBizId of update schema not define;");
+        }
+        if(StringUtils.isBlank(updateSchema.getK8sHostIp()))
+        {
+            sb.append("k8sHostIp of update schema is blank;");
+        }
+        if(updateSchema.getGlsDBType() == null)
+        {
+            sb.append("glsDBType of update schema is blank;");
+        }
+        if(StringUtils.isBlank(updateSchema.getGlsDBUser()))
+        {
+            sb.append("glsDbUser of update schema is blank;");
+        }
+        if(StringUtils.isBlank(updateSchema.getGlsDBPwd()))
+        {
+            sb.append("glsDBPwd of update schema is blank;");
+        }
+        if(StringUtils.isBlank(updateSchema.getBaseDataNexusRepository()))
+        {
+            sb.append("baseDataNexusRepository of update schema is blank;");
+        }
+        if(StringUtils.isBlank(updateSchema.getBaseDataNexusPath()))
+        {
+            sb.append("baseDataNexusPath of update schema is blank;");
+        }
+        return sb.toString().replaceAll(";$", "");
     }
 
 //    private DomainUpdatePlanInfo generateDomainUpdatePlan(DomainUpdateType updateType, UpdateStatus updateStatus, AppUpdateOperation operation, int domId, String domainName, String domainId, List<CCODModuleInfo> deployApps, List<AppPo> appList)
@@ -2369,6 +2413,18 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Override
     public PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
+        logger.debug(String.format("prepare to create new platform : %s", JSONObject.toJSONString(paramVo)));
+        String paramCheckResult = checkPlatformCreateParam(paramVo);
+        if(StringUtils.isNotBlank(paramCheckResult))
+        {
+            logger.error(String.format("check param of create platform fail : %s", paramCheckResult));
+            throw new ParamException(String.format("create platform fail : %s", paramCheckResult));
+        }
+        if(!paramVo.getGlsDBType().equals(DatabaseType.ORACLE))
+        {
+            logger.error(String.format("this version cmdb not support glsserver with database %s", paramVo.getGlsDBType().name));
+            throw new ParamException(String.format("this version cmdb not support glsserver with database %s", paramVo.getGlsDBType().name));
+        }
         PlatformUpdateSchemaInfo schemaInfo;
         if(paramVo.getCreateMethod() == PlatformCreateParamVo.MANUAL)
         {
@@ -2406,7 +2462,55 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         List<BizSetDefine> setDefineList = paasService.queryCCODBizSet(false);
         makeupPlatform4CreateSchema(schemaInfo, setDefineList);
+        schemaInfo.setK8sHostIp(paramVo.getK8sHostIp());
+        schemaInfo.setGlsDBType(paramVo.getGlsDBType());
+        schemaInfo.setGlsDBUser(paramVo.getGlsDBUser());
+        schemaInfo.setGlsDBPwd(paramVo.getGlsDBPwd());
+        schemaInfo.setBaseDataNexusPath(paramVo.getBaseDataNexusPath());
+        schemaInfo.setBaseDataNexusRepository(paramVo.getBaseDataNexusRepository());
         return schemaInfo;
+    }
+
+    private String checkPlatformCreateParam(PlatformCreateParamVo param)
+    {
+        StringBuffer sb = new StringBuffer();
+        if(StringUtils.isBlank(param.getPlatformId()))
+        {
+            sb.append("platformId is blank;");
+        }
+        if(StringUtils.isBlank(param.getPlatformName()))
+        {
+            sb.append("platformName is blank;");
+        }
+        if(param.getBkBizId() == 0)
+        {
+            sb.append("bizId of platform not define;");
+        }
+        if(StringUtils.isBlank(param.getK8sHostIp()))
+        {
+            sb.append("k8sHostIp is blank;");
+        }
+        if(param.getGlsDBType() == null)
+        {
+            sb.append("glsDBType is blank;");
+        }
+        if(StringUtils.isBlank(param.getGlsDBUser()))
+        {
+            sb.append("glsDBPwd is blank;");
+        }
+        if(StringUtils.isBlank(param.getGlsDBPwd()))
+        {
+            sb.append("glsDBPwd is blank");
+        }
+        if(StringUtils.isBlank(param.getBaseDataNexusRepository()))
+        {
+            sb.append("baseDataNexusRepository is blank;");
+        }
+        if(StringUtils.isBlank(param.getBaseDataNexusPath()))
+        {
+            sb.append("baseDataNexusPath is blank;");
+        }
+        return sb.toString().replaceAll(";$", "");
     }
 
     @Override
@@ -3280,8 +3384,19 @@ public class AppManagerServiceImpl implements IAppManagerService {
         return index;
     }
 
-    @Override
-    public PlatformUpdateSchemaInfo cloneExistPlatform(String clonedPlatformId, String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
+    /**
+     * 从已有的平台创建一个新的平台
+     * @param clonedPlatformId 被克隆的平台id
+     * @param platformId 平台id
+     * @param platformName 平台名
+     * @param bkBizId 平台在蓝鲸paas的biz id
+     * @param bkCloudId 平台服务器所在的机房id
+     * @return 创建的平台
+     * @throws ParamException 计划的参数异常
+     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
+     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
+     */
+    private PlatformUpdateSchemaInfo cloneExistPlatform(String clonedPlatformId, String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
         logger.debug(String.format("begin to clone platform from %s with platformId=%s, platformName=%s, bkBizId=%s and bkCloudId=%s",
                 clonedPlatformId, platformId, platformName, bkBizId, bkCloudId));
         PlatformPo clonedPlatform = platformMapper.selectByPrimaryKey(clonedPlatformId);
@@ -3596,6 +3711,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
         params.put("nexus_image_repository_url", this.nexusDockerUrl);
         params.put("cmdb_host_url", this.cmdbUrl);
         params.put("k8s_deploy_git_url", this.k8sDeployGitUrl);
+        params.put("k8s_host_ip", schemaInfo.getK8sHostIp());
+        params.put("gls_db_type", schemaInfo.getGlsDBType().name);
+        params.put("gls_db_user", schemaInfo.getGlsDBUser());
+        params.put("gls_db_pwd", schemaInfo.getGlsDBPwd());
+        params.put("gls_db_sid", this.glsOracleSid);
+        if(schemaInfo.getGlsDBType().equals(DatabaseType.ORACLE))
+        {
+            params.put("gls_db_svc_name", this.glsOracleSvcName);
+        }
+        params.put("platform_id", schemaInfo.getPlatformId());
         params.put("update_schema", schemaInfo);
         Resource resource = new ClassPathResource(this.platformDeployScriptFileName);
         InputStreamReader isr = new InputStreamReader(resource.getInputStream(), "UTF-8");

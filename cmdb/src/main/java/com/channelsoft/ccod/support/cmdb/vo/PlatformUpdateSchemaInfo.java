@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.constant.DatabaseType;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformUpdateTaskType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 
@@ -49,6 +50,18 @@ public class PlatformUpdateSchemaInfo {
     private String deployScriptPath; //平台升级计划部署脚本的path
 
     private String deployScriptMd5;  //平台升级计划的md5
+
+    private String k8sHostIp; //运行平台的k8s主机ip
+
+    private DatabaseType glsDBType; //ccod平台glsserver的数据库类型
+
+    private String glsDBUser; //gls数据库的db用户
+
+    private String glsDBPwd; //gls数据库的登录密码
+
+    private String baseDataNexusRepository; //基础数据在nexus的存放仓库
+
+    private String baseDataNexusPath; //基础数据在nexus的存放path
 
     public PlatformUpdateSchemaInfo()
     {
@@ -209,5 +222,53 @@ public class PlatformUpdateSchemaInfo {
 
     public void setDeployScriptMd5(String deployScriptMd5) {
         this.deployScriptMd5 = deployScriptMd5;
+    }
+
+    public DatabaseType getGlsDBType() {
+        return glsDBType;
+    }
+
+    public void setGlsDBType(DatabaseType glsDBType) {
+        this.glsDBType = glsDBType;
+    }
+
+    public String getGlsDBUser() {
+        return glsDBUser;
+    }
+
+    public void setGlsDBUser(String glsDBUser) {
+        this.glsDBUser = glsDBUser;
+    }
+
+    public String getGlsDBPwd() {
+        return glsDBPwd;
+    }
+
+    public void setGlsDBPwd(String glsDBPwd) {
+        this.glsDBPwd = glsDBPwd;
+    }
+
+    public String getBaseDataNexusRepository() {
+        return baseDataNexusRepository;
+    }
+
+    public void setBaseDataNexusRepository(String baseDataNexusRepository) {
+        this.baseDataNexusRepository = baseDataNexusRepository;
+    }
+
+    public String getBaseDataNexusPath() {
+        return baseDataNexusPath;
+    }
+
+    public void setBaseDataNexusPath(String baseDataNexusPath) {
+        this.baseDataNexusPath = baseDataNexusPath;
+    }
+
+    public String getK8sHostIp() {
+        return k8sHostIp;
+    }
+
+    public void setK8sHostIp(String k8sHostIp) {
+        this.k8sHostIp = k8sHostIp;
     }
 }

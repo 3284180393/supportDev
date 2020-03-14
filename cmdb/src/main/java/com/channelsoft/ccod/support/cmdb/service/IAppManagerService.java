@@ -236,20 +236,6 @@ public interface IAppManagerService {
     void deletePlatform(String platformId) throws ParamException;
 
     /**
-     * 从已有的平台创建一个新的平台
-     * @param clonedPlatformId 被克隆的平台id
-     * @param platformId 平台id
-     * @param platformName 平台名
-     * @param bkBizId 平台在蓝鲸paas的biz id
-     * @param bkCloudId 平台服务器所在的机房id
-     * @return 创建的平台
-     * @throws ParamException 计划的参数异常
-     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
-     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
-     */
-    PlatformUpdateSchemaInfo cloneExistPlatform(String clonedPlatformId, String platformId, String platformName, int bkBizId, int bkCloudId) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
-
-    /**
      * 克隆指定的域
      * @param platformId 被克隆的域所属的平台
      * @param clonedDomainId 被克隆的域id

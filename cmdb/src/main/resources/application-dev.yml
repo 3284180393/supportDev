@@ -194,6 +194,11 @@ lj-paas:
         - DialEngine
         - UCGateway
 
+k8s:
+  gls_oracle_svc_name: oracle
+  gls_oracle_sid: xe
+
+
 windows: false
 
 debug: false
