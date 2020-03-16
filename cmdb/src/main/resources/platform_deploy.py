@@ -26,7 +26,7 @@ image_repository = platform_deploy_params['image_repository']
 nexus_host_url = platform_deploy_params['nexus_host_url']
 nexus_user = platform_deploy_params['nexus_user']
 nexus_user_pwd = platform_deploy_params['nexus_user_pwd']
-cfg_repository = platform_deploy_params['cfg_repository']
+# cfg_repository = platform_deploy_params['cfg_repository']
 nexus_image_repository_url = platform_deploy_params['nexus_image_repository_url']
 cmdb_host_url = platform_deploy_params['cmdb_host_url']
 upload_url = "%s/service/rest/v1/components?repository=%s" % (nexus_host_url, app_repository)
@@ -38,9 +38,9 @@ platform_deploy_schema = platform_deploy_params['update_schema']
 ccod_apps = """dcms##dcms##11110##dcms.war##war"""
 make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
 k8s_host_ip = platform_deploy_params['k8s_host_ip']
-gls_db_type = platform_deploy_params['k8s_host_ip']
-gls_db_user = platform_deploy_params['k8s_host_ip']
-gls_db_pwd = platform_deploy_params['k8s_host_ip']
+gls_db_type = platform_deploy_params['gls_db_type']
+gls_db_user = platform_deploy_params['gls_db_user']
+gls_db_pwd = platform_deploy_params['gls_db_pwd']
 gls_db_sid = platform_deploy_params['gls_db_sid']
 gls_db_svc_name = platform_deploy_params['gls_db_svc_name']
 platform_id = platform_deploy_params['platform_id']
@@ -50,13 +50,20 @@ gls_service_unit_table = 'GLS_SERVICE_UNIT'
 ucds_start_timeout = 30
 
 
-
 class OracleUtils(object):
 
     def __init__(self, user, pwd, ip, port, sid):
         conn_str = "%s/%s@%s:%d/%s" % (user, pwd, ip, port, sid)
-        self.connect = cx_Oracle.connect(conn_str)
-        self.cursor = self.connect.cursor()
+        logging.debug('oracle con_str : %s' % conn_str)
+        try:
+            self.connect = cx_Oracle.connect(conn_str)
+            self.cursor = self.connect.cursor()
+        except Exception as e:
+            logging.error('create %s conn exception, 30s later try again : %s' % (conn_str, e.args[0]))
+            time.sleep(30)
+            self.connect = cx_Oracle.connect(conn_str)
+            self.cursor = self.connect.cursor()
+        logging.debug('oracle conn create success')
 
     """处理数据二维数组，转换为json数据返回"""
     def select(self, sql):
@@ -89,11 +96,14 @@ class OracleUtils(object):
             self.disconnect()
 
     def update(self, sql):
+        logging.debug('prepare to execute update sql : %s' % sql)
         try:
             self.cursor.execute(sql)
             self.connect.commit()
+            logging.debug('update success')
         except Exception as e:
-            print(e)
+            logging.error('update fail : %s' % e.args[0])
+            raise e
         finally:
             self.disconnect()
 
@@ -116,8 +126,8 @@ def __get_image_query_url(app_name, version):
     return  "%s/v2/%s/%s/tags/list" % (nexus_image_repository_url, app_name, version)
 
 
-def __get_app_cfg_download_uri(platform_id, domain_id, app_alias, file_name):
-    return '%s/repository/%s/configText/%s/%s_%s/%s' % (nexus_host_url, cfg_repository, platform_id, domain_id, app_alias, file_name)
+# def __get_app_cfg_download_uri(platform_id, domain_id, app_alias, file_name):
+#     return '%s/repository/%s/configText/%s/%s_%s/%s' % (nexus_host_url, cfg_repository, platform_id, domain_id, app_alias, file_name)
 
 
 def query_app_module(app_name, version):
@@ -133,15 +143,17 @@ def query_app_module(app_name, version):
     return app_module
 
 
-def get_app_cfg_params_for_k8s(platform_id, domain_id, alias, cfgs):
+def get_app_cfg_params_for_k8s(cfgs):
     cfg_params = ""
     for cfg in cfgs:
         cfg_deploy_path = re.sub('^.*WEB-INF/', 'WEB-INF/', cfg['deployPath'])
         cfg_deploy_path = re.sub('/$', '', cfg_deploy_path)
         cfg_file_name = re.sub('\\.', '\\\\\\.', cfg['fileName'])
         cfg_params = '%s --set config.%s=%s' % (cfg_params, cfg_file_name, cfg_deploy_path)
-    cfg_uri = '%s/repository/%s/configText/%s/%s_%s' % (
-        nexus_host_url, cfg_repository, platform_id, domain_id, alias)
+        cfg_repository = cfg['nexusRepository']
+        cfg_directory = cfg['nexusDirectory']
+    cfg_uri = '%s/repository/%s/%s' % (
+        nexus_host_url, cfg_repository, cfg_directory)
     return '%s --set runtime.configPath=%s' % (cfg_params, cfg_uri)
 
 
@@ -153,7 +165,7 @@ def get_add_app_helm_command(platform_id, domain_id, app_name, app_type, version
             app_work_path = 'cd %s;cd payaml/tomcat6-jre7/' % work_dir
         else:
             app_work_path = 'cd %s;cd payaml/resin-4.0.13_jre-1.6.0_21/' % work_dir
-    cfg_params_for_k8s = get_app_cfg_params_for_k8s(platform_id, domain_id, alias, cfgs)
+    cfg_params_for_k8s = get_app_cfg_params_for_k8s(cfgs)
     exec_command = '%s;/usr/local/bin/helm install --set module.vsersion=%s --set module.name=%s --set module.alias=%s-%s %s %s-%s . -n %s' % (
         app_work_path, version, app_name, alias, domain_id,  cfg_params_for_k8s, alias.lower(), domain_id.lower(), platform_id.lower()
     )
@@ -277,6 +289,18 @@ def nexus_app_image_exist_query(app_name, version):
     return False
 
 
+def nexus_asset_query(asset_id):
+    url = "%s/service/rest/v1/assets/%s" % (nexus_host_url, asset_id)
+    a = HTTPBasicAuth(nexus_user, nexus_user_pwd)
+    response = requests.get(url=url, auth=a)
+    if response.status_code != 200:
+        logging.error('query %s fail : error_code=%d' % (url, response.status_code))
+        raise Exception('error code %d' % response.status_code)
+    logging.debug(response.text)
+    data = json.loads(response.text)
+    return data
+
+
 def nexus_group_query(repository, group):
     url = "%s/service/rest/v1/search?repository=%s&group=%s" % (nexus_host_url, repository, group)
     # url = "%s/service/rest/v1/search?repository=%s&group=%s" % (nexus_host_url, 'ccod_modules', '/dcproxy/dcproxy/195:21857')
@@ -293,29 +317,6 @@ def nexus_group_query(repository, group):
     else:
         pass
     return items
-
-
-def check_app_and_cfg_file(platform_id, domain_id, app_name, app_alias, version):
-    check_result = ""
-    app_module = query_app_module(app_name, version)
-    if not app_module:
-        check_result = '%s with version %s not found' % (app_name, version)
-    else:
-        group = '/configText/%s/%s_%s' % (platform_id, domain_id, app_alias)
-        items = nexus_group_query(cfg_repository, group)
-        upload_cfgs = dict()
-        for item in items:
-            upload_file_name = item['name'].split('/')[-1]
-            upload_cfgs[upload_file_name] = item
-        for cfg in app_module['cfgs']:
-            if cfg['fileName'] not in upload_cfgs.keys():
-                check_result = '%s%s,' % (check_result, cfg['fileName'])
-        if check_result:
-            check_result = re.sub(',$', '', check_result)
-            check_result = 'cfg %s of %s/%s/%s not found' % (check_result, platform_id, domain_id, app_alias)
-        else:
-            check_result = None
-    return check_result
 
 
 def download_file_from_nexus(file_download_url, save_path):
@@ -467,14 +468,6 @@ def generate_image_for_ccod_apps(base_path):
             create_succ = True
         except Exception as e:
             logging.error('create image for %s version %s exception' % (ccod_app['app_name'], ccod_app['version']), exc_info=True)
-        # if create_succ and ccod_app['package_type'] == 'binary':
-        #     try:
-        #         test_image(image_uri)
-        #     except Exception as e:
-        #         logging.error('test image for %s version %s exception, image_uri=%s' % (ccod_app['app_name'], ccod_app['version'], image_uri), exc_info=True)
-        #     else:
-        #         pass
-        # remove_generate_image(ccod_app['app_name'], ccod_app['version'])
     return app_list
 
 
@@ -500,7 +493,7 @@ def delete_exist_platform(platform_id):
     logging.debug('%s deleted' % platform_id)
 
 
-def create_new_platform(platform_id, work_dir):
+def create_new_platform(work_dir):
     logging.debug('create platform %s' % platform_id)
     exec_command = 'kubectl create namespace %s' % platform_id
     exec_result = __run_shell_command(exec_command, None)
@@ -523,6 +516,7 @@ def create_new_platform(platform_id, work_dir):
     exec_result = __run_shell_command(exec_command, None)
     print(exec_result)
 
+
 def create_ccod_platform(platform_id, work_dir):
     if check_platform_exist(platform_id):
         logging.debug('%s exist, so delete %s and recreate ' % (platform_id, platform_id))
@@ -538,10 +532,7 @@ def create_ccod_platform(platform_id, work_dir):
     print(exec_result)
     logging.debug('create base service for %s' % platform_id)
     print('create base service for %s' % platform_id)
-    # db_param = '--set oracle.ccod.ip=10.130.41.12 --set oracle.ccod.port=1521 --set oracle.ccod.sid=ccdev --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.ip=10.130.41.12 --set mysql.ccod.port=3306 --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
-    # exec_command = 'cd %s;cd payaml/baseService;helm install %s -n %s baseservice .' % (work_dir, db_param, platform_id)
     db_param = '--set oracle.ccod.name=oracle --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
-    # exec_command = 'cd %s;cd payaml/baseService;helm install -n %s baseservice .' % (work_dir, platform_id)
     exec_command = 'cd %s;cd payaml/baseService;/usr/local/bin/helm install %s -n %s baseservice .' % (work_dir, db_param, platform_id)
     exec_result = __run_shell_command(exec_command, None)
     print(exec_result)
@@ -555,28 +546,6 @@ def create_ccod_platform(platform_id, work_dir):
     exec_command = 'cd %s;kubectl apply -f ssl.yaml' % work_dir
     exec_result = __run_shell_command(exec_command, None)
     print(exec_result)
-
-
-def check_platform_create_schema(schema):
-    platform_id = schema['platformId'].lower()
-    check_result = ""
-    for domain_plan in schema['domainUpdatePlanList']:
-        domain_id = domain_plan['domainId']
-        for deploy_app in domain_plan['appUpdateOperationList']:
-            app_name = deploy_app['appName']
-            app_alias = deploy_app['appAlias']
-            version = deploy_app['targetVersion']
-            if not app_image_exist_check(app_name, version):
-                check_result = '%s image for %s version %s not exist;' % (check_result, app_name, version)
-            app_check_result = check_app_and_cfg_file(platform_id, domain_id, app_name, app_alias, version)
-            if app_check_result is not None:
-                check_result = '%s%s;\n' % (check_result, app_check_result)
-    if check_result:
-        logging.error('schema check fail : %s' % check_result)
-    else:
-        logging.debug('schema check success')
-        check_result = None
-    return check_result
 
 
 def get_md5_value(input_str):
@@ -619,9 +588,50 @@ def exec_platform_create_schema(schema):
                 print('sleep end')
 
 
-def add_app_module_to_k8s(platform_id, domain_id, app_module, alias, work_dir):
+def check_app_install_package_and_cfg(app_module, cfgs):
     app_name = app_module['appName']
     version = app_module['version']
+    logging.debug('begin to check %s[%s] install package' % (app_name, version))
+    try:
+        check_nexus_app_file(app_module['installPackage'])
+    except Exception as e:
+        logging.error('check install package of %s[%s] fail : %s' % (app_name, version, e.args[0]))
+        raise Exception('check install package of %s[%s] fail : %s' % (app_name, version, e.args[0]))
+    logging.debug('check %s[%s] install package success' % (app_name, version))
+    logging.debug('begin to check %s[%s] cfg' % (app_name, version))
+    cfg_dict = {}
+    for cfg in app_module['cfgs']:
+        cfg_dict[cfg['fileName']] = cfg
+    if len(cfg_dict) != len(cfgs):
+        logging.error('check cfg of %s[%s] fail : wanted %d cfg but %d' %(app_name, version, len(cfg_dict), len(cfgs)))
+        raise Exception('check cfg of %s[%s] fail : wanted %d cfg but %d' %(app_name, version, len(cfg_dict), len(cfgs)))
+    for cfg in cfgs:
+        try:
+            check_nexus_app_file(cfg)
+            pass
+        except Exception as e:
+            logging.error('check cfg of %s[%s] fail : %s' % (app_name, version, e.args[0]))
+            raise Exception('check cfg of %s[%s] fail : %s' % (app_name, version, e.args[0]))
+    logging.debug('check %s[%s] cfg success' % (app_name, version))
+
+
+def check_nexus_app_file(app_file):
+    data = nexus_asset_query(app_file['nexusAssetId'])
+    file_name = data['path'].split('/')[-1]
+    if file_name != app_file['fileName']:
+        logging.error('want file name is %s but nexus is %s'
+                      % (app_file['fileName'], file_name))
+        raise Exception('want file name is %s but nexus is %s'
+                        % (app_file['fileName'], file_name))
+    if app_file['md5'] != data['checksum']['md5']:
+        logging.error('want %s md5 is %s but nexus is %s' % (file_name, app_file['md5'], data['checksum']['md5']))
+        raise Exception('want %s md5 is %s but nexus is %s' % (file_name, app_file['md5'], data['checksum']['md5']))
+
+
+def add_app_module_to_k8s(domain_id, app_module, alias, cfgs, work_dir):
+    app_name = app_module['appName']
+    version = app_module['version']
+    check_app_install_package_and_cfg(app_module, cfgs)
     image_exist = app_image_exist_check(app_name, version)
     if not image_exist:
         app_dir = '%s/%s/%s' % (work_dir, app_name, version)
@@ -656,7 +666,6 @@ def delete_app_module_from_k8s(platform_id, domain_id, app_name, version, alias)
 def generate_platform_deploy_operation(work_dir):
     del_list = list()
     add_list = list()
-    platform_id = platform_deploy_schema['platformId']
     for update_plan in platform_deploy_schema['domainUpdatePlanList']:
         domain_id = update_plan['domainId']
         for app_opt in update_plan['appUpdateOperationList']:
@@ -666,7 +675,10 @@ def generate_platform_deploy_operation(work_dir):
             if op == 'ADD' or op == 'START':
                 version = app_opt['targetVersion']
                 app_module = query_app_module(app_name, version)
-                opt = add_app_module_to_k8s(platform_id, domain_id, app_module, alias, work_dir)
+                if not app_module:
+                    logging.error('version %s of %s not exist' % (version, app_name))
+                    raise Exception('version %s of %s not exist' % (version, app_name))
+                opt = add_app_module_to_k8s(domain_id, app_module, alias, app_opt['cfgs'], work_dir)
                 opt['delay'] = app_opt['addDelay']
                 add_list.append(opt)
             elif op == 'DELETE' or op == 'STOP':
@@ -676,6 +688,9 @@ def generate_platform_deploy_operation(work_dir):
                 del_list.append(opt)
             elif op == 'VERSION_UPDATE' or op == 'CFG_UPDATE':
                 version = app_opt['originalVersion']
+                if not app_module:
+                    logging.error('version %s of %s not exist' % (version, app_name))
+                    raise Exception('version %s of %s not exist' % (version, app_name))
                 opt = delete_app_module_from_k8s(platform_id, domain_id, app_name, version, alias, work_dir)
                 del_list.append(opt)
                 version = app_opt['targetVersion']
@@ -778,7 +793,7 @@ def deloy_platform():
     if platform_deploy_schema['taskType'] == 'CREATE':
         if check_platform_exist(platform_id):
             delete_exist_platform(platform_id)
-        create_new_platform(platform_id, work_dir)
+        create_new_platform(work_dir)
     else:
         if not check_platform_exist(platform_id):
             logging.error('%s not existed %s fail' % (platform_id, platform_deploy_schema['taskType']))
@@ -830,7 +845,7 @@ def update_ucds_node_port(ucds_alias, domain_id):
         logging.error('%s start timeout : use time %d', ucds_svc_name, time_usage)
         raise Exception('%s start timeout : use time %d', ucds_svc_name, time_usage)
     logging.info('node port of %s is %d, use time %d' % (ucds_svc_name, ucds_node_port, time_usage))
-    update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s-%s';""" \
+    update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s-%s'""" \
                  % (gls_db_name, gls_service_unit_table, ucds_node_port, ucds_alias, domain_id)
     logging.info('update ucds sql=%s' % update_sql)
     oracle = OracleUtils(gls_db_user, gls_db_pwd, k8s_host_ip, db_port, gls_db_sid)
@@ -873,6 +888,11 @@ def restart_gls_server():
 
 
 if __name__ == '__main__':
-    logging.debug('now begin to deploy app')
-    deloy_platform()
-    logging.info('app deploy finish')
+    try:
+        logging.debug('now begin to deploy app')
+        deloy_platform()
+        logging.info('app deploy finish')
+    except Exception as e:
+        print('deploy app exception:%s' % e.args[0])
+        logging.error('deploy app exception:%s' % e, exc_info=True)
+
