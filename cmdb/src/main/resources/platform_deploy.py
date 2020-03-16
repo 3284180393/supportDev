@@ -11,6 +11,7 @@ import os
 import json
 import requests
 from requests.auth import HTTPBasicAuth
+import cx_Oracle
 
 
 import sys
@@ -36,6 +37,75 @@ app_image_query_url = "http://%s/v2/%s/%%s/tags/list" % (nexus_image_repository_
 platform_deploy_schema = platform_deploy_params['update_schema']
 ccod_apps = """dcms##dcms##11110##dcms.war##war"""
 make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
+k8s_host_ip = platform_deploy_params['k8s_host_ip']
+gls_db_type = platform_deploy_params['k8s_host_ip']
+gls_db_user = platform_deploy_params['k8s_host_ip']
+gls_db_pwd = platform_deploy_params['k8s_host_ip']
+gls_db_sid = platform_deploy_params['gls_db_sid']
+gls_db_svc_name = platform_deploy_params['gls_db_svc_name']
+platform_id = platform_deploy_params['platform_id']
+gls_stand_alias = 'glsserver'
+gls_db_name = 'CCOD'
+gls_service_unit_table = 'GLS_SERVICE_UNIT'
+ucds_start_timeout = 30
+
+
+
+class OracleUtils(object):
+
+    def __init__(self, user, pwd, ip, port, sid):
+        conn_str = "%s/%s@%s:%d/%s" % (user, pwd, ip, port, sid)
+        self.connect = cx_Oracle.connect(conn_str)
+        self.cursor = self.connect.cursor()
+
+    """处理数据二维数组，转换为json数据返回"""
+    def select(self, sql):
+        lst = []
+        self.cursor.execute(sql)
+        result = self.cursor.fetchall()
+        col_name = self.cursor.description
+        for row in result:
+            dt = {}
+            for col in range(len(col_name)):
+                key = col_name[col][0]
+                value = row[col]
+                dt[key] = value
+            lst.append(dt)
+        js = json.dumps(lst, ensure_ascii=False, indent=2, separators=(',', ':'))
+        return js
+
+    def disconnect(self):
+        self.cursor.close()
+        self.connect.close()
+
+    def insert(self, sql, list_param):
+        try:
+            self.cursor.executemany(sql,list_param)
+            self.connect.commit()
+            print("插入ok")
+        except Exception as e:
+            print(e)
+        finally:
+            self.disconnect()
+
+    def update(self, sql):
+        try:
+            self.cursor.execute(sql)
+            self.connect.commit()
+        except Exception as e:
+            print(e)
+        finally:
+            self.disconnect()
+
+    def delete(self, sql):
+        try:
+            self.cursor.execute(sql)
+            self.connect.commit()
+            print("delete ok")
+        except Exception as e:
+            print(e)
+        finally:
+            self.disconnect()
 
 
 def __get_app_query_url(app_name, version):
@@ -726,6 +796,80 @@ def deloy_platform():
         print(exec_result)
         if opt['delay'] > 0:
             time.sleep(opt['delay'])
+        if opt['app_name'] == 'UCDServer':
+            logging.debug('%s is UCDServer, so need update node port at glsserver' % opt['alias'])
+            update_ucds_node_port(opt['alias'], opt['domain_id'])
+            logging.debug('UCDServer node port has been update so restart glsserver first')
+            restart_gls_server()
+            time.sleep(30)
+
+
+def get_svc_node_port(service_name):
+    exec_command = "kubectl get svc -n %s | grep %s | awk '{print $5}' | awk -F ':' '{print $2}' | awk -F '/' '{print $1}'" % (platform_id, service_name)
+    exec_result = __run_shell_command(exec_command, None)
+    node_port = None
+    if exec_result and exec_result.isdigit():
+        node_port = int(exec_result)
+    logging.info('port of %s''s %s is %s' % (platform_id, service_name, node_port))
+    return node_port
+
+
+def update_ucds_node_port(ucds_alias, domain_id):
+    db_port = get_svc_node_port(gls_db_svc_name)
+    if not db_port or db_port == 0:
+        logging.error('get glsserver oracle database port fail:svn_name=%s' % gls_db_svc_name)
+        raise Exception('get glsserver oracle database port fail:svn_name=%s' % gls_db_svc_name)
+    ucds_svc_name = '%s-%s-out' % (ucds_alias, domain_id)
+    time_usage = 0
+    ucds_node_port = None
+    while not ucds_node_port and ucds_start_timeout > time_usage:
+        time.sleep(3)
+        time_usage += 3
+        ucds_node_port = get_svc_node_port(ucds_svc_name)
+    if not ucds_node_port:
+        logging.error('%s start timeout : use time %d', ucds_svc_name, time_usage)
+        raise Exception('%s start timeout : use time %d', ucds_svc_name, time_usage)
+    logging.info('node port of %s is %d, use time %d' % (ucds_svc_name, ucds_node_port, time_usage))
+    update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s-%s';""" \
+                 % (gls_db_name, gls_service_unit_table, ucds_node_port, ucds_alias, domain_id)
+    logging.info('update ucds sql=%s' % update_sql)
+    oracle = OracleUtils(gls_db_user, gls_db_pwd, k8s_host_ip, db_port, gls_db_sid)
+    oracle.update(update_sql)
+
+
+def restart_app(app_alias, domain_id):
+    logging.debug('begin to restart %s at %s' % (app_alias, domain_id))
+    exec_command = """kubectl get pod -n %s | grep -E '^%s-%s-' | awk '{print $1}'""" \
+                   % (platform_id, app_alias, domain_id)
+    exec_result = __run_shell_command(exec_command, None)
+    if not exec_result:
+        logging.error('not find %s at domain %s' % (app_alias, domain_id))
+        raise Exception('not find %s at domain %s' % (app_alias, domain_id))
+    if len(exec_result.split('\n')) > 1:
+        logging.error('%s at domain %s not unique : %s' % (app_alias, domain_id, exec_result))
+        raise Exception('%s at domain %s not unique : %s' % (app_alias, domain_id, exec_result))
+    print(exec_result)
+    exec_command = 'kubectl delete pod -n %s %s' % (platform_id, exec_result)
+    print(exec_command)
+    exec_result = __run_shell_command(exec_command, None)
+    print(exec_result)
+    logging.info('restart %s at %s success' % (app_alias, domain_id))
+
+
+def restart_gls_server():
+    exec_command = """kubectl get pod -n %s | grep -E '^%s-[a-z]+[0-9]+-' | awk '{print $1}'""" \
+                   % (platform_id, gls_stand_alias)
+    exec_result = __run_shell_command(exec_command)
+    if not exec_result:
+        logging.error('restart gls fail : can not find glsserver at platform %s' % platform_id)
+        raise Exception('restart gls fail : can not find glsserver at platform %s' % platform_id)
+    pod_name_list = exec_result.split('\n')
+    logging.debug('%s has %d glsserver : %s' % (platform_id, len(pod_name_list), exec_result))
+    for pod_name in pod_name_list:
+        alias = pod_name.split('-')[0]
+        domain_id = pod_name.split('-')[1]
+        logging.debug('prepare to restart glsserver %s at domain %s' % (alias, domain_id))
+        restart_app(alias, domain_id)
 
 
 if __name__ == '__main__':
