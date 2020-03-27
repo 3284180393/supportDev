@@ -358,7 +358,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                             reportDomainId, String.join(",", domainNameAppModuleMap.keySet())));
                 }
                 String reportDomainName = domainAppMap.get(reportDomainId).get(0).getDomainName();
-                if(domainMap.containsKey(reportDomainId) && domainMap.get(reportDomainId).getDomainName().equals(reportDomainName))
+                if(domainMap.containsKey(reportDomainId) && !domainMap.get(reportDomainId).getDomainName().equals(reportDomainName))
                 {
                     logger.error(String.format("domainId=%s is record in database, but its name=%s not %s",
                             reportDomainId, domainMap.get(reportDomainId).getDomainName(), reportDomainName));

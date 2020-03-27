@@ -130,7 +130,7 @@ public class AppFilePo {
 
     public String getNexusFileSavePath()
     {
-        String path = String.format("/%s/%s", this.nexusDirectory, this.getFileName());
+        String path = String.format("%s/%s", this.nexusDirectory, this.getFileName());
         return path;
     }
 }
