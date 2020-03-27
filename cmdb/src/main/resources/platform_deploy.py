@@ -12,6 +12,7 @@ import json
 import requests
 from requests.auth import HTTPBasicAuth
 import cx_Oracle
+import base64
 
 
 import sys
@@ -26,7 +27,6 @@ image_repository = platform_deploy_params['image_repository']
 nexus_host_url = platform_deploy_params['nexus_host_url']
 nexus_user = platform_deploy_params['nexus_user']
 nexus_user_pwd = platform_deploy_params['nexus_user_pwd']
-# cfg_repository = platform_deploy_params['cfg_repository']
 nexus_image_repository_url = platform_deploy_params['nexus_image_repository_url']
 cmdb_host_url = platform_deploy_params['cmdb_host_url']
 upload_url = "%s/service/rest/v1/components?repository=%s" % (nexus_host_url, app_repository)
@@ -44,6 +44,9 @@ gls_db_pwd = platform_deploy_params['gls_db_pwd']
 gls_db_sid = platform_deploy_params['gls_db_sid']
 gls_db_svc_name = platform_deploy_params['gls_db_svc_name']
 platform_id = platform_deploy_params['platform_id']
+base_data_nexus_repository = platform_deploy_schema['baseDataNexusRepository']
+base_data_zip_nexus_path = platform_deploy_schema['baseDataNexusPath']
+base_data_unzip_dir = '/home/kubernetes/volume/%s' % platform_id
 gls_stand_alias = 'glsserver'
 gls_db_name = 'CCOD'
 gls_service_unit_table = 'GLS_SERVICE_UNIT'
@@ -150,8 +153,11 @@ def get_app_cfg_params_for_k8s(cfgs):
         cfg_deploy_path = re.sub('/$', '', cfg_deploy_path)
         cfg_file_name = re.sub('\\.', '\\\\\\.', cfg['fileName'])
         cfg_params = '%s --set config.%s=%s' % (cfg_params, cfg_file_name, cfg_deploy_path)
-        cfg_repository = cfg['nexusRepository']
-        cfg_directory = cfg['nexusDirectory']
+    cfg_repository = cfgs[0]['nexusRepository']
+    str_info = re.compile('^/')
+    cfg_directory = str_info.sub('', cfgs[0]['nexusPath'])
+    str_info = re.compile('/[^/]+$')
+    cfg_directory = str_info.sub('', cfg_directory)
     cfg_uri = '%s/repository/%s/%s' % (
         nexus_host_url, cfg_repository, cfg_directory)
     return '%s --set runtime.configPath=%s' % (cfg_params, cfg_uri)
@@ -326,7 +332,8 @@ def download_file_from_nexus(file_download_url, save_path):
     logging.debug('download %s from %s and save as %s' % (file_name, file_download_url, save_path))
     try:
         req = urllib2.Request(file_download_url)
-        req.add_header("Authorization", "Basic YWRtaW46MTIzNDU2")
+        basic_auth = 'Basic %s' % (base64.b64encode('%s:%s' % (nexus_user, nexus_user_pwd)))
+        req.add_header("Authorization", basic_auth)
         f = urllib2.urlopen(req)
         data = f.read()
         with open(save_path, "w") as code:
@@ -339,6 +346,47 @@ def download_file_from_nexus(file_download_url, save_path):
         raise e
     else:
         pass
+
+
+def generate_platform_base_data():
+    logging.debug('begin to check data base dir %s' % base_data_unzip_dir)
+    if os.path.exists(base_data_unzip_dir) and not os.path.isdir(base_data_unzip_dir):
+        logging.error('%s exist and not directory' % base_data_unzip_dir)
+        raise Exception('%s exist and not directory' % base_data_unzip_dir)
+    elif os.path.exists(base_data_unzip_dir):
+        logging.debug('%s not empty, clean it first', base_data_unzip_dir)
+        del_file(base_data_unzip_dir)
+    else:
+        logging.debug('%s not exist, create it fist' % base_data_unzip_dir)
+        os.makedirs(base_data_unzip_dir)
+    file_name = base_data_zip_nexus_path.split('/')[-1]
+    arr = file_name.split('.')
+    if len(arr) == 1 or arr[-1] != 'zip':
+        logging.error('%s is not a legal base data zip package name' % file_name)
+        raise Exception('%s is not a legal base data zip package name' % file_name)
+    download_url = '%s/repository/%s/%s' % (nexus_host_url, base_data_nexus_repository, base_data_zip_nexus_path)
+    save_path = '%s/%s' % (base_data_unzip_dir, file_name)
+    logging.debug('begin to download base data zip package from %s to %s' % (download_url, save_path))
+    download_file_from_nexus(download_url, save_path)
+    logging.debug('base data zip package download finish')
+    logging.debug('begin to unzip base data zip package')
+    exec_command = 'cd %s;unzip %s' % (base_data_unzip_dir, file_name)
+    exec_result = __run_shell_command(exec_command, None)
+    print(exec_result)
+    # exec_command = 'cd %s; rm -f %s' % (base_data_unzip_dir, file_name)
+    # exec_result = __run_shell_command((exec_command, None))
+    # print(exec_result)
+    logging.debug('base data zip unzip finish')
+
+
+def del_file(path):
+    ls = os.listdir(path)
+    for i in ls:
+        c_path = os.path.join(path, i)
+        if os.path.isdir(c_path):
+            del_file(c_path)
+        else:
+            os.remove(c_path)
 
 
 def download_install_package(app_name, app_alias, version, package_file_name, save_dir):
@@ -572,7 +620,7 @@ def exec_platform_create_schema(schema):
             alias = deploy_app['appAlias']
             app_module = query_app_module(app_name, version)
             app_type = app_module['appType']
-            cfgs = app_module['cfgs']
+            cfgs = deploy_app['cfgs']
             helm_command = get_add_app_helm_command(platform_id, domain_id, app_name, app_type, version, alias, cfgs, work_dir)
             print(helm_command)
             exec_result = __run_shell_command(helm_command, None)
@@ -647,7 +695,7 @@ def add_app_module_to_k8s(domain_id, app_module, alias, cfgs, work_dir):
     opt['version'] = version
     opt['alias'] = alias
     opt['operation'] = 'ADD'
-    opt['helm_command'] = get_add_app_helm_command(platform_id, domain_id, app_name, app_module['appType'], version, alias, app_module['cfgs'], work_dir)
+    opt['helm_command'] = get_add_app_helm_command(platform_id, domain_id, app_name, app_module['appType'], version, alias, cfgs, work_dir)
     return opt
 
 
@@ -695,7 +743,7 @@ def generate_platform_deploy_operation(work_dir):
                 del_list.append(opt)
                 version = app_opt['targetVersion']
                 app_module = query_app_module(app_name, version)
-                opt = add_app_module_to_k8s(platform_id, domain_id, app_module, alias, work_dir)
+                opt = add_app_module_to_k8s(domain_id, app_module, alias, app_opt['cfgs'], work_dir)
                 add_list.append(opt)
     return del_list, add_list
 
@@ -782,10 +830,12 @@ def sort_app_opt(domain_plan, app_add_order):
     domain_plan['appUpdateOperationList'] = opt_list
 
 
-def deloy_platform():
+def deploy_platform():
     platform_id = platform_deploy_schema['platformId'].lower()
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     work_dir = '/tmp/%s' % get_md5_value('%s%s' % (platform_id, now))
+    delete_opt_list, add_opt_list = generate_platform_deploy_operation(work_dir)
+    generate_platform_base_data()
     exec_command = 'mkdir %s -p' % work_dir
     __run_shell_command(exec_command, None)
     exec_command = 'cd %s;git clone %s' % (work_dir, k8s_deploy_git_url)
@@ -798,7 +848,6 @@ def deloy_platform():
         if not check_platform_exist(platform_id):
             logging.error('%s not existed %s fail' % (platform_id, platform_deploy_schema['taskType']))
             raise ('%s not existed %s fail' % (platform_id, platform_deploy_schema['taskType']))
-    delete_opt_list, add_opt_list = generate_platform_deploy_operation(work_dir)
     for opt in delete_opt_list:
         helm_command = opt['helm_command']
         print(helm_command)
@@ -817,6 +866,11 @@ def deloy_platform():
             logging.debug('UCDServer node port has been update so restart glsserver first')
             restart_gls_server()
             time.sleep(30)
+    for opt in add_opt_list:
+        if opt['app_name'] == 'DDSServer':
+            restart_app(opt['alias'], opt['domain_id'])
+            if opt['delay'] > 0:
+                time.sleep(opt['delay'])
 
 
 def get_svc_node_port(service_name):
@@ -890,7 +944,7 @@ def restart_gls_server():
 if __name__ == '__main__':
     try:
         logging.debug('now begin to deploy app')
-        deloy_platform()
+        deploy_platform()
         logging.info('app deploy finish')
     except Exception as e:
         print('deploy app exception:%s' % e.args[0])

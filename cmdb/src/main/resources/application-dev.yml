@@ -137,7 +137,7 @@ lj-paas:
         - dcmssg/dcmssg
         - dcmsSG
         - dcmsSR
-        - dcmsStatics
+        - dcmsStatics/dcmsstatics
         - dcmsStaticsIB
         - dcmsStaticsReport/dcmsstaticsreport
         - dcmsStaticsReportfj

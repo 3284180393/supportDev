@@ -132,7 +132,7 @@ public class PlatformAppCfgFilePo {
 
     public String getFileNexusSavePath()
     {
-        String path = String.format("/%s/%s", this.getNexusDirectory(), this.fileName);
+        String path = String.format("%s/%s", this.getNexusDirectory(), this.fileName);
         return path;
     }
 }
