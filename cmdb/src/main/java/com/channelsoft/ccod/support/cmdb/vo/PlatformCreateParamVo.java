@@ -17,6 +17,8 @@ public class PlatformCreateParamVo {
 
     public final static int PREDEFINE = 3; //从预定义脚本创建
 
+    private String schemaId; //平台升级计划id，用来唯一标识该计划的id
+
     private int createMethod; //平台创建方式
 
     private String platformId; //新建平台id
@@ -147,5 +149,13 @@ public class PlatformCreateParamVo {
 
     public void setBaseDataNexusPath(String baseDataNexusPath) {
         this.baseDataNexusPath = baseDataNexusPath;
+    }
+
+    public String getSchemaId() {
+        return schemaId;
+    }
+
+    public void setSchemaId(String schemaId) {
+        this.schemaId = schemaId;
     }
 }

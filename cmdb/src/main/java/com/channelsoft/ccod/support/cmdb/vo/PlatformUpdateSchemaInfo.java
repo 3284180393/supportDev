@@ -17,6 +17,8 @@ import java.util.List;
  */
 public class PlatformUpdateSchemaInfo {
 
+    private String schemaId; //id由发起升级计划的生成的用来标识计划的唯一标识
+
     private List<DomainUpdatePlanInfo> domainUpdatePlanList; //域升级方案列表
 
     private String platformId; //平台id
@@ -270,5 +272,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setK8sHostIp(String k8sHostIp) {
         this.k8sHostIp = k8sHostIp;
+    }
+
+    public String getSchemaId() {
+        return schemaId;
+    }
+
+    public void setSchemaId(String schemaId) {
+        this.schemaId = schemaId;
     }
 }

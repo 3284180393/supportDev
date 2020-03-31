@@ -20,6 +20,8 @@ public class PlatformTopologyInfo {
 
     private String platformName; //平台名,同时对应蓝鲸paas的biz name
 
+    private String ccodVersion; //该平台对应的ccod大版本
+
     private int bkBizId; //该平台在蓝鲸paas的biz id
 
     private int bkCloudId; //该平台下面所有host所在的cloud id
@@ -41,6 +43,7 @@ public class PlatformTopologyInfo {
         this.status = CCODPlatformStatus.getEnumById(platform.getStatus());
         this.setList = new ArrayList<>();
         this.idleHostList = new ArrayList<>();
+        this.ccodVersion = platform.getCcodVersion();
     }
 
     public String getPlatformId() {
@@ -105,6 +108,14 @@ public class PlatformTopologyInfo {
 
     public void setSchema(PlatformUpdateSchemaInfo schema) {
         this.schema = schema;
+    }
+
+    public String getCcodVersion() {
+        return ccodVersion;
+    }
+
+    public void setCcodVersion(String ccodVersion) {
+        this.ccodVersion = ccodVersion;
     }
 
     public void setIdleHosts(List<LJHostInfo> idleHostList) {
