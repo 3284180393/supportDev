@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.po.AppFileAttribute;
 import com.channelsoft.ccod.support.cmdb.service.IActiveMQService;
+import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.activemq.ActiveMQConnectionFactory;
@@ -80,6 +81,9 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Autowired
     IActiveMQService activeMQService;
 
+    @Autowired
+    IAppManagerService appManagerService;
+
     private Random random = new Random();
 
     private ConnectionFactory connectionFactory = null;
@@ -91,6 +95,14 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     private String tmpSaveDirFmt = "%s/downloads/%s";
 
     private String tmpSavePathFmt = "%s/%s";
+
+    @PostConstruct
+    void init() throws Exception
+    {
+        connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
+//        connection.setClientID(this.serverName);
+//        connection.start();
+    }
 
     @Override
     public List<PlatformAppModuleVo> checkPlatformAppData(String platformId, String platformName,String domainName, String hostIp, String appName, String version) throws Exception {
@@ -136,15 +148,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
             connection.close();
         }
     }
-
-    @PostConstruct
-    void init() throws Exception
-    {
-        connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
-//        connection.setClientID(this.serverName);
-//        connection.start();
-    }
-
 
     @Override
     public List<PlatformAppModuleVo> collectPlatformAppData(String platformId, String platformName, String domainName, String hostIp, String appName, String version) throws Exception {
@@ -347,7 +350,9 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
      * @return 接受到的安装包和配置文件
      * @throws Exception
      */
-    private List<PlatformAppModuleVo> receiveFileFromQueue(Connection connection, String platformId, ActiveMQInstructionVo receiveInstruction, List<PlatformAppModuleVo> modules, String queueName, long timeout)
+    private List<PlatformAppModuleVo> receiveFileFromQueue(
+            Connection connection, String platformId, ActiveMQInstructionVo receiveInstruction,
+            List<PlatformAppModuleVo> modules, String queueName, long timeout)
             throws JMSException, IOException
     {
         Map<String, List<DeployFileInfo>> cfgMap = new HashMap<>();
@@ -550,6 +555,15 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                         {
                             logger.info(String.format("platformId=%s client notify file transfer finish", platformId));
                         }
+                        else if(resultVo.isSuccess() && StringUtils.isNotBlank(resultVo.getData())
+                                && resultVo.getData().indexOf("QUERY_APP_CFGS:") == 0)
+                        {
+                            JSONObject jsonObject = JSONObject.parseObject(resultVo.getData());
+                            List<CfgQueryParamVo> queryList = JSONArray.parseArray(jsonObject.getString("QUERY_APP_CFGS"), CfgQueryParamVo.class);
+                            List<Map<String, Object>> queryResultList = this.queryAppCfgs(queryList);
+                            activeMQService.sendTopicMsg(connection, queueName, JSONArray.toJSONString(queryResultList));
+                            continue;
+                        }
                         else if(resultVo.isSuccess())
                         {
                             logger.error(String.format("receive instruction return Date=%s is unknown", resultVo.getData()));
@@ -656,6 +670,31 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
             return false;
         }
         return true;
+    }
+
+    private List<Map<String, Object>> queryAppCfgs(List<CfgQueryParamVo> queryList)
+    {
+        List<Map<String, Object>> retList = new ArrayList<>();
+        for(CfgQueryParamVo paramVo : queryList)
+        {
+            Map<String, Object> resultMap = new HashMap<>();
+            resultMap.put("appName", paramVo.getAppName());
+            resultMap.put("version", paramVo.getVersion());
+            resultMap.put("cfgFileName", paramVo.getCfgFileName());
+            try
+            {
+                String context = this.appManagerService.getAppCfgText(paramVo.getAppName(), paramVo.getVersion(), paramVo.getCfgFileName());
+                resultMap.put("result", true);
+                resultMap.put("data", context);
+            }
+            catch(Exception ex)
+            {
+                resultMap.put("result", false);
+                resultMap.put("data", ex.getMessage());
+            }
+            retList.add(resultMap);
+        }
+        return retList;
     }
 
 }

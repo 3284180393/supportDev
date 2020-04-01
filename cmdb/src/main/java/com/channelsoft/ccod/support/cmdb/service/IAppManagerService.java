@@ -248,4 +248,16 @@ public interface IAppManagerService {
      */
     PlatformUpdateSchemaInfo cloneExistDomain(String platformId, String clonedDomainId, String domainId, String domainName) throws ParamException, InterfaceCallException, LJPaasException;
 
+    /**
+     * 查询指定应用的配置文件并以字符串的形式返回
+     * @param appName 应用名
+     * @param version 应用别名
+     * @param cfgFileName 配置文件名
+     * @return 指定配置文件的文本信息
+     * @throws ParamException 指定的应用或是配置文件不存在
+     * @throws NexusException 下载配置文件时nexus返回异常
+     * @throws InterfaceCallException  调用nexus接口异常
+     */
+    String getAppCfgText(String appName, String version, String cfgFileName) throws ParamException, NexusException, InterfaceCallException, IOException;
+
 }

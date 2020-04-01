@@ -221,6 +221,28 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            System.out.println(JSONArray.toJSONString(deployList));
 //            List<PlatformResourceVo> platformResourceList = this.platformResourceMapper.select();
 //            System.out.println(JSONArray.toJSONString(platformResourceList));
+            String context = getAppCfgText("StatSchedule", "154:21104", "ss_config.cfg");
+            System.out.println(context);
+            List<CfgQueryParamVo> queryList = new ArrayList<>();
+            CfgQueryParamVo paramVo = new CfgQueryParamVo();
+            paramVo.setAppName("StatSchedule");
+            paramVo.setVersion("154:21104");
+            paramVo.setCfgFileName("ss_config.cfg");
+            queryList.add(paramVo);
+            paramVo = new CfgQueryParamVo();
+            paramVo.setAppName("dcmsStatics");
+            paramVo.setVersion("20537");
+            paramVo.setCfgFileName("config.properties");
+            queryList.add(paramVo);
+            Map<String, Object> map = new HashMap<>();
+            map.put("QUERY_APP_CFGS", queryList);
+            String json = JSONObject.toJSONString(map);
+            System.out.println(json);
+            JSONObject jsonObject = JSONObject.parseObject(json);
+            queryList = JSONArray.parseArray(jsonObject.getString("QUERY_APP_CFGS"), CfgQueryParamVo.class);
+            List<Map<String, Object>> resultList = queryAppCfgs(queryList);
+            json = JSONArray.toJSONString(resultList);
+            System.out.println(json);
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -228,6 +250,31 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             ex.printStackTrace();
         }
+    }
+
+    private List<Map<String, Object>> queryAppCfgs(List<CfgQueryParamVo> queryList)
+    {
+        List<Map<String, Object>> retList = new ArrayList<>();
+        for(CfgQueryParamVo paramVo : queryList)
+        {
+            Map<String, Object> resultMap = new HashMap<>();
+            resultMap.put("appName", paramVo.getAppName());
+            resultMap.put("version", paramVo.getVersion());
+            resultMap.put("cfgFileName", paramVo.getCfgFileName());
+            try
+            {
+                String context = this.getAppCfgText(paramVo.getAppName(), paramVo.getVersion(), paramVo.getCfgFileName());
+                resultMap.put("result", true);
+                resultMap.put("data", context);
+            }
+            catch(Exception ex)
+            {
+                resultMap.put("result", false);
+                resultMap.put("data", ex.getMessage());
+            }
+            retList.add(resultMap);
+        }
+        return retList;
     }
 
     private String getTempSaveDir(String directory) {
@@ -517,6 +564,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     {
         String appName = moduleVo.getAppName();
         String appVersion = moduleVo.getVersion();
+        AppType appType = moduleVo.getAppType();
         if(!installPackage.getFileName().equals(moduleVo.getInstallPackage().getFileName()))
         {
             logger.error(String.format("%s[%s] install package file name is %s not %s",
@@ -524,14 +572,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throw new ParamException(String.format("%s[%s] install package file name is %s not %s",
                     appName, appVersion, moduleVo.getInstallPackage().getFileName(), installPackage.getFileName()));
         }
-        else if(!installPackage.getFileMd5().equals(moduleVo.getInstallPackage().getMd5()))
+        else if(!installPackage.getFileMd5().equals(moduleVo.getInstallPackage().getMd5()) && !AppType.CCOD_WEBAPPS_MODULE.equals(appType))
         {
             logger.error(String.format("%s[%s] install package file md5 is %s not %s",
                     appName, appVersion, moduleVo.getInstallPackage().getMd5(), installPackage.getFileMd5()));
             throw new ParamException(String.format("%s[%s] install package file md5 is %s not %s",
                     appName, appVersion, moduleVo.getInstallPackage().getMd5(), installPackage.getFileMd5()));
         }
-        if(!this.notCheckCfgAppSet.contains(appName)) {
+        if(!this.notCheckCfgAppSet.contains(appName) && !AppType.CCOD_WEBAPPS_MODULE.equals(appType)) {
             Map<String, DeployFileInfo> reportCfgMap = Arrays.stream(cfgs).collect(Collectors.toMap(DeployFileInfo::getFileName, Function.identity()));
             Map<String, AppCfgFilePo> wantCfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
             if (reportCfgMap.size() != wantCfgMap.size()) {
@@ -3703,6 +3751,47 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 platformMapper.update(platformPo);
                 break;
         }
+    }
+
+    @Override
+    public String getAppCfgText(String appName, String version, String cfgFileName) throws ParamException, NexusException, InterfaceCallException , IOException{
+        logger.debug("begin to get %s text of %s[%s]", cfgFileName, appName, version);
+        AppModuleVo moduleVo = queryAppByVersion(appName, version);
+        if(moduleVo == null)
+        {
+            logger.error(String.format("%s[%] not exist", appName, version));
+            throw new ParamException(String.format("%s[%] not exist", appName, version));
+        }
+        Map<String, AppCfgFilePo> cfgMap = moduleVo.getCfgs().stream()
+                .collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
+        if(!cfgMap.containsKey(cfgFileName))
+        {
+            logger.error(String.format("%s[%s] has not %s cfg", appName, version, cfgFileName));
+            throw new ParamException(String.format("%s[%s] has not %s cfg", appName, version, cfgFileName));
+        }
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String dateStr = sf.format(now);
+        String tmpSaveDir = String.format("%s/temp/cfgs/%s/%s", System.getProperty("user.dir"), appName, dateStr);
+        File saveDir = new File(tmpSaveDir);
+        if(!saveDir.exists())
+        {
+            saveDir.mkdirs();
+        }
+        AppCfgFilePo cfgFilePo = cfgMap.get(cfgFileName);
+        String downloadUrl = cfgFilePo.getFileNexusDownloadUrl(this.nexusHostUrl);
+        String savePath = this.nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfgFileName);
+        savePath = savePath.replaceAll("\\\\", "/");
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(savePath)),
+                "UTF-8"));
+        String lineTxt = null;
+        String context = "";
+        while ((lineTxt = br.readLine()) != null)
+        {
+            context += lineTxt + "\n";
+        }
+        br.close();
+        return context;
     }
 
     @Override
