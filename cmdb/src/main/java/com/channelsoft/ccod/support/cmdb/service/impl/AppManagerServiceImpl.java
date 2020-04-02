@@ -221,28 +221,28 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            System.out.println(JSONArray.toJSONString(deployList));
 //            List<PlatformResourceVo> platformResourceList = this.platformResourceMapper.select();
 //            System.out.println(JSONArray.toJSONString(platformResourceList));
-            String context = getAppCfgText("StatSchedule", "154:21104", "ss_config.cfg");
-            System.out.println(context);
-            List<CfgQueryParamVo> queryList = new ArrayList<>();
-            CfgQueryParamVo paramVo = new CfgQueryParamVo();
-            paramVo.setAppName("StatSchedule");
-            paramVo.setVersion("154:21104");
-            paramVo.setCfgFileName("ss_config.cfg");
-            queryList.add(paramVo);
-            paramVo = new CfgQueryParamVo();
-            paramVo.setAppName("dcmsStatics");
-            paramVo.setVersion("20537");
-            paramVo.setCfgFileName("config.properties");
-            queryList.add(paramVo);
-            Map<String, Object> map = new HashMap<>();
-            map.put("QUERY_APP_CFGS", queryList);
-            String json = JSONObject.toJSONString(map);
-            System.out.println(json);
-            JSONObject jsonObject = JSONObject.parseObject(json);
-            queryList = JSONArray.parseArray(jsonObject.getString("QUERY_APP_CFGS"), CfgQueryParamVo.class);
-            List<Map<String, Object>> resultList = queryAppCfgs(queryList);
-            json = JSONArray.toJSONString(resultList);
-            System.out.println(json);
+//            String context = getAppCfgText("StatSchedule", "154:21104", "ss_config.cfg");
+//            System.out.println(context);
+//            List<CfgQueryParamVo> queryList = new ArrayList<>();
+//            CfgQueryParamVo paramVo = new CfgQueryParamVo();
+//            paramVo.setAppName("StatSchedule");
+//            paramVo.setVersion("154:21104");
+//            paramVo.setCfgFileName("ss_config.cfg");
+//            queryList.add(paramVo);
+//            paramVo = new CfgQueryParamVo();
+//            paramVo.setAppName("dcmsStatics");
+//            paramVo.setVersion("20537");
+//            paramVo.setCfgFileName("config.properties");
+//            queryList.add(paramVo);
+//            Map<String, Object> map = new HashMap<>();
+//            map.put("QUERY_APP_CFGS", queryList);
+//            String json = JSONObject.toJSONString(map);
+//            System.out.println(json);
+//            JSONObject jsonObject = JSONObject.parseObject(json);
+//            queryList = JSONArray.parseArray(jsonObject.getString("QUERY_APP_CFGS"), CfgQueryParamVo.class);
+//            List<Map<String, Object>> resultList = queryAppCfgs(queryList);
+//            json = JSONArray.toJSONString(resultList);
+//            System.out.println(json);
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -2438,7 +2438,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
         logger.debug(String.format("delete old version install package"));
-        this.appInstallPackageMapper.delete(null, oldModuleVo.getAppId());
+        this.appInstallPackageMapper.delete(oldModuleVo.getInstallPackage().getPackageId(), oldModuleVo.getAppId());
         logger.debug(String.format("delete old version cfgs"));
         this.appCfgFileMapper.delete(null, oldModuleVo.getAppId());
         oldModuleVo.getInstallPackage().setNexusAssetId(assetMap.get(String.format("%s/%s", directory, appModule.getInstallPackage().getFileName())).getId());
@@ -2536,6 +2536,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         schemaInfo.setGlsDBPwd(paramVo.getGlsDBPwd());
         schemaInfo.setBaseDataNexusPath(paramVo.getBaseDataNexusPath());
         schemaInfo.setBaseDataNexusRepository(paramVo.getBaseDataNexusRepository());
+        schemaInfo.setSchemaId(paramVo.getSchemaId());
         return schemaInfo;
     }
 

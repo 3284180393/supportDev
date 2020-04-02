@@ -1,0 +1,190 @@
+应用注册接口
+cmdb_url/api/apps
+适用场景: 新发布的还未向cmdb注册过的应用模块
+http调用方式: POST
+创建实例:
+body=
+{
+	"appType": "CCOD_KERNEL_MODULE",
+	"appName": "psr",
+	"appAlias": "psr",
+	"version": "23799:11111",
+	"ccodVersion": "4.5",
+	"versionControl": "GIT",
+	"versionControlUrl": null,
+	"basePath": "/home/ccodrunner/Platform",
+	"comment": "",
+	"installPackage": {
+		"fileName": "psr",
+		"ext": "binary",
+		"deployPath": "./bin/",
+		"nexusRepository": "ccod_modules",
+		"nexusDirectory": "psr/psr/23799:27821",
+		"nexusAssetId": "Y2NvZF9tb2R1bGVzOjg1MTM1NjUyYTk3OGJlOWEwYWRkZDE5NmI3NjEzODAx",
+		"md5": "30fff50e629458088e7ad853340bd98e",
+		"nexusFileSavePath": "/psr/psr/23799:27821/psr"
+	},
+	"cfgs": [{
+			"fileName": "psr.cfg",
+			"ext": "cfg",
+			"deployPath": "./cfg/",
+			"nexusRepository": "ccod_modules",
+			"nexusDirectory": "psr/psr/23799:27821",
+			"nexusAssetId": "Y2NvZF9tb2R1bGVzOmQ0ODExNzU0MWRjYjg5ZWMyNTgzNmJkODdmNTM1MjVh",
+			"createTime": "2020-02-01T17:45:37.000+0000",
+			"md5": "6e64481108c78d6a0a3ad3294ac4df7a",
+			"nexusFileSavePath": "/psr/psr/23799:27821/psr.cfg"
+		},
+		{
+			"fileName": "psr_log4cpp.cfg",
+			"ext": "cfg",
+			"deployPath": "./cfg/",
+			"nexusRepository": "ccod_modules",
+			"nexusDirectory": "psr/psr/23799:27821",
+			"nexusAssetId": "Y2NvZF9tb2R1bGVzOjEzYjI5ZTQ0OWYwZTNiOGQwN2I2NjAxZmYxODVmM2Ey",
+			"md5": "ad263a1ac56b8ee1d5d71cd98e2b6192",
+			"cfgFileId": 30,
+			"nexusFileSavePath": "/psr/psr/23799:27821/psr_log4cpp.cfg"
+		}
+	]
+}
+执行该接口将会注册版本号为23799:11111的tsr,该模块有2个配置文件
+
+应用更新接口:
+cmdb_url/api/appModules
+适用场景: 需要修改已经注册过的应用的安装包、标准配置文件(包括配置文件内容和配置文件数目)
+http调用方式： POST
+更新实例:
+body=
+{
+	"appType": "CCOD_KERNEL_MODULE",
+	"appName": "psr",
+	"appAlias": "psr",
+	"version": "23799:11111",
+	"ccodVersion": "4.5",
+	"versionControl": "GIT",
+	"versionControlUrl": null,
+	"basePath": "/home/ccodrunner/Platform",
+	"comment": "",
+	"installPackage": {
+		"fileName": "psr",
+		"ext": "binary",
+		"deployPath": "./bin/",
+		"nexusRepository": "ccod_modules",
+		"nexusDirectory": "psr/psr/23799:27821",
+		"nexusAssetId": "Y2NvZF9tb2R1bGVzOjg1MTM1NjUyYTk3OGJlOWEwYWRkZDE5NmI3NjEzODAx",
+		"md5": "30fff50e629458088e7ad853340bd98e",
+		"nexusFileSavePath": "psr/psr/23799:27821/psr"
+	},
+	"cfgs": [{
+			"fileName": "psr.cfg",
+			"ext": "cfg",
+			"deployPath": "./cfg/",
+			"nexusRepository": "ccod_modules",
+			"nexusDirectory": "psr/psr/23799:27821",
+			"nexusAssetId": "Y2NvZF9tb2R1bGVzOmQ0ODExNzU0MWRjYjg5ZWMyNTgzNmJkODdmNTM1MjVh",
+			"createTime": "2020-02-01T17:45:37.000+0000",
+			"md5": "6e64481108c78d6a0a3ad3294ac4df7a",
+			"nexusFileSavePath": "psr/psr/23799:27821/psr.cfg"
+		},
+		{
+			"fileName": "psr_log4cpp.cfg",
+			"ext": "cfg",
+			"deployPath": "./cfg/",
+			"nexusRepository": "ccod_modules",
+			"nexusDirectory": "psr/psr/23799:27821",
+			"nexusAssetId": "Y2NvZF9tb2R1bGVzOjEzYjI5ZTQ0OWYwZTNiOGQwN2I2NjAxZmYxODVmM2Ey",
+			"md5": "ad263a1ac56b8ee1d5d71cd98e2b6192",
+			"cfgFileId": 30,
+			"nexusFileSavePath": "psr/psr/23799:27821/psr_log4cpp.cfg"
+		},
+		{
+			"fileName": "Param-Config.xml",
+			"ext": "xml",
+			"deployPath": "./gls/WEB-INF/classes/",
+			"nexusRepository": "ccod_modules",
+			"nexusDirectory": "gls/gls/10309",
+			"nexusAssetId": "Y2NvZF9tb2R1bGVzOjEzYjI5ZTQ0OWYwZTNiOGQ5ZjQ3NzA2NWIwOTA3ODdm",
+			"md5": "0d4c565c8a683c7f33204f92de20e489",
+			"nexusFileSavePath": "gls/gls/10309/Param-Config.xml"
+		}
+	]
+}
+
+执行后调用查询接口cmdb_url/cmdb/api/apps/psr/23799:11111发现配置文件已经由2个变成了3个，增加了Param-Config.xml这个配置文件
+{
+	"success": true,
+	"msg": "query SUCCESs",
+	"total": 1,
+	"rows": {
+		"appId": 219,
+		"appType": "CCOD_KERNEL_MODULE",
+		"appName": "psr",
+		"appAlias": "psr",
+		"version": "23799:11111",
+		"ccodVersion": "4.5",
+		"createTime": "2020-04-02T03:03:37.000+0000",
+		"createReason": null,
+		"updateTime": "2020-04-02T03:03:37.000+0000",
+		"versionControl": "GIT",
+		"versionControlUrl": null,
+		"basePath": "/home/ccodrunner/Platform",
+		"comment": "",
+		"installPackage": {
+			"appId": 219,
+			"fileName": "psr",
+			"ext": "binary",
+			"deployPath": "./bin/",
+			"nexusRepository": "ccod_modules",
+			"nexusDirectory": "psr/psr/23799:11111",
+			"nexusAssetId": "Y2NvZF9tb2R1bGVzOmQ0ODExNzU0MWRjYjg5ZWNmMjlkODkwOGVkYmQ1OGI0",
+			"createTime": null,
+			"md5": "30fff50e629458088e7ad853340bd98e",
+			"packageId": 218,
+			"nexusFileSavePath": "psr/psr/23799:11111/psr"
+		},
+		"cfgs": [{
+				"appId": 219,
+				"fileName": "psr_log4cpp.cfg",
+				"ext": "cfg",
+				"deployPath": "./cfg/",
+				"nexusRepository": "ccod_modules",
+				"nexusDirectory": "psr/psr/23799:11111",
+				"nexusAssetId": "Y2NvZF9tb2R1bGVzOjBhYjgwYTc0MzkyMWU0MjY5ZDg4ODVhNGQyNGE4Y2Rm",
+				"createTime": null,
+				"md5": "ad263a1ac56b8ee1d5d71cd98e2b6192",
+				"cfgFileId": 442,
+				"nexusFileSavePath": "psr/psr/23799:11111/psr_log4cpp.cfg"
+			},
+			{
+				"appId": 219,
+				"fileName": "psr.cfg",
+				"ext": "cfg",
+				"deployPath": "./cfg/",
+				"nexusRepository": "ccod_modules",
+				"nexusDirectory": "psr/psr/23799:11111",
+				"nexusAssetId": "Y2NvZF9tb2R1bGVzOjEzYjI5ZTQ0OWYwZTNiOGRkMDEzNzZhZWRhMTk4NjJk",
+				"createTime": "2020-02-01T17:45:37.000+0000",
+				"md5": "6e64481108c78d6a0a3ad3294ac4df7a",
+				"cfgFileId": 441,
+				"nexusFileSavePath": "psr/psr/23799:11111/psr.cfg"
+			},
+			{
+				"appId": 219,
+				"fileName": "Param-Config.xml",
+				"ext": "xml",
+				"deployPath": "./gls/WEB-INF/classes/",
+				"nexusRepository": "ccod_modules",
+				"nexusDirectory": "psr/psr/23799:11111",
+				"nexusAssetId": "Y2NvZF9tb2R1bGVzOjg1MTM1NjUyYTk3OGJlOWFmZTg4N2JhZjM2OTU4NDMx",
+				"createTime": null,
+				"md5": "0d4c565c8a683c7f33204f92de20e489",
+				"cfgFileId": 443,
+				"nexusFileSavePath": "psr/psr/23799:11111/Param-Config.xml"
+			}
+		],
+		"appNexusDirectory": "psr/psr/23799:11111",
+		"appNexusGroup": "/psr/psr/23799:11111"
+	},
+	"message": "query SUCCESs"
+}

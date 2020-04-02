@@ -42,5 +42,5 @@ public interface AppInstallPackageMapper {
      * @param packageId 应用安装包id
      * @param appId 应用id
      */
-    void delete(@Param("cfgFileId")Integer packageId, @Param("appId")Integer appId);
+    void delete(@Param("packageId")Integer packageId, @Param("appId")Integer appId);
 }
