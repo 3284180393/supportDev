@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppFileAttribute;
 import com.channelsoft.ccod.support.cmdb.service.IActiveMQService;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
@@ -22,6 +23,8 @@ import org.springframework.util.DigestUtils;
 import javax.annotation.PostConstruct;
 import java.io.*;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @ClassName: PlatformAppCollectionServiceImpl
@@ -251,7 +254,35 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
             logger.error(String.format("client return collect %s app data FAIL : %s", platformId, resultVo.getData()));
             throw new Exception(String.format("%s", resultVo.getData()));
         }
-        List<PlatformAppModuleVo> modules = JSONArray.parseArray(resultVo.getData(), PlatformAppModuleVo.class);
+        JSONObject jsonObject = JSONObject.parseObject(resultVo.getData());
+        if(jsonObject.containsKey("QUERY_APP_CFGS"))
+        {
+            List<CfgQueryParamVo> queryList = JSONArray.parseArray(jsonObject.getString("QUERY_APP_CFGS"), CfgQueryParamVo.class);
+            List<Map<String, Object>> queryResultList = this.queryAppCfgs(queryList);
+            activeMQService.sendQueueMsg(connection, collectDataQueue, JSONArray.toJSONString(queryResultList));
+            clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.collectDataTimeout);
+            resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
+            verifySucc = verifyInstructionResult(resultVo, instructionVo);
+            if(!verifySucc)
+            {
+                String errMsg = String.format("verify %s app collect message from %s at %s FAIL",
+                        platformId, collectDataQueue, this.activeMqBrokeUrl);
+                logger.error(errMsg);
+                throw new Exception(errMsg);
+            }
+            if(!resultVo.isSuccess())
+            {
+                logger.error(String.format("client return collect %s app data FAIL : %s", platformId, resultVo.getData()));
+                throw new Exception(String.format("%s", resultVo.getData()));
+            }
+            jsonObject = JSONObject.parseObject(resultVo.getData());
+        }
+        if(!jsonObject.containsKey("MODULES"))
+        {
+            logger.error(String.format("client return bad msg : can not get MODULES info"));
+            throw new Exception(String.format("client return bad msg : can not get MODULES info"));
+        }
+        List<PlatformAppModuleVo> modules = JSONArray.parseArray(jsonObject.getString("MODULES"), PlatformAppModuleVo.class);
         logger.info(String.format("%s report %d app info", platformId, modules.size()));
         return modules;
     }
@@ -555,15 +586,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                         {
                             logger.info(String.format("platformId=%s client notify file transfer finish", platformId));
                         }
-                        else if(resultVo.isSuccess() && StringUtils.isNotBlank(resultVo.getData())
-                                && resultVo.getData().indexOf("QUERY_APP_CFGS:") == 0)
-                        {
-                            JSONObject jsonObject = JSONObject.parseObject(resultVo.getData());
-                            List<CfgQueryParamVo> queryList = JSONArray.parseArray(jsonObject.getString("QUERY_APP_CFGS"), CfgQueryParamVo.class);
-                            List<Map<String, Object>> queryResultList = this.queryAppCfgs(queryList);
-                            activeMQService.sendTopicMsg(connection, queueName, JSONArray.toJSONString(queryResultList));
-                            continue;
-                        }
                         else if(resultVo.isSuccess())
                         {
                             logger.error(String.format("receive instruction return Date=%s is unknown", resultVo.getData()));
@@ -686,6 +708,10 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                 String context = this.appManagerService.getAppCfgText(paramVo.getAppName(), paramVo.getVersion(), paramVo.getCfgFileName());
                 resultMap.put("result", true);
                 resultMap.put("data", context);
+                AppModuleVo moduleVo = this.appManagerService.queryAppByVersion(paramVo.getAppName(), paramVo.getVersion());
+                Map<String, AppCfgFilePo> cfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
+                resultMap.put("nexusPath", cfgMap.get(paramVo.getCfgFileName()).getNexusFileSavePath());
+                resultMap.put("md5", cfgMap.get(paramVo).getMd5());
             }
             catch(Exception ex)
             {
