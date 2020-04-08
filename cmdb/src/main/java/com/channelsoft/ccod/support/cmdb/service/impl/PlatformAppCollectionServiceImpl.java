@@ -258,9 +258,10 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         if(jsonObject.containsKey("QUERY_APP_CFGS"))
         {
             List<CfgQueryParamVo> queryList = JSONArray.parseArray(jsonObject.getString("QUERY_APP_CFGS"), CfgQueryParamVo.class);
+            String  recevieQueue = jsonObject.getString("QUEUE");
             List<Map<String, Object>> queryResultList = this.queryAppCfgs(queryList);
-            activeMQService.sendQueueMsg(connection, collectDataQueue, JSONArray.toJSONString(queryResultList));
-            clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.collectDataTimeout);
+            activeMQService.sendQueueMsg(connection, recevieQueue, JSONArray.toJSONString(queryResultList));
+            clientRet = activeMQService.receiveTextMsgFromQueue(connection, recevieQueue, this.collectDataTimeout);
             resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
             verifySucc = verifyInstructionResult(resultVo, instructionVo);
             if(!verifySucc)
