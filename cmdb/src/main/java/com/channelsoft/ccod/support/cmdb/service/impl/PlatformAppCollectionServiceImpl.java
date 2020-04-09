@@ -261,7 +261,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
             String  recevieQueue = jsonObject.getString("QUEUE");
             List<Map<String, Object>> queryResultList = this.queryAppCfgs(queryList);
             activeMQService.sendQueueMsg(connection, recevieQueue, JSONArray.toJSONString(queryResultList));
-            clientRet = activeMQService.receiveTextMsgFromQueue(connection, recevieQueue, this.collectDataTimeout);
+            clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.collectDataTimeout);
             resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
             verifySucc = verifyInstructionResult(resultVo, instructionVo);
             if(!verifySucc)
@@ -712,7 +712,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                 AppModuleVo moduleVo = this.appManagerService.queryAppByVersion(paramVo.getAppName(), paramVo.getVersion());
                 Map<String, AppCfgFilePo> cfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
                 resultMap.put("nexusPath", cfgMap.get(paramVo.getCfgFileName()).getNexusFileSavePath());
-                resultMap.put("md5", cfgMap.get(paramVo).getMd5());
+                resultMap.put("md5", cfgMap.get(paramVo.getCfgFileName()).getMd5());
             }
             catch(Exception ex)
             {
