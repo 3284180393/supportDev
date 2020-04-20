@@ -65,6 +65,8 @@ public class PlatformUpdateSchemaInfo {
 
     private String baseDataNexusPath; //基础数据在nexus的存放path
 
+    private List<AppFileNexusInfo> publicConfig; //用来存放平台公共配置
+
     public PlatformUpdateSchemaInfo()
     {
 
@@ -280,5 +282,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setSchemaId(String schemaId) {
         this.schemaId = schemaId;
+    }
+
+    public List<AppFileNexusInfo> getPublicConfig() {
+        return publicConfig;
+    }
+
+    public void setPublicConfig(List<AppFileNexusInfo> publicConfig) {
+        this.publicConfig = publicConfig;
     }
 }

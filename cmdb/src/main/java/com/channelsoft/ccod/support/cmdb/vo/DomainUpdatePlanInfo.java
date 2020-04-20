@@ -48,6 +48,8 @@ public class DomainUpdatePlanInfo {
 
     private String tags; //域的标签,例如:入呼叫、外呼、
 
+    private List<AppFileNexusInfo> publicConfig; //用来存放域公共配置
+
     public List<AppUpdateOperationInfo> getAppUpdateOperationList() {
         return appUpdateOperationList;
     }
@@ -166,5 +168,13 @@ public class DomainUpdatePlanInfo {
 
     public void setDomainType(DomainType domainType) {
         this.domainType = domainType;
+    }
+
+    public List<AppFileNexusInfo> getPublicConfig() {
+        return publicConfig;
+    }
+
+    public void setPublicConfig(List<AppFileNexusInfo> publicConfig) {
+        this.publicConfig = publicConfig;
     }
 }
