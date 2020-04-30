@@ -2,7 +2,8 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.channelsoft.ccod.support.cmdb.config.CCODBizSetInfo;
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
+import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
 import com.channelsoft.ccod.support.cmdb.config.ExcludeBiz;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
@@ -24,7 +25,6 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -44,13 +44,10 @@ public class LJPaasServiceImpl implements ILJPaasService {
     PlatformAppDeployDetailMapper platformAppDeployDetailMapper;
 
     @Autowired
-    private CCODBizSetInfo bizSetInfo;
-
-    @Autowired
     private ExcludeBiz excludeBiz;
 
     @Autowired
-    private AppMapper appMapper;
+    private CCODBiz ccodBiz;
 
     @Autowired
     private PlatformAppBkModuleMapper platformAppBkModuleMapper;
@@ -90,14 +87,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
 
     private final static Logger logger = LoggerFactory.getLogger(LJPaasServiceImpl.class);
 
-    private Map<String, BizSetDefine> basicBizSetMap;
-
-    private Map<String, BizSetDefine> extendBizSetMap;
-
-    private List<BizSetDefine> ccodSetList;
-
-    private Map<String, List<BizSetDefine>> appSetRelationMap;
-
     private Set<String> excludeBizSet;
 
     private Set<Integer> waitSyncUpdateToPaasBiz;
@@ -109,89 +98,12 @@ public class LJPaasServiceImpl implements ILJPaasService {
     @PostConstruct
     void init() throws ParamException
     {
-        this.basicBizSetMap  = new HashMap<>();
-        this.extendBizSetMap = new HashMap<>();
-        this.appSetRelationMap = new HashMap<>();
-        this.ccodSetList = new ArrayList<>();
         Pattern pattern = Pattern.compile(this.appStandardAliasRegex);
-        for(BizSetDefine define : this.bizSetInfo.getSet())
-        {
-            List<String> appList = new ArrayList<>();
-            Map<String, String> aliasMap = new HashMap<>();
-            Map<String, Integer> addDelayMap = new HashMap<>();
-            for(String app : define.getApps())
-            {
-                String[] tmpArr = app.split("\\:");
-                int appAddDelay = 0;
-                if(tmpArr.length == 2)
-                {
-                    appAddDelay = Integer.parseInt(tmpArr[1]);
-                }
-                else if(tmpArr.length > 2)
-                {
-                    logger.error(String.format("error app of set define:%s", app));
-                    throw new ParamException(String.format("error app of set define:%s", app));
-                }
-                String[] arr = tmpArr[0].split("/");
-                if(arr.length == 1)
-                {
-                    appList.add(arr[0]);
-                    Matcher matcher = pattern.matcher(arr[0].toLowerCase());
-                    if(!matcher.find())
-                    {
-                        logger.error(String.format("can not auto generate standard alias from %s", arr[0]));
-                        throw new ParamException(String.format("can not auto generate standard alias from %s", arr[0]));
-                    }
-                    aliasMap.put(arr[0], arr[0].toLowerCase());
-                }
-                else if(arr.length == 2)
-                {
-                    appList.add(arr[0]);
-                    Matcher matcher = pattern.matcher(arr[1]);
-                    if(!matcher.find())
-                    {
-                        logger.error(String.format("%s is not a legal standard alias for %s", arr[0], arr[0]));
-                        throw new ParamException(String.format("%s is not a legal standard alias for %s", arr[0], arr[0]));
-                    }
-                    aliasMap.put(arr[0], arr[1]);
-                }
-                else
-                {
-                    logger.error(String.format("error app define %s", app));
-                    throw new ParamException(String.format("error app define %s", app));
-                }
-                addDelayMap.put(arr[0], appAddDelay);
-            }
-            define.setApps(appList.toArray(new String[0]));
-            define.setAppAliasMap(aliasMap);
-            define.setAppAddDelayMap(addDelayMap);
-            this.ccodSetList.add(define);
-            if(define.getIsBasic() == 1)
-            {
-                this.basicBizSetMap.put(define.getName(), define);
-            }
-            else
-            {
-                this.extendBizSetMap.put(define.getName(), define);
-            }
-            for(String app : define.getApps())
-            {
-                if(!this.appSetRelationMap.containsKey(app))
-                {
-                    this.appSetRelationMap.put(app, new ArrayList<>());
-                }
-                this.appSetRelationMap.get(app).add(define);
-            }
-        }
-        logger.info(String.format("basic ccod biz set : %s", JSONObject.toJSONString(basicBizSetMap)));
-        logger.info(String.format("extend ccod biz set : %s", JSONObject.toJSONString(extendBizSetMap)));
-        logger.info(String.format("app and set relation is : %s", JSONObject.toJSONString(this.appSetRelationMap)));
+
         this.excludeBizSet = new HashSet<>(this.excludeBiz.getExcludes());
         logger.info(String.format("%s will be excluded from ccod biz", JSONObject.toJSONString(this.excludeBizSet)));
         this.waitSyncUpdateToPaasBiz = initWaitToSyncPaasBiz();
         logger.info(String.format("biz=%s wait to sync update detail from cmdb to paas", JSONObject.toJSONString(this.waitSyncUpdateToPaasBiz)));
-//        this.allPlatformBiz = this.queryAllCCODBiz();
-//        resetExistBiz(14, new ArrayList<>());
         try
         {
             someTest();
@@ -384,171 +296,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
     }
 
-    private CCODPlatformInfo createNewPlatformInfo(LJBizInfo bizInfo, LJSetInfo idlePoolSet, List<LJHostInfo> idleHosts)
-    {
-        CCODIdlePoolInfo idlePoolInfo = new CCODIdlePoolInfo(bizInfo.getBkBizId(), idlePoolSet, idleHosts);
-        for(LJHostInfo bkHost : idleHosts)
-        {
-            CCODHostInfo host = new CCODHostInfo(bkHost);
-            idlePoolInfo.getIdleHosts().add(host);
-        }
-        List<CCODSetInfo> ccodSetList = new ArrayList<>();
-        for(BizSetDefine define : this.basicBizSetMap.values())
-        {
-            if(define.getName().equals(this.paasIdlePoolSetName))
-                continue;
-            CCODSetInfo setInfo = new CCODSetInfo(define.getId(), define.getName());
-            ccodSetList.add(setInfo);
-        }
-        CCODPlatformInfo platformInfo = new CCODPlatformInfo(bizInfo, CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id, idlePoolInfo, ccodSetList);
-        return platformInfo;
-    }
-
-    private CCODPlatformInfo generatePlatformInfo( PlatformPo platform,
-                                                   LJBizInfo bizInfo,
-                                                   List<LJSetInfo> bkSetList,
-                                                   List<LJHostInfo> idleHostList,
-                                                   List<PlatformAppDeployDetailVo> deloyAppList) throws DBPAASDataNotConsistentException, NotSupportAppException
-    {
-        if(this.isDevelop)
-        {
-            deloyAppList = makeUpBizInfoForDeployApps(bizInfo.getBkBizId(), deloyAppList);
-        }
-        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deloyAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
-        Map<String, LJSetInfo> setMap = bkSetList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
-        if(!bizInfo.getBkBizName().equals(platform.getPlatformName()))
-        {
-            logger.error(String.format("bizName=%s of bizId=%d not equal with platformName=%s of bizId=%d and platId=%s",
-                    bizInfo.getBkBizName(), bizInfo.getBkBizId(), platform.getBkBizId(), platform.getPlatformName()));
-            return null;
-        }
-        CCODPlatformInfo platformInfo = new CCODPlatformInfo(bizInfo, CCODPlatformStatus.RUNNING.id);
-        List<CCODSetInfo> setList = new ArrayList<>();
-        for(String setName : setAppMap.keySet())
-        {
-            if(setName.equals(this.paasIdlePoolSetName))
-            {
-                continue;
-            }
-            if(!setMap.containsKey(setName))
-            {
-                logger.error(String.format("bizId=%d and bizName=%s biz has not setName=%s set which has been record deploy %d apps",
-                        bizInfo.getBkBizId(), bizInfo.getBkBizName(), setName, setAppMap.get(setName).size()));
-                throw new DBPAASDataNotConsistentException(String.format("bizId=%d and bizName=%s biz has not setName=%s set which has been record deploy %d apps",
-                        bizInfo.getBkBizId(), bizInfo.getBkBizName(), setName, setAppMap.get(setName).size()));
-            }
-            BizSetDefine setDefine;
-            if(this.basicBizSetMap.containsKey(setName))
-            {
-                setDefine = this.basicBizSetMap.get(setName);
-            }
-            else
-            {
-                setDefine = this.extendBizSetMap.get(setName);
-            }
-            LJSetInfo bkSet = setMap.get(setName);
-            Map<String, List<PlatformAppDeployDetailVo>> domainAppMap =  setAppMap.get(setName)
-                    .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
-            List<CCODDomainInfo> domainList = new ArrayList<>();
-            for(String domainName : domainAppMap.keySet())
-            {
-                List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName);
-                CCODDomainInfo domain = new CCODDomainInfo(domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
-                for(PlatformAppDeployDetailVo deployApp : domAppList)
-                {
-                    CCODModuleInfo bkModule = new CCODModuleInfo(deployApp);
-                    domain.getModules().add(bkModule);
-                }
-                domainList.add(domain);
-            }
-            CCODSetInfo set = new CCODSetInfo(setDefine.getId(), bkSet);
-            set.setDomains(domainList);
-            setList.add(set);
-        }
-        CCODIdlePoolInfo idlePool = new CCODIdlePoolInfo(bizInfo.getBkBizId(), setMap.get(this.paasIdlePoolSetName), idleHostList);
-        platformInfo.setIdlePool(idlePool);
-        platformInfo.setSets(setList);
-        return platformInfo;
-    }
-
-    /**
-     * 把通过onlinemanager主动收集上来的ccod应用部署情况同步到paas之前需要给这些应用添加对应的bizId
-     * 确定应用归属的set信息,并根据定义的set-app关系对某些应用归属域重新赋值
-     * @param bizId 蓝鲸paas的biz id
-     * @param deployApps 需要处理的应用详情
-     * @return 处理后的结果
-     * @throws NotSupportAppException 如果应用中存在没有在lj-paas.set-apps节点定义的应用将抛出此异常
-     */
-    private List<PlatformAppDeployDetailVo> makeUpBizInfoForDeployApps(int bizId, List<PlatformAppDeployDetailVo> deployApps) throws NotSupportAppException
-    {
-        for(PlatformAppDeployDetailVo deployApp : deployApps)
-        {
-            if(!this.appSetRelationMap.containsKey(deployApp.getAppName()))
-            {
-                logger.error(String.format("%s没有在配置文件的lj-paas.set-apps节点中定义", deployApp.getAppName()));
-                throw new NotSupportAppException(String.format("%s未定义所属的set信息", deployApp.getAppName()));
-            }
-            deployApp.setBkBizId(bizId);
-            if(StringUtils.isBlank(deployApp.getBkSetName()))
-            {
-                BizSetDefine sd = this.appSetRelationMap.get(deployApp.getAppName()).get(0);
-                deployApp.setBkSetName(sd.getName());
-                if(StringUtils.isNotBlank(sd.getFixedDomainName()))
-                {
-                    deployApp.setSetId(sd.getId());
-                    deployApp.setBkSetName(sd.getName());
-                    deployApp.setDomainId(sd.getFixedDomainId());
-                    deployApp.setDomainName(sd.getFixedDomainName());
-                }
-            }
-        }
-        return deployApps;
-    }
-
-    /**
-     * 创建新被创建的等待同步到paas的ccod biz平台信息
-     * @param platform ccod biz对应的cmdb平台信息
-     * @param bizInfo biz在paas的相关信息
-     * @param deployApps cmdb记录的该platform的应用部署详情
-     * @return 被创建的ccod biz信息
-     * @throws NotSupportAppException
-     * @throws DBPAASDataNotConsistentException
-     */
-    private CCODPlatformInfo createNewCreateWaitSyncPlatformInfo(PlatformPo platform, LJBizInfo bizInfo, List<PlatformAppDeployDetailVo> deployApps) throws NotSupportAppException, DBPAASDataNotConsistentException
-    {
-        List<PlatformAppDeployDetailVo> apps = makeUpBizInfoForDeployApps(bizInfo.getBkBizId(), deployApps);
-        List<LJSetInfo> setList = createDefaultSetList(bizInfo.getBkBizId());
-        List<LJHostInfo> idleHosts = new ArrayList<>();
-        CCODPlatformInfo platformInfo = generatePlatformInfo(platform, bizInfo, setList, idleHosts, apps);
-        platformInfo.setStatus(CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id);
-        return platformInfo;
-    }
-
-    private List<LJSetInfo> createDefaultSetList(int bizId)
-    {
-        List<LJSetInfo> setList = new ArrayList<>();
-        LJSetInfo idleSet = new LJSetInfo();
-        idleSet.setBkBizId(bizId);
-        idleSet.setBkSetName(this.paasIdlePoolSetName);
-        setList.add(idleSet);
-        for(String setName : this.basicBizSetMap.keySet())
-        {
-            LJSetInfo set = new LJSetInfo();
-            set.setBkSetName(setName);
-            set.setBkBizId(bizId);
-            setList.add(set);
-        }
-        for(String setName : this.extendBizSetMap.keySet())
-        {
-            LJSetInfo set = new LJSetInfo();
-            set.setBkSetName(setName);
-            set.setBkBizId(bizId);
-            setList.add(set);
-        }
-        return setList;
-    }
-
-
     private Map<String, Object> generateLJObjectParam(String objId, String[] fields, Map<String, Object> equalCondition)
     {
         Map<String, Object> paramMap = new HashMap<>();
@@ -565,90 +312,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         }
         paramMap.put("condition", conditionList);
         return paramMap;
-    }
-
-    @Override
-    public List<CCODPlatformInfo> queryAllCCODBiz() throws Exception {
-        logger.info(String.format("begin to query all biz platform info for ccod"));
-        if(this.allPlatformBiz != null)
-            return this.allPlatformBiz;
-        List<PlatformPo> platformList = platformMapper.select(null);
-        List<PlatformAppDeployDetailVo> deployAppList = platformAppDeployDetailMapper.selectPlatformApps(null,
-                null, null);
-//        if(isDevelop)
-//        {
-//            for(PlatformPo platformPo : platformList)
-//            {
-//                if("shltPA".equals(platformPo.getPlatformId()))
-//                {
-//                    platformPo.setBkBizId(11);
-//                }
-//            }
-//            for(PlatformAppDeployDetailVo deployApp : deployAppList)
-//            {
-//                if(deployApp.getPlatformId().equals("shltPA"))
-//                {
-//                    deployApp.setBkBizId(11);
-//                }
-//                else
-//                {
-//                    deployAppList.remove(deployApp);
-//                }
-//            }
-//        }
-        List<LJBizInfo> bizList = queryBKBiz(null, null);
-        Map<Integer, PlatformPo> bizPlatformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getBkBizId, Function.identity()));
-        Map<String, PlatformPo> namePlatformMap = platformList.stream().collect(Collectors.toMap(PlatformPo::getPlatformName, Function.identity()));;
-        Map<Integer, List<PlatformAppDeployDetailVo>> bizAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkBizId));
-        Map<String, List<PlatformAppDeployDetailVo>> platformNameAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getPlatformName));
-        List<CCODPlatformInfo> ccodPlatformList = new ArrayList<>();
-        for(LJBizInfo biz : bizList)
-        {
-            //判断biz是否在exclude列表里
-            if(this.excludeBizSet.contains(biz.getBkBizName()))
-            {
-                logger.info(String.format("bizId=%d is in exclude set", biz.getBkBizId()));
-                continue;
-            }
-            List<LJSetInfo> setList = this.queryBkBizSet(biz.getBkBizId());
-            boolean isCcodBiz = isCCODBiz(biz, setList);
-            if(!isCcodBiz)
-                continue;
-            LJSetInfo idlePoolSet = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity())).get(this.paasIdlePoolSetName);
-            List<LJHostInfo> idleHostList = queryBKHost(biz.getBkBizId(), idlePoolSet.getBkSetId(),  null, null, null);
-            if(setList.size() > 1 && bizAppMap.containsKey(biz.getBkBizId()))
-            {
-                logger.info(String.format("%s biz has all ccod biz sets and cmdb has %d app records for it, so %s is running ccod platform",
-                        biz.toString(), bizAppMap.get(biz.getBkBizId()).size(), biz.getBkBizName()));
-                CCODPlatformInfo platformInfo = generatePlatformInfo(bizPlatformMap.get(biz.getBkBizId()), biz, setList, idleHostList, bizAppMap.get(biz.getBkBizId()));
-                if(this.waitSyncUpdateToPaasBiz.contains(biz.getBkBizId()))
-                {
-                    logger.error(String.format("%s in waitSyncUpdateToPaasBiz, so it status is %s",
-                            biz.toString(), CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.name));
-                    platformInfo.setStatus(CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id);
-                }
-                ccodPlatformList.add(platformInfo);
-            }
-            else if(setList.size() == 1 && platformNameAppMap.containsKey(biz.getBkBizName()) && idleHostList.size() > 0)
-            {
-                logger.info(String.format("%s biz has and only has %s set and %d idle hosts and cmdb has %d app record for it, so %s is %s platform",
-                        biz.toString(), this.paasIdlePoolSetName, idleHostList.size(), platformNameAppMap.get(biz.getBkBizName()).size(), biz.getBkBizName(), CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.name));
-                CCODPlatformInfo platformInfo = createNewCreateWaitSyncPlatformInfo(namePlatformMap.get(biz.getBkBizName()), biz, platformNameAppMap.get(biz.getBkBizName()));
-                ccodPlatformList.add(platformInfo);
-            }
-            else if(setList.size() == 1 && !platformNameAppMap.containsKey(biz.getBkBizName()) && idleHostList.size() > 0)
-            {
-                logger.info(String.format("%s biz has and only has %s set and cmdb has not app record for it, so %s is %s platform",
-                        biz.toString(), this.paasIdlePoolSetName, biz.getBkBizName(), CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.name));
-                CCODPlatformInfo platformInfo = createNewPlatformInfo(biz, idlePoolSet, idleHostList);
-                ccodPlatformList.add(platformInfo);
-            }
-        }
-        if(this.isDevelop)
-        {
-            ccodPlatformList = createDemoCCODPlatform(ccodPlatformList);
-        }
-        return ccodPlatformList;
     }
 
     @Override
@@ -734,211 +397,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
             }
         }
         return platformList;
-    }
-
-    /**
-     * 判断paas下的一个biz是否是ccod biz遵循以下规则
-     * 1、该biz必须有一个空闲服务器资源池set(idle pool)
-     * 2、如果该biz的set数量为1则认为该biz是一个ccod biz
-     * 3、如果该biz的数量大于1，则如果该biz的set包含basicBizSetMap中所有的set且不包含除basicBizSetMap和extendBizSetMap之外的set
-     */
-    private boolean isCCODBiz(LJBizInfo bizInfo, List<LJSetInfo> setList)
-    {
-        Map<String, LJSetInfo> setMap = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
-        if(!setMap.containsKey(this.paasIdlePoolSetName))
-        {
-            logger.warn(String.format("%s has not %s set, so it is not ccod biz",
-                    bizInfo.toString(), this.paasIdlePoolSetName));
-            return false;
-        }
-        setMap.remove(this.paasIdlePoolSetName);
-        if(setMap.size() == 0)
-        {
-            logger.info(String.format("%s has and only has %s set, so it maybe ccod biz",
-                    bizInfo.toString(), this.paasIdlePoolSetName));
-            return true;
-        }
-        for(String setName : setMap.keySet())
-        {
-            if(!this.basicBizSetMap.containsKey(setName) && !this.extendBizSetMap.containsKey(setName))
-            {
-                logger.warn(String.format("set=%s of %s not in ccod basic sets and ccod extend sets, so it is not a ccod biz",
-                        setName, bizInfo.toString()));
-                return false;
-            }
-        }
-        for(String setName : this.basicBizSetMap.keySet())
-        {
-            if(!setMap.containsKey(setName))
-            {
-                logger.warn(String.format("%s not has ccod basic set %s, so it is not a ccod biz",
-                        bizInfo.toString(), setName));
-                return false;
-            }
-        }
-        logger.info(String.format("%s is a ccod biz", bizInfo.toString()));
-        return true;
-    }
-
-    private List<CCODPlatformInfo> createDemoCCODPlatform(List<CCODPlatformInfo> srcPlatforms)
-    {
-        List<CCODPlatformInfo> list = new ArrayList<>();
-        CCODPlatformInfo src = null;
-        for(CCODPlatformInfo platform : srcPlatforms)
-        {
-            if(platform.getStatus() == CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id
-                    && "上海联通平安".equals(platform.getPlatformName()))
-            {
-//                platform = reduceData(platform);
-                src = platform;
-            }
-            platform.setBkBizId(random.nextInt(10000));
-            list.add(platform);
-        }
-        if(src != null)
-        {
-            CCODPlatformInfo newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id);
-            newPlat.setPlatformName("新收集等待同步paas平台");
-            newPlat.setPlatformId("newCollectPlatform");
-            newPlat.setBkBizId(random.nextInt(10000));
-            list.add(newPlat);
-
-            newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.WAIT_SYNC_EXIST_PLATFORM_TO_PAAS.id);
-            newPlat.setPlatformName("等待同步更新结果平台");
-            newPlat.setPlatformId("waitSyncAppUpdatePlatform");
-            newPlat.setBkBizId(random.nextInt(10000));
-            boolean isAdd = false;
-            for(CCODSetInfo setInfo : newPlat.getSets())
-            {
-                if(isAdd)
-                    break;
-                for(CCODDomainInfo domainInfo : setInfo.getDomains())
-                {
-                    if(isAdd)
-                        break;
-                    if(domainInfo.getModules().size() > 0)
-                    {
-                        for(CCODModuleInfo moduleInfo : domainInfo.getModules())
-                        {
-                            isAdd = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            list.add(newPlat);
-
-            newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
-            newPlat.setPlatformName("计划创建新平台");
-            newPlat.setPlatformId("planCreateNewPlatform");
-            newPlat.setBkBizId(random.nextInt(10000));
-            list.add(newPlat);
-
-            newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
-            newPlat.setPlatformName("计划创建新域");
-            newPlat.setPlatformId("planCreateNewDomain");
-            newPlat.setBkBizId(random.nextInt(10000));
-            for(CCODSetInfo setInfo : newPlat.getSets())
-            {
-                if(setInfo.getBkSetName().equals("域服务"))
-                {
-                    break;
-                }
-            }
-            list.add(newPlat);
-
-            newPlat = src.clone();
-            newPlat.setStatus(CCODPlatformStatus.SCHEMA_UPDATE_PLATFORM.id);
-            newPlat.setPlatformName("等待应用升级平台");
-            newPlat.setPlatformId("waitAppUpdatePlatform");
-            newPlat.setBkBizId(random.nextInt());
-            isAdd = false;
-            for(CCODSetInfo setInfo : newPlat.getSets())
-            {
-                if(isAdd)
-                    break;
-                for(CCODDomainInfo domainInfo : setInfo.getDomains())
-                {
-                    if(isAdd)
-                        break;
-                    if(domainInfo.getModules().size() > 0)
-                    {
-                        for(CCODModuleInfo moduleInfo : domainInfo.getModules())
-                        {
-                            isAdd = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            list.add(newPlat);
-        }
-        return list;
-    }
-
-    private CCODPlatformInfo reduceData(CCODPlatformInfo platformInfo)
-    {
-        CCODPlatformInfo platform = platformInfo.clone();
-        for(CCODSetInfo setInfo : platform.getSets())
-        {
-            if(setInfo.getDomains().size() > 1)
-            {
-                List<CCODDomainInfo> domainList = new ArrayList<>();
-                domainList.add(setInfo.getDomains().get(0));
-                setInfo.setDomains(domainList);
-            }
-        }
-        return platformInfo;
-    }
-
-    @Override
-    public List<BizSetDefine> queryCCODBizSet(boolean isCheckApp) {
-        logger.info(String.format("begin to query all set info of ccod biz"));
-
-        List<BizSetDefine> setList = new ArrayList<>();
-        if(isCheckApp)
-        {
-            Map<String, List<AppPo>> appMap = appMapper.select(null, null, null, null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
-            for(BizSetDefine setDefine : this.ccodSetList)
-            {
-                BizSetDefine cloneSet = setDefine.clone();
-                List<String> appList = new ArrayList<>();
-                for(String appName : setDefine.getApps())
-                {
-                    if(appMap.containsKey(appName))
-                        appList.add(appName);
-                }
-                cloneSet.setApps(appList.toArray(new String[0]));
-                setList.add(cloneSet);
-            }
-        }
-        else
-        {
-            for(BizSetDefine setDefine : this.ccodSetList)
-            {
-                BizSetDefine cloneSet = setDefine.clone();
-                setList.add(setDefine);
-            }
-        }
-        logger.info(String.format("ccod biz has %d set", setList.size()));
-        return setList;
-    }
-
-    @Override
-    public List<String> queryAppsInSet(String setId) throws ParamException {
-        logger.info(String.format("begin to query all appName in setId=%s", setId));
-        if(!this.basicBizSetMap.containsKey(setId) && !this.extendBizSetMap.containsKey(setId))
-        {
-            logger.error(String.format("%s not in ccod biz basic sets and extend sets, so it is not a legal set id", setId));
-            throw new ParamException(String.format("ccod biz has not set with id=%s", setId));
-        }
-        String[] apps = this.basicBizSetMap.containsKey(setId) ? this.basicBizSetMap.get(setId).getApps() : this.extendBizSetMap.get(setId).getApps();
-        logger.info(String.format("find %s relative to setId=%s", String.join(",", apps), setId));
-        return Arrays.asList(apps);
     }
 
     @Override
@@ -1313,21 +771,19 @@ public class LJPaasServiceImpl implements ILJPaasService {
      * @param platform 数据库记录的需要同步的平台信息
      * @param bkBizId 需要自动同步的biz的id
      * @param hostCloudId 该biz的服务器所属的cloud
-     * @param deployAppList 客户端收集的平台应用详情
-     * @throws NotSupportAppException 客户端收集的应用不在支持的应用列表
+     * @param deployApps 客户端收集的平台应用详情
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败信息或是解析蓝鲸api返回结果失败
      */
-    private void resetAndSyncAppDeployDetailToBiz(PlatformPo platform, int bkBizId, int hostCloudId, List<PlatformAppDeployDetailVo> deployAppList)
-            throws NotSupportAppException, InterfaceCallException, LJPaasException
+    private void resetAndSyncAppDeployDetailToBiz(PlatformPo platform, int bkBizId, int hostCloudId, List<PlatformAppDeployDetailVo> deployApps)
+            throws InterfaceCallException, LJPaasException
     {
         logger.info(String.format("begin to sync bizName=%s and bizId=%d app deploy info to lj paas, hostCloud=%d and record count=%d",
-                platform.getPlatformName(), bkBizId, hostCloudId, deployAppList.size()));
+                platform.getPlatformName(), bkBizId, hostCloudId, deployApps.size()));
         long currentTime = System.currentTimeMillis();
-        List<PlatformAppDeployDetailVo> deployApps = makeUpBizInfoForDeployApps(bkBizId, deployAppList);
         Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
-        List<String> setNames = new ArrayList<>(this.basicBizSetMap.keySet());
-        setNames.addAll(new ArrayList<>(this.extendBizSetMap.keySet()));
+        Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        List<String> setNames = new ArrayList<>(setDefineMap.keySet());
         Collections.sort(setNames);
         //将指定的biz重置
         Map<String, LJSetInfo> setMap = resetExistBiz(bkBizId, setNames).stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
@@ -1613,11 +1069,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 return -1;
             }
         }).forEach(System.out::println);
-    }
-
-    @Override
-    public Map<String, List<BizSetDefine>> getAppBizSetRelation() {
-        return this.appSetRelationMap;
     }
 
     @Override

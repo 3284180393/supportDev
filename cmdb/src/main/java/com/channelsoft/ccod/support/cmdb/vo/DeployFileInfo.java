@@ -29,6 +29,10 @@ public class DeployFileInfo {
 
     private String ext; //文件扩展类型
 
+    private boolean transferSucc; //源文件是否传输成功
+
+    private String transferFailReason; //源文件传输失败原因
+
     public String getExt() {
         return ext;
     }
@@ -107,5 +111,21 @@ public class DeployFileInfo {
 
     public void setNexusDirectory(String nexusDirectory) {
         this.nexusDirectory = nexusDirectory;
+    }
+
+    public boolean isTransferSucc() {
+        return transferSucc;
+    }
+
+    public void setTransferSucc(boolean transferSucc) {
+        this.transferSucc = transferSucc;
+    }
+
+    public String getTransferFailReason() {
+        return transferFailReason;
+    }
+
+    public void setTransferFailReason(String transferFailReason) {
+        this.transferFailReason = transferFailReason;
     }
 }

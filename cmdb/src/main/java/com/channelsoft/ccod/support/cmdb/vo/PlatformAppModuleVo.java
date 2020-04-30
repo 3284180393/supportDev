@@ -1,8 +1,10 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
 import com.channelsoft.ccod.support.cmdb.constant.DomainStatus;
 import com.channelsoft.ccod.support.cmdb.po.*;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -61,6 +63,8 @@ public class PlatformAppModuleVo {
     private String versionControl; //版本控制方式
 
     private String versionControlUrl; //版本控制的连接url
+
+    private String comment; //备注
 
     public String getVersionControl() {
         return versionControl;
@@ -238,6 +242,14 @@ public class PlatformAppModuleVo {
         this.ccodVersion = ccodVersion;
     }
 
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
+    }
+
     public PlatformPo getPlatform()
     {
         PlatformPo po = new PlatformPo(this.platformId, this.platformName, 0, 0,
@@ -372,6 +384,48 @@ public class PlatformAppModuleVo {
             list.add(cfgFilePo);
         }
         return list.toArray(new PlatformAppCfgFilePo[0]);
+    }
+
+    public boolean isOk(String platformId, String platformName, Map<String, List<BizSetDefine>>appSetRelation)
+    {
+        boolean ok =  false;
+        if(!platformId.equals(this.platformId))
+            this.comment = String.format("platformId error, want %s and report %s : %s", platformId, this.platformId);
+        else if(!platformName.equals(this.platformName))
+            this.comment = String.format("platformName error, want %s and report %s : %s", platformName, this.platformName);
+        else if(!appSetRelation.containsKey(this.domainName))
+            this.comment = String.format("app %s not been supported", this.moduleName);
+        else if(!this.installPackage.isTransferSucc())
+            this.comment = StringUtils.isNotBlank(this.installPackage.getTransferFailReason()) ? this.installPackage.getTransferFailReason() : String.format("not receive %s", this.installPackage.getFileName());
+        else
+        {
+            boolean cfgOk = true;
+            for(DeployFileInfo cfg : cfgs)
+            {
+                if(!cfg.isTransferSucc())
+                {
+                    cfgOk = false;
+                    this.comment = StringUtils.isNotBlank(cfg.getTransferFailReason()) ? cfg.getTransferFailReason() : String.format("not receive %s", cfg.getFileName());
+                    break;
+                }
+            }
+            if(cfgOk)
+                ok = true;
+        }
+        return ok;
+    }
+
+    public UnconfirmedAppModulePo getUnconfirmedModule()
+    {
+        UnconfirmedAppModulePo po = new UnconfirmedAppModulePo();
+        po.setAlias(this.moduleAliasName);
+        po.setAppName(this.moduleName);
+        po.setDomainName(this.domainName);
+        po.setHostIp(this.hostIp);
+        po.setPlatformId(this.platformId);
+        po.setSubmitTime(new Date());
+        po.setReason(this.comment);
+        return po;
     }
 
     @Override

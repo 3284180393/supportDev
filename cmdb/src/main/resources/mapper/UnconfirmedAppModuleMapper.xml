@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.UnconfirmedAppModuleMapper" >
+    <resultMap id="UnconfirmedAppModuleMap" type="com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo" >
+        <id column="id" property="id" jdbcType="INTEGER" />
+        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
+        <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="app_name" property="appName" jdbcType="VARCHAR" />
+        <result column="alias" property="alias" jdbcType="VARCHAR" />
+        <result column="reason" property="reason" jdbcType="VARCHAR" />
+        <result column="submit_time" property="submitTime" jdbcType="TIMESTAMP" />
+        <result column="package_download_url" property="packageDownloadUrl" jdbcType="VARCHAR" />
+        <result column="cfg_download_url" property="cfgDownloadUrl" jdbcType="VARCHAR" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+        uam.id, uam.platform_id, uam.domain_name, uam.host_ip, uam.app_name, uam.alias, uam.reason, uam.submit_time, uam.package_download_url, uam.cfg_download_url
+    </sql>
+    <select id="select" resultMap="UnconfirmedAppModuleMap" parameterType="java.lang.String">
+        select
+        <include refid="Base_Column_List" />
+        from unconfirmed_app_module uam
+        where uam.platform_id=#{platformId,jdbcType=VARCHAR}
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into unconfirmed_app_module(platform_id, domain_name, host_ip, app_name, alias, reason, submit_time, package_download_url, cfg_download_url)
+        values (#{platformId,jdbcType=VARCHAR}, #{domainName,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{appName,jdbcType=VARCHAR}, #{alias,jdbcType=VARCHAR}, #{reason,jdbcType=VARCHAR}, #{submit_time,jdbcType=TIMESTAMP}, #{packageDownloadUrl,jdbcType=VARCHAR}, #{cfgDownloadUrl,jdbcType=VARCHAR})
+    </insert>
+    <delete id="delete">
+        delete
+        from unconfirmed_app_module
+        where 1=1 And platform_id=#{platformId,jdbcType=VARCHAR}
+    </delete>
+</mapper>

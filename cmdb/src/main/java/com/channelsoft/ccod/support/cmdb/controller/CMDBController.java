@@ -1,13 +1,9 @@
 package com.channelsoft.ccod.support.cmdb.controller;
 
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.channelsoft.ccod.support.cmdb.constant.AppOperationMethod;
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
-import com.channelsoft.ccod.support.cmdb.constant.PlatformUpdateTaskType;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
-import com.channelsoft.ccod.support.cmdb.po.AppPo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
@@ -598,7 +594,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<BizSetDefine> setDefines = this.ljPaasService.queryCCODBizSet(true);
+            List<BizSetDefine> setDefines = this.appManagerService.queryCCODBizSet(true);
             resultPo = new AjaxResultPo(true, "query SUCCESS", setDefines.size(), setDefines);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }

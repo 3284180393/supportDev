@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
 import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
@@ -35,13 +36,6 @@ public interface ILJPaasService {
     List<LJBizInfo> queryAllBiz() throws InterfaceCallException, LJPaasException;
 
     /**
-     * 查询所有的ccod biz平台
-     * @return 查询结果
-     * @throws Exception
-     */
-    List<CCODPlatformInfo> queryAllCCODBiz() throws Exception;
-
-    /**
      * 根据指定条件查询相关biz信息
      * @param bizId biz id
      * @param setId set id
@@ -59,21 +53,6 @@ public interface ILJPaasService {
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果失败
      */
     List<LJSetInfo> resetExistBiz(int bkBizId, List<String> setNames) throws InterfaceCallException, LJPaasException;
-
-    /**
-     * 查询ccod biz下面set信息
-     * @param isCheckApp 如果为true在返回的set信息中的应用都可以查到具体版本，否则包含所有的应用，这些应用可能没有记录任何版本
-     * @return set信息
-     */
-    List<BizSetDefine> queryCCODBizSet(boolean isCheckApp);
-
-    /**
-     * 查询指定set下面关联的应用
-     * @param setId 指定的set的id
-     * @return 查询结果
-     * @throws ParamException 指定的setId不存在
-     */
-    List<String> queryAppsInSet(String setId) throws ParamException;
 
     /**
      * 在蓝鲸paas创建一个新的set
@@ -246,12 +225,6 @@ public interface ILJPaasService {
      * @return 该biz的所有set
      */
     List<LJSetInfo> queryBkBizSet(int bkBizId) throws InterfaceCallException, LJPaasException;
-
-    /**
-     * 获取应用和set的关系
-     * @return 应用和set的关系
-     */
-    Map<String, List<BizSetDefine>> getAppBizSetRelation();
 
     /**
      * 查询指定id的biz的空闲服务器

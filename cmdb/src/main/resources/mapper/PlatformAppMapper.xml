@@ -5,6 +5,7 @@
         <id column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="app_id" property="appId" jdbcType="INTEGER" />
         <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
+        <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
@@ -17,6 +18,7 @@
 	        pa.platform_app_id AS platform_app_id,
 	        pa.app_id AS app_id,
 	        pa.app_alias AS app_alias,
+	        pa.original_alias AS original_alias,
 	        pa.platform_id AS platform_id,
 	        pa.domain_id AS domain_id,
 	        pa.host_ip AS host_ip,
@@ -32,6 +34,7 @@
             pa.platform_app_id AS platform_app_id,
             pa.app_id AS app_id,
             pa.app_alias AS app_alias,
+            pa.original_alias AS original_alias,
             pa.platform_id AS platform_id,
             pa.domain_id AS domain_id,
             pa.host_ip AS host_ip,
@@ -64,8 +67,8 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo"
             useGeneratedKeys="true" keyProperty="platformAppId">
-        insert into platform_app(app_id, app_alias, platform_id, domain_id,	host_ip, app_runner, base_path,	deploy_time)
-        values (#{appId,jdbcType=VARCHAR}, #{appAlias,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{appRunner,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{deployTime,jdbcType=TIMESTAMP})
+        insert into platform_app(app_id, app_alias, original_alias, platform_id, domain_id,	host_ip, app_runner, base_path,	deploy_time)
+        values (#{appId,jdbcType=VARCHAR}, #{appAlias,jdbcType=VARCHAR}, #{originalAlias,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{appRunner,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{deployTime,jdbcType=TIMESTAMP})
     </insert>
     <delete id="delete">
         delete

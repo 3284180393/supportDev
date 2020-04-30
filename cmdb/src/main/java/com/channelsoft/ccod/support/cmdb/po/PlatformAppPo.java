@@ -20,6 +20,8 @@ public class PlatformAppPo {
 
     private String appAlias; //应用别名,例如在服务器上部署两个cms,appName=cmsserver,两个cms的别名可以分别取cms1和cms2用来区分
 
+    private String originalAlias; //应用原始别名，客户端提交的未被标准化处理的应用别名
+
     private String platformId; //平台id
 
     private String domainId; //应用所在的域id,外键domain的domain_id
@@ -102,6 +104,14 @@ public class PlatformAppPo {
 
     public void setHostIp(String hostIp) {
         this.hostIp = hostIp;
+    }
+
+    public String getOriginalAlias() {
+        return originalAlias;
+    }
+
+    public void setOriginalAlias(String originalAlias) {
+        this.originalAlias = originalAlias;
     }
 
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {

@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
@@ -259,5 +260,12 @@ public interface IAppManagerService {
      * @throws InterfaceCallException  调用nexus接口异常
      */
     String getAppCfgText(String appName, String version, String cfgFileName) throws ParamException, NexusException, InterfaceCallException, IOException;
+
+    /**
+     * 查询ccod biz下面set信息
+     * @param isCheckApp 如果为true在返回的set信息中的应用都可以查到具体版本，否则包含所有的应用，这些应用可能没有记录任何版本
+     * @return set信息
+     */
+    List<BizSetDefine> queryCCODBizSet(boolean isCheckApp);
 
 }

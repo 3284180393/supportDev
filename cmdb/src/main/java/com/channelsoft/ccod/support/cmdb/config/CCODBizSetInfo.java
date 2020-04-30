@@ -1,9 +1,5 @@
 package com.channelsoft.ccod.support.cmdb.config;
 
-import com.channelsoft.ccod.support.cmdb.vo.BizSetDefine;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
-
 import java.util.List;
 
 /**
@@ -13,8 +9,7 @@ import java.util.List;
  * @Date: 2019/12/18 15:39
  * @Version: 1.0
  */
-@Configuration
-@ConfigurationProperties(prefix = "lj-paas.set-apps")
+
 public class CCODBizSetInfo {
 
     private List<BizSetDefine> set;

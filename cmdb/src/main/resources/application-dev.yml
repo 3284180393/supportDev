@@ -15,6 +15,225 @@ ccod:
   notCheckCfgApps:
     - cmsserver
   platform-deploy-template: platform_deploy.py
+  set[0]:
+    name: 公共组件
+    id: publicModules
+    isBasic: 1
+    fixedDomainName: 相关模块
+    fixedDomainId: public
+    domainType: 2
+    apps[0]:
+      name: LicenseServer
+      alias: licenseserver
+    apps[1]:
+      name: configserver
+      alias: configserver
+    apps[2]:
+      name: glsServer
+      alias: glsserver
+      delay: 30
+    apps[3]:
+      name: RMServer
+  set[1]:
+    name: 网关接入
+    id: gatewayAccess
+    isBasic: 1
+    fixedDomainName: 网关
+    fixedDomainId: gateway
+    domainType: 3
+    apps[0]:
+      name: umg
+  set[2]:
+    name: 域服务
+    id: domainService
+    isBasic: 1
+    fixedDomainName: 服务域
+    fixedDomainId: cloud
+    domainType: 1
+    apps[0]:
+      name: DDSServer
+      alias: dds
+      delay: 20
+    apps[1]:
+      name: UCDServer
+      alias: ucds
+      delay: 20
+    apps[2]:
+      name: dcs
+      alias: dcs
+      delay: 20
+    apps[3]:
+      name: cmsserver
+      alias: cms
+      delay: 20
+    apps[4]:
+      name: ucxserver
+      alias: ucx
+      delay: 20
+    apps[5]:
+      name: daengine
+      alias: daengine
+      delay: 20
+    apps[6]:
+      name: DataKeeper
+    apps[7]:
+      name: dcproxy
+      alias: dcproxy
+      delay: 20
+    apps[8]:
+      name: ddaengine
+    apps[9]:
+      name: ddcs
+      alias: ddcs
+      delay: 20
+    apps[10]:
+      name: tsrecadsrv
+    apps[11]:
+      name: tsr2
+    apps[12]:
+      name: EAService
+    apps[13]:
+      name: fpsvr
+    apps[14]:
+      name: psr
+    apps[15]:
+      name: slee
+    apps[16]:
+      name: StatSchedule
+      alias: ss
+  set[3]:
+    name: 管理门户
+    id: managerPortal
+    isBasic: 1
+    fixedDomainName: 管理门户域
+    fixedDomainId: manage
+    domainType: 4
+    apps[0]:
+      name: agentProxy
+    apps[1]:
+      name: cas
+    apps[2]:
+      name: cci2
+    apps[3]:
+      name: customWebservice
+      alias: customwebservice
+    apps[4]:
+      name: dcms
+      alias: dcms
+    apps[5]:
+      name: dcmsDialer
+    apps[6]:
+      name: dcmsDialerWebservice
+    apps[7]:
+      name: dcmsMonitor
+    apps[8]:
+      name: dcmsNEWSG
+    apps[9]:
+      name: dcmsRecord
+      alias: dcmsrecord
+    apps[10]:
+      name: dcmsRecordCXM
+    apps[11]:
+      name: dcmssg
+      alias: dcmssg
+    apps[12]:
+      name: dcmsSG
+      alias: dcmssg2
+    apps[13]:
+      name: dcmsSR
+    apps[14]:
+      name: dcmsStatics
+      alias: dcmsstatics
+    apps[15]:
+      name: dcmsStaticsIB
+    apps[16]:
+      name: dcmsStaticsReport
+      alias: dcmsstaticsreport
+    apps[17]:
+      name: dcmsStaticsReportfj
+    apps[18]:
+      name: dcmsStaticsReportNew
+    apps[19]:
+      name: dcmsWebservice
+      alias: dcmswebservice
+    apps[20]:
+      name: dcmsWebservicespeed
+    apps[21]:
+      name: dcmsWebservicespeednew
+    apps[22]:
+      name: dcmsWebserviceucds
+    apps[23]:
+      name: dcmsx
+      alias: dcmsx
+    apps[24]:
+      name: httpd
+    apps[25]:
+      name: IBcustomWebservice
+    apps[26]:
+      name: IBsafetymonitor
+    apps[27]:
+      name: interfaceAdapter
+    apps[28]:
+      name: ivrprocessinterface
+    apps[29]:
+      name: omsp
+    apps[30]:
+      name: PADnStatistics
+    apps[31]:
+      name: PADnStatisticsbilibili
+    apps[32]:
+      name: PAreload
+    apps[33]:
+      name: portal
+    apps[34]:
+      name: safetyMonitor
+      alias: safetymonitor
+    apps[35]:
+      name: safetyStatics
+    apps[36]:
+      name: safetyStaticsQT
+    apps[37]:
+      name: tomcat
+  set[4]:
+    name: 对外接口
+    id: api
+    isBasic: 1
+    fixedDomainName: 接口
+    fixedDomainId: api
+    domainType: 5
+    apps:
+  set[5]:
+    name: 运营门户
+    id: supportPortal
+    isBasic: 1
+    fixedDomainName: 运营门户域
+    fixedDomainId: ops
+    domainType: 6
+    apps[0]:
+      name: gls
+      alias: gls
+    apps[1]:
+      name: httpd
+    apps[2]:
+      name: IBcustomWebs
+    apps[3]:
+      name: IBsafetymoni
+    apps[4]:
+      name: licen
+  set[6]:
+    name: 外拨模块
+    id: apgModules
+    isBasic: 0
+    fixedDomainName: 外拨域
+    fixedDomainId: apg-domain
+    domainType: 7
+    apps[0]:
+      name: AppGateWay
+    apps[1]:
+      name: DialEngine
+    apps[2]:
+      name: UCGateway
+
 
 nexus:
   user : admin
@@ -22,6 +241,7 @@ nexus:
   host-url : http://10.130.41.216:8081
   app-module-repository : ccod_modules
   platform-app-cfg-repository : platform_app_cfg
+  unconfirmed-platform-app-repository: unconfirmed-platform-app
   tmp-platform-app-cfg-repository: tmp
   platform-deploy-script-repository: some_test
   nexus-docker-url: nexus.io:5000
@@ -68,131 +288,7 @@ lj-paas:
   update-schema-set-name: 平台升级方案
   update-schema-set-id: platformUpdateSchema
   host-default-cloud-id: 5
-  set-apps:
-    set[0]:
-      name: 公共组件
-      id: publicModules
-      isBasic: 1
-      fixedDomainName: 相关模块
-      fixedDomainId: public
-      domainType: 2
-      apps:
-        - LicenseServer/licenseserver
-        - configserver/configserver
-        - glsServer/glsserver:30
-        - RMServer
-    set[1]:
-      name: 网关接入
-      id: gatewayAccess
-      isBasic: 1
-      fixedDomainName: 网关
-      fixedDomainId: gateway
-      domainType: 3
-      apps:
-        - umg
-    set[2]:
-      name: 域服务
-      id: domainService
-      isBasic: 1
-      fixedDomainName: 服务域
-      fixedDomainId: cloud
-      domainType: 1
-      apps:
-        - DDSServer/dds:20
-        - UCDServer/ucds:20
-        - dcs/dcs:20
-        - cmsserver/cms:20
-        - ucxserver/ucx:20
-        - daengine/daengine:20
-        - DataKeeper
-        - dcproxy/dcproxy
-        - ddaengine
-        - ddcs
-        - tsrecadsrv
-        - tsr2
-        - EAService
-        - fpsvr
-        - psr
-        - slee
-        - StatSchedule/ss
-    set[3]:
-      name: 管理门户
-      id: managerPortal
-      isBasic: 1
-      fixedDomainName: 管理门户域
-      fixedDomainId: manage
-      domainType: 4
-      apps:
-        - agentProxy
-        - cas/cas
-        - cci2
-        - customWebservice/customwebservice
-        - dcms/dcms
-        - dcmsDialer
-        - dcmsDialerWebservice
-        - dcmsMonitor
-        - dcmsNEWSG
-        - dcmsRecord/dcmsrecord
-        - dcmsRecordCXM
-        - dcmssg/dcmssg
-        - dcmsSG
-        - dcmsSR
-        - dcmsStatics/dcmsstatics
-        - dcmsStaticsIB
-        - dcmsStaticsReport/dcmsstaticsreport
-        - dcmsStaticsReportfj
-        - dcmsStaticsReportNew
-        - dcmsWebservice/dcmswebservice
-        - dcmsWebservicespeed
-        - dcmsWebservicespeednew
-        - dcmsWebserviceucds
-        - dcmsx/dcmsx
-        - httpd
-        - IBcustomWebservice
-        - IBsafetymonitor
-        - interfaceAdapter
-        - ivrprocessinterface
-        - omsp
-        - PADnStatistics
-        - PADnStatisticsbilibili
-        - PAreload
-        - portal
-        - safetyMonitor/safetymonitor
-        - safetyStatics
-        - safetyStaticsQT
-        - tomcat
-    set[4]:
-      name: 对外接口
-      id: api
-      isBasic: 1
-      fixedDomainName: 接口
-      fixedDomainId: api
-      domainType: 5
-      apps:
-    set[5]:
-      name: 运营门户
-      id: supportPortal
-      isBasic: 1
-      fixedDomainName: 运营门户域
-      fixedDomainId: ops
-      domainType: 6
-      apps:
-        - gls/gls
-        - httpd
-        - IBcustomWebs
-        - IBsafetymoni
-        - licen
-    set[6]:
-      name: 外拨模块
-      id: apgModules
-      isBasic: 0
-      fixedDomainName: 外拨域
-      fixedDomainId: apg-domain
-      domainType: 7
-      apps:
-        - AppGateWay
-        - DialEngine
-        - UCGateway
+
 
 k8s:
   gls_oracle_svc_name: oracle

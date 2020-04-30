@@ -2,6 +2,9 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.config.AppDefine;
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
+import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
 import com.channelsoft.ccod.support.cmdb.config.NotCheckCfgApp;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
@@ -15,7 +18,6 @@ import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import com.channelsoft.ccod.support.cmdb.utils.ServiceUnitUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.ibatis.annotations.Param;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +28,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
-import org.springframework.util.ResourceUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.*;
@@ -61,6 +62,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Value("${nexus.app-module-repository}")
     private String appRepository;
+
+    @Value("${nexus.unconfirmed-platform-app-repository}")
+    private String unconfirmedPlatformAppRepository;
 
     @Value("${nexus.tmp-platform-app-cfg-repository}")
     private String platformTmpCfgRepository;
@@ -119,10 +123,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Value("${k8s.gls_oracle_sid}")
     private String glsOracleSid;
 
-    private String domainIdFmt = "%s%s";
-
-    private String appAliasFmt = "%s%d";
-
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
 
@@ -172,14 +172,21 @@ public class AppManagerServiceImpl implements IAppManagerService {
     PlatformUpdateSchemaMapper platformUpdateSchemaMapper;
 
     @Autowired
+    UnconfirmedAppModuleMapper unconfirmedAppModuleMapper;
+
+    @Autowired
     ILJPaasService paasService;
 
     @Autowired
-    private NotCheckCfgApp notCheckCfgApp;
+    private CCODBiz ccodBiz;
 
-    private boolean isPlatformCheckOngoing = false;
+    private Map<String, List<BizSetDefine>> appSetRelationMap;
+
+    private Map<String, BizSetDefine> setDefineMap;
 
     private Set<String> notCheckCfgAppSet;
+
+    private boolean isPlatformCheckOngoing = false;
 
     private final static Logger logger = LoggerFactory.getLogger(AppManagerServiceImpl.class);
 
@@ -188,9 +195,18 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @PostConstruct
     void init() throws  Exception
     {
-        this.notCheckCfgAppSet = new HashSet<>(this.notCheckCfgApp.getNotCheckCfgApps());
-        logger.info(String.format("%s will not check cfg count of app",
-                JSONArray.toJSONString(this.notCheckCfgAppSet)));
+        this.appSetRelationMap  = new HashMap<>();
+        for(BizSetDefine setDefine : this.ccodBiz.getSet())
+        {
+            for(AppDefine appDefine : setDefine.getApps())
+            {
+                if(!this.appSetRelationMap.containsKey(appDefine.getName()))
+                    this.appSetRelationMap.put(appDefine.getName(), new ArrayList<>());
+                this.appSetRelationMap.get(appDefine.getName()).add(setDefine);
+            }
+        }
+        this.notCheckCfgAppSet = new HashSet<>(ccodBiz.getNotCheckCfgApps());
+        this.setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<PlatformUpdateSchemaPo> schemaPoList = this.platformUpdateSchemaMapper.select();
         for(PlatformUpdateSchemaPo po : schemaPoList)
         {
@@ -345,90 +361,79 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public PlatformAppModuleVo[] startCollectPlatformAppData(String platformId, String platformName, String domainId, String hostIp, String appName, String version) throws ParamException, Exception {
         PlatformPo platformPo = platformMapper.selectByPrimaryKey(platformId);
-        if(platformPo != null && !platformPo.getPlatformName().equals(platformName))
+        if(platformPo != null)
         {
-            logger.error(String.format("platformId=%s platform has been record in database, but its name is %s, not %s",
-                    platformId, platformPo.getPlatformName(), platformName));
-            throw new ParamException(String.format("platformId=%s platform has been record in database, but its name is %s, not %s",
-                    platformId, platformPo.getPlatformName(), platformName));
+            logger.error(String.format("platformId=%s platform has existed", platformId));
+            throw new ParamException(String.format("platformId=%s platform has existed", platformId));
         }
         if(this.isPlatformCheckOngoing)
         {
             logger.error(String.format("start platform=%s app data collect FAIL : some collect task is ongoing", platformId));
-            throw new Exception(String.format("start platform=%s app data collect FAIL : some collect task is ongoing", platformId));
+            throw new ClientCollectDataException(String.format("start platform=%s app data collect FAIL : some collect task is ongoing", platformId));
         }
         try
         {
             this.isPlatformCheckOngoing = true;
             List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, platformName, domainId, hostIp, appName, version);
-            Map<String, List<PlatformAppModuleVo>> platformAppModuleMap = modules.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getPlatformId));
-            if(platformAppModuleMap.keySet().size() > 1)
+            List<PlatformAppModuleVo> failList = new ArrayList<>();
+            List<PlatformAppModuleVo> successList = new ArrayList<>();
+            for(PlatformAppModuleVo collectedModule : modules)
             {
-                logger.error(String.format("platformId=%s client collected data platformId not unique : [%s]",
-                        platformId, String.join(",", platformAppModuleMap.keySet())));
-                throw new ClientCollectDataException(String.format("platformId=%s client collected data platformId not unique : [%s]",
-                        platformId, String.join(",", platformAppModuleMap.keySet())));
+                if(collectedModule.isOk(platformId, platformName, this.appSetRelationMap))
+                    successList.add(collectedModule);
+                else
+                    failList.add(collectedModule);
             }
-            else if(!platformAppModuleMap.containsKey(platformId))
+            platformPo = modules.get(0).getPlatform();
+            platformMapper.insert(platformPo);
+            List<DomainPo> domainList = new ArrayList<>();
+            Map<String, List<PlatformAppModuleVo>> domainAppMap = successList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
+            Set<String> domainNameSet = domainAppMap.keySet();
+            for(String domainName : domainNameSet)
             {
-                logger.error(String.format("platformId=%s client collected data's platformId is %s",
-                        platformId, JSONObject.toJSONString(platformAppModuleMap.keySet())));
-                throw new ClientCollectDataException(String.format("platformId=%s client collected data's platformId is %s",
-                        platformId, JSONObject.toJSONString(platformAppModuleMap.keySet())));
-            }
-            platformAppModuleMap = modules.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getPlatformName));
-            if(platformAppModuleMap.keySet().size() > 1)
-            {
-                logger.error(String.format("platformName=%s client collected data platformName not unique : [%s]",
-                        platformName, String.join(",", platformAppModuleMap.keySet())));
-                throw new ClientCollectDataException(String.format("platformName=%s client collected data platformName not unique : [%s]",
-                        platformName, String.join(",", platformAppModuleMap.keySet())));
-            }
-            else if(!platformAppModuleMap.containsKey(platformName))
-            {
-                logger.error(String.format("platformName=%s client collected data's platformName is %s",
-                        platformName, JSONObject.toJSONString(platformAppModuleMap.keySet())));
-                throw new ClientCollectDataException(String.format("platformName=%s client collected data's platformName is %s",
-                        platformName, JSONObject.toJSONString(platformAppModuleMap.keySet())));
-            }
-            Map<String, List<PlatformAppModuleVo>> domainAppMap = modules.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainId));
-            Map<String, DomainPo> domainMap = domainMapper.select(platformId, null).stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
-            for(String reportDomainId : domainAppMap.keySet())
-            {
-                Map<String, List<PlatformAppModuleVo>> domainNameAppModuleMap = domainAppMap.get(reportDomainId)
-                        .stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
-                if(domainNameAppModuleMap.size() > 1)
+                try
                 {
-                    logger.error(String.format("domainId=%s has not unique domainName=[%s]",
-                            reportDomainId, String.join(",", domainNameAppModuleMap.keySet())));
-                    throw new ClientCollectDataException(String.format("domainId=%s has not unique domainName=[%s]",
-                            reportDomainId, String.join(",", domainNameAppModuleMap.keySet())));
+                    DomainPo domainPo = parseDomainApps(domainAppMap.get(domainName));
+                    domainList.add(domainPo);
                 }
-                String reportDomainName = domainAppMap.get(reportDomainId).get(0).getDomainName();
-                if(domainMap.containsKey(reportDomainId) && !domainMap.get(reportDomainId).getDomainName().equals(reportDomainName))
+                catch (ParamException ex)
                 {
-                    logger.error(String.format("domainId=%s is record in database, but its name=%s not %s",
-                            reportDomainId, domainMap.get(reportDomainId).getDomainName(), reportDomainName));
-                    throw new ClientCollectDataException(String.format("domainId=%s is record in database, but its name=%s not %s",
-                            reportDomainId, domainMap.get(reportDomainId).getDomainName(), reportDomainName));
+                    for(PlatformAppModuleVo moduleVo : domainAppMap.get(domainName))
+                    {
+                        moduleVo.setComment(ex.getMessage());
+                        failList.add(moduleVo);
+                    }
+                    domainAppMap.remove(domainName);
                 }
             }
-            if(platformPo == null)
-            {
-                platformPo = modules.get(0).getPlatform();
-                platformMapper.insert(platformPo);
-            }
-            for(List<PlatformAppModuleVo> domainModules : domainAppMap.values())
-            {
-                DomainPo domainPo = domainModules.get(0).getDomain();
-                if(!domainMap.containsKey(domainPo.getDomainId()))
-                {
-                    domainMapper.insert(domainPo);
-                }
-
-            }
+            for(DomainPo po : domainList)
+                this.domainMapper.insert(po);
             Map<String, AppModuleVo> appModuleMap = new HashMap<>();
-            handleCollectedPlatformAppModules(appModuleMap, modules.toArray(new PlatformAppModuleVo[0]));
+            for(DomainPo domainPo : domainList)
+            {
+                for(PlatformAppModuleVo moduleVo : domainAppMap.get(domainPo.getDomainName()))
+                {
+                    try
+                    {
+                        handlePlatformAppModule(moduleVo, appModuleMap);
+                    }
+                    catch (DBNexusNotConsistentException ex)
+                    {
+                        moduleVo.setComment(ex.getMessage());
+                        failList.add(moduleVo)
+                    }
+                    catch (ParamException ex)
+                    {
+                        moduleVo.setComment(ex.getMessage());
+                        failList.add(moduleVo);
+                    }
+                }
+            }
+            for(PlatformAppModuleVo moduleVo : failList)
+            {
+                UnconfirmedAppModulePo unconfirmedAppModulePo = handleUnconfirmedPlatformAppModule(moduleVo);
+                this.unconfirmedAppModuleMapper.insert(unconfirmedAppModulePo);
+            }
             return modules.toArray(new PlatformAppModuleVo[0]);
         }
         finally {
@@ -451,31 +456,114 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     /**
-     * 将一组平台应用模块上传到nexus
-     * 如果某个模块对应的component已经在nexus存在则对比安装包的md5,如果md5不一致则报错，该平台应用模块上传失败,否则上传该平台应用模块的配置文件
-     * 如果component不存在则创建该应用对应的component(appName/appAlias/version),并上传该平台应用的配置文件
-     * @param modules 需要上传的模块
-     * @throws Exception
+     * 从指定的域模块获取域信息以及域归属的集群信息
+     * @param domainAppList 域模块列表
+     * @return 模块所属的域信息
+     * @throws ParamException 从域模块中无法获取正确的域信息
      */
-    void handleCollectedPlatformAppModules(Map<String, AppModuleVo> appModuleMap, PlatformAppModuleVo[] modules) throws Exception
+    private DomainPo parseDomainApps(List<PlatformAppModuleVo> domainAppList) throws ParamException
     {
-        Map<String, List<NexusAssetInfo>> appFileAssetMap = new HashMap<>();
-        for(PlatformAppModuleVo module : modules)
+        String domainName = domainAppList.get(0).getDomainName();
+        Map<String, List<PlatformAppModuleVo>> map = domainAppList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
+        if(map.size() > 1)
         {
-            try
+            logger.error(String.format("%s has not unique id %s", domainName, String.join(",", map.keySet())));
+            throw new ParamException(String.format("%s has not unique id %s", domainName, String.join(",", map.keySet())));
+        }
+        String domainId = domainAppList.get(0).getDomainId();
+        map = domainAppList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getModuleAliasName));
+        for(String alias : map.keySet())
+        {
+            if(map.get(alias).size() > 1)
             {
-                boolean handleSucc = handlePlatformAppModule(module, appModuleMap, appFileAssetMap);
-                if(!handleSucc)
-                {
-                    logger.error(String.format("handle [%s] FAIL", module.toString()));
+                logger.error(String.format("alias %s of %s(%s) is not unique", alias, domainName, domainId));
+                throw new ParamException(String.format("alias %s of %s(%s) is not unique", alias, domainName, domainId));
+            }
+        }
+        String bkSetName = null;
+        Map<String, Set<String>> appSetNameMap = new HashMap<>();
+        map = domainAppList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getModuleName));
+        String comparedAppName = null;
+        for(String appName : map.keySet())
+        {
+            if(this.appSetRelationMap.containsKey(appName))
+            {
+                appSetNameMap.put(appName, this.appSetRelationMap.get(appName).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity())).keySet());
+                comparedAppName = appName;
+            }
+        }
+        if(appSetNameMap.size() == 0)
+        {
+            logger.error(String.format("can not decline bkSetName of %s(%s) : all apps not support", domainName, domainId));
+            throw new ParamException(String.format("can not decline bkSetName of %s(%s) : all apps not support", domainName, domainId));
+        }
+        else if(appSetNameMap.size()  == 1 && appSetNameMap.get(comparedAppName).size() > 1)
+        {
+            logger.error(String.format("can not decline bkSetName of %s(%s) : set of %s is ambiguous", domainName, domainId, comparedAppName));
+            throw new ParamException(String.format("can not decline bkSetName of %s(%s) : set of %s is ambiguous", domainName, domainId, comparedAppName));
+        }
+        for(String setName : appSetNameMap.get(comparedAppName))
+        {
+            if(bkSetName != null)
+                break;
+            boolean isMatch = true;
+            for(String appName : appSetNameMap.keySet())
+            {
+                if(!appSetNameMap.get(appName).contains(setName)) {
+                    isMatch =false;
+                    break;
                 }
             }
-            catch (Exception ex)
+            if(isMatch)
             {
-                logger.error(String.format("handle [%s] exception", module.toString()), ex);
+                bkSetName = setName;
+                break;
             }
-
         }
+        if(bkSetName == null)
+        {
+            logger.error(String.format("can not decline bkSetName of %s(%s) : set of all apps is ambiguous", domainName, domainId));
+            throw new ParamException(String.format("can not decline bkSetName of %s(%s) : set of all apps is ambiguous", domainName, domainId));
+        }
+        map = domainAppList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getModuleAliasName));
+        DomainPo  po  = map.get(comparedAppName).get(0).getDomain();
+        po.setType(bkSetName);
+        return po;
+    }
+
+
+    private UnconfirmedAppModulePo handleUnconfirmedPlatformAppModule(PlatformAppModuleVo moduleVo) throws Exception
+    {
+        AppPo appPo = moduleVo.getAppInfo();
+        String appName = appPo.getAppName();
+        String appVersion = appPo.getVersion();
+        UnconfirmedAppModulePo po = moduleVo.getUnconfirmedModule();
+        List<DeployFileInfo> fileList = new ArrayList<>();
+        if(StringUtils.isNotBlank(moduleVo.getInstallPackage().getLocalSavePath())
+            fileList.add(moduleVo.getInstallPackage());
+        for(DeployFileInfo cfg : moduleVo.getCfgs())
+        {
+            if(StringUtils.isNotBlank(cfg.getLocalSavePath())
+                fileList.add(cfg);
+        }
+        PlatformAppPo platformApp = moduleVo.getPlatformApp();
+        String platformCfgDirectory = platformApp.getPlatformAppDirectory(appName, appVersion, platformApp);
+        List<NexusAssetInfo> assetList = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.unconfirmedPlatformAppRepository, platformCfgDirectory, fileList.toArray(new DeployFileInfo[0]));
+        Map<String, String> fileUrlMap = new HashMap<>();
+        for(NexusAssetInfo assetInfo : assetList)
+        {
+            String[] arr = assetInfo.getPath().split("/");
+            fileUrlMap.put(arr[arr.length - 1], assetInfo.getPath());
+        }
+        if(StringUtils.isNotBlank(moduleVo.getInstallPackage().getLocalSavePath()))
+        {
+            po.setPackageDownloadUrl(fileUrlMap.get(moduleVo.getInstallPackage().getFileName()));
+            fileUrlMap.remove(moduleVo.getInstallPackage().getFileName());
+        }
+        else
+            po.setPackageDownloadUrl("");
+        po.setCfgDownloadUrl(String.join(",", fileUrlMap.values()));
+        return po;
     }
 
     /**
@@ -484,15 +572,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * 归档平台应用的配置文件，并在数据库创建一条平台应用详情记录
      * @param module 客户端收集的平台应用信息
      * @param appModuleMap 已经处理的应用模块
-     * @param appFileAssetMap 已经处理的应用模块在nexus的存储记录
      * @return 添加后的模块
      * @throws DataAccessException 查询数据库异常
      * @throws InterfaceCallException 调用nexus接口异常
      * @throws NexusException nexus返回调用失败信息或是解析nexus调用结果失败
      * @throws DBNexusNotConsistentException cmdb记录的信息和nexus不一致
      */
-    private boolean handlePlatformAppModule(PlatformAppModuleVo module, Map<String, AppModuleVo> appModuleMap,
-                                            Map<String, List<NexusAssetInfo>> appFileAssetMap)
+    private boolean handlePlatformAppModule(PlatformAppModuleVo module, Map<String, AppModuleVo> appModuleMap)
             throws DataAccessException, InterfaceCallException, NexusException, DBNexusNotConsistentException, ParamException
     {
         AppPo appPo = module.getAppInfo();
@@ -501,12 +587,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String appDirectory = appPo.getAppNexusDirectory();
         String group = appPo.getAppNexusGroup();
         AppModuleVo moduleVo;
-        if(appModuleMap.containsKey(appDirectory))
-        {
-            moduleVo = appModuleMap.get(appDirectory);
-            checkInstPkgAndCfg(moduleVo, module.getInstallPackage(), module.getCfgs());
-        }
-        else
+        if(!appModuleMap.containsKey(appDirectory))
         {
             moduleVo = appModuleMapper.selectByNameAndVersion(appName, appVersion);
             List<NexusAssetInfo> appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
@@ -530,21 +611,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 }
                 addAppToNexus(appName, appVersion, module.getInstallPackage(), module.getCfgs(), this.appRepository, appDirectory);
                 moduleVo = addNewAppToDB(appPo, module.getInstallPackage(), module.getCfgs());
+                appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
             }
-            else
+            String compareResult = compareAppFileWithNexusRecord(moduleVo, appFileAssetList);
+            if(StringUtils.isNotBlank(compareResult))
             {
-                checkInstPkgAndCfg(moduleVo, module.getInstallPackage(), module.getCfgs());
-                String compareResult = compareAppFileWithNexusRecord(moduleVo, appFileAssetList);
-                if(StringUtils.isNotBlank(compareResult))
-                {
-                    logger.error(String.format("collected appName=%s and version=%s files is not matched with nexus : %s",
-                            appName, appVersion, compareResult));
-                    throw new DBNexusNotConsistentException(String.format("collected appName=%s and version=%s files is not matched with nexus : %s",
-                            appName, appVersion, compareResult));
-                }
+                logger.error(String.format("collected appName=%s and version=%s files is not matched with nexus : %s",
+                        appName, appVersion, compareResult));
+                throw new DBNexusNotConsistentException(String.format("collected appName=%s and version=%s files is not matched with nexus : %s",
+                        appName, appVersion, compareResult));
             }
             appModuleMap.put(appDirectory, moduleVo);
         }
+        moduleVo = appModuleMap.get(appDirectory);
+        checkInstPkgAndCfg(moduleVo, module.getInstallPackage(), module.getCfgs());
         PlatformAppPo platformApp = module.getPlatformApp();
         String platformCfgDirectory = platformApp.getPlatformAppDirectory(appName, appVersion, platformApp);
         nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword,
@@ -579,7 +659,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throw new ParamException(String.format("%s[%s] install package file md5 is %s not %s",
                     appName, appVersion, moduleVo.getInstallPackage().getMd5(), installPackage.getFileMd5()));
         }
-        if(!this.notCheckCfgAppSet.contains(appName) && !AppType.CCOD_WEBAPPS_MODULE.equals(appType)) {
+        if(!this.appSetRelationMap.containsKey(appName) && !AppType.CCOD_WEBAPPS_MODULE.equals(appType)) {
             Map<String, DeployFileInfo> reportCfgMap = Arrays.stream(cfgs).collect(Collectors.toMap(DeployFileInfo::getFileName, Function.identity()));
             Map<String, AppCfgFilePo> wantCfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
             if (reportCfgMap.size() != wantCfgMap.size()) {
@@ -886,7 +966,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     private String checkPlatformUpdateTask(PlatformUpdateSchemaInfo schema, List<DomainPo> domainList,
                                            List<AppModuleVo> appList, List<PlatformAppPo> deployApps,
                                            List<LJSetInfo> bkSetList, List<LJHostInfo> bkHostList,
-                                           List<PlatformAppBkModulePo> appBkModuleList, Map<String, BizSetDefine> bizSetDefineMap)
+                                           List<PlatformAppBkModulePo> appBkModuleList)
     {
         if(schema.getDomainUpdatePlanList() == null)
         {
@@ -990,7 +1070,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     switch (updateType)
                     {
                         case ADD:
-                            if(!bizSetDefineMap.containsKey(planInfo.getBkSetName()))
+                            if(!setDefineMap.containsKey(planInfo.getBkSetName()))
                             {
                                 sb.append(String.format("setName %s of new create domain %s not exist",
                                         planInfo.getBkSetName(), planInfo.getDomainId()));
@@ -1449,7 +1529,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("%s status %d is unknown", platformPo.getPlatformId(), platformPo.getStatus()));
             throw new ParamException(String.format("%s status %d is unknown", platformPo.getPlatformId(), platformPo.getStatus()));
         }
-        List<BizSetDefine> setDefineList = paasService.queryCCODBizSet(false);
+        List<BizSetDefine> setDefineList = this.ccodBiz.getSet();
         Map<String, BizSetDefine> bizSetDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<DomainPo> domainList = new ArrayList<>();
         List<PlatformAppDeployDetailVo> platformDeployApps = new ArrayList<>();
@@ -1460,7 +1540,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         switch (updateSchema.getTaskType()) {
             case CREATE:
-                makeupPlatformUpdateSchema(updateSchema, domainList, platformDeployApps, setDefineList);
+                makeupPlatformUpdateSchema(updateSchema, domainList, platformDeployApps);
                 switch (platformStatus) {
                     case SCHEMA_CREATE_PLATFORM:
                         if (StringUtils.isBlank(updateSchema.getCcodVersion())) {
@@ -1537,7 +1617,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //                    }
 //        }
 //
-                makeupPlatformUpdateSchema(updateSchema, domainList, platformDeployApps, setDefineList);
+                makeupPlatformUpdateSchema(updateSchema, domainList, platformDeployApps);
                 switch (platformStatus)
                 {
                     case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
@@ -1574,7 +1654,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.delete(updateSchema.getPlatformId());
                         break;
                     case SUCCESS:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1591,7 +1671,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     default:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1620,7 +1700,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     case SUCCESS:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1635,7 +1715,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     default:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1888,7 +1968,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Date now = new Date();
         List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
         Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<LJSetInfo> setList = this.paasService.resetExistBiz(bkBizId, new ArrayList<>(setDefineMap.keySet()));
         platform = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.RUNNING,
                 "CCOD4.1", "通过程序自动创建的demo平台");
@@ -1901,7 +1981,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<String> hostList = new ArrayList<>();
         for(BizSetDefine setDefine : setDefineMap.values())
         {
-            if(setDefine.getApps().length == 0)
+            if(setDefine.getApps().size() == 0)
                 continue;
             String hostIp = String.format("%d.%d.%d.%d", 173,random.nextInt(10000) % 255,
                     random.nextInt(10000) % 255, random.nextInt(10000) % 255);
@@ -1925,8 +2005,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
             planInfo.setAppUpdateOperationList(new ArrayList<>());
             planInfo.setBkSetName(setDefine.getName());
             planInfo.setSetId(setDefine.getId());
-            for(String appName : setDefine.getApps())
+            for(AppDefine appDefine : setDefine.getApps())
             {
+                String appName = appDefine.getName();
                 AppModuleVo appModuleVo = appMap.get(appName).get(0);
                 AppUpdateOperationInfo addOperationInfo = new AppUpdateOperationInfo();
                 addOperationInfo.setHostIp(hostIp);
@@ -1956,8 +2037,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         LJSetInfo idlePoolSet = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity())).get(this.paasIdlePoolSetName);
         List<LJHostInfo> bkHostList = this.paasService.addNewHostToIdlePool(bkBizId, idlePoolSet.getBkSetId(), hostList, bkCloudId);
-        Map<String, BizSetDefine> bizSetDefineMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
-        String planCheckResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, bkHostList, new ArrayList<>(), bizSetDefineMap);
+        Map<String, BizSetDefine> bizSetDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        String planCheckResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, bkHostList, new ArrayList<>());
         if(StringUtils.isNotBlank(planCheckResult))
         {
             logger.error(String.format("check platform update schema FAIL : %s", planCheckResult));
@@ -2036,16 +2117,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
      */
     private List<PlatformAppDeployDetailVo> makeUpBizInfoForDeployApps(int bizId, List<PlatformAppDeployDetailVo> deployApps) throws NotSupportAppException
     {
-        Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
         for(PlatformAppDeployDetailVo deployApp : deployApps)
         {
-            if(!appSetRelationMap.containsKey(deployApp.getAppName()))
+            if(!this.appSetRelationMap.containsKey(deployApp.getAppName()))
             {
                 logger.error(String.format("%s没有在配置文件的lj-paas.set-apps节点中定义", deployApp.getAppName()));
                 throw new NotSupportAppException(String.format("%s未定义所属的set信息", deployApp.getAppName()));
             }
             deployApp.setBkBizId(bizId);
-            BizSetDefine sd = appSetRelationMap.get(deployApp.getAppName()).get(0);
+            BizSetDefine sd = this.appSetRelationMap.get(deployApp.getAppName()).get(0);
             deployApp.setBkSetName(sd.getName());
             if(StringUtils.isNotBlank(sd.getFixedDomainName()))
             {
@@ -2067,13 +2147,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
      */
     private List<CCODSetInfo> generateCCODSetInfo(List<PlatformAppDeployDetailVo> deployAppList, List<String> setNames) throws ParamException, NotSupportAppException
     {
-        Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
-        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
         List<CCODSetInfo> setList = new ArrayList<>();
         for(PlatformAppDeployDetailVo deployApp : deployAppList)
         {
-            if(!appSetRelationMap.containsKey(deployApp.getAppName()))
+            if(!this.appSetRelationMap.containsKey(deployApp.getAppName()))
             {
                 logger.error(String.format("current version not support %s", deployApp.getAppName()));
                 throw new NotSupportAppException(String.format("current version not support %s", deployApp.getAppName()));
@@ -2134,7 +2212,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<LJHostInfo> idleHostList;
         PlatformUpdateSchemaInfo schema;
         List<CCODSetInfo> setList;
-        Map<String, BizSetDefine> bizSetMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        Map<String, BizSetDefine> bizSetMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<PlatformAppDeployDetailVo> deployAppList;
         switch (topology.getStatus())
         {
@@ -2223,8 +2301,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to register app=[%s] into cmdb", JSONObject.toJSONString(appModule)));
-        Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
-        if (!appSetRelationMap.containsKey(appModule.getAppName())) {
+        if (!this.appSetRelationMap.containsKey(appModule.getAppName())) {
             logger.error(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
             throw new NotSupportAppException(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
         }
@@ -2375,8 +2452,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("cfg of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
             throw new ParamException(String.format("cfg of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
         }
-        Map<String, List<BizSetDefine>> appSetRelationMap = this.paasService.getAppBizSetRelation();
-        if (!appSetRelationMap.containsKey(appModule.getAppName())) {
+        if (!this.appSetRelationMap.containsKey(appModule.getAppName())) {
             logger.error(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
             throw new NotSupportAppException(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
         }
@@ -2528,7 +2604,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("unknown platform create method %d", paramVo.getCreateMethod()));
             throw new ParamException(String.format("unknown platform create method %d", paramVo.getCreateMethod()));
         }
-        List<BizSetDefine> setDefineList = paasService.queryCCODBizSet(false);
+        List<BizSetDefine> setDefineList = this.ccodBiz.getSet();
         makeupPlatform4CreateSchema(schemaInfo, setDefineList);
         schemaInfo.setK8sHostIp(paramVo.getK8sHostIp());
         schemaInfo.setGlsDBType(paramVo.getGlsDBType());
@@ -2625,10 +2701,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 PlatformUpdateTaskType.CREATE, String.format("%s(%s)平台新建计划", platformName, platformId),
                 String.format("通过程序自动创建的%s(%s)平台新建计划", platformName, platformId));
         Set<String> ipSet = new HashSet<>();
-        Map<String, BizSetDefine> setDefineMap = this.paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
-        for(BizSetDefine setDefine : setDefineMap.values())
+        for(BizSetDefine setDefine : this.setDefineMap.values())
         {
-            if(setDefine.getApps().length == 0)
+            if(setDefine.getApps().size() == 0)
                 continue;
             DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
             planInfo.setUpdateType(DomainUpdateType.ADD);
@@ -2649,8 +2724,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
             planInfo.setAppUpdateOperationList(new ArrayList<>());
             planInfo.setBkSetName(setDefine.getName());
             planInfo.setSetId(setDefine.getId());
-            for(String appName : setDefine.getApps())
+            for(AppDefine appDefine : setDefine.getApps())
             {
+                String appName = appDefine.getName();
                 if(planAppMap.containsKey(appName))
                 {
                     for(String planApp : planAppMap.get(appName))
@@ -2718,8 +2794,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.platformMapper.insert(platformPo);
         List<LJSetInfo> setList = this.paasService.queryBkBizSet(bkBizId);
         List<LJHostInfo> idleHostList = paasService.queryBizIdleHost(bkBizId);
-        Map<String, BizSetDefine> bizSetDefineMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
-        String checkResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, idleHostList, new ArrayList<>(), bizSetDefineMap);
+        String checkResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, idleHostList, new ArrayList<>());
         if(StringUtils.isNotBlank(checkResult))
         {
             logger.error(String.format("demo platform generate fail : %s", checkResult));
@@ -3013,8 +3088,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<LJSetInfo> bkSetList = paasService.queryBkBizSet(bkBizId);
         List<LJHostInfo> bkHostList = paasService.queryBKHost(bkBizId, null, null, null, null);
         List<PlatformAppBkModulePo> appBkModuleList = platformAppBkModuleMapper.select(platformId, null, null, null, null, null);
-        Map<String, BizSetDefine> bizSetDefineMap = paasService.queryCCODBizSet(false).stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
-        String schemaCheckResult = checkPlatformUpdateTask(schema, domainList, appModuleList, platformAppList, bkSetList, bkHostList, appBkModuleList, bizSetDefineMap);
+        String schemaCheckResult = checkPlatformUpdateTask(schema, domainList, appModuleList, platformAppList, bkSetList, bkHostList, appBkModuleList);
         if(StringUtils.isNotBlank(schemaCheckResult))
         {
             logger.error(String.format("generate schema fail : %s", schemaCheckResult));
@@ -3053,6 +3127,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new NotSupportSetException(String.format("set name %s is not support", setName));
             }
             BizSetDefine setDefine = setDefineMap.get(setName);
+            Map<String, AppDefine> appMap = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
             String standardDomainId = setDefine.getFixedDomainId();
             List<String> usedDomainIds = new ArrayList<>();
             List<DomainUpdatePlanInfo> notDomainIdPlans = new ArrayList<>();
@@ -3069,12 +3144,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 Map<String, List<AppUpdateOperationInfo>> appOptMap = planInfo.getAppUpdateOperationList().stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
                 for(String appName : appOptMap.keySet())
                 {
-                    if(!setDefine.getAppAliasMap().containsKey(appName))
+                    if(!appMap.containsKey(appName))
                     {
                         logger.error(String.format("set %s not support %s", setName, appName));
                         throw new NotSupportAppException(String.format("set %s not support %s", setName, appName));
                     }
-                    String standardAlias = setDefine.getAppAliasMap().get(appName);
+                    String standardAlias = appMap.get(appName).getAlias();
                     List<AppUpdateOperationInfo> optList = appOptMap.get(appName);
                     List<AppUpdateOperationInfo> notAliasOpts = new ArrayList<>();
                     List<String> usedAlias = new ArrayList<>();
@@ -3117,19 +3192,17 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param schema 原始平台升级计划
      * @param existDomainList 平台已经存在的域
      * @param existAppList 平台已经部署的应用
-     * @param setDefineList 预定义的ccod集群
      * @throws ParamException 输入参数有误
      * @throws NotSupportAppException
      * @throws NotSupportSetException
      */
-    void makeupPlatformUpdateSchema(PlatformUpdateSchemaInfo schema, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> existAppList, List<BizSetDefine> setDefineList) throws ParamException, NotSupportAppException, NotSupportSetException
+    void makeupPlatformUpdateSchema(PlatformUpdateSchemaInfo schema, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> existAppList) throws ParamException, NotSupportAppException, NotSupportSetException
     {
-        Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<DomainUpdatePlanInfo> noDomainIdPlans = new ArrayList<>();
         Map<String, List<String>> setDomainIdMap = new HashMap<>();
         for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
         {
-            if(!setDefineMap.containsKey(planInfo.getBkSetName()))
+            if(!this.setDefineMap.containsKey(planInfo.getBkSetName()))
             {
                 logger.error(String.format("error schema : set %s is not supported", planInfo.getBkSetName()));
                 throw new NotSupportSetException(String.format("set %s is not supported", planInfo.getBkSetName()));
@@ -3182,17 +3255,18 @@ public class AppManagerServiceImpl implements IAppManagerService {
             Map<String, List<String>> appAliasMap = new HashMap<>();
             List<AppUpdateOperationInfo> addOptNotAliasList = new ArrayList<>();
             BizSetDefine setDefine = setDefineMap.get(planInfo.getBkSetName());
+            Map<String, AppDefine> appDefineMap = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
             for(AppUpdateOperationInfo opt : planInfo.getAppUpdateOperationList())
             {
-                if(!setDefine.getAppAliasMap().containsKey(opt.getAppName()))
+                if(!appDefineMap.containsKey(opt.getAppName()))
                 {
                     logger.error(String.format("set %s does not support %s", planInfo.getBkSetName(), opt.getAppName()));
                     throw new ParamException(String.format("set %s does not support %s", planInfo.getBkSetName(), opt.getAppName()));
                 }
                 if(StringUtils.isNotBlank(opt.getAppAlias()))
                 {
-                    String standAlias = setDefine.getAppAliasMap().get(opt.getAppName());
-                    String regex = String.format("^%s($|[1-9]\\d*$)", standAlias);
+                    String standAlias = appDefineMap.get(opt.getAppName()).getAlias();
+                    String regex = String.format("^%s($|[0-9]\\d*$)", standAlias);
                     Pattern pattern = Pattern.compile(regex);
                     Matcher matcher = pattern.matcher(opt.getAppAlias());
                     if(!matcher.find())
@@ -3239,12 +3313,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
             for(String appName : appAddOptMapp.keySet())
             {
-                if(!setDefine.getAppAliasMap().containsKey(appName))
+                if(!appDefineMap.containsKey(appName))
                 {
                     logger.error(String.format("set %s not support app %s", planInfo.getBkSetName(), appName));
                     throw new NotSupportAppException(String.format("set %s not support app %s", planInfo.getBkSetName(), appName));
                 }
-                String standardAlias = setDefine.getAppAliasMap().get(appName);
+                String standardAlias = appDefineMap.get(appName).getAlias();
                 List<String> usedAliasList = new ArrayList<>();
                 if(existAppMap.containsKey(appName))
                 {
@@ -3280,7 +3354,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         //对set以及set下的domain排序
         List<DomainUpdatePlanInfo> sortedPlanList = new ArrayList<>();
         Map<String, List<DomainUpdatePlanInfo>> setDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
-        for(BizSetDefine setDefine : setDefineList)
+        for(BizSetDefine setDefine : this.ccodBiz.getSet())
         {
             if(!setDomainMap.containsKey(setDefine.getName()))
                 continue;
@@ -3370,83 +3444,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         index++;
         String appAlias = String.format("%s%s", standardAlias, index);
         return appAlias;
-    }
-
-    /**
-     * 为新加域自动生成域id
-     * @param setDefine 新加域归属的集群定义
-     * @param newDomainPlanList 新加的域列表
-     * @param oldDomainList 平台已有域列表
-     */
-    void autoDefineDomainId4SetDomain(List<DomainUpdatePlanInfo> newDomainPlanList, List<DomainPo> oldDomainList, BizSetDefine setDefine)
-    {
-        String standId = setDefine.getFixedDomainId();
-        String standIdRegex = String.format("^%s-?\\d+$", standId);
-        int index = 0;
-        for(DomainPo domainPo : oldDomainList)
-        {
-            int oldIndex = getIndexFromId(domainPo.getDomainId(), standIdRegex);
-            if(oldIndex > index)
-            {
-                index = oldIndex;
-            }
-        }
-
-        for(int i = 1; i <= newDomainPlanList.size(); i++)
-        {
-            DomainUpdatePlanInfo planInfo = newDomainPlanList.get(i - 1);
-            planInfo.setDomainId(String.format(domainIdFmt, standId, i + index));
-        }
-    }
-
-    /**
-     * 为域新加app自动生成别名以及运行用户
-     * @param newAddAppList 域所有的新加应用操作列表
-     * @param domainExistAppList 该域已经部署的应用列表
-     * @param setDefine 该域归属的集群定义
-     * @throws NotSupportAppException 如果新加的域不被集群支持则抛出此异常
-     */
-    void autoDefineAlias4DomainNewApp(List<AppUpdateOperationInfo> newAddAppList, List<PlatformAppDeployDetailVo> domainExistAppList, BizSetDefine setDefine) throws NotSupportAppException
-    {
-        Map<String, List<AppUpdateOperationInfo>> addAppMap = newAddAppList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-        Map<String, List<PlatformAppDeployDetailVo>> deployedAppMap = domainExistAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName));
-        for(String appName : addAppMap.keySet())
-        {
-            if(!setDefine.getAppAliasMap().containsKey(appName))
-            {
-                logger.error(String.format("%s set not support %s app", setDefine.getName(), appName));
-                throw new NotSupportAppException(String.format("%s set not support %s app", setDefine.getName(), appName));
-            }
-            String standAlias = setDefine.getAppAliasMap().get(appName);
-            String aliasRegex = String.format("^%s-?\\d+$", standAlias);
-            int index = 0;
-            List<AppUpdateOperationInfo> newAddList = addAppMap.get(appName);
-            if(deployedAppMap.containsKey(appName))
-            {
-                List<PlatformAppDeployDetailVo> deployedList = deployedAppMap.get(appName);
-                for(PlatformAppDeployDetailVo deployApp : deployedList)
-                {
-                    int deployIndex = getIndexFromId(deployApp.getAppAlias(), aliasRegex);
-                    if(deployIndex > index)
-                    {
-                        index = deployIndex;
-                    }
-                }
-            }
-            if(index == 0 && newAddList.size() == 1)
-            {
-                newAddList.get(0).setAppRunner(standAlias);
-                newAddList.get(0).setAppAlias(standAlias);
-            }
-            else
-            {
-                for(int j = 1; j < newAddList.size(); j++)
-                {
-                    newAddList.get(j - 1).setAppAlias(String.format(this.appAliasFmt, standAlias, index + j));
-                    newAddList.get(j - 1).setAppRunner(String.format(this.appAliasFmt, standAlias, index + j));
-                }
-            }
-        }
     }
 
     private int getIndexFromId(String id, String idRegex)
@@ -3578,8 +3575,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 clonedPlatform.getCcodVersion(), PlatformUpdateTaskType.CREATE, String.format("新建%s(%s)计划", platformName, platformId),
                 String.format("create %s(%s) by clone %s(%s)", platformName, platformId, clonedPlatformId, clonedPlatform.getPlatformName()));
         schema.setDomainUpdatePlanList(new ArrayList<>(planMap.values()));
-        List<BizSetDefine> setDefineList = paasService.queryCCODBizSet(false);
-        makeupPlatformUpdateSchema(schema, new ArrayList<>(), new ArrayList<>(), setDefineList);
+        makeupPlatformUpdateSchema(schema, new ArrayList<>(), new ArrayList<>());
         platform = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
                 clonedPlatform.getCcodVersion(), String.format("create %s(%s) by clone %s(%s)", platformName, platformId, clonedPlatformId, clonedPlatform.getPlatformName()));
 //        platform.setCcodVersion(clonedPlatform.getCcodVersion());
@@ -3892,6 +3888,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     {
         List<AppUpdateOperationInfo> addOptList = new ArrayList<>();
         List<AppUpdateOperationInfo> deleteOptList = new ArrayList<>();
+        Map<String, AppDefine> appMap = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
         for(AppUpdateOperationInfo opt : optList)
         {
             switch (opt.getOperation())
@@ -3910,12 +3907,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
         if(deleteOptList.size() > 0)
         {
             Map<String, List<AppUpdateOperationInfo>> appDelMap = deleteOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-            for(int i= setDefine.getApps().length - 1; i >=0; i--)
+            for(int i= setDefine.getApps().size() - 1; i >=0; i--)
             {
-                String appName = setDefine.getApps()[i];
+                String appName = setDefine.getApps().get(i).getName();
                 if(appDelMap.containsKey(appName))
                 {
-                    final String standardAlias = setDefine.getAppAliasMap().get(appName);
+                    final String standardAlias = appMap.get(appName).getAlias();
                     List<AppUpdateOperationInfo> appOptList = appDelMap.get(appName);
                     Collections.sort(appOptList,new Comparator<AppUpdateOperationInfo>() {
                         @Override
@@ -3946,15 +3943,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
         if(addOptList.size() > 0)
         {
             Map<String, List<AppUpdateOperationInfo>> appAddMap = addOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-            for(String appName : setDefine.getApps())
+            for(AppDefine appDefine : setDefine.getApps())
             {
+                String appName = appDefine.getName();
                 if(appAddMap.containsKey(appName))
                 {
-                    final String standardAlias = setDefine.getAppAliasMap().get(appName);
+                    final String standardAlias = appMap.get(appName).getAlias();
                     List<AppUpdateOperationInfo> appOptList = appAddMap.get(appName);
                     for(AppUpdateOperationInfo opt : appOptList)
                     {
-                        opt.setAddDelay(setDefine.getAppAddDelayMap().get(appName));
+                        opt.setAddDelay(appMap.get(appName).getDelay());
                     }
                     Collections.sort(appOptList,new Comparator<AppUpdateOperationInfo>() {
                         @Override
@@ -4121,5 +4119,18 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             ex.printStackTrace();
         }
+    }
+
+    @Override
+    public List<BizSetDefine> queryCCODBizSet(boolean isCheckApp) {
+        if(!isCheckApp)
+            return this.ccodBiz.getSet();
+        List<BizSetDefine> defineList = new ArrayList<>();
+        Map<String, List<AppPo>> appMap = this.appMapper.select(null, null, null,null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
+        for(BizSetDefine setDefine : this.ccodBiz.getSet())
+        {
+            BizSetDefine define = new BizSetDefine();
+        }
+        return null;
     }
 }

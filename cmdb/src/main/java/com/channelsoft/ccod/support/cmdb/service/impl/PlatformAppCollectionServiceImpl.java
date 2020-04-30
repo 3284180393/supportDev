@@ -525,14 +525,19 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                                 info.setLocalSavePath(savePath);
                                 info.setFileSize(fileSize);
                                 info.setExt(ext);
+                                info.setTransferSucc(true);
+                                info.setTransferFailReason(null);
                             }
                             else
                             {
                                 logger.error(String.format("received appName=%s and appAlias=%s and version=%s app's install package is not wanted install package : wanted file md5=%s and receive file md5=%s",
                                         appName, appAlias, version, info.getFileMd5(), md5));
+                                info.setTransferSucc(false);
+                                info.setTransferFailReason(String.format("%s md5 error: want %s and receive %s",
+                                        fileName, info.getFileMd5(), md5));
                             }
-                            installPackageMap.remove(pkgKey);
                         }
+                        installPackageMap.remove(pkgKey);
                     }
                     else
                     {
@@ -553,11 +558,16 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                                 info.setLocalSavePath(savePath);
                                 info.setFileSize(fileSize);
                                 info.setExt(ext);
+                                info.setTransferSucc(true);
+                                info.setTransferFailReason(null);
                             }
                             else
                             {
                                 logger.error(String.format(String.format("platformId=%s and domainId=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not wanted cfg : receive file md5=%s and wanted file md5=%s",
                                         pfId, domainId, hostIp, basePath, deployPath, fileName, md5, info.getFileMd5())));
+                                info.setTransferSucc(false);
+                                info.setTransferFailReason(String.format("%s md5 error: want %s and receive %s",
+                                        fileName, info.getFileMd5(), md5));
                             }
                         }
                         cfgMap.remove(cfgKey);
@@ -568,11 +578,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                                 pfId, domainId, hostIp, basePath, deployPath, fileName)));
                     }
                 }
-//                if(cfgMap.size() == 0 && installPackageMap.size() == 0)
-//                {
-//                    logger.info(String.format("all wanted cfg and install package receive"));
-//                    break;
-//                }
             }
             else if(message instanceof TextMessage)
             {
