@@ -38,7 +38,9 @@ public class PlatformAppModuleVo {
 
     private String moduleName; //模块名
 
-    private String moduleAliasName; //模块别名
+    private String moduleAliasName; //客户端提交的模块别名
+
+    private String alias; //模块在域的标准别名，alias和moduleAliasName可能会不一样
 
     private String moduleType; //模块类型
 
@@ -250,6 +252,14 @@ public class PlatformAppModuleVo {
         this.comment = comment;
     }
 
+    public String getAlias() {
+        return alias;
+    }
+
+    public void setAlias(String alias) {
+        this.alias = alias;
+    }
+
     public PlatformPo getPlatform()
     {
         PlatformPo po = new PlatformPo(this.platformId, this.platformName, 0, 0,
@@ -288,7 +298,8 @@ public class PlatformAppModuleVo {
         po.setDeployTime(new Date());
         po.setAppRunner(this.loginUser);
         po.setHostIp(this.hostIp);
-        po.setAppAlias(this.getModuleAliasName());
+        po.setAppAlias(this.alias);
+        po.setOriginalAlias(this.moduleAliasName);
         return po;
     }
 
