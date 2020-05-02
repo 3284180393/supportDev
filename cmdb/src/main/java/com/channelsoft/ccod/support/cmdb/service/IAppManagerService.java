@@ -82,14 +82,12 @@ public interface IAppManagerService {
      * 检查指定条件的平台的应用部署情况，并上传对应的安装包和配置文件
      * @param platformId 平台id，不能为空
      * @param platformName 平台名,不能为空
-     * @param domainName 域名，可以为空
-     * @param hostIp 主机名，可以为空
-     * @param appName 应用名，可以为空
-     * @param version 版本号，可以为空
+     * @param bkBizId 该平台在蓝鲸paas上的的biz id
+     * @param bkCloudId 该平台服务器在蓝鲸paas上的cloud id
      * @return 所有满足条件的应用配置信息
      * @throws Exception
      */
-    PlatformAppModuleVo[] startCollectPlatformAppData(String platformId, String platformName, String domainName, String hostIp, String appName, String version) throws Exception;
+    PlatformAppModuleVo[] startCollectPlatformAppData(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
 
     /**
      * 检查指定条件的平台的应用部署情况，不上传对应的安装包和配置文件
@@ -108,13 +106,9 @@ public interface IAppManagerService {
      * 创建一个新的平台应用收集任务
      * @param platformId 平台id，不能为空
      * @param platformName 平台名,不能为空
-     * @param domainId 域名，可以为空
-     * @param hostIp 主机名，可以为空
-     * @param appName 应用名，可以为空
-     * @param version 版本号，可以为空
      * @throws Exception
      */
-    void createNewPlatformAppDataCollectTask(String platformId, String platformName,String domainId, String hostIp, String appName, String version) throws Exception;
+    void createNewPlatformAppDataCollectTask(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
 
     /**
      * 更新平台升级计划

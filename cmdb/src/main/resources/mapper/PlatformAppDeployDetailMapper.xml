@@ -103,7 +103,7 @@
     FROM
 	    platform_app pa
     INNER JOIN platform pf ON pa.platform_id = pf.platform_id
-    INNER JOIN domain dm ON pa.domain_id = dm.domain_id
+    INNER JOIN domain dm ON dm.platform_id=pf.platform_id and pa.domain_id = dm.domain_id
     INNER JOIN app a ON pa.app_id = a.app_id
     INNER JOIN app_install_package aip ON a.app_id = aip.app_id
     INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id

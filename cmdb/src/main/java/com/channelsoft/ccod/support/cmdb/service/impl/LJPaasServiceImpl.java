@@ -784,13 +784,14 @@ public class LJPaasServiceImpl implements ILJPaasService {
         logger.info(String.format("begin to sync bizName=%s and bizId=%d app deploy info to lj paas, hostCloud=%d and record count=%d",
                 platform.getPlatformName(), bkBizId, hostCloudId, deployApps.size()));
         Map<String, DomainPo> domainMap = this.domainMapper.select(platform.getPlatformId(), null).stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         for(PlatformAppDeployDetailVo detailVo : deployApps)
         {
             detailVo.setBkSetName(domainMap.get(detailVo.getDomainId()).getType());
+            detailVo.setSetId(setDefineMap.get(detailVo.getBkSetName()).getId());
         }
         long currentTime = System.currentTimeMillis();
         Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
-        Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<String> setNames = new ArrayList<>(setDefineMap.keySet());
         Collections.sort(setNames);
         //将指定的biz重置

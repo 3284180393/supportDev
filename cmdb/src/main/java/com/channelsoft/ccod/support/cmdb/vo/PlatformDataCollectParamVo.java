@@ -25,6 +25,10 @@ public class PlatformDataCollectParamVo {
 
     private String version; //应用版本，可以为空
 
+    private int bkBizId; //平台所属的蓝鲸paas的biz id
+
+    private int bkCloudId; //平台服务器所属的蓝鲸paas的cloud id
+
     public PlatformDataCollectContent getCollectContent() {
         return collectContent;
     }
@@ -79,5 +83,21 @@ public class PlatformDataCollectParamVo {
 
     public void setVersion(String version) {
         this.version = version;
+    }
+
+    public int getBkBizId() {
+        return bkBizId;
+    }
+
+    public void setBkBizId(int bkBizId) {
+        this.bkBizId = bkBizId;
+    }
+
+    public int getBkCloudId() {
+        return bkCloudId;
+    }
+
+    public void setBkCloudId(int bkCloudId) {
+        this.bkCloudId = bkCloudId;
     }
 }

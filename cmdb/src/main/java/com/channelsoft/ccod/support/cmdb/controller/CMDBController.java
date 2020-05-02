@@ -157,12 +157,12 @@ public class CMDBController {
     }
 
     @RequestMapping("/createPlatformAppDataCollectTask")
-    public AjaxResultPo createPlatformAppDataCollectTask(String platformId, String platformName)
+    public AjaxResultPo createPlatformAppDataCollectTask(String platformId, String platformName, int bkBizId, int bkCloudId)
     {
         AjaxResultPo resultPo;
         try
         {
-            this.appManagerService.createNewPlatformAppDataCollectTask(platformId, platformName,null,null, null, null);
+            this.appManagerService.createNewPlatformAppDataCollectTask(platformId, platformName,bkBizId,bkCloudId);
             resultPo = new AjaxResultPo(true, "app data task create success");
         }
         catch (Exception ex)
@@ -193,39 +193,39 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/platformApps", method = RequestMethod.POST)
-    public AjaxResultPo addPlatformApps(@RequestBody PlatformAppParamVo param)
-    {
-        String uri = String.format("POST %s/platformApps", this.apiBasePath);
-        logger.debug(String.format("enter %s controller with param=%s", uri, JSONObject.toJSONString(param)));
-        if(param.getMethod() != PlatformAppOperationMethod.ADD_BY_PLATFORM_CLIENT_COLLECT.id)
-        {
-            logger.error(String.format("not support platform app operation method=%d, quit %s controller",
-                    param.getMethod(), uri));
-            return new AjaxResultPo(false, String.format("not support platform app operation method=%d", param.getMethod()));
-        }
-        if(StringUtils.isBlank(param.getPlatformId()))
-        {
-            logger.error(String.format("platformId of app operation method=%d cannot be blank, quit %s controller",
-                    param.getMethod(), uri));
-            return new AjaxResultPo(false, String.format("platformId can not be blank"));
-        }
-        AjaxResultPo resultPo;
-        try
-        {
-            this.appManagerService.createNewPlatformAppDataCollectTask(param.getPlatformId(), param.getPlatformName(), param.getDomainId(),
-                    param.getHostIp(), param.getAppName(), param.getVersion());
-            logger.info(String.format("platform app collect task with param=%s create SUCCESS, quit %s controller",
-                    JSONObject.toJSONString(param), uri));
-            resultPo = new AjaxResultPo(true, "collect task create SUCCESS");
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
-            resultPo = AjaxResultPo.failed(e);
-        }
-        return resultPo;
-    }
+//    @RequestMapping(value = "/platformApps", method = RequestMethod.POST)
+//    public AjaxResultPo addPlatformApps(@RequestBody PlatformAppParamVo param)
+//    {
+//        String uri = String.format("POST %s/platformApps", this.apiBasePath);
+//        logger.debug(String.format("enter %s controller with param=%s", uri, JSONObject.toJSONString(param)));
+//        if(param.getMethod() != PlatformAppOperationMethod.ADD_BY_PLATFORM_CLIENT_COLLECT.id)
+//        {
+//            logger.error(String.format("not support platform app operation method=%d, quit %s controller",
+//                    param.getMethod(), uri));
+//            return new AjaxResultPo(false, String.format("not support platform app operation method=%d", param.getMethod()));
+//        }
+//        if(StringUtils.isBlank(param.getPlatformId()))
+//        {
+//            logger.error(String.format("platformId of app operation method=%d cannot be blank, quit %s controller",
+//                    param.getMethod(), uri));
+//            return new AjaxResultPo(false, String.format("platformId can not be blank"));
+//        }
+//        AjaxResultPo resultPo;
+//        try
+//        {
+//            this.appManagerService.createNewPlatformAppDataCollectTask(param.getPlatformId(), param.getPlatformName(), param.getDomainId(),
+//                    param.getHostIp(), param.getAppName(), param.getVersion());
+//            logger.info(String.format("platform app collect task with param=%s create SUCCESS, quit %s controller",
+//                    JSONObject.toJSONString(param), uri));
+//            resultPo = new AjaxResultPo(true, "collect task create SUCCESS");
+//        }
+//        catch (Exception e)
+//        {
+//            logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
+//            resultPo = AjaxResultPo.failed(e);
+//        }
+//        return resultPo;
+//    }
 
     @RequestMapping("/platformApps/{platformId}")
     public AjaxResultPo queryPlatformAppsByPlatformId(@PathVariable String platformId)
@@ -677,8 +677,7 @@ public class CMDBController {
             switch (param.getCollectContent())
             {
                 case APP_MODULE:
-                    appManagerService.startCollectPlatformAppData(param.getPlatformId(), param.getPlatformName(), param.getDomainName(),
-                            param.getHostIp(), param.getAppName(), param.getVersion());
+                    appManagerService.startCollectPlatformAppData(param.getPlatformId(), param.getPlatformName(), param.getBkBizId(), param.getBkCloudId());
                     logger.info(String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
                     resultPo = new AjaxResultPo(true, String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
                     break;

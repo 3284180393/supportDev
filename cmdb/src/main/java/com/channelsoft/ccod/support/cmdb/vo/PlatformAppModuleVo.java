@@ -404,7 +404,7 @@ public class PlatformAppModuleVo {
             this.comment = String.format("platformId error, want %s and report %s : %s", platformId, this.platformId);
         else if(!platformName.equals(this.platformName))
             this.comment = String.format("platformName error, want %s and report %s : %s", platformName, this.platformName);
-        else if(!appSetRelation.containsKey(this.domainName))
+        else if(!appSetRelation.containsKey(this.moduleName))
             this.comment = String.format("app %s not been supported", this.moduleName);
         else if(!this.installPackage.isTransferSucc())
             this.comment = StringUtils.isNotBlank(this.installPackage.getTransferFailReason()) ? this.installPackage.getTransferFailReason() : String.format("not receive %s", this.installPackage.getFileName());

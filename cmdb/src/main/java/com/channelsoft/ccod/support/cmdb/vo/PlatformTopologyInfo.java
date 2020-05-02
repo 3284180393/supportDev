@@ -3,6 +3,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
 import com.channelsoft.ccod.support.cmdb.po.DomainPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
+import com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,8 @@ public class PlatformTopologyInfo {
     private List<CCODHostInfo> idleHostList; //平台下的所有空闲服务器列表
 
     private PlatformUpdateSchemaInfo schema;  //平台的升级计划
+
+    private List<UnconfirmedAppModulePo> unconfirmedAppModuleList; //平台中无法正确处理的应用模块
 
     public PlatformTopologyInfo(PlatformPo platform)
     {
@@ -126,5 +129,13 @@ public class PlatformTopologyInfo {
             CCODHostInfo host = new CCODHostInfo(hostInfo);
             this.idleHostList.add(host);
         }
+    }
+
+    public List<UnconfirmedAppModulePo> getUnconfirmedAppModuleList() {
+        return unconfirmedAppModuleList;
+    }
+
+    public void setUnconfirmedAppModuleList(List<UnconfirmedAppModulePo> unconfirmedAppModuleList) {
+        this.unconfirmedAppModuleList = unconfirmedAppModuleList;
     }
 }

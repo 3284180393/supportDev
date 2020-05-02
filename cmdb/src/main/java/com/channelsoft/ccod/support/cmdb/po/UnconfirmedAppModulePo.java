@@ -111,4 +111,12 @@ public class UnconfirmedAppModulePo {
     public void setCfgDownloadUrl(String cfgDownloadUrl) {
         this.cfgDownloadUrl = cfgDownloadUrl;
     }
+
+    @Override
+    public String toString()
+    {
+        String str = String.format("%s(%s) at %s of %s in %s is unconfirmed [%s]",
+                alias, appName, hostIp, domainName, platformId, reason);
+        return str;
+    }
 }

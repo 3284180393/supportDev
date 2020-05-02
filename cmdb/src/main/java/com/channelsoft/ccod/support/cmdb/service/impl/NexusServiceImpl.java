@@ -101,6 +101,8 @@ public class NexusServiceImpl implements INexusService {
 
     @Override
     public  List<NexusAssetInfo> uploadRawComponent(String nexusHostUrl, String userName, String password, String repository, String directory, DeployFileInfo[] componentFiles) throws InterfaceCallException, NexusException {
+        logger.debug(String.format("upload %s to repository=%s and directory=%s",
+                String.join(",", Arrays.asList(componentFiles).stream().collect(Collectors.groupingBy(DeployFileInfo::getLocalSavePath)).keySet()), repository, directory));
         String url = getNexusUploadUrl(nexusHostUrl, repository);
         HttpClient httpclient = HttpRequestTools.getCloseableHttpClient();
         HttpPost httpPost = new HttpPost(url);
