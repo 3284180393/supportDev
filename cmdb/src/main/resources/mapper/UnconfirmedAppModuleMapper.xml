@@ -25,7 +25,7 @@
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo"
             useGeneratedKeys="true" keyProperty="id">
         insert into unconfirmed_app_module(platform_id, domain_name, host_ip, app_name, alias, reason, submit_time, package_download_url, cfg_download_url)
-        values (#{platformId,jdbcType=VARCHAR}, #{domainName,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{appName,jdbcType=VARCHAR}, #{alias,jdbcType=VARCHAR}, #{reason,jdbcType=VARCHAR}, #{submit_time,jdbcType=TIMESTAMP}, #{packageDownloadUrl,jdbcType=VARCHAR}, #{cfgDownloadUrl,jdbcType=VARCHAR})
+        values (#{platformId,jdbcType=VARCHAR}, #{domainName,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{appName,jdbcType=VARCHAR}, #{alias,jdbcType=VARCHAR}, #{reason,jdbcType=VARCHAR}, #{submitTime,jdbcType=TIMESTAMP}, #{packageDownloadUrl,jdbcType=VARCHAR}, #{cfgDownloadUrl,jdbcType=VARCHAR})
     </insert>
     <delete id="delete">
         delete

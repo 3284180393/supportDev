@@ -262,4 +262,10 @@ public interface IAppManagerService {
      */
     List<BizSetDefine> queryCCODBizSet(boolean isCheckApp);
 
+    /**
+     * 将应用从指定仓库迁移到目标仓库
+     * @param targetRepository 目标仓库
+     */
+    void appDataTransfer(String targetRepository);
+
 }

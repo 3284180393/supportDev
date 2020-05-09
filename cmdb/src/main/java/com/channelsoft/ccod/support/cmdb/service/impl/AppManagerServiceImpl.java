@@ -299,6 +299,88 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
+    public void appDataTransfer(String targetRepository) {
+        List<AppModuleVo> moduleList = this.appModuleMapper.select(null, null, null, null);
+        Map<Integer, AppPo> appMap = this.appMapper.select(null, null, null, null).stream().collect(Collectors.toMap(AppPo::getAppId, Function.identity()));
+        for(AppModuleVo vo : moduleList)
+        {
+            logger.debug(String.format("begin to transfer %s", vo.getAppNexusDirectory()));
+            try
+            {
+                transferModule(appMap.get(vo.getAppId()), vo.getInstallPackage(), vo.getCfgs(), targetRepository);
+            }
+            catch (Exception ex)
+            {
+                logger.error(ex);
+                ex.printStackTrace();
+            }
+
+        }
+    }
+
+    /**
+     * 迁移数据模块到指定的nexus仓库并修改数据库
+     * 处理流程:首先下载程序包和配置文件,其次将下载的配置文件按一定格式上传到nexus指定仓库去，最后修改数据库记录
+     * @param appPo 该平台应用对应的app详情
+     * @param installPackagePo 程序包
+     * @param cfgs 配置文件信息
+     * @param targetRepository 目标仓库
+     * @throws InterfaceCallException 接口调用失败
+     * @throws NexusException nexus返回失败或是处理nexus返回信息失败
+     * @throws IOException 保存文件失败
+     */
+    private void transferModule(AppPo appPo, AppInstallPackagePo installPackagePo, List<AppCfgFilePo> cfgs, String targetRepository) throws InterfaceCallException, NexusException, IOException
+    {
+        List<DeployFileInfo> fileList = new ArrayList<>();
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String directory = appPo.getAppNexusDirectory();
+        logger.debug(String.format("begin to handle %s cfgs", directory));
+        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(String.format("%s/%s", directory, sf.format(now)).getBytes()));
+        {
+            String downloadUrl = installPackagePo.getFileNexusDownloadUrl(this.nexusHostUrl);
+            logger.debug(String.format("download cfg from %s", downloadUrl));
+            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+            DeployFileInfo fileInfo = new DeployFileInfo();
+            fileInfo.setExt(installPackagePo.getExt());
+            fileInfo.setFileMd5(installPackagePo.getMd5());
+            fileInfo.setLocalSavePath(savePth);
+            fileInfo.setNexusRepository(this.appRepository);
+            fileInfo.setNexusDirectory(directory);
+            fileInfo.setFileSize(0);
+            fileInfo.setFileName(installPackagePo.getFileName());
+            fileList.add(fileInfo);
+        }
+        for(AppCfgFilePo cfg : cfgs)
+        {
+            String downloadUrl = cfg.getFileNexusDownloadUrl(this.nexusHostUrl);
+            logger.debug(String.format("download cfg from %s", downloadUrl));
+            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+            DeployFileInfo fileInfo = new DeployFileInfo();
+            fileInfo.setExt(cfg.getExt());
+            fileInfo.setFileMd5(cfg.getMd5());
+            fileInfo.setLocalSavePath(savePth);
+            fileInfo.setNexusRepository(this.appRepository);
+            fileInfo.setNexusDirectory(directory);
+            fileInfo.setFileSize(0);
+            fileInfo.setFileName(cfg.getFileName());
+            fileList.add(fileInfo);
+        }
+        logger.debug(String.format("upload platform app cfgs to %s/%s/%s", nexusHostUrl, this.platformAppCfgRepository, directory));
+        directory = String.format("%s/%s", appPo.getAppName(),  appPo.getVersion());
+        nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, targetRepository, directory, fileList.toArray(new DeployFileInfo[0]));
+        installPackagePo.setNexusDirectory(directory);
+        installPackagePo.setNexusRepository(targetRepository);
+        this.appInstallPackageMapper.update(installPackagePo);
+        for(AppCfgFilePo cfg : cfgs)
+        {
+            cfg.setNexusDirectory(directory);
+            cfg.setNexusRepository(targetRepository);
+            this.appCfgFileMapper.update(cfg);
+        }
+    }
+
+    @Override
     public AppModuleVo createNewAppModule(String appName, String appAlias, String version, VersionControl versionControl, String versionControlUrl, AppInstallPackagePo installPackage, AppCfgFilePo[] cfgs, String basePath) throws Exception {
         return null;
     }
@@ -393,8 +475,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             platformMapper.insert(platformPo);
             List<DomainPo> domainList = new ArrayList<>();
             Map<String, List<PlatformAppModuleVo>> domainAppMap = successList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
-            Set<String> domainNameSet = domainAppMap.keySet();
-            for(String domainName : domainNameSet)
+            List<String> domainNameList = new ArrayList<>(domainAppMap.keySet());
+            for(String domainName : domainNameList)
             {
                 try
                 {
@@ -609,7 +691,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             for(NexusAssetInfo assetInfo : assetList)
             {
                 String[] arr = assetInfo.getPath().split("/");
-                fileUrlMap.put(arr[arr.length - 1], assetInfo.getPath());
+                fileUrlMap.put(arr[arr.length - 1], String.format("%s/%s", this.unconfirmedPlatformAppRepository, assetInfo.getPath()));
             }
             if(StringUtils.isNotBlank(moduleVo.getInstallPackage().getLocalSavePath()))
             {
@@ -670,7 +752,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 moduleVo = addNewAppToDB(appPo, module.getInstallPackage(), module.getCfgs());
                 appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
             }
-            String compareResult = compareAppFileWithNexusRecord(moduleVo, appFileAssetList);
+            String compareResult = compareAppFileWithNexusRecord(appPo, moduleVo, appFileAssetList);
             if(StringUtils.isNotBlank(compareResult))
             {
                 logger.error(String.format("collected appName=%s and version=%s files is not matched with nexus : %s",
@@ -777,7 +859,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param NexusFileList 该应用存储在nexus的文件信息
      * @return 对比结果,如果完全符合返回""
      */
-    private String compareAppFileWithNexusRecord(AppModuleVo moduleVo, List<NexusAssetInfo> NexusFileList)
+    private String compareAppFileWithNexusRecord(AppPo appPo, AppModuleVo moduleVo, List<NexusAssetInfo> NexusFileList)
     {
         String appName = moduleVo.getAppName();
         String version = moduleVo.getVersion();
@@ -787,7 +869,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 appName, version));
         Map<String, NexusAssetInfo> nexusFileMap = NexusFileList.stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
         StringBuffer sb = new StringBuffer();
-        String directory = moduleVo.getAppNexusDirectory();
+        String directory = appPo.getAppNexusDirectory();
         String path = String.format("%s/%s", directory, installPackage.getFileName());
         if(!nexusFileMap.containsKey(path))
         {
@@ -4060,6 +4142,32 @@ public class AppManagerServiceImpl implements IAppManagerService {
         return sortedOptList;
     }
 
+    @Override
+    public List<BizSetDefine> queryCCODBizSet(boolean isCheckApp) {
+        if(!isCheckApp)
+            return this.ccodBiz.getSet();
+        List<BizSetDefine> defineList = new ArrayList<>();
+        Map<String, List<AppPo>> appMap = this.appMapper.select(null, null, null,null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
+        for(BizSetDefine setDefine : this.ccodBiz.getSet())
+        {
+            BizSetDefine define = new BizSetDefine();
+            define.setApps(new ArrayList<>());
+            define.setDomainType(setDefine.getDomainType());
+            define.setFixedDomainId(setDefine.getFixedDomainId());
+            define.setFixedDomainName(setDefine.getFixedDomainName());
+            define.setId(setDefine.getId());
+            define.setIsBasic(setDefine.getIsBasic());
+            define.setName(setDefine.getName());
+            for(AppDefine appDefine : setDefine.getApps())
+            {
+                if(appMap.containsKey(appDefine.getName()))
+                    define.getApps().add(appDefine);
+            }
+            defineList.add(define);
+        }
+        return defineList;
+    }
+
     @Test
     public void schemaParamTest()
     {
@@ -4198,29 +4306,29 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
-    @Override
-    public List<BizSetDefine> queryCCODBizSet(boolean isCheckApp) {
-        if(!isCheckApp)
-            return this.ccodBiz.getSet();
-        List<BizSetDefine> defineList = new ArrayList<>();
-        Map<String, List<AppPo>> appMap = this.appMapper.select(null, null, null,null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
-        for(BizSetDefine setDefine : this.ccodBiz.getSet())
-        {
-            BizSetDefine define = new BizSetDefine();
-            define.setApps(new ArrayList<>());
-            define.setDomainType(setDefine.getDomainType());
-            define.setFixedDomainId(setDefine.getFixedDomainId());
-            define.setFixedDomainName(setDefine.getFixedDomainName());
-            define.setId(setDefine.getId());
-            define.setIsBasic(setDefine.getIsBasic());
-            define.setName(setDefine.getName());
-            for(AppDefine appDefine : setDefine.getApps())
+    @Test
+    public void removeTest()
+    {
+        try {
+            Map<String, String> map = new HashMap<>();
+            map.put("1", "Wuhan");
+            map.put("2", "Shanghai");
+            map.put("3", "Beijing");
+            map.put("4", "Nanjing");
+            map.put("5", "Guangzhou");
+            map.put("6", "Chengdu");
+            map.put("7", "Helei");
+            List<String> set = new ArrayList<>(map.keySet());
+            for(String key : set)
             {
-                if(appMap.containsKey(appDefine.getName()))
-                    define.getApps().add(appDefine);
+                if("1".equals(key) || "3".equals(key))
+                    map.remove(key);
             }
-            defineList.add(define);
+            System.out.println(String.join(",", map.keySet()));
         }
-        return defineList;
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
     }
 }

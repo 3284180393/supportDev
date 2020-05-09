@@ -27,6 +27,39 @@ dcs_standard_alias = 'dcs'
 gls_db_name = 'CCOD'
 gls_service_unit_table = 'GLS_SERVICE_UNIT'
 platform_deploy_params = """"""
+app_repository = platform_deploy_params['app_repository']
+image_repository = platform_deploy_params['image_repository']
+nexus_host_url = platform_deploy_params['nexus_host_url']
+nexus_user = platform_deploy_params['nexus_user']
+nexus_user_pwd = platform_deploy_params['nexus_user_pwd']
+nexus_image_repository_url = platform_deploy_params['nexus_image_repository_url']
+cmdb_host_url = platform_deploy_params['cmdb_host_url']
+upload_url = "%s/service/rest/v1/components?repository=%s" % (nexus_host_url, app_repository)
+app_register_url = "%s/cmdb/api/apps" % cmdb_host_url
+schema_update_url = '%s/cmdb/api/platformUpdateSchema' % cmdb_host_url
+k8s_deploy_git_url = platform_deploy_params['k8s_deploy_git_url']
+app_image_query_url = "http://%s/v2/%s/%%s/tags/list" % (nexus_image_repository_url, image_repository)
+platform_deploy_schema = platform_deploy_params['update_schema']
+platform_public_config = platform_deploy_params['publicConfig']
+ccod_apps = """dcms##dcms##11110##dcms.war##war"""
+make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
+k8s_host_ip = platform_deploy_params['k8s_host_ip']
+gls_db_type = platform_deploy_params['gls_db_type']
+gls_db_user = platform_deploy_params['gls_db_user']
+gls_db_pwd = platform_deploy_params['gls_db_pwd']
+gls_db_sid = platform_deploy_params['gls_db_sid']
+gls_db_svc_name = platform_deploy_params['gls_db_svc_name']
+schema_platform_id = platform_deploy_params['platform_id']
+platform_deploy_schema = platform_deploy_params['update_schema']
+now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+base_data_nexus_repository = platform_deploy_schema['baseDataNexusRepository']
+base_data_zip_nexus_path = platform_deploy_schema['baseDataNexusPath']
+base_data_repository = platform_deploy_schema['baseDataNexusRepository']
+base_data_path = platform_deploy_schema['baseDataNexusPath']
+if gls_db_type != 'ORACLE':
+    logging.error('current version only support ORACLE database')
+    raise Exception('current version only support ORACLE database')
+nexus_image_repository = platform_deploy_params['image_repository']
 
 
 class ExecutableCommand():
@@ -407,7 +440,7 @@ class CMDB(object):
 
 class AppInstance(object):
     def __init__(self, platform_id, domain_id, app_module, alias, operation, cfgs=None, timeout=0, src_revision='2',
-                 target_revision='1', task_type='CREATE'):
+                 target_revision='1', task_type='CREATE', public_config=None):
         self.operation = operation
         # if self.operation == 'ADD':
         #     self.operation = 'DELETE'
@@ -444,6 +477,7 @@ class AppInstance(object):
         self.update_status = None
         self.update_time = None
         self.log = None
+        self.public_config = public_config
         self.__get_current_status()
         exec_command = None
         opt_tag = '%s %s[%s(%s)] at %s' % (self.operation, self.alias, self.app_name, self.version, self.domain_id)
@@ -455,7 +489,7 @@ class AppInstance(object):
             elif self.pod_name:
                 logging.error('%s fail : %s exist at %s with pod_name %s' % (opt_tag, self.alias, self.domain_id, self.pod_name))
                 raise Exception('%s fail : %s exist at %s with pod_name %s' % (opt_tag, self.alias, self.domain_id, self.pod_name))
-            cfg_params = self.__get_app_cfg_params_for_k8s(cfgs)
+            cfg_params = self.__get_app_cfg_params_for_k8s()
             exec_command = '/usr/local/bin/helm install --set module.vsersion=%s --set module.name=%s --set module.alias=%s-%s %s %s-%s . -n %s' % (
                 re.sub(':', '-', self.version), self.app_name, self.alias, self.domain_id, cfg_params, self.alias, self.domain_id,
                 self.platform_id
@@ -468,7 +502,7 @@ class AppInstance(object):
             if not self.pod_name:
                 logging.error('%s fail : target app not exist' % opt_tag)
                 raise Exception('%s fail : target app not exist' % opt_tag)
-            cfg_params = self.__get_app_cfg_params_for_k8s(cfgs)
+            cfg_params = self.__get_app_cfg_params_for_k8s()
             exec_command = '/usr/local/bin/helm upgrade --set module.vsersion=%s --set module.name=%s --set module.alias=%s-%s %s %s-%s . -n %s' % (
                 re.sub(':', '-', self.version), self.app_name, self.alias, self.domain_id, cfg_params, self.alias, self.domain_id,
                 self.platform_id
@@ -633,8 +667,13 @@ class AppInstance(object):
         logging.info('restart %s in %s success' % (pod_name, self.platform_id))
         return True
 
-    def __get_app_cfg_params_for_k8s(self, cfgs):
+    def __get_app_cfg_params_for_k8s(self):
+        cfgs = self.cfgs
         cfg_params = ""
+        if self.app_type == 'CCOD_WEBAPPS_MODULE' and self.app_name != 'cas':
+            cfg_params = "--set publicConfig.[%s]=[%s] --set isPublicConfig=False --set publicConfig.local_datasource.xml=/root/resin-4.0.13/conf --set publicConfig.local_jvm.xml=/root/resin-4.0.13/conf" % (platform_public_config['fileName'], platform_public_config['deployPath'])
+        elif (self.app_name == 'UCGateway' or self.app_name == 'AppGateWay' or self.app_name == 'DialEngine') and self.public_config:
+            cfg_params = "--set publicConfig.[%s]=[%s] --set isPublicConfig=False --set config.sdcommon.ini=./Config" % (self.public_config['fileName'], self.public_config['deployPath'])
         for cfg in cfgs:
             cfg_deploy_path = re.sub('^.*WEB-INF/', 'WEB-INF/', cfg['deployPath'])
             cfg_deploy_path = re.sub('/$', '', cfg_deploy_path)
@@ -681,7 +720,7 @@ class PlatformManager(object):
         print(exec_result)
         logging.debug('create base service for %s' % platform_id)
         print('create base service for %s' % platform_id)
-        db_param = '--set oracle.ccod.name=oracle --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds'
+        db_param = '--set oracle.ccod.name=oracle --set oracle.ccod.sid=xe --set runtime.network.domainName=ccod.io --set oracle.ccod.user=ccod --set oracle.ccod.passwd=ccod --set mysql.ccod.user=ucds  --set mysql.ccod.passwd=ucds --set isPublicConfig=False'
         exec_command = 'cd %s;cd payaml/baseService;/usr/local/bin/helm install %s -n %s baseservice .' % (
             work_dir, db_param, platform_id)
         exec_result = ExecutableCommand.run_shell_command(exec_command, None)
@@ -1033,6 +1072,9 @@ class CCODPlatform(object):
         deploy_apps = list()
         for domain in domain_list:
             domain_id = domain['domainId']
+            domain_public_config = None
+            if 'publicConfig' in domain.keys:
+                domain_public_config = domain['publicConfig']
             if domain['updateType'] != 'ADD':
                 logging.error('add domain %s fail : updateType must be ADD, not %s' % (domain_id, domain['updateType']))
                 raise Exception('add domain %s fail : updateType must be ADD, not %s' % (domain_id, domain['updateType']))
@@ -1057,7 +1099,7 @@ class CCODPlatform(object):
                 if not self.image_repository.prepare_image(app_module):
                     logging('%s fail : prepare image fail' % app_tag)
                     raise Exception('%s fail : prepare image fail' % app_tag)
-                app_ins = AppInstance(self.platform_id, domain_id, app_module, alias, operation, app['cfgs'], app['addDelay'])
+                app_ins = AppInstance(self.platform_id, domain_id, app_module, alias, operation, app['cfgs'], app['addDelay'], public_config=domain_public_config)
                 deploy_apps.append(app_ins)
         self.generate_platform_base_data()
         PlatformManager.add_new_platform(self.platform_id, self.work_dir)
@@ -1290,38 +1332,6 @@ def print_help():
 
 
 if __name__ == '__main__':
-    app_repository = platform_deploy_params['app_repository']
-    image_repository = platform_deploy_params['image_repository']
-    nexus_host_url = platform_deploy_params['nexus_host_url']
-    nexus_user = platform_deploy_params['nexus_user']
-    nexus_user_pwd = platform_deploy_params['nexus_user_pwd']
-    nexus_image_repository_url = platform_deploy_params['nexus_image_repository_url']
-    cmdb_host_url = platform_deploy_params['cmdb_host_url']
-    upload_url = "%s/service/rest/v1/components?repository=%s" % (nexus_host_url, app_repository)
-    app_register_url = "%s/cmdb/api/apps" % cmdb_host_url
-    schema_update_url = '%s/cmdb/api/platformUpdateSchema' % cmdb_host_url
-    k8s_deploy_git_url = platform_deploy_params['k8s_deploy_git_url']
-    app_image_query_url = "http://%s/v2/%s/%%s/tags/list" % (nexus_image_repository_url, image_repository)
-    platform_deploy_schema = platform_deploy_params['update_schema']
-    ccod_apps = """dcms##dcms##11110##dcms.war##war"""
-    make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
-    k8s_host_ip = platform_deploy_params['k8s_host_ip']
-    gls_db_type = platform_deploy_params['gls_db_type']
-    gls_db_user = platform_deploy_params['gls_db_user']
-    gls_db_pwd = platform_deploy_params['gls_db_pwd']
-    gls_db_sid = platform_deploy_params['gls_db_sid']
-    gls_db_svc_name = platform_deploy_params['gls_db_svc_name']
-    schema_platform_id = platform_deploy_params['platform_id']
-    platform_deploy_schema = platform_deploy_params['update_schema']
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    base_data_nexus_repository = platform_deploy_schema['baseDataNexusRepository']
-    base_data_zip_nexus_path = platform_deploy_schema['baseDataNexusPath']
-    base_data_repository = platform_deploy_schema['baseDataNexusRepository']
-    base_data_path = platform_deploy_schema['baseDataNexusPath']
-    if gls_db_type != 'ORACLE':
-        logging.error('current version only support ORACLE database')
-        raise Exception('current version only support ORACLE database')
-    nexus_image_repository = platform_deploy_params['image_repository']
     cmdb = CMDB(cmdb_host_url)
     nexus_repository = NexusRepository(nexus_host_url, nexus_user, nexus_user_pwd)
     image_repository = ImageRepository(nexus_image_repository_url, nexus_user, nexus_user_pwd, nexus_image_repository,
