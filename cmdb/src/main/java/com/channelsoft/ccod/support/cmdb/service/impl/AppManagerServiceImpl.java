@@ -311,7 +311,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             catch (Exception ex)
             {
-                logger.error(ex);
+                logger.error(String.format("transfer %s exception", vo.getAppNexusDirectory()), ex);
                 ex.printStackTrace();
             }
 
@@ -339,8 +339,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(String.format("%s/%s", directory, sf.format(now)).getBytes()));
         {
             String downloadUrl = installPackagePo.getFileNexusDownloadUrl(this.nexusHostUrl);
-            logger.debug(String.format("download cfg from %s", downloadUrl));
-            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+            logger.debug(String.format("download install package from %s", downloadUrl));
+            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, installPackagePo.getFileName());
             DeployFileInfo fileInfo = new DeployFileInfo();
             fileInfo.setExt(installPackagePo.getExt());
             fileInfo.setFileMd5(installPackagePo.getMd5());
@@ -366,16 +366,18 @@ public class AppManagerServiceImpl implements IAppManagerService {
             fileInfo.setFileName(cfg.getFileName());
             fileList.add(fileInfo);
         }
-        logger.debug(String.format("upload platform app cfgs to %s/%s/%s", nexusHostUrl, this.platformAppCfgRepository, directory));
         directory = String.format("%s/%s", appPo.getAppName(),  appPo.getVersion());
+        logger.debug(String.format("upload app package and cfgs to %s/%s/%s", nexusHostUrl, targetRepository, directory));
         nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, targetRepository, directory, fileList.toArray(new DeployFileInfo[0]));
         installPackagePo.setNexusDirectory(directory);
         installPackagePo.setNexusRepository(targetRepository);
+        logger.debug(String.format("update package"));
         this.appInstallPackageMapper.update(installPackagePo);
         for(AppCfgFilePo cfg : cfgs)
         {
             cfg.setNexusDirectory(directory);
             cfg.setNexusRepository(targetRepository);
+            logger.debug(String.format("update cfg"));
             this.appCfgFileMapper.update(cfg);
         }
     }
