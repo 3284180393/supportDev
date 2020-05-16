@@ -22,8 +22,6 @@ public class AppModuleVo {
 
     private String appName; //应用名
 
-    private String appAlias; //应用别名
-
     private String version; //应用版本
 
     private String ccodVersion; //对应的ccod大版本
@@ -56,7 +54,6 @@ public class AppModuleVo {
         this.appId = app.getAppId();
         this.appType = AppType.getEnum(app.getAppType());
         this.appName = app.getAppName();
-        this.appAlias = app.getAppAlias();
         this.version = app.getVersion();
         this.ccodVersion = app.getCcodVersion();
         this.createTime = app.getCreateTime();
@@ -92,14 +89,6 @@ public class AppModuleVo {
 
     public void setAppName(String appName) {
         this.appName = appName;
-    }
-
-    public String getAppAlias() {
-        return appAlias;
-    }
-
-    public void setAppAlias(String appAlias) {
-        this.appAlias = appAlias;
     }
 
     public String getVersion() {
@@ -191,7 +180,7 @@ public class AppModuleVo {
     }
 
     public String getAppNexusDirectory() {
-        String directory = String.format("%s/%s/%s", this.appName, this.appAlias, this.version);
+        String directory = String.format("%s/%s", this.appName, this.version);
         return directory;
     }
 
@@ -202,7 +191,7 @@ public class AppModuleVo {
 
     public String getAppNexusGroup()
     {
-        String group = String.format("/%s/%s/%s", this.appName, this.appAlias, this.version);
+        String group = String.format("/%s/%s", this.appName, this.version);
         return group;
     }
 }

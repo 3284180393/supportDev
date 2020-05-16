@@ -239,7 +239,7 @@ nexus:
   user : admin
   password : 123456
   host-url : http://10.130.41.216:8081
-  app-module-repository : ccod_modules
+  app-module-repository : ccod_module_releases
   platform-app-cfg-repository : platform_app_cfg
   unconfirmed-platform-app-repository: unconfirmed-platform-app
   tmp-platform-app-cfg-repository: tmp

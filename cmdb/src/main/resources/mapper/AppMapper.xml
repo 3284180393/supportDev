@@ -4,7 +4,6 @@
     <resultMap id="AppMap" type="com.channelsoft.ccod.support.cmdb.po.AppPo" >
         <id column="app_id" property="appId" jdbcType="INTEGER" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
-        <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
         <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="version" property="version" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
@@ -17,7 +16,7 @@
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        a.app_id, a.app_name, a.app_alias, a.app_type, a.version, a.ccod_version, a.base_path, a.create_time, a.update_time, a.create_reason, a.`comment`, a.version_control, a.version_control_url
+        a.app_id, a.app_name, a.app_type, a.version, a.ccod_version, a.base_path, a.create_time, a.update_time, a.create_reason, a.`comment`, a.version_control, a.version_control_url
     </sql>
     <select id="selectByPrimaryKey" resultMap="AppMap" parameterType="java.lang.Integer">
         select
@@ -36,9 +35,6 @@
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}
         </if>
-        <if test="appAlias!=null">
-            And a.app_alias=#{appAlias,jdbcType=VARCHAR}
-        </if>
         <if test="version!=null">
             And a.version=#{version,jdbcType=VARCHAR}
         </if>
@@ -51,8 +47,8 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppPo"
             useGeneratedKeys="true" keyProperty="appId">
-        insert into app(app_name, app_alias, app_type, version, ccod_version, base_path, create_time, update_time, create_reason, `comment`, version_control, version_control_url)
-        values (#{appName,jdbcType=VARCHAR}, #{appAlias,jdbcType=VARCHAR}, #{appType,jdbcType=VARCHAR}, #{version,jdbcType=VARCHAR}, #{ccodVersion,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{createReason,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{versionControl,jdbcType=VARCHAR}, #{versionControlUrl,jdbcType=VARCHAR})
+        insert into app(app_name, app_type, version, ccod_version, base_path, create_time, update_time, create_reason, `comment`, version_control, version_control_url)
+        values (#{appName,jdbcType=VARCHAR}, #{appType,jdbcType=VARCHAR}, #{version,jdbcType=VARCHAR}, #{ccodVersion,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{createReason,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{versionControl,jdbcType=VARCHAR}, #{versionControlUrl,jdbcType=VARCHAR})
     </insert>
     <delete id="delete" parameterType="java.lang.Integer">
         delete

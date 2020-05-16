@@ -91,9 +91,9 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
     private ConnectionFactory connectionFactory = null;
 
-    private String cfgKeyFmt = "%s;%s;%s;%s;%s;%s";
+    private String cfgKeyFmt = "%s;%s;%s;%s";
 
-    private String packageKeyFmt = "%s;%s;%s";
+    private String packageKeyFmt = "%s;%s";
 
     private String tmpSaveDirFmt = "%s/downloads/%s";
 
@@ -395,8 +395,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
             {
                 for(DeployFileInfo info : vo.getCfgs())
                 {
-                    String cfgKey = String.format(this.cfgKeyFmt, vo.getPlatformId(), vo.getDomainId(), vo.getHostIp(),
-                            info.getBasePath(), info.getDeployPath(), info.getFileName());
+                    String cfgKey = String.format(this.cfgKeyFmt, vo.getDomainId(), vo.getHostIp(), vo.getModuleAliasName(), info.getFileName());
                     if(!cfgMap.containsKey(cfgKey))
                     {
                         cfgMap.put(cfgKey, new ArrayList<>());
@@ -406,7 +405,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
             }
             if(vo.getInstallPackage() != null)
             {
-                String installPackageKey = String.format(this.packageKeyFmt, vo.getModuleName(), vo.getModuleAliasName(), vo.getVersion());
+                String installPackageKey = String.format(this.packageKeyFmt, vo.getModuleName(), vo.getVersion());
                 if(!installPackageMap.containsKey(installPackageKey))
                 {
                     installPackageMap.put(installPackageKey, new ArrayList<>());
@@ -514,11 +513,11 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                 logger.info(String.format("receive [%s] file SUCCESS and save to %s", attrStr, savePath));
                 if(fileType.equals(this.installPackage))
                 {
-                    String pkgKey = String.format(this.packageKeyFmt, appName, appAlias, version);
+                    String pkgKey = String.format(this.packageKeyFmt, appName, version);
                     if(installPackageMap.containsKey(pkgKey))
                     {
-                        logger.info(String.format(String.format("appName=%s and appAlias=%s and version=%s app's install package is in list",
-                                appName, appAlias, version)));
+                        logger.info(String.format(String.format("appName=%s and version=%s app's install package is in list",
+                                appName, version)));
                         for(DeployFileInfo info : installPackageMap.get(pkgKey))
                         {
                             if(md5.equals(info.getFileMd5())) {
@@ -530,8 +529,8 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                             }
                             else
                             {
-                                logger.error(String.format("received appName=%s and appAlias=%s and version=%s app's install package is not wanted install package : wanted file md5=%s and receive file md5=%s",
-                                        appName, appAlias, version, info.getFileMd5(), md5));
+                                logger.error(String.format("received appName=%s and version=%s app's install package is not wanted install package : wanted file md5=%s and receive file md5=%s",
+                                        appName, version, info.getFileMd5(), md5));
                                 info.setTransferSucc(false);
                                 info.setTransferFailReason(String.format("%s md5 error: want %s and receive %s",
                                         fileName, info.getFileMd5(), md5));
@@ -541,17 +540,17 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     }
                     else
                     {
-                        logger.error(String.format("appName=%s and appAlias=%s and version=%s app's install package is not in list",
-                                appName, appAlias, version));
+                        logger.error(String.format("appName=%s and version=%s app's install package is not in list",
+                                appName, version));
                     }
                 }
                 else
                 {
-                    String cfgKey = String.format(this.cfgKeyFmt, pfId, domainId, hostIp, basePath, deployPath, fileName);
+                    String cfgKey = String.format(this.cfgKeyFmt, domainId, hostIp, appAlias, fileName);
                     if(cfgMap.containsKey(cfgKey))
                     {
-                        logger.info(String.format(String.format("platformId=%s and domainId=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is in wanted list",
-                                pfId, domainId, hostIp, basePath, deployPath, fileName)));
+                        logger.info(String.format(String.format("cfg %s of %s(%s=%s) at %s in %s is wanted",
+                                fileName, appAlias, appName, version, hostIp, domainId)));
                         for(DeployFileInfo info : cfgMap.get(cfgKey))
                         {
                             if(md5.equals(info.getFileMd5())) {
@@ -574,8 +573,8 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                     }
                     else
                     {
-                        logger.error(String.format(String.format("platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not at wanted list",
-                                pfId, domainId, hostIp, basePath, deployPath, fileName)));
+                        logger.error(String.format(String.format("%s[%s] platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s app's cfg is not at wanted list",
+                                appName, appAlias, pfId, domainId, hostIp, basePath, deployPath, fileName)));
                     }
                 }
             }
@@ -618,7 +617,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
             for(String instKey : installPackageMap.keySet())
             {
                 String[] arr = instKey.split(";");
-                logger.error(String.format("not successfully receive appName=%s and appAlias=%s and version=%s install package", arr[0], arr[1], arr[2]));
+                logger.error(String.format("not successfully receive appName=%s and version=%s install package", arr[0], arr[1]));
             }
         }
         if(cfgMap.size() > 0)

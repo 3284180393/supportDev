@@ -5,6 +5,7 @@ import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 
 import java.util.Date;
 import java.util.List;
@@ -33,6 +34,8 @@ public class PlatformAppDeployDetailVo {
     private String appName; //应用名
 
     private String appAlias; //应用别名
+
+    private String originalAlias; //原始别名
 
     private AppType appType; //应用类型
 
@@ -296,5 +299,29 @@ public class PlatformAppDeployDetailVo {
 
     public void setBkSetName(String bkSetName) {
         this.bkSetName = bkSetName;
+    }
+
+    public String getOriginalAlias() {
+        return originalAlias;
+    }
+
+    public void setOriginalAlias(String originalAlias) {
+        this.originalAlias = originalAlias;
+    }
+
+    public PlatformAppPo getPlatformApp()
+    {
+        PlatformAppPo po = new PlatformAppPo();
+        po.setOriginalAlias(this.originalAlias);
+        po.setDomainId(this.domainId);
+        po.setDeployTime(this.deployTime);
+        po.setBasePath(this.basePath);
+        po.setPlatformId(this.platformId);
+        po.setAppId(this.appId);
+        po.setAppRunner(this.appRunner);
+        po.setHostIp(this.hostIp);
+        po.setAppAlias(this.appAlias);
+        po.setPlatformAppId(this.platformAppId);
+        return po;
     }
 }

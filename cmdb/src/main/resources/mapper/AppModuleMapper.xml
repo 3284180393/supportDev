@@ -5,7 +5,6 @@
         <id column="app_id" property="appId" jdbcType="INTEGER" />
         <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
-        <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
         <result column="version" property="version" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
@@ -30,7 +29,6 @@
         a.app_id,
         a.app_type,
         a.app_name,
-        a.app_alias,
         a.version,
         a.ccod_version,
         a.create_time,
@@ -75,9 +73,6 @@
         </if>
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}
-        </if>
-        <if test="appAlias!=null">
-            And a.app_alias=#{appAlias,jdbcType=VARCHAR}
         </if>
         <if test="version!=null">
             And a.version=#{version,jdbcType=VARCHAR}

@@ -339,7 +339,6 @@ public class PlatformAppModuleVo {
         po.setBasePath(this.basePath);
         po.setAppType(this.moduleType);
         po.setAppName(this.moduleName);
-        po.setAppAlias(this.moduleAliasName);
         po.setVersionControl(this.versionControl);
         po.setVersionControlUrl(this.versionControlUrl);
         return po;
@@ -442,8 +441,8 @@ public class PlatformAppModuleVo {
     @Override
     public String toString()
     {
-        String msg = String.format("platformId=%s,domainId=%s,hostIp=%s,appName=%s,appAlias=%s,version=%s,basePath=%s",
-                this.platformId, this.domainId, this.hostIp, this.moduleName, this.getModuleAliasName(), this.version, this.basePath);
+        String msg = String.format("%s(%s=%s) at %s in %s",
+                this.moduleAliasName, this.moduleName, this.version, this.hostIp, this.domainId);
         return msg;
     }
 

@@ -3,10 +3,7 @@ package com.channelsoft.ccod.support.cmdb.service;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.exception.*;
-import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
-import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
-import com.channelsoft.ccod.support.cmdb.po.AppPo;
-import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.springframework.dao.DataAccessException;
 
@@ -267,5 +264,17 @@ public interface IAppManagerService {
      * @param targetRepository 目标仓库
      */
     void appDataTransfer(String targetRepository);
+
+    /**
+     * 更新已有的平台应用模块
+     * @param platformId 平台id
+     * @param platformName 平台名
+     * @param appList 需要更新的平台应用列表
+     * @return 更新后的平台应用信息
+     * @throws ParamException 需要更新的平台应用信息错误
+     * @throws InterfaceCallException 调用接口发生异常
+     * @throws NexusException 调用nexus的api返回调用错误或是解析nexus返回结果异常
+     */
+    List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<PlatformAppDeployDetailVo> appList) throws ParamException, InterfaceCallException, NexusException;
 
 }
