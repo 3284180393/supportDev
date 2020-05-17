@@ -371,6 +371,16 @@ public class NexusServiceImpl implements INexusService {
         logger.info(String.format("delete %s from %s success", assetId, nexusHostUrl));
     }
 
+    @Override
+    public void clearComponent(String nexusHostUrl, String userName, String password, String repository, String directory) throws InterfaceCallException, NexusException {
+        logger.debug(String.format("clear component %s/%s/%s", nexusHostUrl, repository, directory));
+        String group = String.format("/%s/%s");
+        List<NexusAssetInfo> assetInfos = this.queryGroupAssetMap(nexusHostUrl, userName, password, repository, group);
+        for(NexusAssetInfo assetInfo : assetInfos)
+            deleteAsset(nexusHostUrl, userName, password, assetInfo.getId());
+        logger.debug(String.format("component %s/%s/%s cleared", nexusHostUrl, repository, directory));
+    }
+
 
     //    private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws InterfaceCallException, NexusException
 //    {

@@ -5,7 +5,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.AppDefine;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
-import com.channelsoft.ccod.support.cmdb.config.NotCheckCfgApp;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
@@ -36,6 +35,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -192,6 +192,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     private Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
 
+    protected ReentrantReadWriteLock appRwl = new ReentrantReadWriteLock();
+
+    protected final Map<String, List<AppModuleVo>> appMap = new HashMap<>();
+
     @PostConstruct
     void init() throws  Exception
     {
@@ -220,45 +224,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.error(String.format("parse %s platform update schema exception", po.getPlatformId()), ex);
             }
         }
+        this.appRwl.writeLock().lock();
+        try {
+            flushRegisteredApp();
+        }
+        finally {
+            this.appRwl.writeLock().unlock();
+        }
         try
         {
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-//            this.appMapper.selectByPrimaryKey(1);
-//            this.appMapper.select(null, null, null, null);
-//            platformAppCollectService.collectPlatformAppData("gscsShlt", "公司测试上海联通", null, null, null, null);
-//            this.startCollectPlatformAppData("gscsShlt", "公司测试上海联通", null, null, null, null);
-//            this.appModuleMapper.select("jj","aa", "bb", "kk");
-//            this.platformAppDeployDetailMapper.select("11", "22", "33", "44",
-//                    "55", "66", "77", "88");
-//            List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
-//            System.out.println(JSONArray.toJSONString(appList));
-//            List<PlatformAppDeployDetailVo> deployList = this.platformAppDeployDetailMapper.select(null, null, null,
-//                    null, null, null, null, null);
-//            System.out.println(JSONArray.toJSONString(deployList));
-//            List<PlatformResourceVo> platformResourceList = this.platformResourceMapper.select();
-//            System.out.println(JSONArray.toJSONString(platformResourceList));
-//            String context = getAppCfgText("StatSchedule", "154:21104", "ss_config.cfg");
-//            System.out.println(context);
-//            List<CfgQueryParamVo> queryList = new ArrayList<>();
-//            CfgQueryParamVo paramVo = new CfgQueryParamVo();
-//            paramVo.setAppName("StatSchedule");
-//            paramVo.setVersion("154:21104");
-//            paramVo.setCfgFileName("ss_config.cfg");
-//            queryList.add(paramVo);
-//            paramVo = new CfgQueryParamVo();
-//            paramVo.setAppName("dcmsStatics");
-//            paramVo.setVersion("20537");
-//            paramVo.setCfgFileName("config.properties");
-//            queryList.add(paramVo);
-//            Map<String, Object> map = new HashMap<>();
-//            map.put("QUERY_APP_CFGS", queryList);
-//            String json = JSONObject.toJSONString(map);
-//            System.out.println(json);
-//            JSONObject jsonObject = JSONObject.parseObject(json);
-//            queryList = JSONArray.parseArray(jsonObject.getString("QUERY_APP_CFGS"), CfgQueryParamVo.class);
-//            List<Map<String, Object>> resultList = queryAppCfgs(queryList);
-//            json = JSONArray.toJSONString(resultList);
-//            System.out.println(json);
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -268,29 +243,19 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
-    private List<Map<String, Object>> queryAppCfgs(List<CfgQueryParamVo> queryList)
+    /**
+     * 更新平台当前注册应用信息
+     */
+    protected void flushRegisteredApp()
     {
-        List<Map<String, Object>> retList = new ArrayList<>();
-        for(CfgQueryParamVo paramVo : queryList)
+        this.appMap.clear();
+        Map<String, List<AppModuleVo>> map = this.appModuleMapper.select(null, null, null, null)
+                .stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        for(String appName : map.keySet())
         {
-            Map<String, Object> resultMap = new HashMap<>();
-            resultMap.put("appName", paramVo.getAppName());
-            resultMap.put("version", paramVo.getVersion());
-            resultMap.put("cfgFileName", paramVo.getCfgFileName());
-            try
-            {
-                String context = this.getAppCfgText(paramVo.getAppName(), paramVo.getVersion(), paramVo.getCfgFileName());
-                resultMap.put("result", true);
-                resultMap.put("data", context);
-            }
-            catch(Exception ex)
-            {
-                resultMap.put("result", false);
-                resultMap.put("data", ex.getMessage());
-            }
-            retList.add(resultMap);
+            this.appMap.put(appName, map.get(appName));
         }
-        return retList;
+
     }
 
     private String getTempSaveDir(String directory) {
@@ -300,22 +265,22 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Override
     public void appDataTransfer(String targetRepository) {
-        List<AppModuleVo> moduleList = this.appModuleMapper.select(null, null, null, null);
-        Map<Integer, AppPo> appMap = this.appMapper.select(null, null, null, null).stream().collect(Collectors.toMap(AppPo::getAppId, Function.identity()));
-        for(AppModuleVo vo : moduleList)
-        {
-            logger.debug(String.format("begin to transfer %s", vo.getAppNexusDirectory()));
-            try
-            {
-                transferModule(appMap.get(vo.getAppId()), vo.getInstallPackage(), vo.getCfgs(), targetRepository);
-            }
-            catch (Exception ex)
-            {
-                logger.error(String.format("transfer %s exception", vo.getAppNexusDirectory()), ex);
-                ex.printStackTrace();
-            }
-
-        }
+//        List<AppModuleVo> moduleList = this.appModuleMapper.select(null, null, null, null);
+//        Map<Integer, AppPo> appMap = this.appMapper.select(null, null, null, null).stream().collect(Collectors.toMap(AppPo::getAppId, Function.identity()));
+//        for(AppModuleVo vo : moduleList)
+//        {
+//            logger.debug(String.format("begin to transfer %s", vo.getAppNexusDirectory()));
+//            try
+//            {
+//                transferModule(appMap.get(vo.getAppId()), vo.getInstallPackage(), vo.getCfgs(), targetRepository);
+//            }
+//            catch (Exception ex)
+//            {
+//                logger.error(String.format("transfer %s exception", vo.getAppNexusDirectory()), ex);
+//                ex.printStackTrace();
+//            }
+//
+//        }
     }
 
     /**
@@ -389,36 +354,45 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Override
     public AppModuleVo[] queryApps(String appName) throws DataAccessException {
-        logger.debug(String.format("begin to query app modules : appName=%s", appName));
-        List<AppModuleVo> list = this.appModuleMapper.select(null, appName, null, null);
-        logger.info(String.format("query %d app module record with appName=%s", list.size(), appName));
-        return list.toArray(new AppModuleVo[0]);
+        this.appRwl.readLock().lock();
+        try
+        {
+            logger.debug(String.format("begin to query app modules : appName=%s", appName));
+            List<AppModuleVo> list;
+            if(StringUtils.isBlank(appName))
+               list  = this.appMap.values().stream().flatMap(listContainer -> listContainer.stream()).collect(Collectors.toList());
+            else
+                list = this.appMap.containsKey(appName) ? this.appMap.get(appName) : new ArrayList<>();
+            logger.info(String.format("query %d app module record with appName=%s", list.size(), appName));
+            return list.toArray(new AppModuleVo[0]);
+        }
+        finally {
+            this.appRwl.readLock().unlock();
+        }
     }
 
     @Override
     public AppModuleVo queryAppByVersion(String appName, String version) throws ParamException, DataAccessException {
         logger.debug(String.format("begin to query appName=%s and version=%s app module record", appName, version));
-        if(StringUtils.isBlank(appName))
+        this.appRwl.readLock().lock();
+        try
         {
-            logger.error("query FAIL : appName is blank");
-            throw new ParamException("appName is blank");
+            if(!this.appMap.containsKey(appName))
+            {
+                logger.error(String.format("not find registered app with name=%s", appName));
+                throw new ParamException(String.format("not find registered app with name=%s", appName));
+            }
+            Map<String, AppModuleVo> versionMap = this.appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+            if(!versionMap.containsKey(version))
+            {
+                logger.error(String.format("%s has not version %s", appName, version));
+                throw new ParamException(String.format("%s has not version %s", appName, version));
+            }
+            return versionMap.get(version);
         }
-        if(StringUtils.isBlank(version))
-        {
-            logger.error("query FAIL : version is blank");
-            throw new ParamException("version is blank");
+        finally {
+            this.appRwl.readLock().unlock();
         }
-        AppModuleVo moduleVo = this.appModuleMapper.selectByNameAndVersion(appName, version);
-        if(moduleVo == null)
-        {
-            logger.warn(String.format("not find app module with appName=%s and version=%s", appName, version));
-        }
-        else
-        {
-            logger.info(String.format("query app module[%s] with appName=%s and version=%s",
-                    JSONObject.toJSONString(moduleVo), appName, version));
-        }
-        return moduleVo;
     }
 
     @Override
@@ -726,55 +700,51 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String appName = appPo.getAppName();
         String appVersion = appPo.getVersion();
         String appDirectory = appPo.getAppNexusDirectory();
-        String group = appPo.getAppNexusGroup();
-        AppModuleVo moduleVo;
-        if(!appModuleMap.containsKey(appDirectory))
+        if(!this.appMap.containsKey(appName) || !this.appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(appVersion))
         {
-            moduleVo = appModuleMapper.selectByNameAndVersion(appName, appVersion);
+            String group = appPo.getAppNexusGroup();
+            logger.warn(String.format("%s[%s] not exit register it first", appName, appVersion));
             List<NexusAssetInfo> appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
-            if(moduleVo == null)
+            if(appFileAssetList.size() > 0)
             {
-                if(appFileAssetList.size() > 0)
+                logger.info(String.format("%s[%s] is has not registered at cmdb, but %s not empty, clear fisrt",
+                        appName, appVersion, group));
+                for(NexusAssetInfo assetInfo : appFileAssetList)
                 {
-                    logger.info(String.format("%s[%s] is has not registered at cmdb, but %s not empty, clear fisrt",
-                            appName, appVersion, group));
-                    for(NexusAssetInfo assetInfo : appFileAssetList)
-                    {
-                        nexusService.deleteAsset(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, assetInfo.getId());
-                    }
-                    appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
-                    if(appFileAssetList.size() != 0)
-                    {
-                        logger.error(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
-                        throw new NexusException(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
-                    }
-                    logger.debug(String.format("delete assets at %s/%s/%s success", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
+                    nexusService.deleteAsset(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, assetInfo.getId());
                 }
-                addAppToNexus(appName, appVersion, module.getInstallPackage(), module.getCfgs(), this.appRepository, appDirectory);
-                moduleVo = addNewAppToDB(appPo, module.getInstallPackage(), module.getCfgs());
                 appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
+                if(appFileAssetList.size() != 0)
+                {
+                    logger.error(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
+                    throw new NexusException(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
+                }
+                logger.debug(String.format("delete assets at %s/%s/%s success", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
             }
-            String compareResult = compareAppFileWithNexusRecord(appPo, moduleVo, appFileAssetList);
-            if(StringUtils.isNotBlank(compareResult))
-            {
-                logger.error(String.format("collected appName=%s and version=%s files is not matched with nexus : %s",
-                        appName, appVersion, compareResult));
-                throw new DBNexusNotConsistentException(String.format("collected appName=%s and version=%s files is not matched with nexus : %s",
-                        appName, appVersion, compareResult));
-            }
-            appModuleMap.put(appDirectory, moduleVo);
+            logger.debug(String.format("upload %s(%s) package and cfgs to nexus", appName, appVersion));
+            addAppToNexus(appName, appVersion, module.getInstallPackage(), module.getCfgs(), this.appRepository, appDirectory);
+            logger.debug(String.format("add %s(%s) relative info to db", appName, appVersion));
+            AppModuleVo newModule = addNewAppToDB(appPo, module.getInstallPackage(), module.getCfgs());
+            if(!this.appMap.containsKey(appName))
+                this.appMap.put(appName, new ArrayList<>());
+            logger.debug(String.format("update register app module info"));
+            this.appMap.get(appName).add(newModule);
         }
-        moduleVo = appModuleMap.get(appDirectory);
+        AppModuleVo moduleVo = this.appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(appVersion);
+        logger.debug(String.format("check package and cfgs of %s(%s)", appName, appVersion));
         checkInstPkgAndCfg(moduleVo, module.getInstallPackage(), module.getCfgs());
         PlatformAppPo platformApp = module.getPlatformApp();
         String platformCfgDirectory = platformApp.getPlatformAppDirectory(appName, appVersion, platformApp);
+        logger.debug(String.format("update cfgs to %s/%s", this.platformAppCfgRepository, platformCfgDirectory));
         nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword,
                 this.platformAppCfgRepository, platformCfgDirectory, module.getCfgs());
         platformApp.setAppId(moduleVo.getAppId());
+        logger.debug(String.format("insert platform app info to db"));
         this.platformAppMapper.insert(platformApp);
         for(DeployFileInfo cfgFilePo : module.getCfgs())
         {
             PlatformAppCfgFilePo po = new PlatformAppCfgFilePo(platformApp.getPlatformAppId(), cfgFilePo);
+            logger.debug(String.format("insert cfg %s into db", po.getFileName()));
             this.platformAppCfgFileMapper.insert(po);
         }
         logger.info(String.format("[%s] platform app module handle SUCCESS", module.toString()));
@@ -820,6 +790,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
+    /**
+     * 将应用信息，程序包以及配置文件相关信息入库
+     * @param app 应用信息
+     * @param installPackage 程序包
+     * @param cfgs 配置文件
+     * @return 添加后的应用模块信息
+     * @throws DataAccessException
+     */
     private AppModuleVo addNewAppToDB(AppPo app, DeployFileInfo installPackage, DeployFileInfo[] cfgs) throws DataAccessException
     {
         if(debug)
@@ -839,8 +817,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             this.appCfgFileMapper.insert(cfgFilePo);
             cfgList.add(cfgFilePo);
         }
-        AppModuleVo moduleVo = new AppModuleVo(app, instPkgPo, cfgList);
-        return moduleVo;
+        return this.appModuleMapper.selectByNameAndVersion(app.getAppName(), app.getVersion());
     }
 
     private List<NexusAssetInfo> addAppToNexus(String appName, String version, DeployFileInfo installPackage, DeployFileInfo[] cfgs, String repository, String directory) throws InterfaceCallException, NexusException
@@ -856,7 +833,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
 
     /**
-     * 将安装包和配置文件和nexus存储的信息
+     * 将安装包和配置文件和nexus存储的信息对比
      * @param moduleVo 应用模块
      * @param NexusFileList 该应用存储在nexus的文件信息
      * @return 对比结果,如果完全符合返回""
@@ -958,12 +935,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param bkSet 部署该应用的set信息
      * @param hostList 平台下面的所有主机列表
      * @param deployOperationList 部署的操作
-     * @param appList 应用记录列表
      * @throws InterfaceCallException 调用蓝鲸api失败
      * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果
      */
     private void deployAppsToDomainHost(DomainPo domain, String setId, LJSetInfo bkSet, List<LJHostInfo> hostList,
-                                        List<AppUpdateOperationInfo> deployOperationList, List<AppModuleVo> appList)
+                                        List<AppUpdateOperationInfo> deployOperationList)
             throws InterfaceCallException, LJPaasException, NexusException, IOException
     {
         logger.debug(String.format("begin to add new %d apps to %s/%s(%s)/%s(%s)", deployOperationList.size(),
@@ -971,10 +947,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Date now = new Date();
         List<PlatformAppPo> deployAppList = new ArrayList<>();
         Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
-        Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         for(AppUpdateOperationInfo deployOperationInfo : deployOperationList)
         {
-            Map<String, AppModuleVo> versionMap = appMap.get(deployOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+            Map<String, AppModuleVo> versionMap = this.appMap.get(deployOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
             AppModuleVo appPo = versionMap.get(deployOperationInfo.getTargetVersion());
             LJHostInfo bkHost = hostMap.get(deployOperationInfo.getHostIp());
             logger.debug(String.format("insert appId=%d to hostIp=%s with appAlias=%s and deployDirectory=%s to database",
@@ -1056,7 +1031,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
 
     private void addNewDomainToPlatform(DomainUpdatePlanInfo planInfo, List<AppUpdateOperationInfo> domainApps,
-                                        List<AppModuleVo> appList, PlatformPo platform, String setId, LJSetInfo bkSet, List<LJHostInfo> bkHostList)
+                                        PlatformPo platform, String setId, LJSetInfo bkSet, List<LJHostInfo> bkHostList)
             throws InterfaceCallException, LJPaasException, NexusException, IOException
     {
         Date now = new Date();
@@ -1075,7 +1050,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //        newDomain.setOccurs(planInfo.getOccurs());
 //        newDomain.setTags(planInfo.getTags());
         this.domainMapper.insert(newDomain);
-        deployAppsToDomainHost(newDomain, setId, bkSet, bkHostList, domainApps, appList);
+        deployAppsToDomainHost(newDomain, setId, bkSet, bkHostList, domainApps);
     }
 
     /**
@@ -1115,7 +1090,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * 检查平台升级计划参数是否合法
      * @param schema 需要检查的平台升级计划
      * @param domainList 该平台下的所有域
-     * @param appList 相关的应用列表
      * @param deployApps 该平台已经部署的应用
      * @param bkSetList 该平台的对应的蓝鲸biz下的所有set列表
      * @param bkHostList 该平台下所有主机
@@ -1123,7 +1097,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @return 如果检查通过返回空，否则返回检查失败原因
      */
     private String checkPlatformUpdateTask(PlatformUpdateSchemaInfo schema, List<DomainPo> domainList,
-                                           List<AppModuleVo> appList, List<PlatformAppPo> deployApps,
+                                           List<PlatformAppPo> deployApps,
                                            List<LJSetInfo> bkSetList, List<LJHostInfo> bkHostList,
                                            List<PlatformAppBkModulePo> appBkModuleList)
     {
@@ -1279,40 +1253,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
             {
                 domainAppList = domainAppMap.get(planInfo.getDomainId());
             }
-            String operationCheckResult = updateOperationCheck(updateType, planInfo.getAppUpdateOperationList(), appList, domainAppList, appBkModuleList, bkHostList);
+            String operationCheckResult = updateOperationCheck(updateType, planInfo.getAppUpdateOperationList(), domainAppList, appBkModuleList, bkHostList);
             sb.append(operationCheckResult);
         }
-//        Map<String, List<AppUpdateOperationInfo>> ipAppMap = allOperationList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
-//        for(String hostIp : ipAppMap.keySet())
-//        {
-//            Map<String, List<AppUpdateOperationInfo>> appNameMap = ipAppMap.get(hostIp).stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-//            for(String appName : appNameMap.keySet())
-//            {
-//                if(appNameMap.get(appName).size() > 1)
-//                {
-//                    Set<String> aliasSet = new HashSet<>();
-//                    for(AppUpdateOperationInfo opt : appNameMap.get(appName))
-//                    {
-//                        switch (opt.getOperation())
-//                        {
-//                            case ADD:
-//                            case CFG_UPDATE:
-//                            case VERSION_UPDATE:
-//                                if(aliasSet.contains(opt.getAppAlias()))
-//                                {
-//                                    sb.append(String.format("%s at %s alias duplicate;", appName, hostIp));
-//                                }
-//                                else
-//                                {
-//                                    aliasSet.add(opt.getAppAlias());
-//                                }
-//                            default:
-//                                break;
-//                        }
-//                    }
-//                }
-//            }
-//        }
         return sb.toString();
     }
 
@@ -1321,16 +1264,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * 验证应用升级操作的相关蚕食是否正确
      * @param updateType 域升级方案类型
      * @param operationList 域升级的应用升级操作明细
-     * @param appList 当前应用列表
      * @param deployApps 域已经部署的应用列表
      * @param appBkModuleList 已经部署的应用和蓝鲸模块的关系表
      * @param hostList 平台下所有服务器列表
      * @return 检查结果,如果为空则表示检查通过，否则返回检查失败原因
      */
-    private String updateOperationCheck(DomainUpdateType updateType, List<AppUpdateOperationInfo> operationList, List<AppModuleVo> appList, List<PlatformAppPo> deployApps, List<PlatformAppBkModulePo> appBkModuleList, List<LJHostInfo> hostList)
+    private String updateOperationCheck(DomainUpdateType updateType, List<AppUpdateOperationInfo> operationList, List<PlatformAppPo> deployApps, List<PlatformAppBkModulePo> appBkModuleList, List<LJHostInfo> hostList)
     {
         Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
-        Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         Map<Integer, PlatformAppBkModulePo> appBkModuleMap = appBkModuleList.stream().collect(Collectors.toMap(PlatformAppBkModulePo::getPlatformAppId, Function.identity()));
         Map<Integer, PlatformAppPo> platformAppMap = deployApps.stream().collect(Collectors.toMap(PlatformAppPo::getPlatformAppId, Function.identity()));
         StringBuffer sb = new StringBuffer();
@@ -1370,7 +1311,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 sb.append(String.format("DomainUpdateType=%s only support AppUpdateOperation=%s, not %s of %s;",
                         DomainUpdateType.DELETE.name, AppUpdateOperation.DELETE.name, operationInfo.getOperation().name, JSONObject.toJSONString(operationInfo)));
             }
-            else if(!appMap.containsKey(operationInfo.getAppName()))
+            else if(!this.appMap.containsKey(operationInfo.getAppName()))
             {
                 sb.append(String.format("appName %s of %s not exist;", operationInfo.getAppName(), JSONObject.toJSONString(operationInfo)));
             }
@@ -1384,7 +1325,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             else
             {
-                Map<String, AppModuleVo> versionMap = appMap.get(operationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+                Map<String, AppModuleVo> versionMap = this.appMap.get(operationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
                 AppUpdateOperation operation = operationInfo.getOperation();
                 switch (operation)
                 {
@@ -1543,7 +1484,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param schemaInfo 执行完的平台升级计划
      * @param platformPo 执行计划的平台信息
      * @param domainList 平台下的所有域列表
-     * @param appList 当前应用列表
      * @param deployApps 执行升级计划前部署应用列表
      * @param appBkModuleList 执行升级计划前部署应用同蓝鲸paas平台的关系
      * @param bkSetList 该平台对应蓝鲸biz下的所有set列表
@@ -1555,21 +1495,20 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @throws IOException 处理文件失败
      */
     private void recordPlatformUpdateResult(PlatformUpdateSchemaInfo schemaInfo, PlatformPo platformPo,
-                                            List<DomainPo> domainList, List<AppModuleVo> appList, List<PlatformAppPo> deployApps,
+                                            List<DomainPo> domainList, List<PlatformAppPo> deployApps,
                                             List<PlatformAppBkModulePo> appBkModuleList, List<LJSetInfo> bkSetList,
                                             List<LJHostInfo> bkHostList) throws ParamException, InterfaceCallException, LJPaasException, NexusException, IOException
     {
         Map<String, LJSetInfo> setMap = bkSetList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity()));
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<Integer, PlatformAppPo> platformAppMap = deployApps.stream().collect(Collectors.toMap(PlatformAppPo::getPlatformAppId, Function.identity()));
-        Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         for(DomainUpdatePlanInfo planInfo : schemaInfo.getDomainUpdatePlanList())
         {
             switch (planInfo.getUpdateType())
             {
                 case ADD:
                     addNewDomainToPlatform(planInfo, planInfo.getAppUpdateOperationList(),
-                            appList, platformPo, planInfo.getSetId(), setMap.get(planInfo.getBkSetName()), bkHostList);
+                            platformPo, planInfo.getSetId(), setMap.get(planInfo.getBkSetName()), bkHostList);
                     break;
                 case DELETE:
                     deleteDomainFromPlatform(domainMap.get(planInfo.getDomainId()), setMap.get(planInfo.getBkSetName()), planInfo.getAppUpdateOperationList(), bkHostList);
@@ -1586,7 +1525,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     {
                         for(AppUpdateOperationInfo updateOperationInfo : operationMap.get(AppUpdateOperation.VERSION_UPDATE))
                         {
-                            Map<String, AppModuleVo> versionMap = appMap.get(updateOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+                            Map<String, AppModuleVo> versionMap = this.appMap.get(updateOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
                             updateDeployAppModuleVersion(updateOperationInfo, platformAppMap.get(updateOperationInfo.getPlatformAppId()), versionMap.get(updateOperationInfo.getOriginalVersion()), versionMap.get(updateOperationInfo.getTargetVersion()));
                         }
                     }
@@ -1594,13 +1533,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     {
                         for(AppUpdateOperationInfo cfgOperationInfo : operationMap.get(AppUpdateOperation.CFG_UPDATE))
                         {
-                            Map<String, AppModuleVo> versionMap = appMap.get(cfgOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+                            Map<String, AppModuleVo> versionMap = this.appMap.get(cfgOperationInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
                             modifyDeployAppModuleCfg(cfgOperationInfo, platformAppMap.get(cfgOperationInfo.getPlatformAppId()), versionMap.get(cfgOperationInfo.getOriginalVersion()));
                         }
                     }
                     if(operationMap.containsKey(AppUpdateOperation.ADD))
                     {
-                        deployAppsToDomainHost(domainPo, planInfo.getSetId(), bkSet, bkHostList, operationMap.get(AppUpdateOperation.ADD), appList);
+                        deployAppsToDomainHost(domainPo, planInfo.getSetId(), bkSet, bkHostList, operationMap.get(AppUpdateOperation.ADD));
                     }
             }
         }
@@ -1714,67 +1653,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 }
                 break;
             case UPDATE:
-//                Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null)
-//                        .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
-//                List<DomainUpdatePlanInfo> addDomainPlanList = new ArrayList<>();
-//                for(DomainUpdatePlanInfo planInfo : updateSchema.getDomainUpdatePlanList())
-//                {
-//                    if(planInfo.getUpdateType().equals(DomainUpdateType.ADD))
-//                    {
-//                        addDomainPlanList.add(planInfo);
-//                    }
-//                    else if(planInfo.getUpdateType().equals(DomainUpdateType.UPDATE))
-//                    {
-//                        if(StringUtils.isBlank(planInfo.getDomainId()))
-//                        {
-//                            logger.error(String.format("domainId of domain update plan is blank"));
-//                            throw new ParamException(String.format("domainId of domain update plan is blank"));
-//                        }
-//                        else if(!domainAppMap.containsKey(planInfo.getDomainId()))
-//                        {
-//                            logger.error(String.format("updated domain %s not deploy any app", planInfo.getDomainId()));
-//                            throw new ParamException(String.format("updated domain %s not deploy any app", planInfo.getDomainId()));
-//                        }
-//                        else if(!bizSetDefineMap.containsKey(planInfo.getBkSetName()))
-//                        {
-//                            logger.error(String.format("set %s not support", planInfo.getBkSetName()));
-//                            throw new NotSupportSetException(String.format("set %s not support", planInfo.getBkSetName()));
-//                        }
-//                        else
-//                        {
-//                            List<AppUpdateOperationInfo> addAppOptList = new ArrayList<>();
-//                            for(AppUpdateOperationInfo opt : planInfo.getAppUpdateOperationList())
-//                            {
-//                                if(opt.getOperation().equals(AppUpdateOperation.ADD))
-//                                {
-//                                    addAppOptList.add(opt);
-//                                }
-//                            }
-//                            if(addAppOptList.size() > 0)
-//                            {
-//                                BizSetDefine setDefine = bizSetDefineMap.get(planInfo.getBkSetName());
-//                                List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.get(planInfo.getDomainId());
-//                                autoDefineAlias4DomainNewApp(addAppOptList, domainAppList, setDefine);
-//                            }
-//
-//                        }
-//                    }
-//                }
-//                if(addDomainPlanList.size() > 0)
-//                {
-//                    Map<String, List<DomainUpdatePlanInfo>> setNewDomainMap = addDomainPlanList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
-//                    for(String bkSetName : setNewDomainMap.keySet())
-//                    {
-//                        if(!bizSetDefineMap.containsKey(bkSetName))
-//                        {
-//                            logger.error(String.format("set %s not support", bkSetName));
-//                            throw new NotSupportSetException(String.format("set %s not support", bkSetName));
-//                        }
-//                        BizSetDefine setDefine = bizSetDefineMap.get(bkSetName);
-//                        autoDefineDomainId4SetDomain(setNewDomainMap.get(bkSetName), domainList, setDefine);
-//                    }
-//        }
-//
                 makeupPlatformUpdateSchema(updateSchema, domainList, platformDeployApps);
                 switch (platformStatus)
                 {
@@ -1793,7 +1671,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.error(String.format("current version not support %s %s", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
                 throw new ParamException(String.format("current version not support %s %s", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
         }
-        List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
         List<PlatformAppPo> deployApps = this.platformAppMapper.select(updateSchema.getPlatformId(), null, null, null, null, null);
         List<LJSetInfo> bkSetList = this.paasService.queryBkBizSet(updateSchema.getBkBizId());
         List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
@@ -1812,7 +1689,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.delete(updateSchema.getPlatformId());
                         break;
                     case SUCCESS:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, deployApps, bkSetList, bkHostList, appBkModuleList);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1820,7 +1697,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         }
                         Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
                         bkSetList = this.paasService.resetExistBiz(updateSchema.getBkBizId(), new ArrayList<>(setDefineMap.keySet()));
-                        recordPlatformUpdateResult(updateSchema, platformPo, domainList, appList, deployApps, appBkModuleList, bkSetList, bkHostList);
+                        recordPlatformUpdateResult(updateSchema, platformPo, domainList, deployApps, appBkModuleList, bkSetList, bkHostList);
                         if(this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
                             this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
                         this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
@@ -1829,7 +1706,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     default:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, deployApps, bkSetList, bkHostList, appBkModuleList);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -1858,13 +1735,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     case SUCCESS:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, deployApps, bkSetList, bkHostList, appBkModuleList);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
                             throw new ParamException(String.format("schema is not legal : %s", schemaCheckResult));
                         }
-                        recordPlatformUpdateResult(updateSchema, platformPo, domainList, appList, deployApps, appBkModuleList, bkSetList, bkHostList);
+                        recordPlatformUpdateResult(updateSchema, platformPo, domainList, deployApps, appBkModuleList, bkSetList, bkHostList);
                         if(this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
                             this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
                         this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
@@ -1873,7 +1750,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         this.platformMapper.update(platformPo);
                         break;
                     default:
-                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, appList, deployApps, bkSetList, bkHostList, appBkModuleList);
+                        schemaCheckResult = checkPlatformUpdateTask(updateSchema, domainList, deployApps, bkSetList, bkHostList, appBkModuleList);
                         if(StringUtils.isNotBlank(schemaCheckResult))
                         {
                             logger.error(String.format("schema is not legal : %s", schemaCheckResult));
@@ -2049,8 +1926,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throw new ParamException(String.format(String.format("create new platform create schema FAIL : bkBizId=%d biz name is %s, not %s", bkBizId, bkBiz.getBkBizName(), platformName)));
         }
         Date now = new Date();
-        List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
-        Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<LJSetInfo> setList = this.paasService.resetExistBiz(bkBizId, new ArrayList<>(setDefineMap.keySet()));
         platform = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.RUNNING,
@@ -2120,7 +1995,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         LJSetInfo idlePoolSet = setList.stream().collect(Collectors.toMap(LJSetInfo::getBkSetName, Function.identity())).get(this.paasIdlePoolSetName);
         List<LJHostInfo> bkHostList = this.paasService.addNewHostToIdlePool(bkBizId, idlePoolSet.getBkSetId(), hostList, bkCloudId);
         Map<String, BizSetDefine> bizSetDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
-        String planCheckResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, bkHostList, new ArrayList<>());
+        String planCheckResult = checkPlatformUpdateTask(schema, new ArrayList<>(), new ArrayList<>(), setList, bkHostList, new ArrayList<>());
         if(StringUtils.isNotBlank(planCheckResult))
         {
             logger.error(String.format("check platform update schema FAIL : %s", planCheckResult));
@@ -2386,231 +2261,153 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to register app=[%s] into cmdb", JSONObject.toJSONString(appModule)));
-        if (!this.appSetRelationMap.containsKey(appModule.getAppName())) {
-            logger.error(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
-            throw new NotSupportAppException(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
+        String appName = appModule.getAppName();
+        String version = appModule.getVersion();
+        if (!this.appSetRelationMap.containsKey(appName)) {
+            logger.error(String.format("app %s is not supported by cmdb", appName));
+            throw new NotSupportAppException(String.format("app %s is not supported by cmdb", appName));
         }
         String moduleCheckResult = checkModuleParam(appModule);
         if (StringUtils.isNotBlank(moduleCheckResult)) {
             logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
             throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
         }
-        AppModuleVo oldModuleVo = this.appModuleMapper.selectByNameAndVersion(appModule.getAppName(), appModule.getVersion());
-        if (oldModuleVo != null) {
-            if(!oldModuleVo.getInstallPackage().getFileName().equals(appModule.getInstallPackage().getFileName()))
+        this.appRwl.writeLock().lock();
+        try
+        {
+            if(this.appMap.containsKey(appName) && this.appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getAppName, Function.identity())).containsKey(version))
             {
-                logger.error(String.format("%s's version %s has been registered, but old install package fileName is %s and new install package fileName is %s",
-                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getFileName(), oldModuleVo.getInstallPackage().getFileName()));
-                throw new ParamException(String.format("%s's version %s has been registered, but old install package fileName is %s and new install package fileName is %s",
-                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getFileName(), oldModuleVo.getInstallPackage().getFileName()));
+                logger.error(String.format("%s(%s) has registered", appName, version));
+                throw new ParamException(String.format("%s(%s) has registered", appName, version));
             }
-            else if(!oldModuleVo.getInstallPackage().getMd5().equals(appModule.getInstallPackage().getMd5()))
+            String directory = appModule.getAppNexusDirectory();
+            String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
+            List<DeployFileInfo> fileList = new ArrayList<>();
+            String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
+            logger.debug(String.format("download package from %s", downloadUrl));
+            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
+            String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+            if(!md5.equals(appModule.getInstallPackage().getMd5()))
             {
-                logger.error(String.format("%s's version %s has been registered, but old install package md5 is %s and new install package md5 is %s",
-                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getFileName(), oldModuleVo.getInstallPackage().getFileName()));
-                throw new ParamException(String.format("%s's version %s has been registered, but old install package fileName is %s and new install package fileName is %s",
-                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getMd5(), oldModuleVo.getInstallPackage().getMd5()));
+                logger.error(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
+                        appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
+                throw new ParamException(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
+                        appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
             }
-            else if(oldModuleVo.getCfgs().size() != appModule.getCfgs().size())
+            fileList.add(new DeployFileInfo(appModule.getInstallPackage().getFileName(), savePth));
+            for(AppCfgFilePo cfg : appModule.getCfgs())
             {
-                logger.error(String.format("%s's version %s has been registered, but old has %d cfg and new has is %d",
-                        appModule.getAppName(), appModule.getVersion(), appModule.getInstallPackage().getFileName(), oldModuleVo.getInstallPackage().getFileName()));
-                throw new ParamException(String.format("%s's version %s has been registered, but old install package fileName is %s and new install package fileName is %s",
-                        appModule.getAppName(), appModule.getVersion(), appModule.getCfgs().size(), oldModuleVo.getCfgs().size()));
-            }
-            else
-            {
-                Map<String, AppCfgFilePo> cfgFileMap = oldModuleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
-                for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
+                downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
+                logger.debug(String.format("download cfg from %s", downloadUrl));
+                savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+                md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+                if(!md5.equals(cfg.getMd5()))
                 {
-                    if(!cfgFileMap.containsKey(cfgFilePo.getFileName()))
-                    {
-                        logger.error(String.format("%s's version %s has been registered, but cfg fileName not equal",
-                                appModule.getAppName(), appModule.getVersion()));
-                        throw new ParamException(String.format("%s's version %s has been registered, but cfg fileName not equal",
-                                appModule.getAppName(), appModule.getVersion()));
-                    }
-                    else if(!cfgFileMap.get(cfgFilePo.getFileName()).getDeployPath().equals(cfgFilePo.getDeployPath()))
-                    {
-                        logger.error(String.format("%s's version %s has been registered, but cfg deploy path not equal",
-                                appModule.getAppName(), appModule.getVersion()));
-                        throw new ParamException(String.format("%s's version %s has been registered, but cfg deploy path not equal",
-                                appModule.getAppName(), appModule.getVersion()));
-                    }
+                    logger.error(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
+                            cfg.getFileName(), cfg.getMd5(), md5));
+                    throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
+                            cfg.getFileName(), cfg.getMd5(), md5));
                 }
+                fileList.add(new DeployFileInfo(cfg.getFileName(), savePth));
             }
-
-            logger.error(String.format("%s's version %s has been registered", appModule.getAppName(), appModule.getVersion()));
-            throw new ParamException(String.format("%s's version %s has been registered", appModule.getAppName(), appModule.getVersion()));
-        }
-        String directory = appModule.getAppNexusDirectory();
-        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
-        List<DeployFileInfo> fileList = new ArrayList<>();
-        String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
-        logger.debug(String.format("download cfg from %s", downloadUrl));
-        String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
-        String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
-        if(!md5.equals(appModule.getInstallPackage().getMd5()))
-        {
-            logger.error(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
-                    appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
-            throw new ParamException(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
-                    appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
-        }
-        DeployFileInfo fileInfo = new DeployFileInfo();
-        fileInfo.setFileName(appModule.getInstallPackage().getFileName());
-        fileInfo.setNexusAssetId(appModule.getInstallPackage().getNexusAssetId());
-        fileInfo.setNexusDirectory(appModule.getInstallPackage().getNexusDirectory());
-        fileInfo.setNexusRepository(appModule.getInstallPackage().getNexusRepository());
-        fileInfo.setLocalSavePath(savePth);
-        fileInfo.setFileMd5(appModule.getInstallPackage().getMd5());
-        fileInfo.setExt(appModule.getInstallPackage().getExt());
-        fileInfo.setBasePath(appModule.getBasePath());
-        fileInfo.setDeployPath(appModule.getBasePath());
-        fileList.add(fileInfo);
-        for(AppCfgFilePo cfg : appModule.getCfgs())
-        {
-            downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
-            logger.debug(String.format("download cfg from %s", downloadUrl));
-            savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
-            md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
-            if(!md5.equals(cfg.getMd5()))
+            Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
+            AppPo appPo = new AppPo(appModule);
+            Date now = new Date();
+            appPo.setCreateTime(now);
+            appPo.setUpdateTime(now);
+            this.appMapper.insert(appPo);
+            appModule.getInstallPackage().setNexusRepository(this.appRepository);
+            appModule.getInstallPackage().setNexusDirectory(directory);
+            appModule.getInstallPackage().setAppId(appPo.getAppId());
+            appModule.getInstallPackage().setNexusAssetId(assetMap.get(String.format("%s/%s", directory, appModule.getInstallPackage().getFileName())).getId());
+            this.appInstallPackageMapper.insert(appModule.getInstallPackage());
+            for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
             {
-                logger.error(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
-                        cfg.getFileName(), cfg.getMd5(), md5));
-                throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
-                        cfg.getFileName(), cfg.getMd5(), md5));
+                cfgFilePo.setAppId(appPo.getAppId());
+                cfgFilePo.setNexusDirectory(directory);
+                cfgFilePo.setNexusRepository(this.appRepository);
+                cfgFilePo.setNexusAssetId(assetMap.get(String.format("%s/%s", directory, cfgFilePo.getFileName())).getId());
+                this.appCfgFileMapper.insert(cfgFilePo);
             }
-            fileInfo = new DeployFileInfo();
-            fileInfo.setFileName(cfg.getFileName());
-            fileInfo.setNexusAssetId(cfg.getNexusAssetId());
-            fileInfo.setNexusDirectory(directory);
-            fileInfo.setNexusRepository(this.appRepository);
-            fileInfo.setLocalSavePath(savePth);
-            fileInfo.setFileMd5(cfg.getMd5());
-            fileInfo.setExt(cfg.getExt());
-            fileInfo.setBasePath(appModule.getBasePath());
-            fileInfo.setDeployPath(cfg.getDeployPath());
-            fileList.add(fileInfo);
         }
-        Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
-        AppPo appPo = new AppPo(appModule);
-        Date now = new Date();
-        appPo.setCreateTime(now);
-        appPo.setUpdateTime(now);
-        this.appMapper.insert(appPo);
-        appModule.getInstallPackage().setNexusRepository(this.appRepository);
-        appModule.getInstallPackage().setNexusDirectory(directory);
-        appModule.getInstallPackage().setAppId(appPo.getAppId());
-        appModule.getInstallPackage().setNexusAssetId(assetMap.get(String.format("%s/%s", directory, appModule.getInstallPackage().getFileName())).getId());
-        this.appInstallPackageMapper.insert(appModule.getInstallPackage());
-        for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
-        {
-            cfgFilePo.setAppId(appPo.getAppId());
-            cfgFilePo.setNexusDirectory(directory);
-            cfgFilePo.setNexusRepository(this.appRepository);
-            cfgFilePo.setNexusAssetId(assetMap.get(String.format("%s/%s", directory, cfgFilePo.getFileName())).getId());
-            this.appCfgFileMapper.insert(cfgFilePo);
+        finally {
+            this.appRwl.writeLock().unlock();
         }
+
     }
 
     @Override
     public void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", JSONObject.toJSONString(appModule)));
-        if(StringUtils.isBlank(appModule.getAppName()))
-        {
-            logger.error(String.format("app name is blank"));
-            throw new ParamException(String.format("app name is blank"));
+        String appName = appModule.getAppName();
+        String version = appModule.getVersion();
+        if (!this.appSetRelationMap.containsKey(appName)) {
+            logger.error(String.format("app %s is not supported by cmdb", appName));
+            throw new NotSupportAppException(String.format("app %s is not supported by cmdb", appName));
         }
-        if(StringUtils.isBlank(appModule.getVersion()))
-        {
-            logger.error(String.format("version of %s is blank", appModule.getAppName()));
-            throw new ParamException(String.format("version of %s is blank", appModule.getAppName()));
+        String moduleCheckResult = checkModuleParam(appModule);
+        if (StringUtils.isNotBlank(moduleCheckResult)) {
+            logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
+            throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
         }
-        if(appModule.getInstallPackage() == null)
+        this.appRwl.writeLock().lock();
+        try
         {
-            logger.error(String.format("install package of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
-            throw new ParamException(String.format("install package of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
-        }
-        if(appModule.getCfgs() == null || appModule.getCfgs().size() == 0)
-        {
-            logger.error(String.format("cfg of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
-            throw new ParamException(String.format("cfg of %s version %s is blank", appModule.getAppName(), appModule.getVersion()));
-        }
-        if (!this.appSetRelationMap.containsKey(appModule.getAppName())) {
-            logger.error(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
-            throw new NotSupportAppException(String.format("appName=%s is not supported by cmdb", appModule.getAppName()));
-        }
-        AppModuleVo oldModuleVo = this.appModuleMapper.selectByNameAndVersion(appModule.getAppName(), appModule.getVersion());
-        if (oldModuleVo == null)
-        {
-            logger.error(String.format("%s version %s has not registered", appModule.getAppName(), appModule.getVersion()));
-            throw new ParamException(String.format("%s version %s has not registered", appModule.getAppName(), appModule.getVersion()));
-        }
-        String directory = appModule.getAppNexusDirectory();
-        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
-        List<DeployFileInfo> fileList = new ArrayList<>();
-        String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
-        logger.debug(String.format("download cfg from %s", downloadUrl));
-        String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
-        String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
-        if(!md5.equals(appModule.getInstallPackage().getMd5()))
-        {
-            logger.error(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
-                    appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
-            throw new ParamException(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
-                    appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
-        }
-        DeployFileInfo fileInfo = new DeployFileInfo();
-        fileInfo.setFileName(appModule.getInstallPackage().getFileName());
-        fileInfo.setNexusAssetId(appModule.getInstallPackage().getNexusAssetId());
-        fileInfo.setNexusDirectory(appModule.getInstallPackage().getNexusDirectory());
-        fileInfo.setNexusRepository(appModule.getInstallPackage().getNexusRepository());
-        fileInfo.setLocalSavePath(savePth);
-        fileInfo.setFileMd5(appModule.getInstallPackage().getMd5());
-        fileInfo.setExt(appModule.getInstallPackage().getExt());
-        fileInfo.setBasePath(appModule.getBasePath());
-        fileInfo.setDeployPath(appModule.getBasePath());
-        fileList.add(fileInfo);
-        for(AppCfgFilePo cfg : appModule.getCfgs())
-        {
-            downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
-            logger.debug(String.format("download cfg from %s", downloadUrl));
-            savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
-            md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
-            if(!md5.equals(cfg.getMd5()))
+            if (!this.appMap.containsKey(appName) || !this.appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
             {
-                logger.error(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
-                        cfg.getFileName(), cfg.getMd5(), md5));
-                throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
-                        cfg.getFileName(), cfg.getMd5(), md5));
+                logger.error(String.format("%s version %s has not registered", appName, version));
+                throw new ParamException(String.format("%s version %s has not registered", appName, version));
             }
-            fileInfo = new DeployFileInfo();
-            fileInfo.setFileName(cfg.getFileName());
-            fileInfo.setNexusAssetId(cfg.getNexusAssetId());
-            fileInfo.setNexusDirectory(directory);
-            fileInfo.setNexusRepository(this.appRepository);
-            fileInfo.setLocalSavePath(savePth);
-            fileInfo.setFileMd5(cfg.getMd5());
-            fileInfo.setExt(cfg.getExt());
-            fileInfo.setBasePath(appModule.getBasePath());
-            fileInfo.setDeployPath(cfg.getDeployPath());
-            fileList.add(fileInfo);
+            AppModuleVo oldModuleVo = this.appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+            String directory = appModule.getAppNexusDirectory();
+            String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
+            List<DeployFileInfo> fileList = new ArrayList<>();
+            String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
+            logger.debug(String.format("download package from %s", downloadUrl));
+            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
+            String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+            if(!md5.equals(appModule.getInstallPackage().getMd5()))
+            {
+                logger.error(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
+                        appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
+                throw new ParamException(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
+                        appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
+            }
+            fileList.add(new DeployFileInfo(appModule.getInstallPackage().getFileName(), savePth));
+            for(AppCfgFilePo cfg : appModule.getCfgs())
+            {
+                downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
+                logger.debug(String.format("download cfg from %s", downloadUrl));
+                savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
+                md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
+                if(!md5.equals(cfg.getMd5()))
+                {
+                    logger.error(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
+                            cfg.getFileName(), cfg.getMd5(), md5));
+                    throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
+                            cfg.getFileName(), cfg.getMd5(), md5));
+                }
+                fileList.add(new DeployFileInfo(cfg.getFileName(), savePth));
+            }
+            this.nexusService.clearComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory);
+            Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
+            logger.debug(String.format("delete old version install package"));
+            this.appInstallPackageMapper.delete(oldModuleVo.getInstallPackage().getPackageId(), oldModuleVo.getAppId());
+            logger.debug(String.format("delete old version cfgs"));
+            this.appCfgFileMapper.delete(null, oldModuleVo.getAppId());
+            oldModuleVo.getInstallPackage().setNexusAssetId(assetMap.get(String.format("%s/%s", directory, appModule.getInstallPackage().getFileName())).getId());
+            this.appInstallPackageMapper.insert(oldModuleVo.getInstallPackage());
+            for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
+            {
+                cfgFilePo.setAppId(oldModuleVo.getAppId());
+                cfgFilePo.setNexusDirectory(directory);
+                cfgFilePo.setNexusRepository(this.appRepository);
+                cfgFilePo.setNexusAssetId(assetMap.get(String.format("%s/%s", directory, cfgFilePo.getFileName())).getId());
+                this.appCfgFileMapper.insert(cfgFilePo);
+            }
         }
-        Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
-        logger.debug(String.format("delete old version install package"));
-        this.appInstallPackageMapper.delete(oldModuleVo.getInstallPackage().getPackageId(), oldModuleVo.getAppId());
-        logger.debug(String.format("delete old version cfgs"));
-        this.appCfgFileMapper.delete(null, oldModuleVo.getAppId());
-        oldModuleVo.getInstallPackage().setNexusAssetId(assetMap.get(String.format("%s/%s", directory, appModule.getInstallPackage().getFileName())).getId());
-        this.appInstallPackageMapper.insert(oldModuleVo.getInstallPackage());
-        for(AppCfgFilePo cfgFilePo : appModule.getCfgs())
-        {
-            cfgFilePo.setAppId(oldModuleVo.getAppId());
-            cfgFilePo.setNexusDirectory(directory);
-            cfgFilePo.setNexusRepository(this.appRepository);
-            cfgFilePo.setNexusAssetId(assetMap.get(String.format("%s/%s", directory, cfgFilePo.getFileName())).getId());
-            this.appCfgFileMapper.insert(cfgFilePo);
+        finally {
+            this.appRwl.writeLock().unlock();
         }
     }
 
@@ -2780,8 +2577,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             planAppMap.get(arr[0]).add(planApp);
         }
-        List<AppModuleVo> appList = this.appModuleMapper.select(null, null, null, null);
-        Map<String, List<AppModuleVo>> appMap = appList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(platformId, platformName, bkBizId, bkCloudId, "CCOD4.1",
                 PlatformUpdateTaskType.CREATE, String.format("%s(%s)平台新建计划", platformName, platformId),
                 String.format("通过程序自动创建的%s(%s)平台新建计划", platformName, platformId));
@@ -2879,7 +2674,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.platformMapper.insert(platformPo);
         List<LJSetInfo> setList = this.paasService.queryBkBizSet(bkBizId);
         List<LJHostInfo> idleHostList = paasService.queryBizIdleHost(bkBizId);
-        String checkResult = checkPlatformUpdateTask(schema, new ArrayList<>(), appList, new ArrayList<>(), setList, idleHostList, new ArrayList<>());
+        String checkResult = checkPlatformUpdateTask(schema, new ArrayList<>(), new ArrayList<>(), setList, idleHostList, new ArrayList<>());
         if(StringUtils.isNotBlank(checkResult))
         {
             logger.error(String.format("demo platform generate fail : %s", checkResult));
@@ -3173,7 +2968,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<LJSetInfo> bkSetList = paasService.queryBkBizSet(bkBizId);
         List<LJHostInfo> bkHostList = paasService.queryBKHost(bkBizId, null, null, null, null);
         List<PlatformAppBkModulePo> appBkModuleList = platformAppBkModuleMapper.select(platformId, null, null, null, null, null);
-        String schemaCheckResult = checkPlatformUpdateTask(schema, domainList, appModuleList, platformAppList, bkSetList, bkHostList, appBkModuleList);
+        String schemaCheckResult = checkPlatformUpdateTask(schema, domainList, platformAppList, bkSetList, bkHostList, appBkModuleList);
         if(StringUtils.isNotBlank(schemaCheckResult))
         {
             logger.error(String.format("generate schema fail : %s", schemaCheckResult));
@@ -3212,7 +3007,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new NotSupportSetException(String.format("set name %s is not support", setName));
             }
             BizSetDefine setDefine = setDefineMap.get(setName);
-            Map<String, AppDefine> appMap = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
+            Map<String, AppDefine> map = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
             String standardDomainId = setDefine.getFixedDomainId();
             List<String> usedDomainIds = new ArrayList<>();
             List<DomainUpdatePlanInfo> notDomainIdPlans = new ArrayList<>();
@@ -3234,7 +3029,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         logger.error(String.format("set %s not support %s", setName, appName));
                         throw new NotSupportAppException(String.format("set %s not support %s", setName, appName));
                     }
-                    String standardAlias = appMap.get(appName).getAlias();
+                    String standardAlias = map.get(appName).getAlias();
                     List<AppUpdateOperationInfo> optList = appOptMap.get(appName);
                     List<AppUpdateOperationInfo> notAliasOpts = new ArrayList<>();
                     List<String> usedAlias = new ArrayList<>();
@@ -3974,7 +3769,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     {
         List<AppUpdateOperationInfo> addOptList = new ArrayList<>();
         List<AppUpdateOperationInfo> deleteOptList = new ArrayList<>();
-        Map<String, AppDefine> appMap = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
+        Map<String, AppDefine> map = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
         for(AppUpdateOperationInfo opt : optList)
         {
             switch (opt.getOperation())
@@ -3998,7 +3793,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 String appName = setDefine.getApps().get(i).getName();
                 if(appDelMap.containsKey(appName))
                 {
-                    final String standardAlias = appMap.get(appName).getAlias();
+                    final String standardAlias = map.get(appName).getAlias();
                     List<AppUpdateOperationInfo> appOptList = appDelMap.get(appName);
                     Collections.sort(appOptList,new Comparator<AppUpdateOperationInfo>() {
                         @Override
@@ -4034,11 +3829,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 String appName = appDefine.getName();
                 if(appAddMap.containsKey(appName))
                 {
-                    final String standardAlias = appMap.get(appName).getAlias();
+                    final String standardAlias = map.get(appName).getAlias();
                     List<AppUpdateOperationInfo> appOptList = appAddMap.get(appName);
                     for(AppUpdateOperationInfo opt : appOptList)
                     {
-                        opt.setAddDelay(appMap.get(appName).getDelay());
+                        opt.setAddDelay(map.get(appName).getDelay());
                     }
                     Collections.sort(appOptList,new Comparator<AppUpdateOperationInfo>() {
                         @Override
@@ -4074,7 +3869,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         if(!isCheckApp)
             return this.ccodBiz.getSet();
         List<BizSetDefine> defineList = new ArrayList<>();
-        Map<String, List<AppPo>> appMap = this.appMapper.select(null, null, null,null).stream().collect(Collectors.groupingBy(AppPo::getAppName));
         for(BizSetDefine setDefine : this.ccodBiz.getSet())
         {
             BizSetDefine define = new BizSetDefine();
@@ -4087,7 +3881,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             define.setName(setDefine.getName());
             for(AppDefine appDefine : setDefine.getApps())
             {
-                if(appMap.containsKey(appDefine.getName()))
+                if(this.appMap.containsKey(appDefine.getName()))
                     define.getApps().add(appDefine);
             }
             defineList.add(define);
@@ -4110,6 +3904,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throw new ParamException(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
         }
         List<PlatformAppPo> updateList = new ArrayList<>();
+        Map<Integer, List<PlatformAppCfgFilePo>> cfgMap = new HashMap<>();
         List<PlatformAppDeployDetailVo> deployApps = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         for(PlatformAppDeployDetailVo detailVo : appList)
@@ -4121,27 +3916,27 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new ParamException(String.format("domain %d not exist", domainId));
             }
             String appName = detailVo.getAppName();
-            String alias = detailVo.getAppAlias();
-            Map<String, PlatformAppDeployDetailVo> aliasMap = domainAppMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity()));
-            if(!aliasMap.containsKey(alias))
+            String originalAlias = detailVo.getOriginalAlias();
+            Map<String, PlatformAppDeployDetailVo> aliasMap = domainAppMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity()));
+            if(!aliasMap.containsKey(originalAlias))
             {
-                logger.error(String.format("%s of domain %s not exist", alias, domainId));
-                throw new ParamException(String.format("%s of domain %s not exist", alias, domainId));
+                logger.error(String.format("%s of domain %s not exist", originalAlias, domainId));
+                throw new ParamException(String.format("%s of domain %s not exist", originalAlias, domainId));
             }
-            if(!appName.equals(aliasMap.get(alias).getAppName()))
+            if(!appName.equals(aliasMap.get(originalAlias).getAppName()))
             {
                 logger.error(String.format("appName of %s in domain %s is %s not %s",
-                        alias, domainId, aliasMap.get(alias).getAppName(), appName));
+                        originalAlias, domainId, aliasMap.get(originalAlias).getAppName(), appName));
                 throw new ParamException(String.format("appName of %s in domain %s is %s not %s",
-                        alias, domainId, aliasMap.get(alias).getAppName(), appName));
+                        originalAlias, domainId, aliasMap.get(originalAlias).getAppName(), appName));
             }
             String hostIp = detailVo.getHostIp();
-            if(!aliasMap.get(alias).getHostIp().equals(hostIp))
+            if(!aliasMap.get(originalAlias).getHostIp().equals(hostIp))
             {
                 logger.error(String.format("%s of domain %s is at %s not %s",
-                        alias, domainId, aliasMap.get(alias).getHostIp(), hostIp));
+                        originalAlias, domainId, aliasMap.get(originalAlias).getHostIp(), hostIp));
                 throw new ParamException(String.format("%s of domain %s is at %s not %s",
-                        alias, domainId, aliasMap.get(alias).getHostIp(), hostIp));
+                        originalAlias, domainId, aliasMap.get(originalAlias).getHostIp(), hostIp));
             }
             String version = detailVo.getVersion();
             AppModuleVo module = this.appModuleMapper.selectByNameAndVersion(appName, version);
@@ -4150,7 +3945,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.error(String.format("%s in domain %s has not version %s", appName, domainId, version));
                 throw new ParamException(String.format("%s in domain %s has not version %s", appName, domainId, version));
             }
-            PlatformAppPo platformAppPo = aliasMap.get(alias).getPlatformApp();
+            PlatformAppPo platformAppPo = aliasMap.get(originalAlias).getPlatformApp();
             platformAppPo.setAppId(module.getAppId());
             updateList.add(platformAppPo);
         }

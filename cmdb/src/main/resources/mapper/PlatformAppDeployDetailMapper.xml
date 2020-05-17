@@ -10,6 +10,7 @@
         <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
         <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
+        <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
         <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
@@ -53,6 +54,7 @@
 	    dm.domain_name,
 	    a.app_name,
 	    pa.app_alias AS app_alias,
+	    pa.original_alias AS original_alias,
 	    a.app_type,
 	    pa.host_ip AS host_ip,
 	    a.version,
@@ -147,10 +149,10 @@
             And svr.host_ip=#{hostIp,jdbcType=VARCHAR}
         </if>
         ORDER BY
+            pf.platform_name,
+            dm.domain_id,
             a.app_name ASC,
             a.version,
-            pf.platform_name,
-            dm.domain_name,
             svr.host_ip
     </select>
 </mapper>

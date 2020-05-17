@@ -132,4 +132,15 @@ public interface INexusService {
      * @throws InterfaceCallException 调用nexus api异常
      */
     void deleteAsset(String nexusHostUrl, String userName, String password, String assetId) throws InterfaceCallException;
+
+    /**
+     * 清除指定的component
+     * @param nexusHostUrl nexus主机url
+     * @param userName nexus的用户名
+     * @param password nexus的用户密码
+     * @param repository component所属的仓库名
+     * @param directory component的directory
+     * @throws InterfaceCallException
+     */
+    void clearComponent(String nexusHostUrl, String userName, String password, String repository, String directory) throws InterfaceCallException, NexusException;
 }

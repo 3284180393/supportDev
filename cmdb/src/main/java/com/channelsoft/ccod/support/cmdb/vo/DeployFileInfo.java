@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.po.AppFilePo;
+
 /**
  * @ClassName: DeployFileInfo
  * @Author: lanhb
@@ -8,8 +10,6 @@ package com.channelsoft.ccod.support.cmdb.vo;
  * @Version: 1.0
  */
 public class DeployFileInfo {
-
-    private String basePath; //文件的base path
 
     private String deployPath; //文件的部署路径
 
@@ -33,6 +33,17 @@ public class DeployFileInfo {
 
     private String transferFailReason; //源文件传输失败原因
 
+    public DeployFileInfo(String fileName, String savePath)
+    {
+        this.fileName = fileName;
+        this.localSavePath = savePath;
+    }
+
+    public DeployFileInfo()
+    {
+
+    }
+
     public String getExt() {
         return ext;
     }
@@ -49,13 +60,6 @@ public class DeployFileInfo {
         this.localSavePath = localSavePath;
     }
 
-    public String getBasePath() {
-        return basePath;
-    }
-
-    public void setBasePath(String basePath) {
-        this.basePath = basePath;
-    }
 
     public String getDeployPath() {
         return deployPath;
