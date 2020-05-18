@@ -2389,6 +2389,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 }
                 fileList.add(new DeployFileInfo(cfg.getFileName(), savePth));
             }
+            logger.debug(String.format("clear nexus component assets: %s/%s/%s", this.nexusHostUrl, this.appRepository, directory));
             this.nexusService.clearComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory);
             Map<String, NexusAssetInfo> assetMap = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
             logger.debug(String.format("delete old version install package"));
@@ -2782,8 +2783,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("%s has deployed 0 app", platformId));
             throw new ParamException(String.format("%s has deployed 0 app", platformId));
         }
-        List<AppModuleVo> appModuleList = appModuleMapper.select(null, null, null, null);
-        Map<String, List<AppModuleVo>> appModuleMap = appModuleList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         List<DomainUpdatePlanInfo> planList = new ArrayList<>();
         Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
         for(String bkSetName : setAppMap.keySet())
@@ -2880,9 +2879,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     {
                         if(index % 2 == 1)
                         {
-                            if(appModuleMap.get(deployApp.getAppName()).size() > 1)
+                            if(this.appMap.get(deployApp.getAppName()).size() > 1)
                             {
-                                for(AppModuleVo moduleVo : appModuleMap.get(deployApp.getAppName()))
+                                for(AppModuleVo moduleVo : this.appMap.get(deployApp.getAppName()))
                                 {
                                     if(!moduleVo.getVersion().equals(deployApp.getVersion()))
                                     {
