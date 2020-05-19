@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformAppDeployDetailMapper" >
-    <resultMap id="AppModuleMap" type="com.channelsoft.ccod.support.cmdb.vo.PlatformAppDeployDetailVo" >
+    <resultMap id="PlatformAppDeployDetailMap" type="com.channelsoft.ccod.support.cmdb.vo.PlatformAppDeployDetailVo" >
         <id column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="app_id" property="appId" jdbcType="INTEGER" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
@@ -112,7 +112,7 @@
     INNER JOIN platform_app_cfg_file pacf ON pacf.platform_app_id = pa.platform_app_id
     LEFT OUTER JOIN platform_app_bk_module bakm ON bakm.platform_app_id = pa.platform_app_id
     </sql>
-    <select id="selectPlatformApps" resultMap="AppModuleMap" >
+    <select id="selectPlatformApps" resultMap="PlatformAppDeployDetailMap" >
         select
             <include refid="Base_Column_List" />
         WHERE
@@ -131,7 +131,7 @@
             dm.domain_name ASC,
             host_ip ASC
     </select>
-    <select id="selectAppDeployDetails" resultMap="AppModuleMap" >
+    <select id="selectAppDeployDetails" resultMap="PlatformAppDeployDetailMap" >
         select
         <include refid="Base_Column_List" />
         WHERE

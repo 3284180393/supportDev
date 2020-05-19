@@ -34,6 +34,12 @@ public class PlatformAppCfgFilePo extends AppFilePo {
         this.md5 = cfgFileInfo.getFileMd5();
     }
 
+    public PlatformAppCfgFilePo(int platformAppId, int appId, String deployPath, NexusAssetInfo assetInfo)
+    {
+        super(appId, deployPath, assetInfo);
+        this.platformAppId = platformAppId;
+    }
+
     public int getCfgFileId() {
         return cfgFileId;
     }

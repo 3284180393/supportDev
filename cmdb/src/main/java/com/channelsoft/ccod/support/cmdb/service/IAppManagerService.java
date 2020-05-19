@@ -21,23 +21,6 @@ import java.util.Map;
 public interface IAppManagerService {
 
     /**
-     * 创建新的应用模块
-     * @param appName 应用名
-     * @param appAlias 应用别名
-     * @param version 应用版本号
-     * @param versionControl 版本控制方式
-     * @param versionControlUrl 版本控制连接url
-     * @param installPackage 应用包存放路径
-     * @param cfgs 应用的相关配置存放路径
-     * @param basePath 应用在服务器的base path
-     * @return 创建后的应用模块信息
-     * @throws Exception
-     */
-    AppModuleVo createNewAppModule(String appName, String appAlias, String version, VersionControl versionControl,
-                                   String versionControlUrl, AppInstallPackagePo installPackage, AppCfgFilePo[] cfgs,
-                                   String basePath) throws Exception;
-
-    /**
      * 查询指定版本的应用模块
      * @param appName 模块名
      * @param version 版本号
@@ -119,16 +102,6 @@ public interface IAppManagerService {
     void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
 
     /**
-     * 创建一个平台升级计划demo
-     * @param paramVo 希望生成的demo计划的相关参数
-     * @return 生成的计划demo
-     * @throws ParamException 计划的参数异常
-     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
-     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
-     */
-    PlatformUpdateSchemaInfo createPlatformUpdateSchemaDemo(PlatformUpdateSchemaParamVo paramVo) throws ParamException, InterfaceCallException, LJPaasException;
-
-    /**
      * 查询指定条件的平台升级计划
      * @param platformId 平台id可以为空
      * @return 满足条记按的升级计划
@@ -201,17 +174,6 @@ public interface IAppManagerService {
      */
     PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
 
-    /**
-     * 创建demo的升级平台
-     * @param platformId 平台id
-     * @param platformName 平台名
-     * @param bkBizId 平台对应的biz id
-     * @return 创建的demo升级平台
-     * @throws ParamException 计划的参数异常
-     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
-     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
-     */
-    PlatformUpdateSchemaInfo createDemoUpdatePlatform(String platformId, String platformName, int bkBizId) throws ParamException, InterfaceCallException, LJPaasException;
 
     /**
      * 删除指定平台的升级计划
@@ -226,19 +188,6 @@ public interface IAppManagerService {
      * @throws ParamException
      */
     void deletePlatform(String platformId) throws ParamException;
-
-    /**
-     * 克隆指定的域
-     * @param platformId 被克隆的域所属的平台
-     * @param clonedDomainId 被克隆的域id
-     * @param domainId 新建域id
-     * @param domainName 新建域名
-     * @return 该平台的升级计划
-     * @throws ParamException
-     * @throws InterfaceCallException
-     * @throws LJPaasException
-     */
-    PlatformUpdateSchemaInfo cloneExistDomain(String platformId, String clonedDomainId, String domainId, String domainName) throws ParamException, InterfaceCallException, LJPaasException;
 
     /**
      * 查询指定应用的配置文件并以字符串的形式返回
@@ -275,6 +224,6 @@ public interface IAppManagerService {
      * @throws InterfaceCallException 调用接口发生异常
      * @throws NexusException 调用nexus的api返回调用错误或是解析nexus返回结果异常
      */
-    List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<PlatformAppDeployDetailVo> appList) throws ParamException, InterfaceCallException, NexusException;
+    List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<PlatformAppDeployDetailVo> appList) throws ParamException, InterfaceCallException, NexusException, IOException;
 
 }

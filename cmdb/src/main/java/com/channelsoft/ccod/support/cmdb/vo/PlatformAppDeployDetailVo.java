@@ -77,6 +77,9 @@ public class PlatformAppDeployDetailVo {
 
     private int bkHostId; //该应用在蓝鲸paas的服务器id
 
+    public PlatformAppDeployDetailVo()
+    {}
+
     public int getPlatformAppId() {
         return platformAppId;
     }

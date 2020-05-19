@@ -13,6 +13,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -184,6 +186,28 @@ public class CMDBController {
             PlatformAppDeployDetailVo[] details = this.appManagerService.queryPlatformApps(null, null, null);
             resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
             logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @PutMapping(value="/platformApps")
+//    @RequestMapping(value = "/platformApps", method = RequestMethod.PUT, consumes = MediaType.APPLICATION_JSON_VALUE)
+//    public AjaxResultPo updatePlatformApps( @RequestParam(value = "platformId") String platformId,  @RequestParam(value = "platformName") String platformName, @RequestParam(value = "updateList") List<PlatformAppDeployDetailVo> updateList)
+    public AjaxResultPo updatePlatformApps(@RequestBody PlatformAppUpdateParamVo paramVo)
+    {
+        String uri = String.format("PUT %s/platformApps", this.apiBasePath);
+//        logger.debug(String.format("enter %s controller : param=[%s]", uri, JSONObject.toJSONString(paramVo)));
+        AjaxResultPo resultPo;
+        try
+        {
+            this.appManagerService.updatePlatformApps(paramVo.getPlatformId(), paramVo.getPlatformName(), paramVo.getUpdateAppList());
+            resultPo = new AjaxResultPo(true, "update SUCCESS", 1, "good");
+            logger.info(String.format("update SUCCESS, quit %s controller", uri));
         }
         catch (Exception e)
         {
@@ -713,38 +737,6 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/platformUpdateSchemaDemo", method = RequestMethod.POST)
-    public AjaxResultPo createDemoPlatformUpdateSchema(@RequestBody PlatformUpdateSchemaParamVo param)
-    {
-        String uri = String.format("POST %s/platformUpdateSchemaParamDemo", this.apiBasePath);
-        logger.debug(String.format("enter %s controller", uri));
-        AjaxResultPo resultPo;
-        PlatformUpdateSchemaInfo schemaDemo;
-        try
-        {
-            switch (param.getTaskType())
-            {
-                case CREATE:
-                    schemaDemo = appManagerService.createPlatformUpdateSchemaDemo(param);
-                    resultPo = new AjaxResultPo(true, "create demo schema success", 1, schemaDemo);
-                    break;
-                case UPDATE:
-                    schemaDemo = appManagerService.createDemoUpdatePlatform(param.getPlatformId(), param.getPlatformName(), param.getBkBizId());
-                    resultPo = new AjaxResultPo(true, "create demo schema success", 1, schemaDemo);
-                    break;
-                default:
-                    resultPo = new AjaxResultPo(false, String.format("create demo schema fail : %s not support", param.getTaskType().name));
-                    break;
-            }
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("create demo schema exception"), e);
-            resultPo = new AjaxResultPo(false, e.getMessage());
-        }
-        return resultPo;
-    }
-
     @RequestMapping(value = "/platformTopologies", method = RequestMethod.POST)
     public AjaxResultPo createNewPlatform(@RequestBody PlatformCreateParamVo param)
     {
@@ -820,40 +812,6 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
-            resultPo = new AjaxResultPo(false, e.getMessage());
-        }
-        return resultPo;
-    }
-
-    @RequestMapping(value = "/demoPlatforms", method = RequestMethod.POST)
-    public AjaxResultPo createDemoPlatform(@RequestBody PlatformUpdateSchemaParamVo param)
-    {
-        String uri = String.format("POST %s/demoPlatform", this.apiBasePath);
-        logger.debug(String.format("enter %s controller", uri));
-        AjaxResultPo resultPo;
-        try
-        {
-            switch (param.getTaskType())
-            {
-                case CREATE:
-                    appManagerService.createDemoNewPlatform(param.getPlatformId(), param.getPlatformName(), param.getBkBizId(), param.getBkCloudId(), param.getPlanAppList());
-                    logger.info(String.format("demo new create platform %s create SUCCESS", param.getPlatformId()));
-                    resultPo = new AjaxResultPo(true, String.format("demo new create platform %s create SUCCESS", param.getPlatformId()));
-                    break;
-                case UPDATE:
-                    appManagerService.createDemoUpdatePlatform(param.getPlatformId(), param.getPlatformName(), param.getBkBizId());
-                    logger.info(String.format("demo new update platform %s create SUCCESS", param.getPlatformId()));
-                    resultPo = new AjaxResultPo(true, "demo update platform create success");
-                    break;
-                default:
-                    logger.error(String.format("demo %s platform not been implement", param.getTaskType().name));
-                    resultPo = new AjaxResultPo(false, String.format("demo %s platform not been implement", param.getTaskType().name));
-                    break;
-            }
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("create demo platform exception"), e);
             resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return resultPo;

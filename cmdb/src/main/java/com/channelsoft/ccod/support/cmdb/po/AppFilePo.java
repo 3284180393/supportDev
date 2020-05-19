@@ -31,6 +31,21 @@ public class AppFilePo {
 
     protected String md5; //该配置文件的md5特征值
 
+    public AppFilePo(int appId, String deployPath, NexusAssetInfo assetInfo)
+    {
+        this.appId = appId;
+        String[] arr = assetInfo.getPath().split("/");
+        this.fileName = arr[arr.length - 1];
+        String[] arr1 = this.fileName.split("\\.");
+        this.ext = arr1.length > 1 ? arr1[arr1.length - 1] : "";
+        this.deployPath = deployPath;
+        this.nexusRepository = assetInfo.getRepository();
+        this.nexusDirectory = assetInfo.getPath().replaceAll(String.format("/%s$", this.fileName), "");
+        this.nexusAssetId = assetInfo.getId();
+        this.createTime = new Date();
+        this.md5 = assetInfo.getMd5();
+    }
+
     public AppFilePo(int appId, DeployFileInfo cfgFileInfo)
     {
         this.appId = appId;

@@ -143,4 +143,5 @@ public interface INexusService {
      * @throws InterfaceCallException
      */
     void clearComponent(String nexusHostUrl, String userName, String password, String repository, String directory) throws InterfaceCallException, NexusException;
+
 }
