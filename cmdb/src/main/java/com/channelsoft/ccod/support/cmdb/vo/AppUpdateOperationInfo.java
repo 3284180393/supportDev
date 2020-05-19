@@ -21,9 +21,13 @@ public class AppUpdateOperationInfo {
 
     private AppUpdateOperation operation; //应用升级类型,由AppUpdateType枚举定义
 
+    private String domainId; //应用所在的域id
+
     private String appName; //应用名
 
     private String appAlias; //应用别名
+
+    private String originalAlias; //应用原始别名(用来被用户而不是被系统识别的别名)
 
     private String originalVersion; //操作前应用版本,如果是ADD操作，该属性为空
 
@@ -125,6 +129,22 @@ public class AppUpdateOperationInfo {
 
     public void setAddDelay(int addDelay) {
         this.addDelay = addDelay;
+    }
+
+    public String getDomainId() {
+        return domainId;
+    }
+
+    public void setDomainId(String domainId) {
+        this.domainId = domainId;
+    }
+
+    public String getOriginalAlias() {
+        return originalAlias;
+    }
+
+    public void setOriginalAlias(String originalAlias) {
+        this.originalAlias = originalAlias;
     }
 
     @Override

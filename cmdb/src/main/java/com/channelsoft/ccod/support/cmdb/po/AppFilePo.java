@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 
 import java.util.Date;
@@ -49,7 +50,6 @@ public class AppFilePo {
     public AppFilePo(int appId, DeployFileInfo cfgFileInfo)
     {
         this.appId = appId;
-        this.nexusAssetId = cfgFileInfo.getNexusAssetId();
         this.fileName = cfgFileInfo.getFileName();
         this.ext = cfgFileInfo.getExt();
         this.deployPath = cfgFileInfo.getDeployPath();
@@ -58,6 +58,19 @@ public class AppFilePo {
         this.nexusRepository = cfgFileInfo.getNexusRepository();
         this.createTime = new Date();
         this.md5 = cfgFileInfo.getFileMd5();
+    }
+
+    public AppFilePo(int appId, AppFileNexusInfo nexusInfo)
+    {
+        this.appId = appId;
+        this.fileName = nexusInfo.getFileName();
+        this.ext = nexusInfo.getExt();
+        this.deployPath = nexusInfo.getDeployPath();
+        this.nexusAssetId = nexusInfo.getNexusAssetId();
+        this.nexusDirectory = nexusInfo.getNexusPath().replaceAll("/[^/]+$", "");
+        this.nexusRepository = nexusInfo.getNexusRepository();
+        this.createTime = new Date();
+        this.md5 = nexusInfo.getMd5();
     }
 
     public AppFilePo()

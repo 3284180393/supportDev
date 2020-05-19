@@ -224,6 +224,6 @@ public interface IAppManagerService {
      * @throws InterfaceCallException 调用接口发生异常
      * @throws NexusException 调用nexus的api返回调用错误或是解析nexus返回结果异常
      */
-    List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<PlatformAppDeployDetailVo> appList) throws ParamException, InterfaceCallException, NexusException, IOException;
+    List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<AppUpdateOperationInfo> appList) throws ParamException, InterfaceCallException, NexusException, LJPaasException, IOException;
 
 }

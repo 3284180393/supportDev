@@ -3477,7 +3477,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<PlatformAppDeployDetailVo> appList) throws ParamException, InterfaceCallException, NexusException, IOException {
+    public List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<AppUpdateOperationInfo> appList) throws ParamException, InterfaceCallException, NexusException, LJPaasException, IOException {
         logger.debug(String.format("begin to update %d apps of %s(%s)", appList.size(), platformName, platformId));
         PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
         if(platformPo == null)
@@ -3490,74 +3490,238 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
             throw new ParamException(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
         }
-        List<PlatformAppPo> updateList = new ArrayList<>();
-        Map<Integer, List<AppFilePo>> cfgMap = new HashMap<>();
-        Map<Integer, AppModuleVo> platformAppMap = new HashMap<>();
+        List<AppUpdateOperationInfo> addList = new ArrayList<>();
+        List<AppUpdateOperationInfo> updateList = new ArrayList<>();
+        List<AppUpdateOperationInfo> deleteList = new ArrayList<>();
+        for(AppUpdateOperationInfo optInfo : appList)
+        {
+            logger.debug(String.format("handle updated platform app module[%s]", JSONObject.toJSONString(optInfo)));
+            switch (optInfo.getOperation())
+            {
+                case ADD:
+                    addList.add(optInfo);
+                    break;
+                case DELETE:
+                    deleteList.add(optInfo);
+                    break;
+                case UPDATE:
+                    updateList.add(optInfo);
+                    break;
+                default:
+                    logger.error(String.format("not support %s operation", optInfo.getOperation().name));
+                    throw new ParamException(String.format("not support %s operation", optInfo.getOperation().name));
+            }
+        }
+        List<DomainPo> domainList = this.domainMapper.select(platformId, null);
+        Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        Map<String, List<AppUpdateOperationInfo>> domainOptMap = appList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getDomainId));
+        for(String domainId : domainOptMap.keySet())
+        {
+            if(!domainMap.containsKey(domainId))
+            {
+                logger.error(String.format("domain %s not exist", domainId));
+                throw new ParamException(String.format("domain %s not exist", domainId));
+            }
+            Map<String, List<AppUpdateOperationInfo>> aliasOptMap = domainOptMap.get(domainId).stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppAlias));
+            for(String alias : aliasOptMap.keySet())
+            {
+                if(aliasOptMap.get(alias).size() > 1)
+                {
+                    logger.error(String.format("operation of %s in domain %s is not unique", alias, domainId));
+                    throw new ParamException(String.format("operation of %s in domain %s is not unique", alias, domainId));
+                }
+            }
+        }
         List<PlatformAppDeployDetailVo> deployApps = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
-        for(PlatformAppDeployDetailVo detailVo : appList)
+        Map<String, LJHostInfo> hostMap = this.paasService.queryBKHost(platformPo.getBkBizId(), null, null, null, null).stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        for(AppUpdateOperationInfo optInfo : addList)
         {
-            logger.debug(String.format("handle updated platform app module[%s]", JSONObject.toJSONString(detailVo)));
-            String domainId = detailVo.getDomainId();
-            if(!domainAppMap.containsKey(domainId))
-            {
-                logger.error(String.format("domain %d not exist", domainId));
-                throw new ParamException(String.format("domain %d not exist", domainId));
-            }
-            String appName = detailVo.getAppName();
-            String originalAlias = detailVo.getOriginalAlias();
-            Map<String, PlatformAppDeployDetailVo> aliasMap = domainAppMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity()));
-            if(!aliasMap.containsKey(originalAlias))
-            {
-                logger.error(String.format("%s of domain %s not exist", originalAlias, domainId));
-                throw new ParamException(String.format("%s of domain %s not exist", originalAlias, domainId));
-            }
-            if(!appName.equals(aliasMap.get(originalAlias).getAppName()))
-            {
-                logger.error(String.format("appName of %s in domain %s is %s not %s",
-                        originalAlias, domainId, aliasMap.get(originalAlias).getAppName(), appName));
-                throw new ParamException(String.format("appName of %s in domain %s is %s not %s",
-                        originalAlias, domainId, aliasMap.get(originalAlias).getAppName(), appName));
-            }
-            String hostIp = detailVo.getHostIp();
-            if(!aliasMap.get(originalAlias).getHostIp().equals(hostIp))
-            {
-                logger.error(String.format("%s of domain %s is at %s not %s",
-                        originalAlias, domainId, aliasMap.get(originalAlias).getHostIp(), hostIp));
-                throw new ParamException(String.format("%s of domain %s is at %s not %s",
-                        originalAlias, domainId, aliasMap.get(originalAlias).getHostIp(), hostIp));
-            }
-            String version = detailVo.getVersion();
+            String domainId = optInfo.getDomainId();
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String tag = String.format("ADD %s[%s(%s)] in %s at %s", alias, appName, version, domainId, hostIp);
             if(!this.registerAppMap.containsKey(appName) || !this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
             {
-                logger.error(String.format("%s in domain %s has not version %s", appName, domainId, version));
-                throw new ParamException(String.format("%s in domain %s has not version %s", appName, domainId, version));
+                logger.error(String.format("%s FAIL : version %s not register", tag, version));
+                throw new ParamException(String.format("%s FAIL : version %s not register", tag, version));
             }
-            AppModuleVo module = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
-            PlatformAppPo platformAppPo = aliasMap.get(originalAlias).getPlatformApp();
-            platformAppPo.setAppId(module.getAppId());
-            updateList.add(platformAppPo);
-            List<AppFilePo> updateCfgs = new ArrayList<>();
-            for(PlatformAppCfgFilePo cfgFilePo : detailVo.getCfgs())
-                updateCfgs.add(cfgFilePo);
-            cfgMap.put(platformAppPo.getPlatformAppId(), updateCfgs);
-            platformAppMap.put(platformAppPo.getPlatformAppId(), module);
+            if(domainAppMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).containsKey(alias))
+            {
+                logger.error(String.format("%s FAIL : %s has exist", tag, alias));
+                throw new ParamException(String.format("%s FAIL : %s has exist", tag, alias));
+            }
+            if(!hostMap.containsKey(hostIp))
+            {
+                logger.error(String.format("%s FAIL : host %s not exist", tag, hostIp));
+                throw new ParamException(String.format(String.format("%s FAIL : host %s not exist", tag, hostIp)));
+            }
         }
-        for(PlatformAppPo po : updateList)
+        generateAlias4AddApps(addList, deployApps, domainList);
+        for(AppUpdateOperationInfo optInfo : updateList)
         {
-            int platformAppId = po.getPlatformAppId();
-            AppModuleVo module = platformAppMap.get(platformAppId);
-            this.platformAppMapper.update(po);
+            String domainId = optInfo.getDomainId();
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String tag = String.format("UPDATE %s(%s) to %s in %s at %s", alias, appName, version, domainId, hostIp);
+            if(!this.registerAppMap.containsKey(appName) || !this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
+            {
+                logger.error(String.format("%s FAIL : version %s not register", tag, version));
+                throw new ParamException(String.format("%s FAIL : version %s not register", tag, version));
+            }
+            if(!domainAppMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).containsKey(alias))
+            {
+                logger.error(String.format("%s FAIL : %s not exist", tag, alias));
+                throw new ParamException(String.format("%s FAIL : %s not exist", tag, alias));
+            }
+            if(!hostMap.containsKey(hostIp))
+            {
+                logger.error(String.format("%s FAIL : host %s not exist", tag, hostIp));
+                throw new ParamException(String.format("%s FAIL : host %s not exist", tag, hostIp));
+            }
+        }
+        for(AppUpdateOperationInfo optInfo : deleteList)
+        {
+            String domainId = optInfo.getDomainId();
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String tag = String.format("DELETE %s(%s) to %s in %s at %s", alias, appName, version, domainId, hostIp);
+            if(!domainAppMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).containsKey(alias))
+            {
+                logger.error(String.format("%s FAIL : %s not exist", tag, alias));
+                throw new ParamException(String.format("%s FAIL : %s not exist", tag, alias));
+            }
+        }
+        for(AppUpdateOperationInfo optInfo : deleteList)
+        {
+            String domainId = optInfo.getDomainId();
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String tag = String.format("DELETE %s(%s) to %s in %s at %s", alias, appName, version, domainId, hostIp);
+            logger.debug(String.format("begin to %s", tag));
+            int platformAppId = domainAppMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(alias).getPlatformAppId();
+            logger.debug(String.format("delete platform_app_bk_module with platformAppId=%d", platformAppId));
+            this.platformAppBkModuleMapper.delete(platformAppId, null, null, null);
+            logger.debug(String.format("delete platform_app_cfg_file with platformAppId=%d", platformAppId));
             this.platformAppCfgFileMapper.delete(null, platformAppId);
-            String directory = po.getPlatformAppDirectory(module.getAppName(), module.getVersion(), po);
-            Map<String, NexusAssetInfo> assetMap = downloadAndUploadAppFiles(module.getAppId(), this.nexusHostUrl, this.nexusUserName, this.nexusPassword, cfgMap.get(platformAppId), this.platformAppCfgRepository, directory);
-            for(AppFilePo cfg : cfgMap.get(platformAppId))
+            logger.debug(String.format("delete platform_app with platformAppId=%d", platformAppId));
+            this.platformAppMapper.delete(platformAppId, null, null);
+            logger.info(String.format("%s success", tag));
+        }
+        for(AppUpdateOperationInfo optInfo : updateList)
+        {
+            String domainId = optInfo.getDomainId();
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String tag = String.format("UPDATE %s(%s) to %s in %s at %s", alias, appName, version, domainId, hostIp);
+            logger.debug(String.format("begin to %s", tag));
+            PlatformAppPo platformAppPo = domainAppMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(alias).getPlatformApp();
+            int platformAppId = platformAppPo.getPlatformAppId();
+            AppModuleVo module = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+            String directory = platformAppPo.getPlatformAppDirectory(module.getAppName(), module.getVersion(), platformAppPo);
+            List<AppFilePo> fileList = new ArrayList<>();
+            for(AppFileNexusInfo cfg : optInfo.getCfgs())
+            {
+                AppFilePo filePo = new AppFilePo(module.getAppId(), cfg);
+                fileList.add(filePo);
+            }
+            logger.debug(String.format("download cfg of %s at %s and upload to %s/%s", alias, domainId, this.platformAppCfgRepository, directory));
+            Map<String, NexusAssetInfo> assetMap = downloadAndUploadAppFiles(module.getAppId(), this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.platformAppCfgRepository, directory);
+            logger.debug(String.format("update id=%d platform_app from %d to %d", platformAppId, platformAppPo.getAppId(), module.getAppId()));
+            platformAppPo.setAppId(module.getAppId());
+            this.platformAppMapper.update(platformAppPo);
+            logger.debug(String.format("delete from platform_app_cfg_file where platformAppId=%d", platformAppId));
+            this.platformAppCfgFileMapper.delete(null, platformAppId);
+            for(AppFilePo cfg : fileList)
             {
                 PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo(platformAppId, module.getAppId(), cfg.getDeployPath(), assetMap.get(cfg.getFileName()));
+                logger.debug(String.format("insert cfg[%s]", JSONObject.toJSONString(cfgFilePo)));
                 this.platformAppCfgFileMapper.insert(cfgFilePo);
             }
+            logger.info(String.format("%s success", tag));
         }
-        return updateList;
+        for(AppUpdateOperationInfo optInfo : addList)
+        {
+            String domainId = optInfo.getDomainId();
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String tag = String.format("ADD %s(%s) to %s in %s at %s", alias, appName, version, domainId, hostIp);
+            logger.debug(String.format("begin to %s", tag));
+            AppModuleVo module = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+            PlatformAppPo platformAppPo = new PlatformAppPo();
+            platformAppPo.setAppId(module.getAppId());
+            platformAppPo.setAppAlias(optInfo.getAppAlias());
+            platformAppPo.setHostIp(optInfo.getHostIp());
+            platformAppPo.setAppRunner(optInfo.getAppRunner());
+            platformAppPo.setBasePath(optInfo.getBasePath());
+            platformAppPo.setDeployTime(new Date());
+            platformAppPo.setPlatformId(platformId);
+            platformAppPo.setDomainId(optInfo.getDomainId());
+            platformAppPo.setOriginalAlias(optInfo.getOriginalAlias());
+            this.platformAppMapper.insert(platformAppPo);
+            int platformAppId = platformAppPo.getPlatformAppId();
+            String directory = platformAppPo.getPlatformAppDirectory(module.getAppName(), module.getVersion(), platformAppPo);
+            List<AppFilePo> fileList = new ArrayList<>();
+            for(AppFileNexusInfo cfg : optInfo.getCfgs())
+            {
+                AppFilePo filePo = new AppFilePo(module.getAppId(), cfg);
+                fileList.add(filePo);
+            }
+            logger.debug(String.format("download cfg of %s at %s and upload to %s/%s", alias, domainId, this.platformAppCfgRepository, directory));
+            Map<String, NexusAssetInfo> assetMap = downloadAndUploadAppFiles(module.getAppId(), this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.platformAppCfgRepository, directory);
+            for(AppFilePo cfg : fileList)
+            {
+                PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo(platformAppId, module.getAppId(), cfg.getDeployPath(), assetMap.get(cfg.getFileName()));
+                logger.debug(String.format("insert cfg[%s]", JSONObject.toJSONString(cfgFilePo)));
+                this.platformAppCfgFileMapper.insert(cfgFilePo);
+            }
+            logger.info(String.format("%s success", tag));
+        }
+        return new ArrayList<>();
+    }
+
+    private void generateAlias4AddApps(List<AppUpdateOperationInfo> addOptList, List<PlatformAppDeployDetailVo> deployApps, List<DomainPo> domainList) throws ParamException
+    {
+        Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        Map<String, List<AppUpdateOperationInfo>> domainOptMap = addOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getDomainId));
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        for(String domainId : domainOptMap.keySet())
+        {
+            Map<String, List<AppUpdateOperationInfo>> addAppMap = domainOptMap.get(domainId).stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+            for(String appName : addAppMap.keySet())
+            {
+                List<String> usedAlias = new ArrayList<>();
+                String standAlias = this.setDefineMap.get(domainMap.get(domainId).getType()).getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity())).get(appName).getAlias();
+                if(domainAppMap.containsKey(domainId) && domainAppMap.get(domainId).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName)).containsKey(appName))
+                {
+                    usedAlias = new ArrayList<>(domainAppMap.get(domainId).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName)).get(appName).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity())).keySet());
+                }
+                boolean onlyOne = false;
+                if(usedAlias.size() == 0 && addAppMap.get(appName).size() == 1)
+                    onlyOne = true;
+                for(AppUpdateOperationInfo optInfo : addAppMap.get(appName))
+                {
+                    String alias = autoGenerateAlias(standAlias, usedAlias, onlyOne);
+                    optInfo.setAppAlias(alias);
+                    if(StringUtils.isBlank(optInfo.getOriginalAlias()))
+                        optInfo.setOriginalAlias(alias);
+                    usedAlias.add(alias);
+                }
+            }
+
+        }
     }
 
     @Test

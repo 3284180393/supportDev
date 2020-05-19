@@ -12,13 +12,15 @@ public enum AppUpdateOperation {
 
     DELETE(2, "DELETE", "移除已有应用"),
 
-    VERSION_UPDATE(3, "VERSION_UPDATE", "应用版本更新"),
+    UPDATE(3, "UPDATE", "升级已有应用"),
 
-    CFG_UPDATE(4, "CFG_UPDATE", "配置文件更新"),
+    VERSION_UPDATE(4, "VERSION_UPDATE", "应用版本更新"),
 
-    STOP(5, "STOP", "暂停使用"),
+    CFG_UPDATE(5, "CFG_UPDATE", "配置文件更新"),
 
-    START(6, "STOP", "暂停使用"),;
+    STOP(6, "STOP", "暂停使用"),
+
+    START(7, "STOP", "暂停使用"),;
 
     public int id;
 

@@ -15,7 +15,7 @@ public class PlatformAppUpdateParamVo {
 
     private String platformName;
 
-    private List<PlatformAppDeployDetailVo> updateAppList;
+    private List<AppUpdateOperationInfo> updateAppList;
 
     public String getPlatformId() {
         return platformId;
@@ -33,11 +33,11 @@ public class PlatformAppUpdateParamVo {
         this.platformName = platformName;
     }
 
-    public List<PlatformAppDeployDetailVo> getUpdateAppList() {
+    public List<AppUpdateOperationInfo> getUpdateAppList() {
         return updateAppList;
     }
 
-    public void setUpdateAppList(List<PlatformAppDeployDetailVo> updateAppList) {
+    public void setUpdateAppList(List<AppUpdateOperationInfo> updateAppList) {
         this.updateAppList = updateAppList;
     }
 }
