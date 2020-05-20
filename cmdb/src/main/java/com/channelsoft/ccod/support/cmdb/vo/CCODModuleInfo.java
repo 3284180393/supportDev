@@ -24,6 +24,8 @@ public class CCODModuleInfo {
 
     private String moduleAlias; //模块别名
 
+    private String originalAlias; //模块的原始别名
+
     private String version; //版本
 
     private String hostIp; //部署服务器ip
@@ -47,6 +49,7 @@ public class CCODModuleInfo {
         this.appId = deployApp.getAppId();
         this.moduleName = deployApp.getAppName();
         this.moduleAlias = deployApp.getAppAlias();
+        this.originalAlias = deployApp.getOriginalAlias();
         this.version = deployApp.getVersion();
         this.hostIp = deployApp.getHostIp();
         this.platformAppId = deployApp.getPlatformAppId();
@@ -54,6 +57,7 @@ public class CCODModuleInfo {
         this.appRunner = deployApp.getAppRunner();
         this.installPackage = deployApp.getInstallPackage();
         this.cfgs = deployApp.getCfgs();
+
     }
 
     public CCODModuleInfo()
@@ -141,6 +145,14 @@ public class CCODModuleInfo {
         this.appId = appId;
     }
 
+    public String getOriginalAlias() {
+        return originalAlias;
+    }
+
+    public void setOriginalAlias(String originalAlias) {
+        this.originalAlias = originalAlias;
+    }
+
     @Override
     public CCODModuleInfo clone()
     {
@@ -154,6 +166,7 @@ public class CCODModuleInfo {
         module.moduleAlias = this.moduleAlias;
         module.moduleName = this.moduleName;
         module.hostIp = this.hostIp;
+        module.originalAlias = this.originalAlias;
         return module;
     }
 }

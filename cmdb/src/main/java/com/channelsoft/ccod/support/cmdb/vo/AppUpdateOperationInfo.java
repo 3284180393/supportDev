@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 
 import java.util.Date;
 import java.util.List;
@@ -145,6 +146,29 @@ public class AppUpdateOperationInfo {
 
     public void setOriginalAlias(String originalAlias) {
         this.originalAlias = originalAlias;
+    }
+
+    public PlatformAppPo getPlatformApp(int appId, String platformId)
+    {
+        PlatformAppPo po = new PlatformAppPo();
+        po.setPlatformId(platformId);
+        po.setOriginalAlias(this.originalAlias);
+        po.setDomainId(this.domainId);
+        po.setDeployTime(new Date());
+        po.setBasePath(this.basePath);
+        po.setAppRunner(this.appRunner);
+        po.setHostIp(this.hostIp);
+        po.setAppAlias(this.appAlias);
+        po.setAppId(appId);
+        po.setPlatformAppId(0);
+        return po;
+    }
+
+    public PlatformAppPo getPlatformApp(int platformAppId, int appId, String platformId)
+    {
+        PlatformAppPo po = getPlatformApp(appId, platformId);
+        po.setPlatformAppId(platformAppId);
+        return po;
     }
 
     @Override

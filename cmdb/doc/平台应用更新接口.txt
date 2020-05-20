@@ -1,0 +1,185 @@
+平台应用更新接口
+url : http://cmdb_url/cmdb/api/platformApps
+method: PUT
+功能用来添加、修改或是删除平台应用模块
+
+用来测试更新平台已有的应用信息
+{
+	"platformId": "clone-test",
+	"platformName": "ccod开发测试平台",
+	"updateAppList": [{
+		"operation": "UPDATE",
+		"appName": "LicenseServer",
+		"appAlias": "licenseserver",
+		"domainId": "public01",
+		"targetVersion": "5214",
+		"hostIp": "10.130.41.218",
+		"basePath": "/home/ccodrunner/Platform",
+		"appRunner": "licenseserver",
+		"cfgs": [{
+			"fileName": "Config.ini",
+			"ext": "ini",
+			"fileSize": 0,
+			"md5": "1797e46c56de0b00e11255d61d5630e8",
+			"deployPath": "./bin/license/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/LicenseServer/5214/licenseserver/20200327152017/Config.ini",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2ODNiZTJiNWZhNjNmMjdjMw"
+		}]
+	}, {
+		"operation": "UPDATE",
+		"appName": "configserver",
+		"appAlias": "configserver",
+		"domainId": "public01",
+		"targetVersion": "aca2af60caa0fb9f4af57f37f869dafc90472525",
+		"hostIp": "10.130.41.218",
+		"basePath": "/home/cfs/Platform/",
+		"appRunner": "configserver",
+		"cfgs": [{
+			"fileName": "ccs_config.cfg",
+			"ext": "cfg",
+			"fileSize": 0,
+			"md5": "ef99be6f0295e494bbc496c7174e48ea",
+			"deployPath": "./cfg/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/configserver/aca2af60caa0fb9f4af57f37f869dafc90472525/configserver/20200327152027/ccs_config.cfg",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzpkNDgxMTc1NDFkY2I4OWVjMzllYTNjY2E0ZWVhNmMzYQ"
+		}, {
+			"fileName": "ccs_logger.cfg",
+			"ext": "cfg",
+			"fileSize": 0,
+			"md5": "197075eb110327da19bfc2a31f24b302",
+			"deployPath": "./cfg/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/configserver/aca2af60caa0fb9f4af57f37f869dafc90472525/configserver/20200327152027/ccs_logger.cfg",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzo4NTEzNTY1MmE5NzhiZTlhYzMwYjAxODQ0YWNjMzllMQ"
+		}]
+	}, {
+		"operation": "UPDATE",
+		"appName": "glsServer",
+		"appAlias": "glsserver",
+		"domainId": "public01",
+		"targetVersion": "7b699a4aece10ef28dce83ab36e4d79213ec4f69",
+		"hostIp": "10.130.41.218",
+		"basePath": "/home/ccodrunner/Platform",
+		"appRunner": "glsserver",
+		"cfgs": [{
+			"fileName": "gls_config.cfg",
+			"ext": "cfg",
+			"fileSize": 0,
+			"md5": "609e331e9d5052a61de5e6b5addd5ce3",
+			"deployPath": "./cfg/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_config.cfg",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2NTk3NmY5YWEyNDkzM2M5ZQ"
+		}, {
+			"fileName": "gls_logger.cfg",
+			"ext": "cfg",
+			"fileSize": 0,
+			"md5": "7b8e1879eab906cba05dabf3f6e0bc37",
+			"deployPath": "./cfg/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_logger.cfg",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkOTU5MTg0MDdhYTgzNzY0NQ"
+		}]
+	}]
+}
+用来测试添加的数据
+{
+	"platformId": "clone-test",
+	"platformName": "ccod开发测试平台",
+	"updateAppList": [{
+		"operation": "ADD",
+		"appName": "LicenseServer",
+		"appAlias": "domain1Licenseserver",
+		"domainId": "public01",
+		"targetVersion": "5214",
+		"hostIp": "10.130.41.218",
+		"basePath": "/home/ccodrunner/Platform",
+		"appRunner": "licenseserver",
+		"cfgs": [{
+			"fileName": "Config.ini",
+			"ext": "ini",
+			"fileSize": 0,
+			"md5": "1797e46c56de0b00e11255d61d5630e8",
+			"deployPath": "./bin/license/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/LicenseServer/5214/licenseserver/20200327152017/Config.ini",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2ODNiZTJiNWZhNjNmMjdjMw"
+		}]
+	}, {
+		"operation": "ADD",
+		"appName": "configserver",
+		"appAlias": "domain1Configserver",
+		"domainId": "public01",
+		"targetVersion": "aca2af60caa0fb9f4af57f37f869dafc90472525",
+		"hostIp": "10.130.41.218",
+		"basePath": "/home/cfs/Platform/",
+		"appRunner": "configserver",
+		"cfgs": [{
+			"fileName": "ccs_config.cfg",
+			"ext": "cfg",
+			"fileSize": 0,
+			"md5": "ef99be6f0295e494bbc496c7174e48ea",
+			"deployPath": "./cfg/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/configserver/aca2af60caa0fb9f4af57f37f869dafc90472525/configserver/20200327152027/ccs_config.cfg",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzpkNDgxMTc1NDFkY2I4OWVjMzllYTNjY2E0ZWVhNmMzYQ"
+		}, {
+			"fileName": "ccs_logger.cfg",
+			"ext": "cfg",
+			"fileSize": 0,
+			"md5": "197075eb110327da19bfc2a31f24b302",
+			"deployPath": "./cfg/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/configserver/aca2af60caa0fb9f4af57f37f869dafc90472525/configserver/20200327152027/ccs_logger.cfg",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzo4NTEzNTY1MmE5NzhiZTlhYzMwYjAxODQ0YWNjMzllMQ"
+		}]
+	}, {
+		"operation": "ADD",
+		"appName": "glsServer",
+		"appAlias": "domain1Glsserver",
+		"domainId": "public01",
+		"targetVersion": "7b699a4aece10ef28dce83ab36e4d79213ec4f69",
+		"hostIp": "10.130.41.218",
+		"basePath": "/home/ccodrunner/Platform",
+		"appRunner": "glsserver",
+		"cfgs": [{
+			"fileName": "gls_config.cfg",
+			"ext": "cfg",
+			"fileSize": 0,
+			"md5": "609e331e9d5052a61de5e6b5addd5ce3",
+			"deployPath": "./cfg/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_config.cfg",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2NTk3NmY5YWEyNDkzM2M5ZQ"
+		}, {
+			"fileName": "gls_logger.cfg",
+			"ext": "cfg",
+			"fileSize": 0,
+			"md5": "7b8e1879eab906cba05dabf3f6e0bc37",
+			"deployPath": "./cfg/",
+			"nexusRepository": "platform_app_cfg",
+			"nexusPath": "pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_logger.cfg",
+			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkOTU5MTg0MDdhYTgzNzY0NQ"
+		}]
+	}]
+}
+用来测试删除的数据
+{
+	"platformId": "clone-test",
+	"platformName": "ccod开发测试平台",
+	"updateAppList": [{
+		"operation": "DELETE",
+		"appAlias": "licenseserver2",
+		"domainId": "public01"
+	}, {
+		"operation": "DELETE",
+		"appAlias": "configserver2",
+		"domainId": "public01"
+	}, {
+		"operation": "DELETE",
+		"appAlias": "glsserver2",
+		"domainId": "public01"
+	}]
+}
