@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppFileAttribute;
 import com.channelsoft.ccod.support.cmdb.service.IActiveMQService;
@@ -86,6 +87,9 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
 
     @Autowired
     IAppManagerService appManagerService;
+
+    @Autowired
+    private CCODBiz ccodBiz;
 
     private Random random = new Random();
 
@@ -183,6 +187,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         {
             params.put("version", version);
         }
+        params.put("ccodBiz", JSONObject.toJSONString(this.ccodBiz));
         logger.info(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
         connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
         Connection connection = connectionFactory.createConnection();
