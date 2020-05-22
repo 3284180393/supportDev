@@ -22,7 +22,6 @@
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
 
-        <result column="set_id" property="setId" jdbcType="VARCHAR" />
         <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
         <result column="bk_set_id" property="bkSetId" jdbcType="INTEGER" />
         <result column="bk_set_name" property="bkSetName" jdbcType="VARCHAR" />
@@ -96,7 +95,6 @@
 	    pacf.nexus_repository AS pacf_nexus_repository,
 	    pacf.cfg_file_id AS pacf_cfg_file_id,
 	    bakm.app_bk_module_id AS app_bk_module_id,
-	    bakm.set_id AS set_id,
 	    bakm.bk_biz_id AS bk_biz_id,
 	    bakm.bk_set_id AS bk_set_id,
 	    bakm.bk_set_name AS bk_set_name,

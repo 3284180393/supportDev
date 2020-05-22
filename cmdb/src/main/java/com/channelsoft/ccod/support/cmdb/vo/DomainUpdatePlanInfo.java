@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.constant.DomainStatus;
 import com.channelsoft.ccod.support.cmdb.constant.DomainType;
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
@@ -22,11 +23,7 @@ public class DomainUpdatePlanInfo {
 
     private String domainId; //对应的域标识
 
-    private String setId; //域归属的set id
-
     private String bkSetName; //域归属的set名
-
-    private DomainType domainType; //域类型
 
     private List<AppUpdateOperationInfo> appUpdateOperationList; //应用升级操作列表
 
@@ -122,14 +119,6 @@ public class DomainUpdatePlanInfo {
         this.domainId = domainId;
     }
 
-    public String getSetId() {
-        return setId;
-    }
-
-    public void setSetId(String setId) {
-        this.setId = setId;
-    }
-
     public String getBkSetName() {
         return bkSetName;
     }
@@ -162,19 +151,28 @@ public class DomainUpdatePlanInfo {
         this.tags = tags;
     }
 
-    public DomainType getDomainType() {
-        return domainType;
-    }
-
-    public void setDomainType(DomainType domainType) {
-        this.domainType = domainType;
-    }
-
     public List<AppFileNexusInfo> getPublicConfig() {
         return publicConfig;
     }
 
     public void setPublicConfig(List<AppFileNexusInfo> publicConfig) {
         this.publicConfig = publicConfig;
+    }
+
+    public DomainPo getDomain(String platformId)
+    {
+        DomainPo po = new DomainPo();
+        po.setDomainId(this.domainId);
+        po.setType(this.bkSetName);
+        po.setTags(tags);
+        po.setOccurs(this.occurs);
+        po.setMaxOccurs(this.maxOccurs);
+        po.setComment("");
+        po.setPlatformId(platformId);
+        po.setStatus(DomainStatus.RUNNING.id);
+        po.setCreateTime(new Date());
+        po.setDomainName(this.domainName);
+        po.setUpdateTime(new Date());
+        return po;
     }
 }

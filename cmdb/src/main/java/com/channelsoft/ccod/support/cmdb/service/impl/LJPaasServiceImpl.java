@@ -788,7 +788,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         for(PlatformAppDeployDetailVo detailVo : deployApps)
         {
             detailVo.setBkSetName(domainMap.get(detailVo.getDomainId()).getType());
-            detailVo.setSetId(setDefineMap.get(detailVo.getBkSetName()).getId());
         }
         long currentTime = System.currentTimeMillis();
         Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
@@ -817,14 +816,14 @@ public class LJPaasServiceImpl implements ILJPaasService {
             {
                 int bkHostId = idleHostMap.get(deployApp.getHostIp()).getBkHostId();
                 int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, setInfo.getBkSetId(), bkHostId, setModuleList);
-                insertPlatformAppBkModule(deployApp.getPlatformAppId(), deployApp.getPlatformId(), deployApp.getDomainId(), bkBizId, deployApp.getSetId(),  setInfo.getBkSetId(), setInfo.getBkSetName(), bkModuleId, bkHostId);
+                insertPlatformAppBkModule(deployApp.getPlatformAppId(), deployApp.getPlatformId(), deployApp.getDomainId(), bkBizId, setInfo.getBkSetId(), setInfo.getBkSetName(), bkModuleId, bkHostId);
             }
         }
         logger.info(String.format("sync bizName=%s and bizId=%d app deploy info to lj paas SUCCESS, timeUsage=%d(second)",
                 platform.getPlatformName(), bkBizId, (System.currentTimeMillis()-currentTime)/1000));
     }
 
-    private PlatformAppBkModulePo insertPlatformAppBkModule(int platformAppId, String platformId, String domainId, int bkBizId, String setId, int bkSetId,
+    private PlatformAppBkModulePo insertPlatformAppBkModule(int platformAppId, String platformId, String domainId, int bkBizId, int bkSetId,
                                              String bkSetName, int bkModuleId, int bkHostId)
     {
         PlatformAppBkModulePo bkModulePo = new PlatformAppBkModulePo();
@@ -834,7 +833,6 @@ public class LJPaasServiceImpl implements ILJPaasService {
         bkModulePo.setBkSetId(bkSetId);
         bkModulePo.setBkSetName(bkSetName);
         bkModulePo.setPlatformAppId(platformAppId);
-        bkModulePo.setSetId(setId);
         bkModulePo.setPlatformId(platformId);
         bkModulePo.setDomainId(domainId);
         this.platformAppBkModuleMapper.insert(bkModulePo);
@@ -923,7 +921,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
     }
 
     @Override
-    public void bindDeployAppsToBizSet(int bkBizId, String setId, int bkSetId, String bkSetName, List<PlatformAppPo> deployAppList) throws InterfaceCallException, LJPaasException
+    public void bindDeployAppsToBizSet(int bkBizId, int bkSetId, String bkSetName, List<PlatformAppPo> deployAppList) throws InterfaceCallException, LJPaasException
     {
         List<LJModuleInfo> bkModuleList = queryBkModule(bkBizId, bkSetId, null, null);
         Map<String, LJHostInfo> hostMap = queryBKHost(bkBizId, null, null, null, null)
@@ -931,7 +929,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         for(PlatformAppPo deployApp : deployAppList)
         {
             int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, bkSetId, hostMap.get(deployApp.getHostIp()).getBkHostId(), bkModuleList);
-            insertPlatformAppBkModule(deployApp.getPlatformAppId(), deployApp.getPlatformId(), deployApp.getDomainId(), bkBizId, setId, bkSetId, bkSetName, bkModuleId, hostMap.get(deployApp.getHostIp()).getBkHostId());
+            insertPlatformAppBkModule(deployApp.getPlatformAppId(), deployApp.getPlatformId(), deployApp.getDomainId(), bkBizId, bkSetId, bkSetName, bkModuleId, hostMap.get(deployApp.getHostIp()).getBkHostId());
         }
     }
 

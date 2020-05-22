@@ -67,8 +67,6 @@ public class PlatformAppDeployDetailVo {
 
     private int bkBizId; //该应用在蓝鲸biz id
 
-    private String setId; //cmdb中标识该应用所属的set的id,setId在cmdb中不唯一,但platformName+setId在cmdb中唯一
-
     private int bkSetId; //该应用在paas的set id
 
     private String bkSetName; //该应用在paas的set名字
@@ -254,14 +252,6 @@ public class PlatformAppDeployDetailVo {
 
     public void setCcodVersion(String ccodVersion) {
         this.ccodVersion = ccodVersion;
-    }
-
-    public String getSetId() {
-        return setId;
-    }
-
-    public void setSetId(String setId) {
-        this.setId = setId;
     }
 
     public int getBkModuleId() {

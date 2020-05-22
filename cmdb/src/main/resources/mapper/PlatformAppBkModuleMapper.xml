@@ -6,7 +6,6 @@
         <result column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
-        <result column="set_id" property="setId" jdbcType="VARCHAR" />
         <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
         <result column="bk_set_id" property="bkSetId" jdbcType="INTEGER" />
         <result column="bk_set_name" property="bkSetName" jdbcType="VARCHAR" />
@@ -18,7 +17,6 @@
 	    pakm.platform_app_id AS platform_app_id,
 	    pakm.platform_id AS platform_id,
 	    pakm.domain_id AS domain_id,
-	    pakm.set_id AS set_id,
 	    pakm.bk_biz_id AS bk_biz_id,
 	    pakm.bk_set_id AS bk_set_id,
 	    pakm.bk_set_name AS bk_set_name,
@@ -29,8 +27,8 @@
     </sql>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppBkModulePo"
             useGeneratedKeys="true" keyProperty="appBkModuleId">
-        insert into platform_app_bk_module(platform_app_id, platform_id, domain_id, set_id, bk_biz_id, bk_set_id, bk_set_name, bk_module_id, bk_host_id)
-        values (#{platformAppId,jdbcType=INTEGER}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{setId,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkSetId,jdbcType=INTEGER}, #{bkSetName,jdbcType=VARCHAR}, #{bkModuleId,jdbcType=INTEGER}, #{bkHostId,jdbcType=INTEGER})
+        insert into platform_app_bk_module(platform_app_id, platform_id, domain_id, bk_biz_id, bk_set_id, bk_set_name, bk_module_id, bk_host_id)
+        values (#{platformAppId,jdbcType=INTEGER}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkSetId,jdbcType=INTEGER}, #{bkSetName,jdbcType=VARCHAR}, #{bkModuleId,jdbcType=INTEGER}, #{bkHostId,jdbcType=INTEGER})
     </insert>
     <delete id="delete">
         delete

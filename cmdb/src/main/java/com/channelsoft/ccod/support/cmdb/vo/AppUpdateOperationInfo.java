@@ -148,12 +148,12 @@ public class AppUpdateOperationInfo {
         this.originalAlias = originalAlias;
     }
 
-    public PlatformAppPo getPlatformApp(int appId, String platformId)
+    public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)
     {
         PlatformAppPo po = new PlatformAppPo();
         po.setPlatformId(platformId);
         po.setOriginalAlias(this.originalAlias);
-        po.setDomainId(this.domainId);
+        po.setDomainId(domainId);
         po.setDeployTime(new Date());
         po.setBasePath(this.basePath);
         po.setAppRunner(this.appRunner);
@@ -164,9 +164,9 @@ public class AppUpdateOperationInfo {
         return po;
     }
 
-    public PlatformAppPo getPlatformApp(int platformAppId, int appId, String platformId)
+    public PlatformAppPo getPlatformApp(int platformAppId, int appId, String platformId, String domainId)
     {
-        PlatformAppPo po = getPlatformApp(appId, platformId);
+        PlatformAppPo po = getPlatformApp(appId, platformId, domainId);
         po.setPlatformAppId(platformAppId);
         return po;
     }
