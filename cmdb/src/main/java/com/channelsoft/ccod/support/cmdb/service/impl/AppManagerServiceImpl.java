@@ -1535,7 +1535,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
         }
         List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
+        logger.debug("begin check param of schema");
         checkPlatformUpdateSchema(updateSchema, domainList);
+        logger.debug("schema param check success");
         List<PlatformAppDeployDetailVo> platformDeployApps = this.platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null);
         List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
@@ -1568,7 +1570,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new ParamException(String.format("status of %s(%s) update schema is SUCCESS, but there are %d domain update plan not execute",
                         updateSchema.getPlatformName(), updateSchema.getPlatformId(), planList.size()));
             }
-            logger.debug(String.format("add domainId for new add and id is blank domain"));
+            logger.debug(String.format("generate domainId for new add with status SUCCESS and id is blank domain"));
             generateId4AddDomain(updateSchema.getPlatformId(), updateSchema.getDomainUpdatePlanList(), domainList);
             Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
             for(DomainUpdatePlanInfo plan : successList)
@@ -1586,8 +1588,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             {
                 String domainId = plan.getDomainId();
                 boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
-                DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);
-                if(isCreate)
+                DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);if(isCreate)
                     this.domainMapper.insert(domainPo);
                 List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
                 logger.debug(String.format("handle %s %d apps with isCreate=%b and %d deployed apps",
@@ -1640,7 +1641,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<DomainUpdatePlanInfo> notIdList = new ArrayList<>();
         for(DomainUpdatePlanInfo plan : planList)
         {
-            if(!plan.getUpdateType().equals(DomainUpdateType.ADD) && plan.getStatus().equals(UpdateStatus.SUCCESS))
+            if(plan.getUpdateType().equals(DomainUpdateType.ADD) && plan.getStatus().equals(UpdateStatus.SUCCESS))
             {
                 if(StringUtils.isBlank(plan.getDomainId()))
                     notIdList.add(plan);
@@ -1725,9 +1726,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
             {
                 case ADD:
                     if(StringUtils.isBlank(plan.getDomainName()))
-                        sb.append("name of new add domain is blank");
+                        sb.append("name of new add domain is blank;");
                     else if(domainNameMap.containsKey(plan.getDomainName()))
-                        sb.append(String.format("name %s of new add domain has been used", plan.getDomainName()));
+                        sb.append(String.format("name %s of new add domain has been used;", plan.getDomainName()));
                     else
                     {
                         if(StringUtils.isBlank(plan.getBkSetName()))
@@ -1738,9 +1739,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         {
                             String regex = String.format("^%s(0[1-9]|[1-9]\\d+)", this.setDefineMap.get(plan.getBkSetName()).getFixedDomainId());
                             if(!plan.getDomainId().matches(regex))
-                            {
                                 sb.append(String.format("predefine domainId %s of new add domain %s is illegal;", plan.getDomainId(), plan.getBkSetName()));
-                            }
+                            else if(domainIdMap.containsKey(plan.getDomainId()))
+                                sb.append(String.format("domainId %s has been used;", plan.getDomainId()));
                         }
                         if(StringUtils.isBlank(plan.getTags()))
                             sb.append(String.format("tag of new add domain %s is blank", plan.getBkSetName()));
@@ -1772,7 +1773,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     hasIdList.add(plan);
                     break;
                 default:
-                    sb.append(String.format("domain update type %s is not support now", plan.getUpdateType().name));
+                    sb.append(String.format("domain update type %s is not support now;", plan.getUpdateType().name));
                     break;
             }
         }
@@ -1785,13 +1786,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
         for(String domainId : idMap.keySet())
         {
             if(idMap.get(domainId).size() > 1)
-                sb.append(String.format("update plan of id=%s domain is not unique;", domainId));
+                sb.append(String.format("domainId %s update plan  is not unique;", domainId));
         }
         Map<String, List<DomainUpdatePlanInfo>> nameMap = hasNameList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainName));
         for(String domainName : nameMap.keySet())
         {
             if(nameMap.get(domainName).size() > 1)
-                sb.append(String.format("update plan of name=%s domain is not unique;", domainName));
+                sb.append(String.format("domainName %s update plan  is not unique;", domainName));
         }
         if(StringUtils.isNotBlank(sb.toString()))
         {
