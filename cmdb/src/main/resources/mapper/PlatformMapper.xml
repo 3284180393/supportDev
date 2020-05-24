@@ -10,10 +10,12 @@
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
         <result column="status" property="status" jdbcType="INTEGER" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
-        <result column="comment" property="comment" jdbcType="VARCHAR" />
+        <result column="type" property="type" jdbcType="VARCHAR" />
+        <result column="api_url" property="apiUrl" jdbcType="VARCHAR" />
+        <result column="auth_token" property="authToken" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        pf.platform_id, pf.platform_name, pf.bk_biz_id, pf.bk_cloud_id, pf.create_time, pf.update_time, pf.`status`, pf.ccod_version, pf.`comment`
+        pf.platform_id, pf.platform_name, pf.bk_biz_id, pf.bk_cloud_id, pf.create_time, pf.update_time, pf.`status`, pf.ccod_version, pf.`comment`, pf.`type`, pf.api_url, pf.auth_token
     </sql>
     <select id="selectByPrimaryKey" resultMap="PlatformMap" parameterType="java.lang.String">
         select
@@ -43,8 +45,8 @@
         </if>
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformPo">
-        insert into platform(platform_id, platform_name, bk_biz_id, bk_cloud_id, create_time, update_time, `status`, ccod_version, `comment`)
-        values (#{platformId,jdbcType=VARCHAR}, #{platformName,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkCloudId,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{ccodVersion,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR})
+        insert into platform(platform_id, platform_name, bk_biz_id, bk_cloud_id, create_time, update_time, `status`, ccod_version, `comment`, `type`, api_url, auth_token)
+        values (#{platformId,jdbcType=VARCHAR}, #{platformName,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkCloudId,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{ccodVersion,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{apiUrl,jdbcType=VARCHAR}, #{authToken,jdbcType=VARCHAR})
     </insert>
     <delete id="delete" parameterType="java.lang.String">
         delete
@@ -59,7 +61,10 @@
             status = #{status,jdbcType=INTEGER},
             ccod_version = #{ccodVersion,jdbcType=VARCHAR},
             comment = #{comment,jdbcType=VARCHAR},
-            update_time = #{updateTime,jdbcType=TIMESTAMP}
+            update_time = #{updateTime,jdbcType=TIMESTAMP},
+            type = #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            api_url = #{apiUrl,jdbcType=VARCHAR},
+            authon_token = #{authonToken,jdbcType=VARCHAR}
         where platform_id = #{platformId,jdbcType=VARCHAR}
   </update>
 </mapper>

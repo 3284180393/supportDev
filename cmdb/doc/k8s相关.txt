@@ -1,0 +1,27 @@
+获取k8s的所有账户信息
+kubectl -n kube-system get sa
+取得secrets
+kubectl -n kube-system get sa kube-dns -o yaml
+取得token
+kubectl get secrets kube-dns-token-rst6j -n kube-system -o yaml
+取得token值
+kubectl get secret kube-dns-token-rst6j -n kube-system -o jsonpath={".data.token"}
+tokne转码
+kubectl get secret kube-dns-token-rst6j -n kube-system -o jsonpath={".data.token"}| base64 -d
+查看secrete
+kubectl get secret -n kube-system
+参考资料
+https://blog.csdn.net/u010859650/article/details/89555413
+
+
+查询k8s restful api
+https://10.130.41.218:6443
+
+查询k8s namespace
+https://10.130.41.218:6443/api/v1/namespaces/clone-test
+
+查询服务
+https://10.130.41.218:6443/api/v1/namespaces/clone-test/services/cms1-cloud01
+
+查询pod
+https://10.130.41.218:6443/api/v1/namespaces/clone-test/pods/cas-manage01-6cf9656598-lh6bz

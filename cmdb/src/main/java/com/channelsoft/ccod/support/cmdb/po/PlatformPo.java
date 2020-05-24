@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformType;
 
 import java.util.Date;
 
@@ -30,6 +31,12 @@ public class PlatformPo {
     private String ccodVersion; //该平台采用的ccod版本
 
     private String comment; //平台描述
+
+    private PlatformType type; //平台类型
+
+    private String apiUrl; //查询平台相关信息的api的url比如，k8s容器平台的restful api的url
+
+    private String authToken; //查询api的认证 token
 
     public PlatformPo()
     {
@@ -120,5 +127,29 @@ public class PlatformPo {
 
     public void setBkCloudId(int bkCloudId) {
         this.bkCloudId = bkCloudId;
+    }
+
+    public PlatformType getType() {
+        return type;
+    }
+
+    public void setType(PlatformType type) {
+        this.type = type;
+    }
+
+    public String getApiUrl() {
+        return apiUrl;
+    }
+
+    public void setApiUrl(String apiUrl) {
+        this.apiUrl = apiUrl;
+    }
+
+    public String getAuthToken() {
+        return authToken;
+    }
+
+    public void setAuthToken(String authToken) {
+        this.authToken = authToken;
     }
 }

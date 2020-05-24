@@ -1,7 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
-import com.channelsoft.ccod.support.cmdb.po.DomainPo;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformType;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo;
 
@@ -29,6 +29,12 @@ public class PlatformTopologyInfo {
 
     private CCODPlatformStatus status; //该平台的状态
 
+    private PlatformType type;  //平台类型
+
+    private String apiUrl; //如果有查询平台状态的api，查询api的url，例如k8s的restful api的url
+
+    private String authToken; //查询apiUrl所需的认证token
+
     private List<CCODSetInfo> setList; //平台下的所有集群
 
     private List<CCODHostInfo> idleHostList; //平台下的所有空闲服务器列表
@@ -47,6 +53,9 @@ public class PlatformTopologyInfo {
         this.setList = new ArrayList<>();
         this.idleHostList = new ArrayList<>();
         this.ccodVersion = platform.getCcodVersion();
+        this.type = platform.getType();
+        this.apiUrl = platform.getApiUrl();
+        this.authToken = platform.getAuthToken();
     }
 
     public String getPlatformId() {
@@ -119,6 +128,30 @@ public class PlatformTopologyInfo {
 
     public void setCcodVersion(String ccodVersion) {
         this.ccodVersion = ccodVersion;
+    }
+
+    public PlatformType getType() {
+        return type;
+    }
+
+    public void setType(PlatformType type) {
+        this.type = type;
+    }
+
+    public String getApiUrl() {
+        return apiUrl;
+    }
+
+    public void setApiUrl(String apiUrl) {
+        this.apiUrl = apiUrl;
+    }
+
+    public String getAuthToken() {
+        return authToken;
+    }
+
+    public void setAuthToken(String authToken) {
+        this.authToken = authToken;
     }
 
     public void setIdleHosts(List<LJHostInfo> idleHostList) {
