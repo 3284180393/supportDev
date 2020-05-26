@@ -18,6 +18,11 @@ public class AppInstallPackagePo extends AppFilePo {
     public AppInstallPackagePo()
     {}
 
+    public AppInstallPackagePo(int appId, String deployPath, NexusAssetInfo assetInfo)
+    {
+        super(appId, deployPath, assetInfo);
+    }
+
     public AppInstallPackagePo(int appId, DeployFileInfo packageInfo)
     {
         super(appId, packageInfo);

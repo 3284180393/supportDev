@@ -40,7 +40,7 @@ schema_update_url = '%s/cmdb/api/platformUpdateSchema' % cmdb_host_url
 k8s_deploy_git_url = platform_deploy_params['k8s_deploy_git_url']
 app_image_query_url = "http://%s/v2/%s/%%s/tags/list" % (nexus_image_repository_url, image_repository)
 platform_deploy_schema = platform_deploy_params['update_schema']
-platform_public_config = platform_deploy_params['publicConfig']
+platform_public_config = platform_deploy_schema['publicConfig']
 ccod_apps = """dcms##dcms##11110##dcms.war##war"""
 make_image_base_path = '/root/project/gitlab-ccod/devops/imago/ccod-2.0/test'
 k8s_host_ip = platform_deploy_params['k8s_host_ip']
@@ -670,10 +670,12 @@ class AppInstance(object):
     def __get_app_cfg_params_for_k8s(self):
         cfgs = self.cfgs
         cfg_params = ""
-        if self.app_type == 'CCOD_WEBAPPS_MODULE' and self.app_name != 'cas':
-            cfg_params = "--set publicConfig.[%s]=[%s] --set isPublicConfig=False --set publicConfig.local_datasource.xml=/root/resin-4.0.13/conf --set publicConfig.local_jvm.xml=/root/resin-4.0.13/conf" % (platform_public_config['fileName'], platform_public_config['deployPath'])
-        elif (self.app_name == 'UCGateway' or self.app_name == 'AppGateWay' or self.app_name == 'DialEngine') and self.public_config:
-            cfg_params = "--set publicConfig.[%s]=[%s] --set isPublicConfig=False --set config.sdcommon.ini=./Config" % (self.public_config['fileName'], self.public_config['deployPath'])
+        if self.app_type == 'CCOD_WEBAPPS_MODULE' and self.app_name != 'cas' and platform_public_config and len(platform_public_config) > 0:
+            for pb_cfg in platform_public_config:
+                cfg_params = "%s %s" % (cfg_params, "--set publicConfig.[%s]=[%s] --set isPublicConfig=False --set publicConfig.local_datasource.xml=/root/resin-4.0.13/conf --set publicConfig.local_jvm.xml=/root/resin-4.0.13/conf" % (pb_cfg['fileName'], pb_cfg['deployPath']))
+        elif (self.app_name == 'UCGateway' or self.app_name == 'AppGateWay' or self.app_name == 'DialEngine') and self.public_config and len(self.public_config) > 0:
+            for pb_cfg in self.public_config:
+                cfg_params = "%s %s" % (cfg_params, "--set publicConfig.[%s]=[%s] --set isPublicConfig=False --set config.sdcommon.ini=./Config" % (pb_cfg['fileName'], pb_cfg['deployPath']))
         for cfg in cfgs:
             cfg_deploy_path = re.sub('^.*WEB-INF/', 'WEB-INF/', cfg['deployPath'])
             cfg_deploy_path = re.sub('/$', '', cfg_deploy_path)
@@ -1073,7 +1075,7 @@ class CCODPlatform(object):
         for domain in domain_list:
             domain_id = domain['domainId']
             domain_public_config = None
-            if 'publicConfig' in domain.keys:
+            if 'publicConfig' in domain.keys() and domain['publicConfig']:
                 domain_public_config = domain['publicConfig']
             if domain['updateType'] != 'ADD':
                 logging.error('add domain %s fail : updateType must be ADD, not %s' % (domain_id, domain['updateType']))

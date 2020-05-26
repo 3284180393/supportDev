@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Param;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * @ClassName: AppInstallPackageMapper
  * @Author: lanhb
@@ -28,7 +30,14 @@ public interface AppInstallPackageMapper {
      * @return 查询结果
      * @throws DataAccessException
      */
-    AppCfgFilePo selectByPrimaryKey(int packageId) throws DataAccessException;
+    AppInstallPackagePo selectByPrimaryKey(int packageId) throws DataAccessException;
+
+    /**
+     * 查询所有安装包记录
+     * @return 查询结果
+     * @throws DataAccessException
+     */
+    List<AppInstallPackagePo> select() throws DataAccessException;
 
     /**
      * 更新已有的应用安装包信息

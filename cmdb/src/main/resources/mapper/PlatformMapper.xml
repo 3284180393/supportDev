@@ -64,7 +64,7 @@
             update_time = #{updateTime,jdbcType=TIMESTAMP},
             type = #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
             api_url = #{apiUrl,jdbcType=VARCHAR},
-            authon_token = #{authonToken,jdbcType=VARCHAR}
+            auth_token = #{authToken,jdbcType=VARCHAR}
         where platform_id = #{platformId,jdbcType=VARCHAR}
   </update>
 </mapper>

@@ -51,7 +51,8 @@ public class AppFilePo {
     {
         this.appId = appId;
         this.fileName = cfgFileInfo.getFileName();
-        this.ext = cfgFileInfo.getExt();
+        String[] arr = this.fileName.split("\\.");
+        this.ext = arr.length == 1 ? "" : arr[arr.length - 1];
         this.deployPath = cfgFileInfo.getDeployPath();
         this.nexusAssetId = cfgFileInfo.getNexusAssetId();
         this.nexusDirectory = cfgFileInfo.getNexusDirectory();

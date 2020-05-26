@@ -194,4 +194,10 @@ public class AppModuleVo {
         String group = String.format("/%s/%s", this.appName, this.version);
         return group;
     }
+
+    @Override
+    public String toString()
+    {
+        return String.format("%s(%s)", this.appName, this.getVersion());
+    }
 }

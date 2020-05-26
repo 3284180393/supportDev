@@ -22,6 +22,11 @@ public class AppCfgFilePo extends AppFilePo {
     public AppCfgFilePo()
     {}
 
+    public AppCfgFilePo(int appId, String deployPath, NexusAssetInfo assetInfo)
+    {
+        super(appId, deployPath, assetInfo);
+    }
+
     public AppCfgFilePo(int appId, DeployFileInfo cfgFileInfo)
     {
         super(appId, cfgFileInfo);

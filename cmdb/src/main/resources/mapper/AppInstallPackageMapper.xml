@@ -16,6 +16,11 @@
     <sql id="Base_Column_List" >
         aip.package_id, aip.app_id, aip.file_name, aip.ext, aip.deploy_path, aip.nexus_repository, aip.nexus_directory, aip.nexus_asset_id, aip.create_time, aip.md5
     </sql>
+    <select id="select" resultMap="AppInstallPackageMap">
+        select
+        <include refid="Base_Column_List" />
+        from app_install_package aip
+    </select>
     <select id="selectByPrimaryKey" resultMap="AppInstallPackageMap" parameterType="java.lang.Integer">
         select
         <include refid="Base_Column_List" />

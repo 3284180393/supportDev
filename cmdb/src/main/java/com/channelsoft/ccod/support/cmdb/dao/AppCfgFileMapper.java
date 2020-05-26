@@ -37,7 +37,7 @@ public interface AppCfgFileMapper {
      * @return 满足条件记录
      * @throws DataAccessException
      */
-    List<AppCfgFilePo> select(@Param("appId")int appId) throws DataAccessException;
+    List<AppCfgFilePo> select(@Param("appId") Integer appId) throws DataAccessException;
 
     /**
      * 更新已有的应用配置文件信息

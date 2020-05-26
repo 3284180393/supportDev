@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppFileAttribute;
@@ -187,7 +188,8 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         {
             params.put("version", version);
         }
-        params.put("ccodBiz", JSONObject.toJSONString(this.ccodBiz));
+        List<BizSetDefine> setList = this.appManagerService.queryCCODBizSet(false);
+        params.put("ccodBiz", JSONObject.toJSONString(setList));
         logger.info(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
         connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
         Connection connection = connectionFactory.createConnection();
@@ -228,6 +230,8 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         String signature = instructionVo.generateSignature(this.shareSecret);
         logger.info(String.format("start platform app collect instruction msg is %s and signature=%s",
                 JSONObject.toJSONString(instructionVo), signature));
+        boolean isOk = instructionVo.verifySignature(this.shareSecret);
+        logger.info(String.format("signature self verify result is : %b", isOk));
         String instructionTopic = String.format(this.instructionTopicFmt, platformId);
         this.activeMQService.sendTopicMsg(connection, instructionTopic, JSONObject.toJSONString(instructionVo));
         String clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.receiptTimeout);
