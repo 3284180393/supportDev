@@ -37,6 +37,13 @@ public interface IAppManagerService {
      */
     AppModuleVo[] queryApps(String appName) throws DataAccessException;
 
+
+    /**
+     * 查询所有的已经注册的应用模块
+     * @return
+     */
+    List<AppModuleVo> queryAllRegisterAppModule();
+
     /**
      * 查询某个平台所有模块部署情况
      * @param platformId 平台id
@@ -225,5 +232,11 @@ public interface IAppManagerService {
      * @throws NexusException 调用nexus的api返回调用错误或是解析nexus返回结果异常
      */
     List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<AppUpdateOperationInfo> appList) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, LJPaasException, IOException;
+
+    /**
+     * 获得app和set之间的关系
+     * @return app和set之间的关系
+     */
+    Map<String, List<BizSetDefine>> getAppSetRelation();
 
 }

@@ -276,6 +276,18 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
+    public List<AppModuleVo> queryAllRegisterAppModule() {
+        this.appReadLock.readLock().lock();
+        try
+        {
+            return this.registerAppMap.values().stream().flatMap(listContainer -> listContainer.stream()).collect(Collectors.toList());
+        }
+        finally {
+            this.appReadLock.readLock().unlock();
+        }
+    }
+
+    @Override
     public void appDataTransfer(String targetRepository) {
         List<AppModuleVo> moduleList = this.appModuleMapper.select(null, null, null, null);
         Map<Integer, AppPo> appMap = this.appMapper.select(null, null, null, null).stream().collect(Collectors.toMap(AppPo::getAppId, Function.identity()));
@@ -454,6 +466,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.debug(String.format("update cfg"));
             this.appCfgFileMapper.update(cfg);
         }
+    }
+
+    @Override
+    public Map<String, List<BizSetDefine>> getAppSetRelation() {
+        return this.appSetRelationMap;
     }
 
     @Override
@@ -2471,6 +2488,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             schemaInfo.setBaseDataNexusPath(paramVo.getBaseDataNexusPath());
             schemaInfo.setBaseDataNexusRepository(paramVo.getBaseDataNexusRepository());
             schemaInfo.setSchemaId(paramVo.getSchemaId());
+            String pbCfgData = "[{\"deployPath\":\"/root/resin-4.0.13/conf\",\"fileName\":\"local_datasource.xml\",\"fileSize\":0,\"md5\":\"e9c26f00f17a7660bfa3f785c4fe34be\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFhN2U5NGFhNDVlZTIxN2Nm\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/local_datasource.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"/root/resin-4.0.13/conf\",\"fileName\":\"local_jvm.xml\",\"fileSize\":0,\"md5\":\"d41d8cd98f00b204e9800998ecf8427e\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNkODFhZTYxM2NmNDM3NmQ3\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/local_jvm.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"/usr/local/lib\",\"fileName\":\"tnsnames.ora\",\"fileSize\":0,\"md5\":\"d41d8cd98f00b204e9800998ecf8427e\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQzMDcyY2Q2ZTEyNzg2NTQ3\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/tnsnames.ora\",\"nexusRepository\":\"tmp\"}]";
+            schemaInfo.setPublicConfig(JSONArray.parseArray(pbCfgData, AppFileNexusInfo.class));
             return schemaInfo;
         }
         finally {
@@ -4091,6 +4110,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Test
     public void removeTest()
     {
+        String pbCfgData = "[{\"deployPath\":\"/root/resin-4.0.13/conf\",\"fileName\":\"local_datasource.xml\",\"fileSize\":0,\"md5\":\"e9c26f00f17a7660bfa3f785c4fe34be\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFhN2U5NGFhNDVlZTIxN2Nm\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/local_datasource.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"/root/resin-4.0.13/conf\",\"fileName\":\"local_jvm.xml\",\"fileSize\":0,\"md5\":\"d41d8cd98f00b204e9800998ecf8427e\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNkODFhZTYxM2NmNDM3NmQ3\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/local_jvm.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"/usr/local/lib\",\"fileName\":\"tnsnames.ora\",\"fileSize\":0,\"md5\":\"d41d8cd98f00b204e9800998ecf8427e\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQzMDcyY2Q2ZTEyNzg2NTQ3\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/tnsnames.ora\",\"nexusRepository\":\"tmp\"}]";
+        List<AppFileNexusInfo> list = JSONArray.parseArray(pbCfgData, AppFileNexusInfo.class);
+        System.out.println(list.size());
         try {
             Map<String, String> map = new HashMap<>();
             map.put("1", "Wuhan");

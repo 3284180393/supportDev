@@ -2,6 +2,8 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.DatabaseType;
 
+import java.util.List;
+
 /**
  * @ClassName: PlatformCreateParamVo
  * @Author: lanhb
@@ -42,6 +44,8 @@ public class PlatformCreateParamVo {
     private String baseDataNexusRepository; //基础数据在nexus的存放仓库
 
     private String baseDataNexusPath; //基础数据在nexus的存放path
+
+    private List<AppFileNexusInfo> publicConfig; //平台公共配置
 
     public static int getMANUAL() {
         return MANUAL;
@@ -157,5 +161,13 @@ public class PlatformCreateParamVo {
 
     public void setSchemaId(String schemaId) {
         this.schemaId = schemaId;
+    }
+
+    public List<AppFileNexusInfo> getPublicConfig() {
+        return publicConfig;
+    }
+
+    public void setPublicConfig(List<AppFileNexusInfo> publicConfig) {
+        this.publicConfig = publicConfig;
     }
 }

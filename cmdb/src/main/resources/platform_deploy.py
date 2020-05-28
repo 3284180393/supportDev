@@ -669,13 +669,26 @@ class AppInstance(object):
 
     def __get_app_cfg_params_for_k8s(self):
         cfgs = self.cfgs
-        cfg_params = ""
-        if self.app_type == 'CCOD_WEBAPPS_MODULE' and self.app_name != 'cas' and platform_public_config and len(platform_public_config) > 0:
-            for pb_cfg in platform_public_config:
-                cfg_params = "%s %s" % (cfg_params, "--set publicConfig.[%s]=[%s] --set isPublicConfig=False --set publicConfig.local_datasource.xml=/root/resin-4.0.13/conf --set publicConfig.local_jvm.xml=/root/resin-4.0.13/conf" % (pb_cfg['fileName'], pb_cfg['deployPath']))
-        elif (self.app_name == 'UCGateway' or self.app_name == 'AppGateWay' or self.app_name == 'DialEngine') and self.public_config and len(self.public_config) > 0:
-            for pb_cfg in self.public_config:
-                cfg_params = "%s %s" % (cfg_params, "--set publicConfig.[%s]=[%s] --set isPublicConfig=False --set config.sdcommon.ini=./Config" % (pb_cfg['fileName'], pb_cfg['deployPath']))
+        str_info = re.compile('^/')
+        pb_directory = str_info.sub('', platform_public_config[0]['nexusPath'])
+        str_info = re.compile('/[^/]+$')
+        pb_directory = str_info.sub('', pb_directory)
+        pb_repository = platform_public_config[0]['nexusRepository']
+        cfg_uri = '%s/repository/%s/%s' % (
+            nexus_host_url, pb_repository, pb_directory)
+        cfg_params = "--set runtime.publicConfigPath=%s" % cfg_uri
+        if self.app_type == 'CCOD_WEBAPPS_MODULE' and self.app_name != 'cas':
+            if platform_public_config and len(platform_public_config) > 0:
+                cfg_params = "%s --set isPublicConfig=False" % cfg_params
+                for pb_cfg in platform_public_config:
+                    file_name = re.sub('\\.', '\\\\\\.', pb_cfg['fileName'])
+                    cfg_params = "%s %s" % (cfg_params, "--set publicConfig.%s=%s" % (file_name, pb_cfg['deployPath']))
+        elif self.app_type != 'CCOD_WEBAPPS_MODULE':
+            cfg_params = "%s --set isPublicConfig=False --set publicConfig.tnsnames\\\\.ora=/usr/local/lib" % cfg_params
+            if (self.app_name == 'UCGateway' or self.app_name == 'AppGateWay' or self.app_name == 'DialEngine') and self.public_config and len(self.public_config) > 0:
+                for pb_cfg in self.public_config:
+                    file_name = re.sub('\\.', '\\\\\\.', pb_cfg['fileName'])
+                    cfg_params = "%s %s" % (cfg_params, "--set publicConfig.%s=%s --set isPublicConfig=False --set config.sdcommon.ini=./Config" % (file_name, pb_cfg['deployPath']))
         for cfg in cfgs:
             cfg_deploy_path = re.sub('^.*WEB-INF/', 'WEB-INF/', cfg['deployPath'])
             cfg_deploy_path = re.sub('/$', '', cfg_deploy_path)

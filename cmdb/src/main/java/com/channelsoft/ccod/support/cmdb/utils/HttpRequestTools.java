@@ -49,6 +49,22 @@ public class HttpRequestTools {
         return executeGetRequest(url, httpGet);
     }
 
+
+    /**
+     * 执行http get请求
+     * @param url get的url
+     * @param headers 执行get的header
+     * @return 执行get返回文本
+     * @throws InterfaceCallException
+     */
+    public static String httpGetRequest(String url, Map<String, String> headers) throws InterfaceCallException
+    {
+        logger.info(String.format("http get %s", url));
+        HttpGet httpGet = new HttpGet(url);
+        for(String key : headers.keySet())
+            httpGet.addHeader(key, headers.get(key));
+        return executeGetRequest(url, httpGet);
+    }
     /**
      * 对指定的url执行http get请求，该请求需要执行basic auth
      * @param url 执行get请求的url
@@ -89,7 +105,7 @@ public class HttpRequestTools {
             {
                 logger.error(String.format("errorCode=%d, errorMsg=%s",
                         response.getStatusLine().getStatusCode(), conResult));
-                throw new Exception(String.format("%d, %s",
+                throw new InterfaceCallException(String.format("%d, %s",
                         response.getStatusLine().getStatusCode(), conResult));
             }
             return conResult;
