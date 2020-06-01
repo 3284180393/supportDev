@@ -723,6 +723,11 @@ public class CMDBController {
                     logger.info(String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
                     resultPo = new AjaxResultPo(true, String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
                     break;
+                case APP_UPDATE:
+                    appManagerService.startCollectPlatformAppUpdateData(param.getPlatformId(), param.getPlatformName());
+                    logger.info(String.format("start platform data update task success, content=%s", param.getCollectContent().name));
+                    resultPo = new AjaxResultPo(true, String.format("start platform data update task success, content=%s", param.getCollectContent().name));
+                    break;
                 default:
                     resultPo = new AjaxResultPo(false, String.format("start platform data collect task fail, not support content=%s", param.getCollectContent().name));
                     logger.error(String.format("start platform data collect task fail, not support content=%s", param.getCollectContent().name));

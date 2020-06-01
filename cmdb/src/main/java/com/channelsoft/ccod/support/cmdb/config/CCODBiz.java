@@ -20,6 +20,8 @@ public class CCODBiz {
 
     private List<String> notCheckCfgApps;
 
+    private List<String> threePartApps;
+
     public List<BizSetDefine> getSet() {
         return set;
     }
@@ -34,5 +36,13 @@ public class CCODBiz {
 
     public void setNotCheckCfgApps(List<String> notCheckCfgApps) {
         this.notCheckCfgApps = notCheckCfgApps;
+    }
+
+    public List<String> getThreePartApps() {
+        return threePartApps;
+    }
+
+    public void setThreePartApps(List<String> threePartApps) {
+        this.threePartApps = threePartApps;
     }
 }

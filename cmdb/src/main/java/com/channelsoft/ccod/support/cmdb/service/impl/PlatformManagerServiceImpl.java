@@ -1,8 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
-import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.AppDefine;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
+import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
 import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
@@ -29,8 +29,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.Map.Entry;
 
 /**
  * @ClassName: PlatformManagerServiceImpl
@@ -48,6 +48,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     @Autowired
     IAppManagerService appManagerService;
+
+    @Autowired
+    CCODBiz ccodBiz;
 
     @PostConstruct
     void init() throws Exception
@@ -130,13 +133,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return null;
     }
 
-    private void parseModulePod(V1Pod pod, Map<String, CCODDomainInfo> domainMap, List<BizSetDefine> setDefineList) throws ParamException, NotSupportAppException
+    private void parseModulePod(V1Namespace ns, V1Pod pod, Map<String, CCODDomainInfo> domainMap, List<BizSetDefine> setDefineList, List<AppModuleVo> registerAppList) throws ParamException, NotSupportAppException
     {
-        String[] arr = pod.getMetadata().getName().split("\\-");
+        String podName = pod.getMetadata().getName();
+        String[] arr = podName.split("\\-");
         if(arr.length < 2)
         {
-            logger.error(String.format("%s is illegal pod name for ccod module", pod.getMetadata().getName()));
-            throw new ParamException(String.format("%s is illegal pod name for ccod module", pod.getMetadata().getName()));
+            logger.error(String.format("%s is illegal pod name for ccod module", podName));
+            throw new ParamException(String.format("%s is illegal pod name for ccod module", podName));
         }
         Map<String, List<AppDefine>> aliasAppMap = new HashMap<>();
         Map<AppDefine, BizSetDefine> aliasSetMap = new HashMap<>();
@@ -152,38 +156,151 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         String alias = arr[0];
         String domainId = arr[1];
-        String image = pod.getSpec().getInitContainers().get(0).getImage();
-        String appName = null;
-        CCODModuleInfo moduleInfo = null;
+        BizSetDefine setDefine = null;
         CCODDomainInfo domainInfo = null;
-        for(BizSetDefine setDefine : setDefineList) {
-            String domainRegex = String.format("^%s(0[1-9]|[1-9]\\d+)", setDefine.getFixedDomainId());
-            if (!domainId.matches(domainRegex))
-                continue;
-            for (AppDefine appDefine : setDefine.getApps()) {
-                String appRegex = String.format("^%s\\d*", appDefine.getAlias());
-                if (alias.matches(appRegex))
-                {
-                    appName = appDefine.getName();
-                    break;
-                }
-            }
-            if(StringUtils.isBlank(appName))
+        for(BizSetDefine set : setDefineList) {
+            String domainRegex = String.format("^%s(0[1-9]|[1-9]\\d+)", set.getFixedDomainId());
+            if (domainId.matches(domainRegex))
             {
-                logger.error(String.format("%s is illegal app alias at %s", alias, setDefine.getName()));
-                throw new ParamException(String.format("%s is illegal app alias at %s", alias, setDefine.getName()));
+                setDefine = set;
+                break;
             }
-            if(!domainMap.containsKey(domainId))
-            {
-                String domainName = String.format("%s%s", setDefine.getFixedDomainName(), domainId.replaceAll(setDefine.getFixedDomainId(), ""));
-                domainInfo = new CCODDomainInfo(domainId, domainName);
-                domainMap.put(domainId, domainInfo);
-            }
-
         }
+        if(setDefine == null)
+        {
+            logger.debug(String.format("%s of %s is illegal domainId for ccod set", domainId, podName));
+            throw new ParamException(String.format("%s of %s is illegal domainId for ccod set", domainId, podName));
+        }
+        AppDefine appDefine = null;
+        for (AppDefine app : setDefine.getApps()) {
+            String appRegex = String.format("^%s\\d*", app.getAlias());
+            if (alias.matches(appRegex))
+            {
+                appDefine = app;
+                break;
+            }
+        }
+        if(appDefine == null)
+        {
+            logger.error(String.format("%s of %s is illegal alias for set %s", alias, podName, setDefine.getName()));
+            throw new ParamException(String.format("%s of %s is illegal alias for set %s", alias, podName, setDefine.getName()));
+        }
+        String appName = appDefine.getName();
+        String image = pod.getSpec().getInitContainers().get(0).getImage();
+        arr = image.split("/");
+        String tag = arr[arr.length - 1];
+        if(tag.split("\\:").length != 2)
+        {
+            logger.error(String.format("illegal image tag %s", tag));
+            throw new ParamException(String.format("illegal image tag %s", tag));
+        }
+        String version = tag.split("\\:")[1];
+        if(!registerAppList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
+        {
+            logger.error(String.format("%s has not version %s", appName, version));
+            throw new ParamException(String.format("%s has not version %s", appName, version));
+        }
+        if(!domainMap.containsKey(domainId))
+        {
+            String domainName = String.format("%s%s", setDefine.getFixedDomainName(), domainId.replaceAll(setDefine.getFixedDomainId(), ""));
+            domainInfo = new CCODDomainInfo(domainId, domainName);
+            domainMap.put(domainId, domainInfo);
+        }
+        CCODModuleInfo moduleInfo = new CCODModuleInfo();
+        moduleInfo.setVersion(version);
+        moduleInfo.setHostIp(pod.getStatus().getHostIP());
+//        moduleInfo.setAppId();
         if(StringUtils.isBlank(appName))
         {
-            logger.error(String.format("%s of %s is illegal alias for app module", alias, pod.getMetadata().getName()));ror(String.format("%s of %s is illegel alias for app module", alias, pod.getMetadata().getName()));
+            logger.error(String.format("%s of %s is illegal alias for app module", alias, pod.getMetadata().getName()));
+            throw new ParamException(String.format("%s of %s is illegal alias for app module", alias, pod.getMetadata().getName()));
+        }
+        if(moduleInfo == null)
+        {
+
+        }
+    }
+
+    private void parseModulePod(V1Pod pod, Map<String, CCODDomainInfo> domainMap, List<BizSetDefine> setDefineList, List<AppModuleVo> registerAppList) throws ParamException, NotSupportAppException
+    {
+        String podName = pod.getMetadata().getName();
+        String[] arr = podName.split("\\-");
+        if(arr.length < 2)
+        {
+            logger.error(String.format("%s is illegal pod name for ccod module", podName));
+            throw new ParamException(String.format("%s is illegal pod name for ccod module", podName));
+        }
+        Map<String, List<AppDefine>> aliasAppMap = new HashMap<>();
+        Map<AppDefine, BizSetDefine> aliasSetMap = new HashMap<>();
+        for(BizSetDefine setDefine : setDefineList)
+        {
+            for(AppDefine appDefine : setDefine.getApps())
+            {
+                if(!aliasAppMap.containsKey(appDefine.getAlias()))
+                    aliasAppMap.put(appDefine.getAlias(), new ArrayList<>());
+                aliasAppMap.get(appDefine.getAlias()).add(appDefine);
+                aliasSetMap.put(appDefine, setDefine);
+            }
+        }
+        String alias = arr[0];
+        String domainId = arr[1];
+        BizSetDefine setDefine = null;
+        CCODDomainInfo domainInfo = null;
+        for(BizSetDefine set : setDefineList) {
+            String domainRegex = String.format("^%s(0[1-9]|[1-9]\\d+)", set.getFixedDomainId());
+            if (domainId.matches(domainRegex))
+            {
+                setDefine = set;
+                break;
+            }
+        }
+        if(setDefine == null)
+        {
+            logger.debug(String.format("%s of %s is illegal domainId for ccod set", domainId, podName));
+            throw new ParamException(String.format("%s of %s is illegal domainId for ccod set", domainId, podName));
+        }
+        AppDefine appDefine = null;
+        for (AppDefine app : setDefine.getApps()) {
+            String appRegex = String.format("^%s\\d*", app.getAlias());
+            if (alias.matches(appRegex))
+            {
+                appDefine = app;
+                break;
+            }
+        }
+        if(appDefine == null)
+        {
+            logger.error(String.format("%s of %s is illegal alias for set %s", alias, podName, setDefine.getName()));
+            throw new ParamException(String.format("%s of %s is illegal alias for set %s", alias, podName, setDefine.getName()));
+        }
+        String appName = appDefine.getName();
+        String image = pod.getSpec().getInitContainers().get(0).getImage();
+        arr = image.split("/");
+        String tag = arr[arr.length - 1];
+        if(tag.split("\\:").length != 2)
+        {
+            logger.error(String.format("illegal image tag %s", tag));
+            throw new ParamException(String.format("illegal image tag %s", tag));
+        }
+        String version = tag.split("\\:")[1];
+        if(!registerAppList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
+        {
+            logger.error(String.format("%s has not version %s", appName, version));
+            throw new ParamException(String.format("%s has not version %s", appName, version));
+        }
+        if(!domainMap.containsKey(domainId))
+        {
+            String domainName = String.format("%s%s", setDefine.getFixedDomainName(), domainId.replaceAll(setDefine.getFixedDomainId(), ""));
+            domainInfo = new CCODDomainInfo(domainId, domainName);
+            domainMap.put(domainId, domainInfo);
+        }
+        CCODModuleInfo moduleInfo = new CCODModuleInfo();
+        moduleInfo.setVersion(version);
+        moduleInfo.setHostIp(pod.getStatus().getHostIP());
+//        moduleInfo.setAppId();
+        if(StringUtils.isBlank(appName))
+        {
+            logger.error(String.format("%s of %s is illegal alias for app module", alias, pod.getMetadata().getName()));
             throw new ParamException(String.format("%s of %s is illegal alias for app module", alias, pod.getMetadata().getName()));
         }
         if(moduleInfo == null)

@@ -13,7 +13,9 @@ public enum PlatformDataCollectContent {
 
     APP_VERSION(2, "APP_VERSION", "收集CCOD应用模块的版本"),
 
-    APP_CFG(3, "APP_CFG", "收集CCOD应用的配置文件"),;
+    APP_CFG(3, "APP_CFG", "收集CCOD应用的配置文件"),
+
+    APP_UPDATE(4, "APP_UPDATE", "收集平台应用更新"),;
 
     public int id;
 

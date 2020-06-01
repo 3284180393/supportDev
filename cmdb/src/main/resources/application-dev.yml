@@ -233,7 +233,9 @@ ccod:
       name: DialEngine
     apps[2]:
       name: UCGateway
-
+  threePartApps:
+    - oracle
+    - mysql
 
 nexus:
   user : admin
@@ -262,7 +264,7 @@ activemq:
 
 cmdb:
   url: http://10.130.41.218:8086/cmdb
-  server-name: support_dev_cmdb_server3
+  server-name: support_dev_cmdb_server4
   share-secret: ae12139afadabde12345r
   app-collect:
     receipt-timeout: 10000

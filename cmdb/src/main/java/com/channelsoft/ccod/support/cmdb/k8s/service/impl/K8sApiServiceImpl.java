@@ -70,6 +70,12 @@ public class K8sApiServiceImpl implements IK8sApiService {
         return podList.getItems();
     }
 
+    /**
+     * 生成k8s api客户端
+     * @param httpApi k8s api url
+     * @param token k8s的认证token
+     * @return 生成的k8s api客户端
+     */
     private ApiClient getConnection(String httpApi, String token) {
         ApiClient client = new ClientBuilder().
                 setBasePath(httpApi).setVerifyingSsl(false).

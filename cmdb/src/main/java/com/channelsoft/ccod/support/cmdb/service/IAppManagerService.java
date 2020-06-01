@@ -77,6 +77,15 @@ public interface IAppManagerService {
     PlatformAppModuleVo[] startCollectPlatformAppData(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
 
     /**
+     * 开始收集平台更新数据
+     * @param platformId
+     * @param platformName
+     * @return 收集结果
+     * @throws Exception
+     */
+    PlatformAppModuleVo[] startCollectPlatformAppUpdateData(String platformId, String platformName) throws Exception;
+
+    /**
      * 检查指定条件的平台的应用部署情况，不上传对应的安装包和配置文件
      * @param platformId 平台id，不能为空
      * @param platformName 平台名,不能为空
@@ -97,6 +106,13 @@ public interface IAppManagerService {
      */
     void createNewPlatformAppDataCollectTask(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
 
+    /**
+     * 创建平台应用更新任务
+     * @param platformId 平台id
+     * @param platformName 平台名
+     * @throws Exception 创建任务失败
+     */
+    void createNewPlatformAppDataUpdateTask(String platformId, String platformName) throws Exception;
     /**
      * 更新平台升级计划
      * @param updateSchema 需要更新的平台计划

@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo;
 import com.channelsoft.ccod.support.cmdb.vo.CcodPlatformAppVo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 
@@ -39,4 +40,14 @@ public interface IPlatformAppCollectService {
      * @throws Exception
      */
     List<PlatformAppModuleVo> checkPlatformAppData(String platformId, String platformName, String domainName, String hostIp, String appName, String version) throws Exception;
+
+    /**
+     * 启动平台应用更新任务
+     * @param platformId 平台id
+     * @param platformName 平台名
+     * @param wantList 希望检查的列表
+     * @return 平台应用更新情况
+     * @throws Exception
+     */
+    List<PlatformAppModuleVo> updatePlatformAppData(String platformId, String platformName, List<UnconfirmedAppModulePo> wantList) throws Exception;
 }

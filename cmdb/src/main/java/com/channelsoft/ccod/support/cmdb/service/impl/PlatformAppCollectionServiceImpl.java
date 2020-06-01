@@ -4,8 +4,10 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
+import com.channelsoft.ccod.support.cmdb.dao.PlatformMapper;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppFileAttribute;
+import com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo;
 import com.channelsoft.ccod.support.cmdb.service.IActiveMQService;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
@@ -204,7 +206,6 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         finally {
             connection.close();
         }
-
     }
 
 
@@ -624,19 +625,12 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         if(installPackageMap.size() > 0)
         {
             for(String instKey : installPackageMap.keySet())
-            {
-                String[] arr = instKey.split(";");
-                logger.error(String.format("not successfully receive appName=%s and version=%s install package", arr[0], arr[1]));
-            }
+                logger.error(String.format("not successfully receive : %s", instKey));
         }
         if(cfgMap.size() > 0)
         {
             for(String cfgKey : cfgMap.keySet())
-            {
-                String[] arr = cfgKey.split(";");
-                logger.error(String.format("not successfully receive platformId=%s and domainName=%s and hostIp=%s and basePath=%s and deployPath=%s and fileName=%s cfg file",
-                        arr[0], arr[1], arr[2], arr[3], arr[4], arr[5]));
-            }
+                logger.error(String.format("not successfully receive %s cfg file", cfgKey));
         }
         consumer.close();
         session.close();
@@ -737,4 +731,29 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         return retList;
     }
 
+    @Override
+    public List<PlatformAppModuleVo> updatePlatformAppData(String platformId, String platformName, List<UnconfirmedAppModulePo> wantList) throws Exception {
+        logger.debug(String.format("begin to collect %s(%s) update data with wantList=%s",
+                platformName, platformId, JSONArray.toJSONString(wantList)));
+        Map<String, String> params = new HashMap<>();
+        params.put("platformId", platformId);
+        params.put("platformName", platformName);
+        params.put("wantList", JSONArray.toJSONString(wantList));
+        List<BizSetDefine> setList = this.appManagerService.queryCCODBizSet(false);
+        params.put("ccodBiz", JSONObject.toJSONString(setList));
+        logger.info(String.format("begin to collect %s platform app infos, params=%s", platformId, JSONObject.toJSONString(params)));
+        connectionFactory = new ActiveMQConnectionFactory(this.activeMqBrokeUrl);
+        Connection connection = connectionFactory.createConnection();
+        connection.setClientID(this.serverName);
+        connection.start();
+        try
+        {
+            List<PlatformAppModuleVo> modules = collectPlatformAppData(platformId, params, connection);
+            modules = getPlatformAppInstallPackageAndCfg(platformId, modules, params, connection);
+            return modules;
+        }
+        finally {
+            connection.close();
+        }
+    }
 }

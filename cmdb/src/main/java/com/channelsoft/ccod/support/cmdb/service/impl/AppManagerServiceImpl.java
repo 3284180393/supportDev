@@ -663,7 +663,165 @@ public class AppManagerServiceImpl implements IAppManagerService {
         finally {
             this.isPlatformCheckOngoing = false;
         }
+    }
 
+    @Override
+    public PlatformAppModuleVo[] startCollectPlatformAppUpdateData(String platformId, String platformName) throws Exception {
+        logger.debug(String.format("begin to collect %s(%s) app update data", platformName, platformId));
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+        {
+            logger.error(String.format("%s platform not exist", platformId));
+            throw new ParamException(String.format("%s platform not exist", platformId));
+        }
+        if(!platformPo.getPlatformName().equals(platformName))
+        {
+            logger.error(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
+            throw new ParamException(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
+        }
+        List<UnconfirmedAppModulePo> wantList = this.unconfirmedAppModuleMapper.select(platformId);
+        logger.debug("want update item of %s(%s) is %d", platformName, platformId, wantList.size());
+        if(this.isPlatformCheckOngoing)
+        {
+            logger.error(String.format("start platform=%s app data collect FAIL : some collect task is ongoing", platformId));
+            throw new ClientCollectDataException(String.format("start platform=%s app data collect FAIL : some collect task is ongoing", platformId));
+        }
+        this.isPlatformCheckOngoing = true;
+        try
+        {
+            List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, platformName, null, null, null, null);
+            List<PlatformAppModuleVo> failList = new ArrayList<>();
+            List<PlatformAppModuleVo> successList = new ArrayList<>();
+            for(PlatformAppModuleVo collectedModule : modules)
+            {
+                if(!collectedModule.isOk(platformId, platformName, this.appSetRelationMap))
+                {
+                    logger.debug(collectedModule.getComment());
+                    failList.add(collectedModule);
+                }
+                else
+                    successList.add(collectedModule);
+            }
+            List<DomainPo> domainList = this.domainMapper.select(platformId, null);
+            Map<String, DomainPo> existDomainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
+            Map<String, List<PlatformAppModuleVo>> domainAppMap = successList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
+            List<String> domainNameList = new ArrayList<>(domainAppMap.keySet());
+            List<PlatformAppModuleVo> okList = new ArrayList<>();
+            for(String domainName : domainNameList)
+            {
+                if(!existDomainMap.containsKey(domainName))
+                {
+                    logger.error(String.format("domain %s not exist", domainName));
+                    for(PlatformAppModuleVo moduleVo : domainAppMap.get(domainName))
+                    {
+                        moduleVo.setComment(String.format("domain %s not exist", domainName));
+                        failList.add(moduleVo);
+                    }
+                    domainAppMap.remove(domainName);
+                }
+                else
+                    okList.addAll(domainAppMap.get(domainName));
+            }
+            logger.debug(String.format("begin to handle collected %d app", okList.size()));
+            successList = new ArrayList<>();
+            this.appWriteLock.writeLock().lock();
+            try
+            {
+                for(PlatformAppModuleVo moduleVo : okList)
+                {
+                    try
+                    {
+                        preprocessPlatformAppModule(moduleVo);
+                        successList.add(moduleVo);
+                    }
+                    catch (ParamException ex)
+                    {
+                        moduleVo.setComment(ex.getMessage());
+                        failList.add(moduleVo);
+                    }
+                }
+                this.appReadLock.writeLock().lock();
+                try
+                {
+                    flushRegisteredApp();
+                }
+                finally {
+                    this.appReadLock.writeLock().unlock();
+                }
+            }
+            finally {
+                this.appWriteLock.writeLock().unlock();
+            }
+            domainAppMap = successList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
+            Map<String, List<PlatformAppDeployDetailVo>> domainDeployMap = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+            List<AppUpdateOperationInfo> updateList = new ArrayList<>();
+            for(String domainName : domainAppMap.keySet())
+            {
+                String domainId = existDomainMap.get(domainName).getDomainId();
+                Map<String, PlatformAppDeployDetailVo> origAliasMap = domainDeployMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity()));
+                for(PlatformAppModuleVo moduleVo : domainAppMap.get(domainName))
+                {
+                    boolean isAdd = origAliasMap.containsKey(moduleVo.getModuleAliasName()) ? false : true;
+                    AppUpdateOperationInfo optInfo = new AppUpdateOperationInfo();
+                    List<AppFileNexusInfo> cfgs = new ArrayList<>();
+                    if(moduleVo.getCfgs() != null && moduleVo.getCfgs().length > 0)
+                    {
+                        for(DeployFileInfo fileInfo : moduleVo.getCfgs())
+                        {
+                            AppFileNexusInfo cfg = new AppFileNexusInfo();
+                            cfg.setDeployPath(fileInfo.getDeployPath());
+                            cfg.setExt(fileInfo.getExt());
+                            cfg.setFileName(fileInfo.getFileName());
+                            cfg.setFileSize(fileInfo.getFileSize());
+                            cfg.setMd5(fileInfo.getFileMd5());
+                            cfg.setNexusAssetId(fileInfo.getNexusAssetId());
+                            cfg.setNexusPath(String.format("%s/%s", fileInfo.getNexusDirectory(), fileInfo.getFileName()));
+                            cfg.setNexusRepository(fileInfo.getNexusRepository());
+                            cfgs.add(cfg);
+                        }
+                    }
+                    optInfo.setCfgs(cfgs);
+                    optInfo.setAppRunner(moduleVo.getLoginUser());
+                    optInfo.setTargetVersion(moduleVo.getVersion());
+                    optInfo.setAppName(moduleVo.getModuleName());
+                    optInfo.setBasePath(moduleVo.getBasePath());
+                    optInfo.setHostIp(moduleVo.getHostIp());
+                    optInfo.setDomainId(domainId);
+                    if(isAdd)
+                    {
+                        optInfo.setAppAlias(moduleVo.getModuleAliasName());
+                        optInfo.setOperation(AppUpdateOperation.ADD);
+                    }
+                    else
+                    {
+                        optInfo.setOriginalAlias(moduleVo.getModuleAliasName());
+                        optInfo.setOperation(AppUpdateOperation.UPDATE);
+                    }
+                    updateList.add(optInfo);
+                }
+            }
+            this.updatePlatformApps(platformId, platformName, updateList);
+            for(PlatformAppModuleVo moduleVo : failList)
+            {
+                try
+                {
+                    UnconfirmedAppModulePo unconfirmedAppModulePo = handleUnconfirmedPlatformAppModule(moduleVo);
+                    this.unconfirmedAppModuleMapper.insert(unconfirmedAppModulePo);
+                }
+                catch (Exception ex)
+                {
+                    logger.error(String.format("handle unconfirmed app exception"), ex);
+                }
+
+            }
+            this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformId, platformPo.getBkCloudId());
+            platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+            this.platformMapper.update(platformPo);
+            return modules.toArray(new PlatformAppModuleVo[0]);
+        }
+        finally {
+            this.isPlatformCheckOngoing = false;
+        }
     }
 
     @Override
@@ -810,6 +968,56 @@ public class AppManagerServiceImpl implements IAppManagerService {
             po.setCfgDownloadUrl(String.join(",", fileUrlMap.values()));
         }
         return po;
+    }
+
+    private void preprocessPlatformAppModule(PlatformAppModuleVo module)
+            throws DataAccessException, InterfaceCallException, NexusException, ParamException
+    {
+        logger.debug(String.format("begin to handle module[%s]", JSONObject.toJSONString(module)));
+        AppPo appPo = module.getAppInfo();
+        String appName = appPo.getAppName();
+        String appVersion = appPo.getVersion();
+        String appDirectory = appPo.getAppNexusDirectory();
+        if(!this.registerAppMap.containsKey(appName) || !this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(appVersion))
+        {
+            String group = appPo.getAppNexusGroup();
+            logger.warn(String.format("%s[%s] not exit register it first", appName, appVersion));
+            List<NexusAssetInfo> appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
+            if(appFileAssetList.size() > 0)
+            {
+                logger.info(String.format("%s[%s] is has not registered at cmdb, but %s not empty, clear fisrt",
+                        appName, appVersion, group));
+                for(NexusAssetInfo assetInfo : appFileAssetList)
+                {
+                    nexusService.deleteAsset(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, assetInfo.getId());
+                }
+                appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
+                if(appFileAssetList.size() != 0)
+                {
+                    logger.error(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
+                    throw new NexusException(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
+                }
+                logger.debug(String.format("delete assets at %s/%s/%s success", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
+            }
+            logger.debug(String.format("upload %s(%s) package and cfgs to nexus", appName, appVersion));
+            addAppToNexus(appName, appVersion, module.getInstallPackage(), module.getCfgs(), this.appRepository, appDirectory);
+            logger.debug(String.format("add %s(%s) relative info to db", appName, appVersion));
+            AppModuleVo newModule = addNewAppToDB(appPo, module.getInstallPackage(), module.getCfgs());
+            if(!this.registerAppMap.containsKey(appName))
+                this.registerAppMap.put(appName, new ArrayList<>());
+            logger.debug(String.format("update register app module info"));
+            this.registerAppMap.get(appName).add(newModule);
+        }
+        else
+            logger.debug("%s[%s] has registered", appName, appVersion);
+        AppModuleVo moduleVo = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(appVersion);
+        logger.debug(String.format("check package and cfgs of %s(%s)", appName, appVersion));
+        checkInstPkgAndCfg(moduleVo, module.getInstallPackage(), module.getCfgs());
+        PlatformAppPo platformApp = module.getPlatformApp();
+        String platformCfgDirectory = platformApp.getPlatformAppDirectory(appName, appVersion, platformApp);
+        logger.debug(String.format("update cfgs to %s/%s", this.platformAppCfgRepository, platformCfgDirectory));
+        nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword,
+                this.platformAppCfgRepository, platformCfgDirectory, module.getCfgs());
     }
 
     /**
@@ -1012,6 +1220,45 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.info(String.format("the result of files of appName=%s with version=%s compare with nexus is : %s",
                 appName, version, sb.toString()));
         return sb.toString().replaceAll(",$", "");
+    }
+
+    @Override
+    public void createNewPlatformAppDataUpdateTask(String platformId, String platformName) throws Exception {
+        logger.info(String.format("begin to create %s(%s) platform app update task",
+                platformName, platformId));
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+        {
+            logger.error(String.format("create platform app update task fail  : %s not exist", platformId));
+            throw new ParamException(String.format("create platform app update task fail  : %s not exist", platformId));
+        }
+        if(!platformPo.getPlatformName().equals(platformName))
+        {
+            logger.error(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
+            throw new ParamException(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
+        }
+        if(this.isPlatformCheckOngoing)
+        {
+            logger.error(String.format("create platform collect task FaIL : some collect task is ongoing"));
+            throw new Exception(String.format("create platform collect task FaIL : some collect task is ongoing"));
+        }
+        ExecutorService executor = Executors.newFixedThreadPool(1);
+        Thread taskThread = new Thread(new Runnable(){
+            @Override
+            public void run() {
+                try
+                {
+                    startCollectPlatformAppUpdateData(platformId, platformName);
+                }
+                catch (Exception ex)
+                {
+                    logger.error(String.format("collect %s(%s) update task exception",
+                            platformName, platformId), ex);
+                }
+            }
+        });
+        executor.execute(taskThread);
+        executor.shutdown();
     }
 
     @Override
