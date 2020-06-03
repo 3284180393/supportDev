@@ -31,6 +31,10 @@ public class PlatformAppDeployDetailVo {
 
     private String domainName; //部署域名
 
+    private int assembleId; //应用所在assemble的id
+
+    private String assembleTag; //应用所在assemble的tag
+
     private String appName; //应用名
 
     private String appAlias; //应用别名
@@ -302,6 +306,22 @@ public class PlatformAppDeployDetailVo {
         this.originalAlias = originalAlias;
     }
 
+    public int getAssembleId() {
+        return assembleId;
+    }
+
+    public void setAssembleId(int assembleId) {
+        this.assembleId = assembleId;
+    }
+
+    public String getAssembleTag() {
+        return assembleTag;
+    }
+
+    public void setAssembleTag(String assembleTag) {
+        this.assembleTag = assembleTag;
+    }
+
     public PlatformAppPo getPlatformApp()
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -315,6 +335,7 @@ public class PlatformAppDeployDetailVo {
         po.setHostIp(this.hostIp);
         po.setAppAlias(this.appAlias);
         po.setPlatformAppId(this.platformAppId);
+        po.setAssembleId(this.assembleId);
         return po;
     }
 }

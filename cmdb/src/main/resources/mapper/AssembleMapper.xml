@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.AssembleMapper" >
+    <resultMap id="AssembleMap" type="com.channelsoft.ccod.support.cmdb.po.AssemblePo" >
+        <id column="assemble_id" property="assembleId" jdbcType="INTEGER" />
+        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
+        <result column="tag" property="tag" jdbcType="VARCHAR" />
+        <result column="status" property="tstatusag" jdbcType="VARCHAR" />
+    </resultMap>
+    <select id="selectByPrimaryKey" resultMap="AssembleMap" parameterType="java.lang.String">
+        SELECT
+	        asb.assemble_id AS assemble_id,
+	        asb.platform_id AS platform_id,
+	        asb.domain_id AS domain_id,
+	        asb.tag AS tag,
+	        asb.status AS status
+        FROM
+	        assemble asb
+        where asb.assemble_id=#{assembleId,jdbcType=INTEGER}
+    </select>
+    <select id="select" resultMap="AssembleMap" >
+        SELECT
+        asb.assemble_id AS assemble_id,
+        asb.platform_id AS platform_id,
+        asb.domain_id AS domain_id,
+        asb.tag AS tag,
+        asb.status AS status
+        FROM
+        assemble asb
+        WHERE
+        1 = 1
+        <if test="platformId!=null">
+            And asb.platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="domainId!=null">
+            And asb.domain_id=#{domainId,jdbcType=VARCHAR}
+        </if>
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AssemblePo"
+            useGeneratedKeys="true" keyProperty="assembleId">
+        insert into assemble(platform_id, domain_id, tag, status)
+        values (#{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{tag,jdbcType=VARCHAR}, #{status,jdbcType=VARCHAR})
+    </insert>
+    <delete id="delete">
+        delete
+        from assemble
+        where 1=1
+        <if test="platformId!=null">
+            And
+            platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="domainId!=null">
+            And
+            domain_id=#{domainId,jdbcType=VARCHAR}
+        </if>
+        <if test="assembleId!=null">
+            And
+            assemble_id=#{assembleId,jdbcType=INTEGER}
+        </if>
+    </delete>
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.AssemblePo" >
+        update assemble set
+            tag = #{tag,jdbcType=VARCHAR},
+            status = #{status,jdbcType=VARCHAR}
+        where assemble_id = #{assembleId,jdbcType=VARCHAR}
+    </update>
+</mapper>

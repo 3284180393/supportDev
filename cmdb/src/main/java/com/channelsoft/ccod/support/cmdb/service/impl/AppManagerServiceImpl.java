@@ -3316,7 +3316,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
         }
 
-        String regex = String.format("^%s\\d*", standardAlias);
+        String regex = String.format("^%s\\d*$", standardAlias);
         Pattern pattern = Pattern.compile(regex);
         int index = 0;
         for(String alias : usedAlias)
@@ -3324,8 +3324,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             Matcher matcher = pattern.matcher(alias);
             if(!matcher.find())
             {
-                logger.error(String.format("%s is an illegal tag for %s", alias, standardAlias));
-                throw new ParamException(String.format("%s is an illegal tag for %s", alias, standardAlias));
+                logger.error(String.format("%s is an illegal alias for %s", alias, standardAlias));
+                throw new ParamException(String.format("%s is an illegal alias for %s", alias, standardAlias));
             }
             String str = alias.replaceAll(standardAlias, "");
             if(StringUtils.isNotBlank(str))

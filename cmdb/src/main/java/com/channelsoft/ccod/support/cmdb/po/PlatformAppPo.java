@@ -26,6 +26,8 @@ public class PlatformAppPo {
 
     private String domainId; //应用所在的域id,外键domain的domain_id
 
+    private int assembleId; //应用所在的assemble的id
+
     private String hostIp; //应用所在服务器的主机ip
 
     private String appRunner; //应用运行用户
@@ -56,6 +58,14 @@ public class PlatformAppPo {
 
     public void setDomainId(String domainId) {
         this.domainId = domainId;
+    }
+
+    public int getAssembleId() {
+        return assembleId;
+    }
+
+    public void setAssembleId(int assembleId) {
+        this.assembleId = assembleId;
     }
 
     public int getAppId() {

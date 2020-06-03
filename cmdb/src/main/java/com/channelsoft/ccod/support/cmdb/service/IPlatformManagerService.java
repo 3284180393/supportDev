@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformTopologyInfo;
@@ -23,5 +24,5 @@ public interface IPlatformManagerService {
      * @return 平台拓扑
      * @throws ApiException 访问k8s api异常
      */
-    PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException;
+    PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, NotSupportAppException;
 }

@@ -236,6 +236,8 @@ ccod:
   threePartApps:
     - oracle
     - mysql
+  threePartServices:
+    - umg
 
 nexus:
   user : admin

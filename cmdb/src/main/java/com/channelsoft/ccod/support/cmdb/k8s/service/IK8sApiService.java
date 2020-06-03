@@ -6,6 +6,7 @@ import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1Service;
 
 
 import java.util.List;
@@ -57,4 +58,24 @@ public interface IK8sApiService {
      */
     List<V1Pod> queryAllPodAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
+    /**
+     * 查询指定命名空间下指定服务名的服务信息
+     * @param namespace 命名空间
+     * @param serviceName 服务名
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的服务信息
+     * @throws ApiException 查询失败
+     */
+    V1Service queryService(String namespace, String serviceName, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定命名空间下所有服务
+     * @param namespace 指定的命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 该命名空间下所有服务
+     * @throws ApiException 查询失败
+     */
+    List<V1Service> queryAllServiceAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
 }

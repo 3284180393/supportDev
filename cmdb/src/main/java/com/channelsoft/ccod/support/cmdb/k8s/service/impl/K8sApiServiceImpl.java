@@ -6,10 +6,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1Namespace;
-import io.kubernetes.client.openapi.models.V1NamespaceList;
-import io.kubernetes.client.openapi.models.V1Pod;
-import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.credentials.AccessTokenAuthentication;
 import org.slf4j.Logger;
@@ -82,5 +79,25 @@ public class K8sApiServiceImpl implements IK8sApiService {
                 setAuthentication(new AccessTokenAuthentication(token)).build();
         Configuration.setDefaultApiClient(client);
         return client;
+    }
+
+    @Override
+    public V1Service queryService(String namespace, String serviceName, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to get service %s from %s with namespace %s", serviceName, k8sApiUrl, namespace));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Service service = apiInstance.readNamespacedService(serviceName, namespace, null, null, null);
+        logger.debug(String.format("query service success"));
+        return service;
+    }
+
+    @Override
+    public List<V1Service> queryAllServiceAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query all service at namespace %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ServiceList list = apiInstance.listNamespacedService(namespace, null, null, null, null, null, null, null, null, null);
+        logger.debug(String.format("find %d service at %s from %s", list.getItems().size(), namespace, k8sApiUrl));
+        return list.getItems();
     }
 }
