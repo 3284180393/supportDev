@@ -13,10 +13,6 @@ public class PlatformThreePartServicePo {
 
     private String platformId; //归属平台id
 
-    private int assembleId; //该应用所属的assemble id
-
-    private String assembleTag; //该应用所在的assemble（k8s pod）的tag
-
     private String serviceName; //服务名
 
     private String hostIp; //服务所在服务器ip
@@ -37,22 +33,6 @@ public class PlatformThreePartServicePo {
 
     public void setPlatformId(String platformId) {
         this.platformId = platformId;
-    }
-
-    public int getAssembleId() {
-        return assembleId;
-    }
-
-    public void setAssembleId(int assembleId) {
-        this.assembleId = assembleId;
-    }
-
-    public String getAssembleTag() {
-        return assembleTag;
-    }
-
-    public void setAssembleTag(String assembleTag) {
-        this.assembleTag = assembleTag;
     }
 
     public String getServiceName() {

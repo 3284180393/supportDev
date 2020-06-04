@@ -2,7 +2,7 @@ spring:
   datasource:
     username : root
     password : qnsoft
-    url: jdbc:mysql://10.130.76.80:3306/cmdb_new
+    url: jdbc:mysql://10.130.76.80:3306/cmdb_api
     driver-class-name : com.mysql.jdbc.Driver
 
 mybatis:

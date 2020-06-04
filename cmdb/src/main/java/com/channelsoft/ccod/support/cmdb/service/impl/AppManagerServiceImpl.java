@@ -2329,10 +2329,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
             {
                 List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName);
                 CCODDomainInfo domain = new CCODDomainInfo(domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
-                for(PlatformAppDeployDetailVo deployApp : domAppList)
+                Map<String, List<PlatformAppDeployDetailVo>> assembleAppMap = domAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAssembleTag));
+                for(String assembleTag : assembleAppMap.keySet())
                 {
-                    CCODModuleInfo bkModule = new CCODModuleInfo(deployApp);
-                    domain.getModules().add(bkModule);
+                    CCODAssembleInfo assemble = new CCODAssembleInfo(assembleTag);
+                    for(PlatformAppDeployDetailVo deployApp : assembleAppMap.get(assembleTag))
+                    {
+                        CCODModuleInfo bkModule = new CCODModuleInfo(deployApp);
+                        assemble.getModules().add(bkModule);
+                    }
+                    domain.getAssembles().add(assemble);
                 }
                 domainList.add(domain);
             }

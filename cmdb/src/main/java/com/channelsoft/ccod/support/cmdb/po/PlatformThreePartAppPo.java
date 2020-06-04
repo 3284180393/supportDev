@@ -13,15 +13,13 @@ public class PlatformThreePartAppPo {
 
     private String platformId; //归属平台id
 
-    private int assembleId; //该应用所属的assemble id
-
-    private String assembleTag; //该应用所在的assemble（k8s pod）的tag
-
     private String appName;
 
     private String hostIp;
 
     private String port;
+
+    private String status;
 
     public String getPlatformId() {
         return platformId;
@@ -63,19 +61,11 @@ public class PlatformThreePartAppPo {
         this.threePartAppId = threePartAppId;
     }
 
-    public int getAssembleId() {
-        return assembleId;
+    public String getStatus() {
+        return status;
     }
 
-    public void setAssembleId(int assembleId) {
-        this.assembleId = assembleId;
-    }
-
-    public String getAssembleTag() {
-        return assembleTag;
-    }
-
-    public void setAssembleTag(String assembleTag) {
-        this.assembleTag = assembleTag;
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

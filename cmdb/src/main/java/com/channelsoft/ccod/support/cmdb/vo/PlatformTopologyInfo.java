@@ -3,6 +3,8 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformType;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformThreePartAppPo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformThreePartServicePo;
 import com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo;
 
 import java.util.ArrayList;
@@ -39,6 +41,10 @@ public class PlatformTopologyInfo {
 
     private List<CCODHostInfo> idleHostList; //平台下的所有空闲服务器列表
 
+    private List<PlatformThreePartAppPo> threePartAppList; //平台所使用的第三方应用列表
+
+    private List<PlatformThreePartServicePo> threePartServiceList; //平台所依赖的第三方服务列表
+
     private PlatformUpdateSchemaInfo schema;  //平台的升级计划
 
     private List<UnconfirmedAppModulePo> unconfirmedAppModuleList; //平台中无法正确处理的应用模块
@@ -56,6 +62,8 @@ public class PlatformTopologyInfo {
         this.type = platform.getType();
         this.apiUrl = platform.getApiUrl();
         this.authToken = platform.getAuthToken();
+        this.threePartAppList = new ArrayList<>();
+        this.threePartServiceList = new ArrayList<>();
     }
 
     public String getPlatformId() {

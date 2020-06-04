@@ -1,16 +1,11 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
-import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
-import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
-import com.channelsoft.ccod.support.cmdb.exception.LJPaasException;
-import com.channelsoft.ccod.support.cmdb.exception.NotSupportAppException;
-import com.channelsoft.ccod.support.cmdb.exception.ParamException;
+import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppBkModulePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * @ClassName: ILJPaasService
@@ -34,16 +29,6 @@ public interface ILJPaasService {
      * @throws Exception
      */
     List<LJBizInfo> queryAllBiz() throws InterfaceCallException, LJPaasException;
-
-    /**
-     * 根据指定条件查询相关biz信息
-     * @param bizId biz id
-     * @param setId set id
-     * @param domainId 域id
-     * @return 查询结果
-     * @throws Exception
-     */
-    List<CCODPlatformInfo> queryCCODBiz(Integer bizId, String setId, String domainId) throws Exception;
 
     /**
      * 将一个已经存在的biz重置,并给它创建指定的set
@@ -252,4 +237,5 @@ public interface ILJPaasService {
      * @throws LJPaasException
      */
     List<LJBizInfo> queryNewCCODBiz() throws InterfaceCallException, LJPaasException;
+
 }

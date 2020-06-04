@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformThreePartServiceMapper" >
+    <resultMap id="PlatformThreePartServiceMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformThreePartServicePo" >
+        <id column="three_part_service_id" property="threeServiceId" jdbcType="INTEGER" />
+        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="service_name" property="serviceName" jdbcType="VARCHAR" />
+        <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="port" property="port" jdbcType="VARCHAR" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+	    ptps.three_part_service_id,
+	    ptps.platform_id,
+	    ptps.service_name,
+	    ptps.host_ip,
+	    ptps.`port`
+    </sql>
+    <select id="selectByPrimaryKey" resultMap="PlatformThreePartServiceMap" parameterType="java.lang.Integer">
+        select
+        <include refid="Base_Column_List" />
+        FROM
+        platform_three_part_app ptpa
+        where ptps.three_part_service_id=#{threeServiceId,jdbcType=INTEGER}
+    </select>
+    <select id="select" resultMap="PlatformThreePartServiceMap" >
+        select
+        <include refid="Base_Column_List" />
+        FROM
+        platform_three_part_service ptps
+        WHERE
+        1 = 1
+        And ptps.platform_id=#{platformId,jdbcType=VARCHAR}
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformThreePartServicePo"
+            useGeneratedKeys="true" keyProperty="threeServiceId">
+        insert into platform_three_part_service(platform_id, service_name, host_ip, port, status)
+        values (#{platformId,jdbcType=VARCHAR}, #{serviceName,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{port,jdbcType=VARCHAR}, #{status,jdbcType=VARCHAR})
+    </insert>
+    <delete id="delete">
+        delete
+        from platform_three_part_service
+        where 1=1
+        <if test="platformId!=null">
+            And
+            platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="threeServiceId!=null">
+            And
+            three_part_service_id=#{threeServiceId,jdbcType=INTEGER}
+        </if>
+    </delete>
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformThreePartServicePo" >
+        update platform_three_part_service set
+            host_ip = #{hostIp,jdbcType=VARCHAR},
+            port = #{port,jdbcType=VARCHAR}
+        where three_part_service_id = #{threeServiceId,jdbcType=VARCHAR}
+    </update>
+</mapper>

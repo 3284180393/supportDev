@@ -6,9 +6,9 @@
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="tag" property="tag" jdbcType="VARCHAR" />
-        <result column="status" property="tstatusag" jdbcType="VARCHAR" />
+        <result column="status" property="status" jdbcType="VARCHAR" />
     </resultMap>
-    <select id="selectByPrimaryKey" resultMap="AssembleMap" parameterType="java.lang.String">
+    <select id="selectByPrimaryKey" resultMap="AssembleMap" parameterType="java.lang.Integer">
         SELECT
 	        asb.assemble_id AS assemble_id,
 	        asb.platform_id AS platform_id,

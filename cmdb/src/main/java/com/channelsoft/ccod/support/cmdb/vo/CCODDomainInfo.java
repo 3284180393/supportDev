@@ -16,13 +16,13 @@ public class CCODDomainInfo {
 
     private String domainName; //域名
 
-    private List<CCODModuleInfo> modules;
+    private List<CCODAssembleInfo> assembles;
 
     public CCODDomainInfo(String domainId, String domainName)
     {
         this.domainId = domainId;
         this.domainName = domainName;
-        this.modules = new ArrayList<>();
+        this.assembles = new ArrayList<>();
     }
 
     public String getDomainId() {
@@ -41,24 +41,24 @@ public class CCODDomainInfo {
         this.domainName = domainName;
     }
 
-    public List<CCODModuleInfo> getModules() {
-        return modules;
+    public List<CCODAssembleInfo> getAssembles() {
+        return assembles;
     }
 
-    public void setModules(List<CCODModuleInfo> modules) {
-        this.modules = modules;
+    public void setAssembles(List<CCODAssembleInfo> assembles) {
+        this.assembles = assembles;
     }
 
     @Override
     public CCODDomainInfo clone()
     {
         CCODDomainInfo domainInfo = new CCODDomainInfo(this.domainId, this.domainName);
-        List<CCODModuleInfo> moduleList = new ArrayList<>();
-        for(CCODModuleInfo module : this.modules)
+        List<CCODAssembleInfo> assembleList = new ArrayList<>();
+        for(CCODAssembleInfo assembleInfo : this.assembles)
         {
-            moduleList.add(module.clone());
+            assembleList.add(assembleInfo.clone());
         }
-        domainInfo.setModules(moduleList);
+        domainInfo.setAssembles(assembleList);
         return domainInfo;
     }
 }

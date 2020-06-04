@@ -30,6 +30,8 @@ public class PlatformAppPo {
 
     private String hostIp; //应用所在服务器的主机ip
 
+    private String port;  //如果应用对外提供服务端口，该值标识端口信息，例如1521:32492/TCP，1521为pod端口，32492为nodePort，
+
     private String appRunner; //应用运行用户
 
     private String basePath; //该应用的basePath
@@ -114,6 +116,14 @@ public class PlatformAppPo {
 
     public void setHostIp(String hostIp) {
         this.hostIp = hostIp;
+    }
+
+    public String getPort() {
+        return port;
+    }
+
+    public void setPort(String port) {
+        this.port = port;
     }
 
     public String getOriginalAlias() {

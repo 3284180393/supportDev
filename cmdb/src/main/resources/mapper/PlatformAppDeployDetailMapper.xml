@@ -8,6 +8,8 @@
         <result column="platform_name" property="platformName" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
+        <result column="assemble_id" property="assembleId" jdbcType="INTEGER" />
+        <result column="assemble_tag" property="assembleTag" jdbcType="VARCHAR" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
         <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
         <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
@@ -51,6 +53,8 @@
 	    pf.platform_id,
 	    dm.domain_id,
 	    dm.domain_name,
+	    asb.assemble_id,
+		asb.tag AS assemble_tag,
 	    a.app_name,
 	    pa.app_alias AS app_alias,
 	    pa.original_alias AS original_alias,
@@ -108,7 +112,8 @@
     INNER JOIN app_install_package aip ON a.app_id = aip.app_id
     INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
     INNER JOIN platform_app_cfg_file pacf ON pacf.platform_app_id = pa.platform_app_id
-    LEFT OUTER JOIN platform_app_bk_module bakm ON bakm.platform_app_id = pa.platform_app_id
+    INNER JOIN platform_app_bk_module bakm ON bakm.platform_app_id = pa.platform_app_id
+    INNER JOIN assemble asb ON pa.assemble_id=asb.assemble_id
     </sql>
     <select id="selectPlatformApps" resultMap="PlatformAppDeployDetailMap" >
         select

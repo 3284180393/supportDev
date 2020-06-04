@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.NexusException;
+import com.channelsoft.ccod.support.cmdb.exception.ParamException;
+import com.channelsoft.ccod.support.cmdb.po.AppFilePo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
@@ -31,11 +33,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -381,6 +385,36 @@ public class NexusServiceImpl implements INexusService {
         logger.debug(String.format("component %s/%s/%s cleared", nexusHostUrl, repository, directory));
     }
 
+    private String getTempSaveDir(String directory) {
+        String saveDir = String.format("%s/downloads/%s", System.getProperty("user.dir"), directory);
+        return saveDir;
+    }
+
+    @Override
+    public List<NexusAssetInfo> downloadAndUploadFiles(String srcNexusHostUrl, String srcNexusUser, String srcPwd, List<NexusAssetInfo> srcFileList, String dstNexusHostUrl, String dstNexusUser, String dstNexusPwd, String dstRepository, String dstDirectory, boolean isClearTargetDirectory) throws ParamException, InterfaceCallException, NexusException, IOException {
+        List<DeployFileInfo> fileList = new ArrayList<>();
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(String.format("%s;%s", dstDirectory, sf.format(now)).getBytes()));
+        for(NexusAssetInfo filePo : srcFileList)
+        {
+            String downloadUrl = filePo.getDownloadUrl();
+            logger.debug(String.format("download cfg from %s", downloadUrl));
+            String savePth = downloadFile(srcNexusUser, srcPwd, downloadUrl, tmpSaveDir, filePo.getNexusAssetFileName());
+            FileInputStream is = new FileInputStream(savePth);
+            String md5 = DigestUtils.md5DigestAsHex(is);
+            is.close();
+            if(!md5.equals(filePo.getMd5()))
+            {
+                logger.error(String.format("file %s verify md5 FAIL : report=%s and download=%s",
+                        filePo.getNexusAssetFileName(), filePo.getMd5(), md5));
+                throw new ParamException(String.format("file %s verify md5 FAIL : report=%s and download=%s",
+                        filePo.getNexusAssetFileName(), filePo.getMd5(), md5));
+            }
+            fileList.add(new DeployFileInfo(filePo.getNexusAssetFileName(), savePth));
+        }
+        return uploadRawComponent(dstNexusHostUrl, dstNexusUser, dstNexusPwd, dstRepository, dstDirectory, fileList.toArray(new DeployFileInfo[0]));
+    }
 
     //    private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws InterfaceCallException, NexusException
 //    {
