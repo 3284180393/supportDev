@@ -179,4 +179,20 @@ public class PlatformTopologyInfo {
     public void setUnconfirmedAppModuleList(List<UnconfirmedAppModulePo> unconfirmedAppModuleList) {
         this.unconfirmedAppModuleList = unconfirmedAppModuleList;
     }
+
+    public List<PlatformThreePartAppPo> getThreePartAppList() {
+        return threePartAppList;
+    }
+
+    public void setThreePartAppList(List<PlatformThreePartAppPo> threePartAppList) {
+        this.threePartAppList = threePartAppList;
+    }
+
+    public List<PlatformThreePartServicePo> getThreePartServiceList() {
+        return threePartServiceList;
+    }
+
+    public void setThreePartServiceList(List<PlatformThreePartServicePo> threePartServiceList) {
+        this.threePartServiceList = threePartServiceList;
+    }
 }

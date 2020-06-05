@@ -133,7 +133,7 @@ public class NexusServiceImpl implements INexusService {
                 throw new InterfaceCallException(String.format("upload component to %s/%s FAIL : return code=%d and errMsg=%s ",
                         repository, directory, response.getStatusLine().getStatusCode(), conResult));
             }
-            Thread.sleep(10000);
+            Thread.sleep(2000);
         }
         catch (InterfaceCallException ex)
         {

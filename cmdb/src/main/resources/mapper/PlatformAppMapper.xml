@@ -8,7 +8,9 @@
         <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
+        <result column="assemble_id" property="assembleId" jdbcType="INTEGER" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="port" property="port" jdbcType="VARCHAR" />
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
@@ -21,7 +23,9 @@
 	        pa.original_alias AS original_alias,
 	        pa.platform_id AS platform_id,
 	        pa.domain_id AS domain_id,
+	        pa.assemble_id AS assemble_id,
 	        pa.host_ip AS host_ip,
+	        pa.port AS port,
 	        pa.app_runner AS app_runner,
 	        pa.base_path AS base_path,
 	        pa.deploy_time AS deploy_time
@@ -37,7 +41,9 @@
             pa.original_alias AS original_alias,
             pa.platform_id AS platform_id,
             pa.domain_id AS domain_id,
+            pa.assemble_id AS assemble_id,
             pa.host_ip AS host_ip,
+            pa.port AS port,
             pa.app_runner AS app_runner,
             pa.base_path AS base_path,
             pa.deploy_time AS deploy_time
@@ -67,8 +73,8 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo"
             useGeneratedKeys="true" keyProperty="platformAppId">
-        insert into platform_app(app_id, app_alias, original_alias, platform_id, domain_id,	host_ip, app_runner, base_path,	deploy_time)
-        values (#{appId,jdbcType=VARCHAR}, #{appAlias,jdbcType=VARCHAR}, #{originalAlias,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{appRunner,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{deployTime,jdbcType=TIMESTAMP})
+        insert into platform_app(app_id, app_alias, original_alias, platform_id, domain_id, assemble_id, host_ip, port, app_runner, base_path,	deploy_time)
+        values (#{appId,jdbcType=VARCHAR}, #{appAlias,jdbcType=VARCHAR}, #{originalAlias,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{assembleId,jdbcType=INTEGER}, #{hostIp,jdbcType=VARCHAR}, #{port,jdbcType=VARCHAR}, #{appRunner,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{deployTime,jdbcType=TIMESTAMP})
     </insert>
     <delete id="delete">
         delete
@@ -89,7 +95,8 @@
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         update platform_app set
-            app_id = #{appId,jdbcType=VARCHAR}
+            app_id = #{appId,jdbcType=VARCHAR},
+            assemble_id = #{assembleId,jdbcType=INTEGER}
         where platform_app_id = #{platformAppId,jdbcType=VARCHAR}
     </update>
 </mapper>

@@ -30,6 +30,10 @@ public class CCODModuleInfo {
 
     private String hostIp; //部署服务器ip
 
+    private String port; //模块的相关port
+
+    private String status; //模块的status
+
     private String basePath; //应用base path
 
     private String appRunner; //应用运行用户
@@ -57,6 +61,7 @@ public class CCODModuleInfo {
         this.appRunner = deployApp.getAppRunner();
         this.installPackage = deployApp.getInstallPackage();
         this.cfgs = deployApp.getCfgs();
+
 
     }
 

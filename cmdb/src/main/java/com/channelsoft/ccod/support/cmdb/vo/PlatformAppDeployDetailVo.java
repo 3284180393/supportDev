@@ -47,6 +47,10 @@ public class PlatformAppDeployDetailVo {
 
     private String hostIp; //服务器ip
 
+    private String port; //应用的相关port
+
+    private String status; //应用的相关status
+
     private String appRunner; //运行用户名
 
     private String ccodVersion; //ccod版本
@@ -320,6 +324,22 @@ public class PlatformAppDeployDetailVo {
 
     public void setAssembleTag(String assembleTag) {
         this.assembleTag = assembleTag;
+    }
+
+    public String getPort() {
+        return port;
+    }
+
+    public void setPort(String port) {
+        this.port = port;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public PlatformAppPo getPlatformApp()

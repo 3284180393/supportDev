@@ -175,6 +175,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
     UnconfirmedAppModuleMapper unconfirmedAppModuleMapper;
 
     @Autowired
+    PlatformThreePartAppMapper platformThreePartAppMapper;
+
+    @Autowired
+    PlatformThreePartServiceMapper platformThreePartServiceMapper;
+
+    @Autowired
     ILJPaasService paasService;
 
     @Autowired
@@ -2158,6 +2164,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Map<String, BizSetDefine> bizSetMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         List<PlatformAppDeployDetailVo> deployAppList;
         List<UnconfirmedAppModulePo> unconfirmedAppModuleList = null;
+        List<PlatformThreePartAppPo> threeAppList = this.platformThreePartAppMapper.select(platformId);
+        List<PlatformThreePartServicePo> threeSvcList = this.platformThreePartServiceMapper.select(platformId);
         switch (topology.getStatus())
         {
 //            case SCHEMA_CREATE_PLATFORM:
@@ -2217,6 +2225,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         topology.setSchema(schema);
         topology.setIdleHosts(idleHostList);
         topology.setUnconfirmedAppModuleList(unconfirmedAppModuleList);
+        topology.setThreePartAppList(threeAppList);
+        topology.setThreePartServiceList(threeSvcList);
         return topology;
     }
 

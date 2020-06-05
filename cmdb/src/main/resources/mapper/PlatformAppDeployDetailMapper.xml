@@ -10,11 +10,13 @@
         <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
         <result column="assemble_id" property="assembleId" jdbcType="INTEGER" />
         <result column="assemble_tag" property="assembleTag" jdbcType="VARCHAR" />
+        <result column="status" property="status" jdbcType="VARCHAR" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
         <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
         <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
         <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="port" property="port" jdbcType="VARCHAR" />
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
@@ -55,11 +57,13 @@
 	    dm.domain_name,
 	    asb.assemble_id,
 		asb.tag AS assemble_tag,
+		asb.status AS status,
 	    a.app_name,
 	    pa.app_alias AS app_alias,
 	    pa.original_alias AS original_alias,
 	    a.app_type,
 	    pa.host_ip AS host_ip,
+	    pa.port AS port,
 	    a.version,
 	    pa.app_runner AS app_runner,
 	    a.ccod_version,
