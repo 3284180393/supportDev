@@ -167,7 +167,7 @@ public class AppFilePo {
     {
         NexusAssetInfo assetInfo = new NexusAssetInfo();
         assetInfo.setRepository(this.nexusRepository);
-        assetInfo.setPath(String.format("%/%s", this.nexusDirectory, this.fileName));
+        assetInfo.setPath(String.format("%s/%s", this.nexusDirectory, this.fileName));
         assetInfo.setId(this.nexusAssetId);
         Checksum sum = new Checksum();
         sum.md5 = this.md5;

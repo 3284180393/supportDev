@@ -69,7 +69,7 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo"
             useGeneratedKeys="true" keyProperty="platformAppId">
-        insert into platform_app(app_id, app_alias, platform_id,	domain_id, assemble_id, host_ip, app_runner, base_path,	deploy_time)
+        insert into platform_app(app_id, app_alias, platform_id, domain_id, assemble_id, host_ip, app_runner, base_path, deploy_time)
         values (#{appId,jdbcType=INTEGER}, #{appAlias,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{assembleId,jdbcType=INTEGER}, #{hostIp,jdbcType=VARCHAR}, #{appRunner,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{deployTime,jdbcType=TIMESTAMP})
     </insert>
     <delete id="delete">

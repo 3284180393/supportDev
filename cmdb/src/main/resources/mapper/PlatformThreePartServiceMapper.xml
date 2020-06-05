@@ -33,8 +33,8 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformThreePartServicePo"
             useGeneratedKeys="true" keyProperty="threeServiceId">
-        insert into platform_three_part_service(platform_id, service_name, host_ip, port, status)
-        values (#{platformId,jdbcType=VARCHAR}, #{serviceName,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{port,jdbcType=VARCHAR}, #{status,jdbcType=VARCHAR})
+        insert into platform_three_part_service(platform_id, service_name, host_ip, port)
+        values (#{platformId,jdbcType=VARCHAR}, #{serviceName,jdbcType=VARCHAR}, #{hostIp,jdbcType=VARCHAR}, #{port,jdbcType=VARCHAR})
     </insert>
     <delete id="delete">
         delete
@@ -44,9 +44,9 @@
             And
             platform_id=#{platformId,jdbcType=VARCHAR}
         </if>
-        <if test="threeServiceId!=null">
+        <if test="threePartServiceId!=null">
             And
-            three_part_service_id=#{threeServiceId,jdbcType=INTEGER}
+            three_part_service_id=#{threePartServiceId,jdbcType=INTEGER}
         </if>
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformThreePartServicePo" >

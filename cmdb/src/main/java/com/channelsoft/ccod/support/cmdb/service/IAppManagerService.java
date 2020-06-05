@@ -1,7 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
-import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -66,17 +65,6 @@ public interface IAppManagerService {
     PlatformAppDeployDetailVo[] queryAppDeployDetails(String appName, String platformId, String domainId, String hostIp) throws DataAccessException;
 
     /**
-     * 检查指定条件的平台的应用部署情况，并上传对应的安装包和配置文件
-     * @param platformId 平台id，不能为空
-     * @param platformName 平台名,不能为空
-     * @param bkBizId 该平台在蓝鲸paas上的的biz id
-     * @param bkCloudId 该平台服务器在蓝鲸paas上的cloud id
-     * @return 所有满足条件的应用配置信息
-     * @throws Exception
-     */
-    PlatformAppModuleVo[] startCollectPlatformAppData(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
-
-    /**
      * 开始收集平台更新数据
      * @param platformId
      * @param platformName
@@ -106,13 +94,6 @@ public interface IAppManagerService {
      */
     void createNewPlatformAppDataCollectTask(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
 
-    /**
-     * 创建平台应用更新任务
-     * @param platformId 平台id
-     * @param platformName 平台名
-     * @throws Exception 创建任务失败
-     */
-    void createNewPlatformAppDataUpdateTask(String platformId, String platformName) throws Exception;
     /**
      * 更新平台升级计划
      * @param updateSchema 需要更新的平台计划
@@ -206,13 +187,6 @@ public interface IAppManagerService {
     void deletePlatformUpdateSchema(String platformId) throws ParamException;
 
     /**
-     * 删除某个平台
-     * @param platformId 需要删除的平台id
-     * @throws ParamException
-     */
-    void deletePlatform(String platformId) throws ParamException;
-
-    /**
      * 查询指定应用的配置文件并以字符串的形式返回
      * @param appName 应用名
      * @param version 应用别名
@@ -254,5 +228,13 @@ public interface IAppManagerService {
      * @return app和set之间的关系
      */
     Map<String, List<BizSetDefine>> getAppSetRelation();
+
+    /**
+     * 预处理通过在线管理程序收集上来的平台应用模块
+     * @param moduleList 在线管理程序收集的应用模块
+     * @param failList 在预处理时处理失败的应用模块
+     * @return 预处理成功的应用模块
+     */
+    List<PlatformAppModuleVo> preprocessCollectedPlatformAppModule(List<PlatformAppModuleVo> moduleList, List<PlatformAppModuleVo> failList);
 
 }

@@ -4,10 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
-import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
-import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
-import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
-import com.channelsoft.ccod.support.cmdb.service.IPlatformResourceService;
+import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -33,6 +30,9 @@ public class CMDBController {
 
     @Autowired
     IAppManagerService appManagerService;
+
+    @Autowired
+    IPlatformManagerService platformManagerService;
 
     @Autowired
     IPlatformResourceService platformResourceService;
@@ -520,94 +520,94 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/businesses", method = RequestMethod.GET)
-    public AjaxResultPo queryAllCCODBiz()
-    {
-        String uri = String.format("GET %s/businesses", this.apiBasePath);
-        logger.debug(String.format("enter %s controller", uri));
-        AjaxResultPo resultPo;
-        try
-        {
-            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(null, null, null);
-//            String data = JSONObject.toJSONString(bizPlatforms);
-//            List<CCODPlatformInfo> resultList = new ArrayList<>();
-//            for(CCODPlatformInfo platformInfo : bizPlatforms)
-//            {
-//                resultList.add(platformInfo);
-//            }
-//            resultPo = new AjaxResultPo(true, "query SUCCESS", resultList.size(), resultList);
-//            resultPo = new AjaxResultPo(true, "query SUCESS", 1, data);
-//            resultPo = new AjaxResultPo(true, "test");
-            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
-            logger.info(String.format("query SUCCESS, quit %s", uri));
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
-            resultPo = new AjaxResultPo(false, e.getMessage());
-        }
-        return resultPo;
-    }
-
-    @RequestMapping(value = "/businesses/{bizId}", method = RequestMethod.GET)
-    public AjaxResultPo queryCCODBizByBizId(@PathVariable int bizId)
-    {
-        String uri = String.format("GET %s/businesses/%d", this.apiBasePath, bizId);
-        logger.debug(String.format("enter %s controller", uri));
-        AjaxResultPo resultPo;
-        try
-        {
-            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, null, null);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
-            logger.info(String.format("query SUCCESS, quit %s", uri));
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
-            resultPo = new AjaxResultPo(false, e.getMessage());
-        }
-        return resultPo;
-    }
-
-    @RequestMapping(value = "/businesses/{bizId}/{setId}", method = RequestMethod.GET)
-    public AjaxResultPo queryCCODBizBySetId(@PathVariable int bizId, @PathVariable String setId)
-    {
-        String uri = String.format("GET %s/businesses/%d/%s", this.apiBasePath, bizId, setId);
-        logger.debug(String.format("enter %s controller", uri));
-        AjaxResultPo resultPo;
-        try
-        {
-            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, setId, null);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
-            logger.info(String.format("query SUCCESS, quit %s", uri));
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
-            resultPo = new AjaxResultPo(false, e.getMessage());
-        }
-        return resultPo;
-    }
-
-    @RequestMapping(value = "/businesses/{bizId}/{setId}/{domainId}", method = RequestMethod.GET)
-    public AjaxResultPo queryCCODBizByDomainId(@PathVariable int bizId, @PathVariable String setId, @PathVariable String domainId)
-    {
-        String uri = String.format("GET %s/businesses/%d/%s/%s", this.apiBasePath, bizId, setId, domainId);
-        logger.debug(String.format("enter %s controller", uri));
-        AjaxResultPo resultPo;
-        try
-        {
-            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, setId, domainId);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
-            logger.info(String.format("query SUCCESS, quit %s", uri));
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
-            resultPo = new AjaxResultPo(false, e.getMessage());
-        }
-        return resultPo;
-    }
+//    @RequestMapping(value = "/businesses", method = RequestMethod.GET)
+//    public AjaxResultPo queryAllCCODBiz()
+//    {
+//        String uri = String.format("GET %s/businesses", this.apiBasePath);
+//        logger.debug(String.format("enter %s controller", uri));
+//        AjaxResultPo resultPo;
+//        try
+//        {
+////            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(null, null, null);
+////            String data = JSONObject.toJSONString(bizPlatforms);
+////            List<CCODPlatformInfo> resultList = new ArrayList<>();
+////            for(CCODPlatformInfo platformInfo : bizPlatforms)
+////            {
+////                resultList.add(platformInfo);
+////            }
+////            resultPo = new AjaxResultPo(true, "query SUCCESS", resultList.size(), resultList);
+////            resultPo = new AjaxResultPo(true, "query SUCESS", 1, data);
+////            resultPo = new AjaxResultPo(true, "test");
+//            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
+//            logger.info(String.format("query SUCCESS, quit %s", uri));
+//        }
+//        catch (Exception e)
+//        {
+//            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
+//            resultPo = new AjaxResultPo(false, e.getMessage());
+//        }
+//        return resultPo;
+//    }
+//
+//    @RequestMapping(value = "/businesses/{bizId}", method = RequestMethod.GET)
+//    public AjaxResultPo queryCCODBizByBizId(@PathVariable int bizId)
+//    {
+//        String uri = String.format("GET %s/businesses/%d", this.apiBasePath, bizId);
+//        logger.debug(String.format("enter %s controller", uri));
+//        AjaxResultPo resultPo;
+//        try
+//        {
+//            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, null, null);
+//            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
+//            logger.info(String.format("query SUCCESS, quit %s", uri));
+//        }
+//        catch (Exception e)
+//        {
+//            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
+//            resultPo = new AjaxResultPo(false, e.getMessage());
+//        }
+//        return resultPo;
+//    }
+//
+//    @RequestMapping(value = "/businesses/{bizId}/{setId}", method = RequestMethod.GET)
+//    public AjaxResultPo queryCCODBizBySetId(@PathVariable int bizId, @PathVariable String setId)
+//    {
+//        String uri = String.format("GET %s/businesses/%d/%s", this.apiBasePath, bizId, setId);
+//        logger.debug(String.format("enter %s controller", uri));
+//        AjaxResultPo resultPo;
+//        try
+//        {
+//            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, setId, null);
+//            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
+//            logger.info(String.format("query SUCCESS, quit %s", uri));
+//        }
+//        catch (Exception e)
+//        {
+//            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
+//            resultPo = new AjaxResultPo(false, e.getMessage());
+//        }
+//        return resultPo;
+//    }
+//
+//    @RequestMapping(value = "/businesses/{bizId}/{setId}/{domainId}", method = RequestMethod.GET)
+//    public AjaxResultPo queryCCODBizByDomainId(@PathVariable int bizId, @PathVariable String setId, @PathVariable String domainId)
+//    {
+//        String uri = String.format("GET %s/businesses/%d/%s/%s", this.apiBasePath, bizId, setId, domainId);
+//        logger.debug(String.format("enter %s controller", uri));
+//        AjaxResultPo resultPo;
+//        try
+//        {
+//            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(bizId, setId, domainId);
+//            resultPo = new AjaxResultPo(true, "query SUCCESS", bizPlatforms.size(), bizPlatforms);
+//            logger.info(String.format("query SUCCESS, quit %s", uri));
+//        }
+//        catch (Exception e)
+//        {
+//            logger.error(String.format("query ccod biz platforms exception, quit %s controller", uri), e);
+//            resultPo = new AjaxResultPo(false, e.getMessage());
+//        }
+//        return resultPo;
+//    }
 
 
     @RequestMapping(value = "/sets", method = RequestMethod.GET)
@@ -713,13 +713,19 @@ public class CMDBController {
         String uri = String.format("POST %s/platformData", this.apiBasePath);
         logger.debug(String.format("enter %s controller, param=%s", uri, JSONObject.toJSONString(param)));
         AjaxResultPo resultPo;
-        PlatformUpdateSchemaInfo schemaDemo;
         try
         {
             switch (param.getCollectContent())
             {
                 case APP_MODULE:
-                    appManagerService.startCollectPlatformAppData(param.getPlatformId(), param.getPlatformName(), param.getBkBizId(), param.getBkCloudId());
+                    if(param.getCollectMethod() == PlatformDataCollectParamVo.K8S_API)
+                    {
+                        platformManagerService.getPlatformTopologyFromK8s(param.getPlatformName(), param.getPlatformId(), param.getBkBizId(), param.getBkBizId(), param.getCcodVersion(), param.getK8sApiUrl(), param.getK8sAuthToken());
+                    }
+                    else
+                    {
+                        platformManagerService.startCollectPlatformAppData(param.getPlatformId(), param.getPlatformName(), param.getBkBizId(), param.getBkCloudId());
+                    }
                     logger.info(String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
                     resultPo = new AjaxResultPo(true, String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
                     break;
@@ -849,7 +855,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            appManagerService.deletePlatform(platformId);
+            platformManagerService.deletePlatform(platformId);
             resultPo = new AjaxResultPo(true, "delete platform success");
         }
         catch (Exception ex)

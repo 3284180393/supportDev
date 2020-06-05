@@ -5,6 +5,7 @@ import com.channelsoft.ccod.support.cmdb.po.DomainPo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -87,5 +88,13 @@ public class PlatformAppModuleParam {
 
     public void setPlatformAppPo(PlatformAppPo platformAppPo) {
         this.platformAppPo = platformAppPo;
+    }
+
+    public List<NexusAssetInfo> getCfgs() {
+        return cfgs;
+    }
+
+    public void setCfgs(List<NexusAssetInfo> cfgs) {
+        this.cfgs = cfgs;
     }
 }

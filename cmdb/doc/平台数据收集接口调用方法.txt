@@ -1,0 +1,34 @@
+通过在线管理程序收集
+{
+    "collectMethod": 1,
+    "collectContent": "APP_MODULE",
+    "ccodVersion": "CCOD4.1",
+    "platformId": "qntool",
+    "platformName": "开发测试环境",
+    "bkBizId": 12,
+    "bkCloudId": 15
+}
+通过k8s api收集
+{
+    "collectMethod": 2,
+    "collectContent": "APP_MODULE",
+    "ccodVersion": "CCOD4.1",
+    "platformId": "202005-test",
+    "platformName": "工具组平台",
+    "bkBizId": 34,
+    "bkCloudId": 0,
+    "k8sApiUrl": "https://10.130.41.218:6443",
+    "k8sAuthToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA"
+}
+通过onlinemanager更新平台拓扑
+{
+  "collectContent": "APP_UPDATE",
+  "platformId": "qntool",
+  "platformName": "开发测试环境",
+  "domainName": null,
+  "hostIp": null,
+  "appName": null,
+  "version": null,
+  "bkBizId": 34,
+  "bkCloudId": 8
+}

@@ -11,11 +11,19 @@ import com.channelsoft.ccod.support.cmdb.constant.PlatformDataCollectContent;
  */
 public class PlatformDataCollectParamVo {
 
+    public final static int ONLINE_MANAGER = 1; //通过在线管理程序在线收集并创建
+
+    public final static int K8S_API = 2; //通过k8s api收集容器化的平台的拓扑
+
+    private int collectMethod;
+
     private PlatformDataCollectContent collectContent; //平台收集内容,不能为空
 
     private String platformId; //平台id,不能为空
 
     private String platformName; //平台名,不能为空
+
+    private String ccodVersion; //ccod大版本，不可为空
 
     private String domainName; //域名可以为空
 
@@ -28,6 +36,18 @@ public class PlatformDataCollectParamVo {
     private int bkBizId; //平台所属的蓝鲸paas的biz id
 
     private int bkCloudId; //平台服务器所属的蓝鲸paas的cloud id
+
+    private String k8sApiUrl; //访问k8s api的接口地址
+
+    private String k8sAuthToken; //访问k8s api接口的认证token
+
+    public int getCollectMethod() {
+        return collectMethod;
+    }
+
+    public void setCollectMethod(int collectMethod) {
+        this.collectMethod = collectMethod;
+    }
 
     public PlatformDataCollectContent getCollectContent() {
         return collectContent;
@@ -99,5 +119,29 @@ public class PlatformDataCollectParamVo {
 
     public void setBkCloudId(int bkCloudId) {
         this.bkCloudId = bkCloudId;
+    }
+
+    public String getCcodVersion() {
+        return ccodVersion;
+    }
+
+    public void setCcodVersion(String ccodVersion) {
+        this.ccodVersion = ccodVersion;
+    }
+
+    public String getK8sApiUrl() {
+        return k8sApiUrl;
+    }
+
+    public void setK8sApiUrl(String k8sApiUrl) {
+        this.k8sApiUrl = k8sApiUrl;
+    }
+
+    public String getK8sAuthToken() {
+        return k8sAuthToken;
+    }
+
+    public void setK8sAuthToken(String k8sAuthToken) {
+        this.k8sAuthToken = k8sAuthToken;
     }
 }

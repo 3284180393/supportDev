@@ -112,7 +112,7 @@
     INNER JOIN app_install_package aip ON a.app_id = aip.app_id
     INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
     INNER JOIN platform_app_cfg_file pacf ON pacf.platform_app_id = pa.platform_app_id
-    INNER JOIN platform_app_bk_module bakm ON bakm.platform_app_id = pa.platform_app_id
+    LEFT OUTER JOIN platform_app_bk_module bakm ON bakm.platform_app_id = pa.platform_app_id
     INNER JOIN assemble asb ON pa.assemble_id=asb.assemble_id
     </sql>
     <select id="selectPlatformApps" resultMap="PlatformAppDeployDetailMap" >
