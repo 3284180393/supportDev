@@ -91,6 +91,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     UnconfirmedAppModuleMapper unconfirmedAppModuleMapper;
 
     @Autowired
+    PlatformAppDeployDetailMapper platformAppDeployDetailMapper;
+
+    @Autowired
     CCODBiz ccodBiz;
 
     @Value("${nexus.platform-app-cfg-repository}")
@@ -982,5 +985,65 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             po.setCfgDownloadUrl(String.join(",", fileUrlMap.values()));
         }
         return po;
+    }
+
+    private void updateAppDefaultCfg(String protoPlatformId) throws Exception
+    {
+        List<PlatformAppDeployDetailVo> deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(protoPlatformId, null, null);
+        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule().stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        for(PlatformAppDeployDetailVo deployApp : deployAppList)
+        {
+            logger.info(String.format("begin to update %s[%s]", deployApp.getAppName(), deployApp.getVersion()));
+            AppModuleVo moduleVo = registerAppMap.get(deployApp.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(deployApp.getVersion());
+            List<AppCfgFilePo> cfgs = new ArrayList<>();
+            for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
+            {
+                AppCfgFilePo cfgFilePo = new AppCfgFilePo();
+                cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
+                cfgFilePo.setNexusRepository(cfg.getNexusRepository());
+                cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
+                cfgFilePo.setAppId(moduleVo.getAppId());
+                cfgFilePo.setCreateTime(new Date());
+                cfgFilePo.setDeployPath(cfg.getDeployPath());
+                cfgFilePo.setExt(cfg.getExt());
+                cfgFilePo.setFileName(cfg.getFileName());
+                cfgFilePo.setMd5(cfg.getMd5());
+                cfgs.add(cfgFilePo);
+            }
+            moduleVo.setCfgs(cfgs);
+            this.appManagerService.updateAppModule(moduleVo);
+            logger.info(String.format("update %s[%s] finish", deployApp.getAppName(), deployApp.getVersion()));
+        }
+    }
+
+    /**
+     * 将已有的平台迁移到带assemble架构的拓扑
+     * @param platformId 需要迁移的平台
+     */
+    private void transferPlatformToAssembleTopology(String platformId) throws Exception {
+        logger.debug(String.format("begin to transfer %s to the topology with assemble", platformId));
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+        {
+            logger.error(String.format("%s not exist", platformId));
+            throw new Exception(String.format("%s not exist", platformId));
+        }
+        Map<String, List<PlatformAppPo>> domainAppMap = this.platformAppMapper.select(platformId, null, null, null, null, null)
+                .stream().collect(Collectors.groupingBy(PlatformAppPo::getDomainId));
+        for(String domainId : domainAppMap.keySet())
+        {
+            for(PlatformAppPo deployApp : domainAppMap.get(domainId))
+            {
+                AssemblePo assemblePo = new AssemblePo();
+                assemblePo.setTag(deployApp.getAppAlias());
+                assemblePo.setStatus("Running");
+                assemblePo.setPlatformId(platformId);
+                assemblePo.setDomainId(domainId);
+                this.assembleMapper.insert(assemblePo);
+                deployApp.setAssembleId(assemblePo.getAssembleId());
+                deployApp.setPort(null);
+                this.platformAppMapper.update(deployApp);
+            }
+        }
     }
 }

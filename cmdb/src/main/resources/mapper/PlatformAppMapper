@@ -91,8 +91,9 @@
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         update platform_app set
-            app_id = #{appId,jdbcType=VARCHAR},
-            assemble_id = #{assembleId,jdbcType=INTEGER}
+            app_id = #{appId,jdbcType=INTEGER},
+            assemble_id = #{assembleId,jdbcType=INTEGER},
+            port = #{port,jdbcType=VARCHAR},
         where platform_app_id = #{platformAppId,jdbcType=INTEGER}
     </update>
 </mapper>

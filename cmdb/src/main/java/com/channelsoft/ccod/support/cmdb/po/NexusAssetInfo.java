@@ -8,6 +8,7 @@ package com.channelsoft.ccod.support.cmdb.po;
  * @Version: 1.0
  */
 public class NexusAssetInfo {
+
     private String downloadUrl;  //nexus api返回的asset信息中的downloadUrl
 
     private String path; //nexus api返回的asset信息中的path

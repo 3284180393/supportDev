@@ -413,6 +413,8 @@ public class NexusServiceImpl implements INexusService {
             }
             fileList.add(new DeployFileInfo(filePo.getNexusAssetFileName(), savePth));
         }
+        if(isClearTargetDirectory)
+            this.clearComponent(dstNexusHostUrl, dstNexusUser, dstNexusPwd, dstRepository, dstDirectory);
         return uploadRawComponent(dstNexusHostUrl, dstNexusUser, dstNexusPwd, dstRepository, dstDirectory, fileList.toArray(new DeployFileInfo[0]));
     }
 

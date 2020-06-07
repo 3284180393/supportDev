@@ -24,6 +24,8 @@ public class AppUpdateOperationInfo {
 
     private String domainId; //应用所在的域id
 
+    private String assembleTag; //应用所在assemble的标签
+
     private String appName; //应用名
 
     private String appAlias; //应用别名
@@ -35,6 +37,8 @@ public class AppUpdateOperationInfo {
     private String targetVersion; //操作后应用版本,如果是DELETE或是CFG_UPDATE、STOP、START操作则该参数为0
 
     private String hostIp; //应用所在的服务器ip
+
+    private String port; //应用相关端口
 
     private String basePath; //该应用所在的base path
 
@@ -148,6 +152,22 @@ public class AppUpdateOperationInfo {
         this.originalAlias = originalAlias;
     }
 
+    public String getAssembleTag() {
+        return assembleTag;
+    }
+
+    public void setAssembleTag(String assembleTag) {
+        this.assembleTag = assembleTag;
+    }
+
+    public String getPort() {
+        return port;
+    }
+
+    public void setPort(String port) {
+        this.port = port;
+    }
+
     public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -161,6 +181,7 @@ public class AppUpdateOperationInfo {
         po.setAppAlias(this.appAlias);
         po.setAppId(appId);
         po.setPlatformAppId(0);
+        po.setPort(this.port);
         return po;
     }
 

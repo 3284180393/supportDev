@@ -181,6 +181,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
     PlatformThreePartServiceMapper platformThreePartServiceMapper;
 
     @Autowired
+    AssembleMapper assembleMapper;
+
+    @Autowired
     ILJPaasService paasService;
 
     @Autowired
@@ -1698,6 +1701,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(updateSchema.getPlatformId(), null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
         this.appReadLock.readLock().lock();
         try
         {
@@ -1749,9 +1753,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);if(isCreate)
                     this.domainMapper.insert(domainPo);
                 List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
+                List<AssemblePo> assembleList = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
                 logger.debug(String.format("handle %s %d apps with isCreate=%b and %d deployed apps",
                         JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-                handleDomainApps(updateSchema.getPlatformId(), domainPo, plan.getAppUpdateOperationList(), domainAppList, domainCfgMap.get(domainId), isCreate);
+                handleDomainApps(updateSchema.getPlatformId(), domainPo, plan.getAppUpdateOperationList(), assembleList, domainAppList, domainCfgMap.get(domainId), isCreate);
             }
             if(updateSchema.getStatus().equals(UpdateStatus.SUCCESS))
             {
@@ -2344,35 +2349,32 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", JSONObject.toJSONString(appModule)));
+        String appName = appModule.getAppName();
+        String version = appModule.getVersion();
+        if (!this.appSetRelationMap.containsKey(appName)) {
+            logger.error(String.format("app %s is not supported by cmdb", appName));
+            throw new NotSupportAppException(String.format("app %s is not supported by cmdb", appName));
+        }
+        String moduleCheckResult = checkModuleParam(appModule);
+        if (StringUtils.isNotBlank(moduleCheckResult)) {
+            logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
+            throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
+        }
         this.appWriteLock.writeLock().lock();
         try
         {
-            String appName = appModule.getAppName();
-            String version = appModule.getVersion();
-            if (!this.appSetRelationMap.containsKey(appName)) {
-                logger.error(String.format("app %s is not supported by cmdb", appName));
-                throw new NotSupportAppException(String.format("app %s is not supported by cmdb", appName));
-            }
-            String moduleCheckResult = checkModuleParam(appModule);
-            if (StringUtils.isNotBlank(moduleCheckResult)) {
-                logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
-                throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
-            }
             String directory = appModule.getAppNexusDirectory();
             if (!this.registerAppMap.containsKey(appName) || !this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
             {
                 logger.error(String.format("%s version %s has not registered", appName, version));
                 throw new ParamException(String.format("%s version %s has not registered", appName, version));
             }
-            List<AppFilePo> fileList = new ArrayList<>();
-            fileList.add(appModule.getInstallPackage());
+            List<NexusAssetInfo> fileList = new ArrayList<>();
+            fileList.add(appModule.getInstallPackage().getNexusAsset(this.nexusHostUrl));
             for(AppCfgFilePo cfg : appModule.getCfgs())
-                fileList.add(cfg);
-            logger.debug(String.format("clear all file at %s", directory));
-            this.nexusService.clearComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory);
+                fileList.add(cfg.getNexusAsset(this.nexusHostUrl));
             logger.debug(String.format("download package and cfgs and upload to %s", directory));
-            Map<String, NexusAssetInfo> fileMap = downloadAndUploadAppFiles(appModule.getAppId(), this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.appRepository, directory)
-                    .stream().collect(Collectors.toMap(NexusAssetInfo::getNexusAssetFileName, Function.identity()));
+            Map<String, NexusAssetInfo> fileMap = this.nexusService.downloadAndUploadFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, false).stream().collect(Collectors.toMap(NexusAssetInfo::getNexusAssetFileName, Function.identity()));;
             AppModuleVo oldModuleVo = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
             logger.debug(String.format("delete old version install package"));
             this.appInstallPackageMapper.delete(oldModuleVo.getInstallPackage().getPackageId(), oldModuleVo.getAppId());
@@ -3594,6 +3596,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             List<PlatformAppDeployDetailVo> deployApps = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
             Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
             List<LJHostInfo> hostList = this.paasService.queryBKHost(platformPo.getBkBizId(), null, null, null, null);
+            Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(platformId, null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
             for(String domainId : domainOptMap.keySet())
             {
                 if(!domainMap.containsKey(domainId))
@@ -3614,7 +3617,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             for(String domainId : domainOptMap.keySet())
             {
                 List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-                handleDomainApps(platformId, domainMap.get(domainId), domainOptMap.get(domainId), deployAppList, domainCfgMap.get(domainId), false);
+                List<AssemblePo> assembleList = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
+                handleDomainApps(platformId, domainMap.get(domainId), domainOptMap.get(domainId), assembleList, deployAppList, domainCfgMap.get(domainId), false);
             }
             this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformId, platformPo.getBkCloudId());
         }
@@ -3869,7 +3873,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param domainAppList 域已经部署的所有应用
      * @param nexusAssetMap
      */
-    private void handleDomainApps(String platformId, DomainPo domainPo, List<AppUpdateOperationInfo> domainOptList, List<PlatformAppDeployDetailVo> domainAppList, Map<String, List<NexusAssetInfo>> nexusAssetMap, boolean isCreate)
+    private void handleDomainApps(String platformId, DomainPo domainPo, List<AppUpdateOperationInfo> domainOptList, List<AssemblePo> domainAssembleList, List<PlatformAppDeployDetailVo> domainAppList, Map<String, List<NexusAssetInfo>> nexusAssetMap, boolean isCreate)
     {
         String domainId = domainPo.getDomainId();
         Map<AppUpdateOperation, List<AppUpdateOperationInfo>> optMap = domainOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getOperation));
@@ -3890,20 +3894,35 @@ public class AppManagerServiceImpl implements IAppManagerService {
             this.platformAppMapper.delete(platformAppId, null, null);
             logger.info(String.format("%s success", tag));
         }
+        Map<String, AssemblePo> assembleMap = domainAssembleList.stream().collect(Collectors.toMap(AssemblePo::getTag, Function.identity()));
         for(AppUpdateOperationInfo optInfo : updateList)
         {
             String appName = optInfo.getAppName();
             String alias = optInfo.getAppAlias();
             String version = optInfo.getTargetVersion();
             String hostIp = optInfo.getHostIp();
-            String tag = String.format("UPDATE %s(%s) to %s in %s at %s", alias, appName, version, domainId, hostIp);
+            String assembleTag = optInfo.getAssembleTag();
+            String tag = String.format("UPDATE %s(%s) to %s in %s on %s at %s", alias, appName, version, assembleTag, domainId, hostIp);
             logger.debug(String.format("begin to %s", tag));
             AppModuleVo module = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+            if(assembleMap.containsKey(assembleTag))
+            {
+                logger.debug(String.format("assemble %s of %s is not exist, add it first", assembleTag, domainId));
+                AssemblePo assemblePo = new AssemblePo();
+                assemblePo.setDomainId(domainId);
+                assemblePo.setPlatformId(platformId);
+                assemblePo.setStatus("Running");
+                assemblePo.setTag(assembleTag);
+                assembleMapper.insert(assemblePo);
+                assembleMap.put(assembleTag, assemblePo);
+            }
+            AssemblePo assemblePo = assembleMap.get(assembleTag);
             int platformAppId = domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(alias).getPlatformApp().getPlatformAppId();
             PlatformAppPo platformAppPo = optInfo.getPlatformApp(platformAppId, module.getAppId(), platformId, domainId);
+            platformAppPo.setAssembleId(assemblePo.getAssembleId());
             List<NexusAssetInfo> assetList = nexusAssetMap.get(alias);
             Map<String, AppFileNexusInfo> cfgMap = optInfo.getCfgs().stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
-            logger.debug(String.format("update id=%d platform_app from %d to %d", platformAppId, platformAppPo.getAppId(), module.getAppId()));
+            logger.debug(String.format("update platform_app to %s", JSONObject.toJSONString(platformAppPo)));
             this.platformAppMapper.update(platformAppPo);
             logger.debug(String.format("delete from platform_app_cfg_file where platformAppId=%d", platformAppId));
             this.platformAppCfgFileMapper.delete(null, platformAppId);
@@ -3921,10 +3940,24 @@ public class AppManagerServiceImpl implements IAppManagerService {
             String alias = optInfo.getAppAlias();
             String version = optInfo.getTargetVersion();
             String hostIp = optInfo.getHostIp();
-            String tag = String.format("ADD %s(%s) to %s in %s at %s", alias, appName, version, domainId, hostIp);
+            String assembleTag = optInfo.getAssembleTag();
+            String tag = String.format("ADD %s(%s) to %s on %s in %s at %s", alias, appName, version, assembleTag, domainId, hostIp);
             logger.debug(String.format("begin to %s", tag));
+            if(assembleMap.containsKey(assembleTag))
+            {
+                logger.debug(String.format("assemble %s of %s is not exist, add it first", assembleTag, domainId));
+                AssemblePo assemblePo = new AssemblePo();
+                assemblePo.setDomainId(domainId);
+                assemblePo.setPlatformId(platformId);
+                assemblePo.setStatus("Running");
+                assemblePo.setTag(assembleTag);
+                assembleMapper.insert(assemblePo);
+                assembleMap.put(assembleTag, assemblePo);
+            }
+            AssemblePo assemblePo = assembleMap.get(assembleTag);
             AppModuleVo module = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
             PlatformAppPo platformAppPo = optInfo.getPlatformApp(module.getAppId(), platformId, domainId);
+            platformAppPo.setAssembleId(assemblePo.getAssembleId());
             this.platformAppMapper.insert(platformAppPo);
             int platformAppId = platformAppPo.getPlatformAppId();
             List<NexusAssetInfo> assetList = nexusAssetMap.get(alias);
@@ -3963,6 +3996,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             generateAlias4DomainApps(domainPo, addList, deployAppList, isCreate);
         for(AppUpdateOperationInfo optInfo : addList)
         {
+            if(StringUtils.isBlank(optInfo.getAssembleTag()))
+                optInfo.setAssembleTag(optInfo.getTargetVersion());
             AppModuleVo module = this.registerAppMap.get(optInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion());
             PlatformAppPo platformAppPo = optInfo.getPlatformApp(0, module.getAppId(), platformId, domainId);
             String directory = platformAppPo.getPlatformAppDirectory(module.getAppName(), module.getVersion(), platformAppPo);
@@ -3978,6 +4013,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         for(AppUpdateOperationInfo optInfo : updateList)
         {
+            if(StringUtils.isBlank(optInfo.getAssembleTag()))
+                optInfo.setAssembleTag(optInfo.getTargetVersion());
             AppModuleVo module = this.registerAppMap.get(optInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion());
             int platformAppId = deployAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(optInfo.getAppAlias()).getPlatformApp().getPlatformAppId();
             PlatformAppPo platformAppPo = optInfo.getPlatformApp(platformAppId, module.getAppId(), platformId, domainId);

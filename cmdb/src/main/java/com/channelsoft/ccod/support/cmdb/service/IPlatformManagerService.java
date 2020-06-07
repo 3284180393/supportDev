@@ -68,4 +68,5 @@ public interface IPlatformManagerService {
      * @throws Exception
      */
     void startCollectPlatformAppData(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
+
 }
