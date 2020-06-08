@@ -400,9 +400,9 @@ public class PlatformAppModuleVo {
     {
         boolean ok =  false;
         if(!platformId.equals(this.platformId))
-            this.comment = String.format("platformId error, want %s and report %s : %s", platformId, this.platformId);
+            this.comment = String.format("platformId error, want %s and report %s", platformId, this.platformId);
         else if(!platformName.equals(this.platformName))
-            this.comment = String.format("platformName error, want %s and report %s : %s", platformName, this.platformName);
+            this.comment = String.format("platformName error, want %s and report %s", platformName, this.platformName);
         else if(!appSetRelation.containsKey(this.moduleName))
             this.comment = String.format("app %s not been supported", this.moduleName);
         else if(!this.installPackage.isTransferSucc())

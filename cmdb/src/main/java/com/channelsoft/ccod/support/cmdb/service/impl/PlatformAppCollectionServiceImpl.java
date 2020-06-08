@@ -59,6 +59,9 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
     @Value("${cmdb.app-collect.start-file-transfer-instruction}")
     private String startAppFileTransferInstruction;
 
+    @Value("${onlinemanager.master.id}")
+    private String masterOnlinemanagerId;
+
     private String reportCollectDataQueueFmt = "CLIENT_REPORT_COLLECT_DATA-%s";
 
     private String receiveFileQueueFmt = "FILE_REC_%s";
@@ -233,7 +236,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                 JSONObject.toJSONString(instructionVo), signature));
         boolean isOk = instructionVo.verifySignature(this.shareSecret);
         logger.info(String.format("signature self verify result is : %b", isOk));
-        String instructionTopic = String.format(this.instructionTopicFmt, platformId);
+        String instructionTopic = String.format(this.instructionTopicFmt, this.masterOnlinemanagerId);
         this.activeMQService.sendTopicMsg(connection, instructionTopic, JSONObject.toJSONString(instructionVo));
         String clientRet = activeMQService.receiveTextMsgFromQueue(connection, collectDataQueue, this.receiptTimeout);
         InstructionResultVo resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);
@@ -322,7 +325,7 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
         String signature = instructionVo.generateSignature(this.shareSecret);
         logger.info(String.format("start platform app file transfer instruction msg is %s and signature=%s",
                 JSONObject.toJSONString(instructionVo), signature));
-        String instructionTopic = String.format(this.instructionTopicFmt, platformId);
+        String instructionTopic = String.format(this.instructionTopicFmt, this.masterOnlinemanagerId);
         this.activeMQService.sendTopicMsg(connection, instructionTopic, JSONObject.toJSONString(instructionVo));
         String clientRet = activeMQService.receiveTextMsgFromQueue(connection, recvFileQueue, this.receiptTimeout);
         InstructionResultVo resultVo = JSONObject.parseObject(clientRet, InstructionResultVo.class);

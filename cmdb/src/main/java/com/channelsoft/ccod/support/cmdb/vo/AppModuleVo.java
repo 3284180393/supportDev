@@ -44,6 +44,8 @@ public class AppModuleVo {
 
     private List<AppCfgFilePo> cfgs; //应用配置文件
 
+    private boolean hasImage; //是否有镜像
+
     public AppModuleVo()
     {
 
@@ -65,6 +67,7 @@ public class AppModuleVo {
         this.comment = app.getComment();
         this.installPackage = installPackage;
         this.cfgs = cfgs;
+        this.hasImage = app.isHasImage();
     }
 
     public int getAppId() {
@@ -193,6 +196,14 @@ public class AppModuleVo {
     {
         String group = String.format("/%s/%s", this.appName, this.version);
         return group;
+    }
+
+    public boolean isHasImage() {
+        return hasImage;
+    }
+
+    public void setHasImage(boolean hasImage) {
+        this.hasImage = hasImage;
     }
 
     @Override

@@ -260,6 +260,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //                    System.out.println("haha");
 //            }
 
+//            updateRegisterAppModuleImageExist();
+            List<AppModuleVo> list = queryAllHasImageAppModule();
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -810,7 +812,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     public List<PlatformAppModuleVo> preprocessCollectedPlatformAppModule(List<PlatformAppModuleVo> moduleList, List<PlatformAppModuleVo> failList) {
         List<PlatformAppModuleVo> successList = new ArrayList<>();
         logger.debug(String.format("begin to preprocess %d collected platform app modules", moduleList.size()));
-        this.appWriteLock.writeLock();
+        this.appWriteLock.writeLock().lock();
         try
         {
             for(PlatformAppModuleVo moduleVo : successList)
@@ -2262,6 +2264,82 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
+    public boolean hasImage(String appName, String version) throws ParamException {
+        logger.debug(String.format("check image of %s[%s] exist", appName, version));
+        this.appReadLock.readLock().lock();
+        try
+        {
+            if(!this.registerAppMap.containsKey(appName)
+                    || !this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
+            {
+                logger.error(String.format("%s[%s] not register", appName, version));
+                throw new ParamException(String.format("%s[%s] not register", appName, version));
+            }
+        }
+        finally {
+            this.appReadLock.readLock().unlock();
+        }
+        boolean imageExist = false;
+        String url = String.format("http://%s/v2/%s/%s/tags/list", this.nexusDockerUrl, this.imageRepository, appName.toLowerCase());
+        try
+        {
+            String queryResult = HttpRequestTools.httpGetRequest(url, this.nexusUserName, this.nexusPassword);
+            String tags = JSONObject.parseObject(queryResult).getString("tags");
+            Set<String> set = new HashSet<>(JSONArray.parseArray(tags, String.class));
+            if(set.contains(version.replaceAll("\\:", "-")))
+                imageExist = true;
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("query %s fail", ex));
+        }
+        logger.info(String.format("%s[%s] image exist : %b", appName, version, imageExist));
+        return imageExist;
+    }
+
+    void updateRegisterAppModuleImageExist() throws Exception
+    {
+        this.appWriteLock.writeLock().lock();
+        try
+        {
+            List<AppPo> appList = this.appMapper.select(null, null, null, null);
+            for(AppPo appPo : appList)
+            {
+                boolean hasImage = this.hasImage(appPo.getAppName(), appPo.getVersion());
+                appPo.setHasImage(hasImage);
+                this.appMapper.update(appPo);
+            }
+            this.appReadLock.writeLock().lock();
+            try
+            {
+                flushRegisteredApp();
+            }
+            finally {
+                this.appReadLock.writeLock().unlock();
+            }
+        }
+        finally {
+            this.appWriteLock.writeLock().unlock();
+        }
+    }
+
+    @Override
+    public List<AppModuleVo> queryAllHasImageAppModule() {
+        logger.debug(String.format("query all register app module which has image"));
+        this.appReadLock.readLock().lock();
+        try
+        {
+            List<AppModuleVo> registerList = this.registerAppMap.values().stream().flatMap(listContainer -> listContainer.stream()).collect(Collectors.toList());
+            List<AppModuleVo> list = registerList.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).containsKey(true) ? registerList.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).get(true) : new ArrayList<>();
+            logger.debug(String.format("%d register app has image", list.size()));
+            return list;
+        }
+        finally {
+            this.appReadLock.readLock().unlock();
+        }
+    }
+
+    @Override
     public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to register app=[%s] into cmdb", JSONObject.toJSONString(appModule)));
         this.appWriteLock.writeLock().lock();
@@ -2315,7 +2393,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
             Map<String, DeployFileInfo> fileMap = fileList.stream().collect(Collectors.toMap(DeployFileInfo::getFileName, Function.identity()));
-            AppPo appPo = new AppPo(appModule);
+            AppPo appPo = new AppPo(appModule, false);
             Date now = new Date();
             appPo.setCreateTime(now);
             appPo.setUpdateTime(now);

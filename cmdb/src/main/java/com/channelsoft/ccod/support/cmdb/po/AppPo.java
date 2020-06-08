@@ -37,12 +37,14 @@ public class AppPo {
 
     private String versionControlUrl; //版本控制的连接url
 
+    private boolean hasImage; //是否有镜像
+
     public AppPo()
     {
 
     }
 
-    public AppPo(AppModuleVo moduleVo)
+    public AppPo(AppModuleVo moduleVo, boolean hasImage)
     {
         this.appId = moduleVo.getAppId();
         this.appName = moduleVo.getAppName();
@@ -56,6 +58,7 @@ public class AppPo {
         this.comment = moduleVo.getComment();
         this.versionControl = moduleVo.getVersionControl().name;
         this.versionControlUrl = moduleVo.getVersionControlUrl();
+        this.hasImage = hasImage;
     }
 
     public int getAppId() {
@@ -168,5 +171,13 @@ public class AppPo {
     {
         String group = String.format("/%s/%s", this.appName, this.version);
         return group;
+    }
+
+    public boolean isHasImage() {
+        return hasImage;
+    }
+
+    public void setHasImage(boolean hasImage) {
+        this.hasImage = hasImage;
     }
 }

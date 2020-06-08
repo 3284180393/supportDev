@@ -14,9 +14,10 @@
         <result column="comment" property="comment" jdbcType="VARCHAR" />
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
+        <result column="has_image" property="hasImage" jdbcType="BOOLEAN" />
     </resultMap>
     <sql id="Base_Column_List" >
-        a.app_id, a.app_name, a.app_type, a.version, a.ccod_version, a.base_path, a.create_time, a.update_time, a.create_reason, a.`comment`, a.version_control, a.version_control_url
+        a.app_id, a.app_name, a.app_type, a.version, a.ccod_version, a.base_path, a.create_time, a.update_time, a.create_reason, a.`comment`, a.version_control, a.version_control_url, a.has_image
     </sql>
     <select id="selectByPrimaryKey" resultMap="AppMap" parameterType="java.lang.Integer">
         select
@@ -47,8 +48,8 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppPo"
             useGeneratedKeys="true" keyProperty="appId">
-        insert into app(app_name, app_type, version, ccod_version, base_path, create_time, update_time, create_reason, `comment`, version_control, version_control_url)
-        values (#{appName,jdbcType=VARCHAR}, #{appType,jdbcType=VARCHAR}, #{version,jdbcType=VARCHAR}, #{ccodVersion,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{createReason,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{versionControl,jdbcType=VARCHAR}, #{versionControlUrl,jdbcType=VARCHAR})
+        insert into app(app_name, app_type, version, ccod_version, base_path, create_time, update_time, create_reason, `comment`, version_control, version_control_url, has_image)
+        values (#{appName,jdbcType=VARCHAR}, #{appType,jdbcType=VARCHAR}, #{version,jdbcType=VARCHAR}, #{ccodVersion,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{createReason,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{versionControl,jdbcType=VARCHAR}, #{versionControlUrl,jdbcType=VARCHAR}, #{has_image,jdbcType=BOOLEAN})
     </insert>
     <delete id="delete" parameterType="java.lang.Integer">
         delete
@@ -63,7 +64,8 @@
         comment = #{comment,jdbcType=VARCHAR},
         update_time = #{updateTime,jdbcType=TIMESTAMP},
         version_control = #{versionControl,jdbcType=VARCHAR},
-        version_control_url = #{versionControlUrl,jdbcType=VARCHAR}
+        version_control_url = #{versionControlUrl,jdbcType=VARCHAR},
+        has_image = #{hasImage,jdbcType=BOOLEAN}
     where app_id = #{appId,jdbcType=INTEGER}
   </update>
 </mapper>

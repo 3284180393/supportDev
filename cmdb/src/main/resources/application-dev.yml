@@ -276,6 +276,10 @@ cmdb:
     start-file-transfer-instruction: START_APP_FILE_TRANSFER
     app-file-attribute-key: FILE_ATTRIBUTE
 
+onlinemanager:
+  master:
+    id: qntool
+
 lj-paas:
   excludes:
     - 蓝鲸

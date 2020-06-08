@@ -14,6 +14,7 @@
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="comment" property="comment" jdbcType="VARCHAR" />
+        <result column="has_image" property="hasImage" jdbcType="VARCHAR" />
         <association property="installPackage"
                     javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
                     resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"
@@ -38,6 +39,7 @@
         a.version_control_url,
         a.base_path,
         a.`comment`,
+        a.has_image,
         aip.app_id AS aip_app_id,
         aip.create_time AS aip_create_time,
         aip.deploy_path AS aip_deploy_path,

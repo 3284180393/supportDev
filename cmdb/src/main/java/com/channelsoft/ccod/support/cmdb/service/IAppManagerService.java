@@ -237,4 +237,19 @@ public interface IAppManagerService {
      */
     List<PlatformAppModuleVo> preprocessCollectedPlatformAppModule(List<PlatformAppModuleVo> moduleList, List<PlatformAppModuleVo> failList);
 
+    /**
+     * 检查应用是否有镜像
+     * @param appName 应用名
+     * @param version 版本
+     * @return 如果有返回true，否则false
+     * @throws ParamException 应用或是版本不存在
+     */
+    boolean hasImage(String appName, String version) throws ParamException;
+
+    /**
+     * 查询所有镜像的应用注册模块
+     * @return 满足条件的注册应用模块
+     */
+    List<AppModuleVo> queryAllHasImageAppModule();
+
 }
