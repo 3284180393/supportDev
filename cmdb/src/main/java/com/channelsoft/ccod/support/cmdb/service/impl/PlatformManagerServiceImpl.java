@@ -194,7 +194,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         List<PlatformAppModuleParam> deployAppParamList = new ArrayList<>();
         Map<String, List<NexusAssetInfo>> srcCfgMap = new HashMap<>();
-        List<AppModuleVo> registerAppList = appManagerService.queryAllRegisterAppModule();
+        List<AppModuleVo> registerAppList = appManagerService.queryAllRegisterAppModule(true);
         Map<String, String> outSvcAppMap = new HashMap<>();
         List<V1Service> outSvcList = typeSrvMap.containsKey(K8sServiceType.DOMAIN_OUT_SERVICE) ? typeSrvMap.get(K8sServiceType.DOMAIN_OUT_SERVICE) : new ArrayList<>();
         logger.debug(String.format("%s has %d domain out service", platformId, outSvcList.size()));
@@ -687,25 +687,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, platformName, null, null, null, null);
             List<PlatformAppModuleVo> failList = new ArrayList<>();
-            List<PlatformAppModuleVo> successList = new ArrayList<>();
-            for(PlatformAppModuleVo collectedModule : modules)
-            {
-                if(collectedModule.isOk(platformId, platformName, this.appSetRelationMap))
-                    successList.add(collectedModule);
-                else
-                {
-                    logger.debug(collectedModule.getComment());
-                    failList.add(collectedModule);
-                }
-            }
-            logger.debug(String.format("begin to preprocess collected %d app", successList.size()));
-            successList = this.appManagerService.preprocessCollectedPlatformAppModule(successList, failList);
-            platformPo = modules.get(0).getPlatform();
-            platformPo.setBkBizId(bkBizId);
-            platformPo.setBkCloudId(bkCloudId);
-            platformMapper.insert(platformPo);
             List<DomainPo> domainList = new ArrayList<>();
-            Map<String, List<PlatformAppModuleVo>> domainAppMap = successList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
+            Map<String, List<PlatformAppModuleVo>> domainAppMap = modules.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
             List<String> domainNameList = new ArrayList<>(domainAppMap.keySet());
             for(String domainName : domainNameList)
             {
@@ -725,6 +708,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 }
             }
             logger.debug(String.format("%s has %d domain : %s", platformName, domainAppMap.size(), String.join(",", domainAppMap.keySet())));
+            platformPo = modules.get(0).getPlatform();
+            platformPo.setBkBizId(bkBizId);
+            platformPo.setBkCloudId(bkCloudId);
+            platformMapper.insert(platformPo);
+            logger.debug(String.format("begin to preprocess collected %d app", modules.size()));
+            List<PlatformAppModuleVo> successList = this.appManagerService.preprocessCollectedPlatformAppModule(platformName, platformId, domainAppMap.values().stream().flatMap(listContainer->listContainer.stream()).collect(Collectors.toList()), failList);
             Map<String, List<DomainPo>> setDomainMap = domainList.stream().collect(Collectors.groupingBy(DomainPo::getType));
             for(String bkSetName : setDomainMap.keySet())
             {
@@ -747,6 +736,33 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             {
                 logger.debug(String.format("insert new domain [%s]", JSONObject.toJSONString(po)));
                 this.domainMapper.insert(po);
+            }
+            Map<String, List<AppModuleVo>> appMap = this.appManagerService.queryAllRegisterAppModule(null).stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+            for(PlatformAppModuleVo moduleVo : successList)
+            {
+                logger.debug(String.format("begin to handle %s", moduleVo.toString()));
+                PlatformAppPo platformApp = moduleVo.getPlatformApp();
+                String platformCfgDirectory = platformApp.getPlatformAppDirectory(moduleVo.getModuleName(), moduleVo.getVersion(), platformApp);
+                logger.debug(String.format("update %d cfgs to %s/%s", moduleVo.getCfgs().length, this.platformAppCfgRepository, platformCfgDirectory));
+                nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword,
+                        this.platformAppCfgRepository, platformCfgDirectory, moduleVo.getCfgs());
+                AssemblePo assemblePo = new AssemblePo();
+                assemblePo.setTag(platformApp.getAppAlias());
+                assemblePo.setStatus("Running");
+                assemblePo.setPlatformId(platformId);
+                assemblePo.setDomainId(moduleVo.getDomainId());
+                this.assembleMapper.insert(assemblePo);
+                platformApp.setAssembleId(assemblePo.getAssembleId());
+                platformApp.setAppId(appMap.get(moduleVo.getModuleName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(moduleVo.getVersion()).getAppId());
+                logger.debug(String.format("insert %s into platform_app", JSONObject.toJSONString(platformApp)));
+                this.platformAppMapper.insert(platformApp);
+                for(DeployFileInfo cfgFilePo : moduleVo.getCfgs())
+                {
+                    PlatformAppCfgFilePo po = new PlatformAppCfgFilePo(platformApp.getPlatformAppId(), cfgFilePo);
+                    logger.debug(String.format("insert cfg %s into platform_app_cfg", JSONObject.toJSONString(po)));
+                    this.platformAppCfgFileMapper.insert(po);
+                }
+                logger.info(String.format("[%s] platform app module handle SUCCESS", moduleVo.toString()));
             }
             for(PlatformAppModuleVo moduleVo : failList)
             {
@@ -990,7 +1006,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private void updateAppDefaultCfg(String protoPlatformId) throws Exception
     {
         List<PlatformAppDeployDetailVo> deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(protoPlatformId, null, null);
-        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule().stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(null).stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         for(PlatformAppDeployDetailVo deployApp : deployAppList)
         {
             logger.info(String.format("begin to update %s[%s]", deployApp.getAppName(), deployApp.getVersion()));

@@ -88,15 +88,15 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/apps", method = RequestMethod.GET)
-    public AjaxResultPo queryAllApps()
+    public AjaxResultPo queryAllApps(Boolean hasImage)
     {
         String uri = String.format("GET %s/apps", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            AppModuleVo[] apps = this.appManagerService.queryApps(null);
-            resultPo = new AjaxResultPo(true, "query SUCCESs", apps.length, apps);
+            List<AppModuleVo> apps = this.appManagerService.queryAllRegisterAppModule(hasImage);
+            resultPo = new AjaxResultPo(true, "query SUCCESs", apps.size(), apps);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -109,15 +109,15 @@ public class CMDBController {
 
 
     @RequestMapping(value = "/apps/{appName}", method = RequestMethod.GET)
-    public AjaxResultPo queryAppsByName(@PathVariable String appName)
+    public AjaxResultPo queryAppsByName(@PathVariable String appName, Boolean hasImage)
     {
-        String uri = String.format("GET %s/apps/%s", this.apiBasePath, appName);
+        String uri = String.format("GET %s/apps/%s, hasImage=%s", this.apiBasePath, appName, hasImage);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            AppModuleVo[] apps = this.appManagerService.queryApps(appName);
-            resultPo = new AjaxResultPo(true, "query SUCCESs", apps.length, apps);
+            List<AppModuleVo> apps = this.appManagerService.queryApps(appName, hasImage);
+            resultPo = new AjaxResultPo(true, "query SUCCESs", apps.size(), apps);
             logger.info(String.format("query SUCCESS, quit %s controller", uri));
         }
         catch (Exception e)

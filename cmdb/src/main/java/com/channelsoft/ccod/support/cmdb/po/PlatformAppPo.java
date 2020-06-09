@@ -137,9 +137,8 @@ public class PlatformAppPo {
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-        String directory = String.format("%s/%s/%s/%s/%s/%s/%s", platformAppPo.getPlatformId(),
-                platformAppPo.getDomainId(), platformAppPo.getHostIp(), appName, version,
-                platformAppPo.getAppAlias(), sf.format(now));
+        String directory = String.format("%s/%s/%s/%s/%s/%s/%s", platformAppPo.getPlatformId(), sf.format(now),
+                platformAppPo.getDomainId(), platformAppPo.getHostIp(), appName, platformAppPo.getAppAlias(), version);
         return directory;
     }
 }

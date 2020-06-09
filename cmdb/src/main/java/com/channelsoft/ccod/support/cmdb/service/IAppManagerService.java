@@ -31,17 +31,19 @@ public interface IAppManagerService {
     /**
      * 查询指定应用信息,如果appName为空则查询所有的应用信息
      * @param appName 应用名
+     * @param hasImage 是否已经生成镜像
      * @return 查询结果
      * @throws Exception
      */
-    AppModuleVo[] queryApps(String appName) throws DataAccessException;
+    List<AppModuleVo> queryApps(String appName, Boolean hasImage) throws DataAccessException;
 
 
     /**
      * 查询所有的已经注册的应用模块
+     * @param hasImage 是否已经生成镜像
      * @return
      */
-    List<AppModuleVo> queryAllRegisterAppModule();
+    List<AppModuleVo> queryAllRegisterAppModule(Boolean hasImage);
 
     /**
      * 查询某个平台所有模块部署情况
@@ -231,11 +233,13 @@ public interface IAppManagerService {
 
     /**
      * 预处理通过在线管理程序收集上来的平台应用模块
+     * @param platformName 平台名
+     * @param platformId 平台id
      * @param moduleList 在线管理程序收集的应用模块
      * @param failList 在预处理时处理失败的应用模块
      * @return 预处理成功的应用模块
      */
-    List<PlatformAppModuleVo> preprocessCollectedPlatformAppModule(List<PlatformAppModuleVo> moduleList, List<PlatformAppModuleVo> failList);
+    List<PlatformAppModuleVo> preprocessCollectedPlatformAppModule(String platformName, String platformId, List<PlatformAppModuleVo> moduleList, List<PlatformAppModuleVo> failList);
 
     /**
      * 检查应用是否有镜像

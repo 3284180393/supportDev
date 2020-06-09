@@ -1,0 +1,10 @@
+查询所有注册的应用信息
+http://cmdbUrl/cmdb/api/apps
+查询所有注册的应用信息并且已经生成（未生成镜像）应用信息
+http://cmdbUrl/cmdb/api/apps?hasImage=true(false)
+查询appName已经注册的应用信息
+http://cmdbUrl/cmdb/api/apps/{appName}
+查询appName注册的应用信息并且已经生成（未生成镜像）应用信息
+http://cmdbUrl/cmdb/api/apps?hasImage=true(false)
+查询指定应用指定版本的模块信息
+http://cmdbUrl/cmdb/api/apps/{appName}/{version}

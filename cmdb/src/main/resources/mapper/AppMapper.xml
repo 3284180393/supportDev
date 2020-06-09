@@ -49,7 +49,7 @@
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppPo"
             useGeneratedKeys="true" keyProperty="appId">
         insert into app(app_name, app_type, version, ccod_version, base_path, create_time, update_time, create_reason, `comment`, version_control, version_control_url, has_image)
-        values (#{appName,jdbcType=VARCHAR}, #{appType,jdbcType=VARCHAR}, #{version,jdbcType=VARCHAR}, #{ccodVersion,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{createReason,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{versionControl,jdbcType=VARCHAR}, #{versionControlUrl,jdbcType=VARCHAR}, #{has_image,jdbcType=BOOLEAN})
+        values (#{appName,jdbcType=VARCHAR}, #{appType,jdbcType=VARCHAR}, #{version,jdbcType=VARCHAR}, #{ccodVersion,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{createReason,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{versionControl,jdbcType=VARCHAR}, #{versionControlUrl,jdbcType=VARCHAR}, #{hasImage,jdbcType=BOOLEAN})
     </insert>
     <delete id="delete" parameterType="java.lang.Integer">
         delete

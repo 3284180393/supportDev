@@ -287,11 +287,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public List<AppModuleVo> queryAllRegisterAppModule() {
+    public List<AppModuleVo> queryAllRegisterAppModule(Boolean hasImage) {
         this.appReadLock.readLock().lock();
         try
         {
-            return this.registerAppMap.values().stream().flatMap(listContainer -> listContainer.stream()).collect(Collectors.toList());
+            List<AppModuleVo> registerList = this.registerAppMap.values().stream().flatMap(listContainer -> listContainer.stream()).collect(Collectors.toList());
+            List<AppModuleVo> retList = registerList;
+            if(hasImage != null)
+                retList = registerList.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).containsKey(hasImage) ? registerList.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).get(hasImage) : new ArrayList<>();
+            logger.debug(String.format("find %d register app module with hasImage=%s", retList.size(), hasImage));
+            return retList;
         }
         finally {
             this.appReadLock.readLock().unlock();
@@ -485,18 +490,16 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public AppModuleVo[] queryApps(String appName) throws DataAccessException {
+    public List<AppModuleVo> queryApps(String appName, Boolean hasImage) throws DataAccessException {
         this.appReadLock.readLock().lock();
         try
         {
             logger.debug(String.format("begin to query app modules : appName=%s", appName));
-            List<AppModuleVo> list;
-            if(StringUtils.isBlank(appName))
-               list  = this.registerAppMap.values().stream().flatMap(listContainer -> listContainer.stream()).collect(Collectors.toList());
-            else
-                list = this.registerAppMap.containsKey(appName) ? this.registerAppMap.get(appName) : new ArrayList<>();
-            logger.info(String.format("query %d app module record with appName=%s", list.size(), appName));
-            return list.toArray(new AppModuleVo[0]);
+            List<AppModuleVo> list = this.registerAppMap.containsKey(appName) ? this.registerAppMap.get(appName) : new ArrayList<>();;
+            if(hasImage != null)
+                list = list.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).containsKey(hasImage) ? list.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).get(hasImage) : new ArrayList<>();
+            logger.info(String.format("query %d app module record with appName=%s and hasImage=%s", list.size(), appName, hasImage));
+            return list;
         }
         finally {
             this.appReadLock.readLock().unlock();
@@ -809,17 +812,23 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public List<PlatformAppModuleVo> preprocessCollectedPlatformAppModule(List<PlatformAppModuleVo> moduleList, List<PlatformAppModuleVo> failList) {
+    public List<PlatformAppModuleVo> preprocessCollectedPlatformAppModule(String platformName, String platformId, List<PlatformAppModuleVo> moduleList, List<PlatformAppModuleVo> failList) {
         List<PlatformAppModuleVo> successList = new ArrayList<>();
         logger.debug(String.format("begin to preprocess %d collected platform app modules", moduleList.size()));
         this.appWriteLock.writeLock().lock();
         try
         {
-            for(PlatformAppModuleVo moduleVo : successList)
+            for(PlatformAppModuleVo moduleVo : moduleList)
             {
+                if(!moduleVo.isOk(platformId, platformName, this.appSetRelationMap))
+                {
+                    failList.add(moduleVo);
+                    continue;
+                }
+                List<AppModuleVo> registerAppList = this.queryAllRegisterAppModule(null);
                 try
                 {
-                    handlePlatformAppModule(moduleVo);
+                    handlePlatformAppModule(moduleVo, registerAppList);
                     successList.add(moduleVo);
                 }
                 catch (ParamException ex)
@@ -854,21 +863,24 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * 如果该模块在db中没有记录则需要上传二进制安装包以及配置文件并在数据库创建一条记录
      * 归档平台应用的配置文件，并在数据库创建一条平台应用详情记录
      * @param module 客户端收集的平台应用信息
+     * @param registerAppList 已经注册的应用模块列表
      * @return 添加后的模块
      * @throws DataAccessException 查询数据库异常
      * @throws InterfaceCallException 调用nexus接口异常
      * @throws NexusException nexus返回调用失败信息或是解析nexus调用结果失败
      * @throws DBNexusNotConsistentException cmdb记录的信息和nexus不一致
      */
-    private boolean handlePlatformAppModule(PlatformAppModuleVo module)
+    private boolean handlePlatformAppModule(PlatformAppModuleVo module, List<AppModuleVo> registerAppList)
             throws DataAccessException, InterfaceCallException, NexusException, ParamException
     {
         logger.debug(String.format("begin to handle module[%s]", JSONObject.toJSONString(module)));
+        Map<String, List<AppModuleVo>> appMap = registerAppList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         AppPo appPo = module.getAppInfo();
         String appName = appPo.getAppName();
         String appVersion = appPo.getVersion();
         String appDirectory = appPo.getAppNexusDirectory();
-        if(!this.registerAppMap.containsKey(appName) || !this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(appVersion))
+        AppModuleVo moduleVo;
+        if(!appMap.containsKey(appName) || !appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(appVersion))
         {
             String group = appPo.getAppNexusGroup();
             logger.warn(String.format("%s[%s] not exit register it first", appName, appVersion));
@@ -892,30 +904,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.debug(String.format("upload %s(%s) package and cfgs to nexus", appName, appVersion));
             addAppToNexus(appName, appVersion, module.getInstallPackage(), module.getCfgs(), this.appRepository, appDirectory);
             logger.debug(String.format("add %s(%s) relative info to db", appName, appVersion));
-            AppModuleVo newModule = addNewAppToDB(appPo, module.getInstallPackage(), module.getCfgs());
-            if(!this.registerAppMap.containsKey(appName))
-                this.registerAppMap.put(appName, new ArrayList<>());
-            logger.debug(String.format("update register app module info"));
-            this.registerAppMap.get(appName).add(newModule);
+            moduleVo = addNewAppToDB(appPo, module.getInstallPackage(), module.getCfgs());
+            registerAppList.add(moduleVo);
         }
-        AppModuleVo moduleVo = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(appVersion);
+        else
+            moduleVo = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(appVersion);
         logger.debug(String.format("check package and cfgs of %s(%s)", appName, appVersion));
         checkInstPkgAndCfg(moduleVo, module.getInstallPackage(), module.getCfgs());
-        PlatformAppPo platformApp = module.getPlatformApp();
-        String platformCfgDirectory = platformApp.getPlatformAppDirectory(appName, appVersion, platformApp);
-        logger.debug(String.format("update cfgs to %s/%s", this.platformAppCfgRepository, platformCfgDirectory));
-        nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword,
-                this.platformAppCfgRepository, platformCfgDirectory, module.getCfgs());
-        platformApp.setAppId(moduleVo.getAppId());
-        logger.debug(String.format("insert platform app info to db"));
-        this.platformAppMapper.insert(platformApp);
-        for(DeployFileInfo cfgFilePo : module.getCfgs())
-        {
-            PlatformAppCfgFilePo po = new PlatformAppCfgFilePo(platformApp.getPlatformAppId(), cfgFilePo);
-            logger.debug(String.format("insert cfg %s into db", po.getFileName()));
-            this.platformAppCfgFileMapper.insert(po);
-        }
-        logger.info(String.format("[%s] platform app module handle SUCCESS", module.toString()));
         return true;
     }
 
