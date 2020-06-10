@@ -4,9 +4,7 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.K8SException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import io.kubernetes.client.openapi.ApiException;
-import io.kubernetes.client.openapi.models.V1Namespace;
-import io.kubernetes.client.openapi.models.V1Pod;
-import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.*;
 
 
 import java.util.List;
@@ -78,4 +76,69 @@ public interface IK8sApiService {
      * @throws ApiException 查询失败
      */
     List<V1Service> queryAllServiceAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询所有node
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定命名空间下的所有node
+     * @throws ApiException
+     */
+    List<V1Node> queryAllNode(String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定的node信息
+     * @param nodeName node名
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的node信息
+     * @throws ApiException 查询失败
+     */
+    V1Node queryNode(String nodeName, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询命名空间下的所有ConfigMap
+     * @param namespace 指定的命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定命名空间下的所有ConfigMap
+     * @throws ApiException
+     */
+    List<V1ConfigMap> queryAllConfigMapAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+
+    /**
+     * 查询指定命名空间下指定服名的ConfigMap信息
+     * @param namespace 命名空间
+     * @param configMapName ConfigMap名
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的ConfigMap信息
+     * @throws ApiException 查询失败
+     */
+    V1ConfigMap queryConfigMap(String namespace, String configMapName, String k8sApiUrl, String authToken) throws ApiException;
+
+
+    /**
+     * 查询命名空间下的所有Deployment
+     * @param namespace 指定的命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定命名空间下的所有Deployment
+     * @throws ApiException
+     * @throws ApiException
+     */
+    List<ExtensionsV1beta1Deployment> queryAllDeploymentAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定命名空间下指定服名的Deployment信息
+     * @param namespace 命名空间
+     * @param deploymentName Deployment名
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的Deployment信息
+     * @throws ApiException 查询失败
+     */
+    ExtensionsV1beta1Deployment queryDeployment(String namespace, String deploymentName, String k8sApiUrl, String authToken) throws ApiException;
+
 }

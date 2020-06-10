@@ -5,8 +5,10 @@ import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformTopologyInfo;
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.models.*;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * @ClassName: IPlatformManagerService
@@ -68,5 +70,88 @@ public interface IPlatformManagerService {
      * @throws Exception
      */
     void startCollectPlatformAppData(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
+
+    /**
+     * 查询指定平台的命名空间
+     * @param platformId 指定平台的id
+     * @return 平台的的k8s的命名空间
+     * @throws ParamException
+     * @throws ApiException
+     */
+    V1Namespace queryPlatformK8sNamespace(String platformId) throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台下的所有k8s pod信息
+     * @param platformId 平台id
+     * @return 平台下的所有pod信息
+     * @throws ParamException
+     * @throws ApiException
+     */
+    List<V1Pod> queryPlatformK8sAllPods(String platformId) throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台下的指定pod名的pod信息
+     * @param platformId 平台id
+     * @param podName pod名
+     * @return 查询到的指定条件的pod信息
+     * @throws ParamException
+     * @throws ApiException
+     */
+    V1Pod queryPlatformK8sPod(String platformId, String podName)throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台下的所有k8s service信息
+     * @param platformId 平台id
+     * @return 平台下的所有service信息
+     * @throws ParamException
+     * @throws ApiException
+     */
+    List<V1Service> queryPlatformK8sAllServices(String platformId) throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台下的指定pod名的pod信息
+     * @param platformId 平台id
+     * @param serviceName service名
+     * @return 查询到的指定条件的pod信息
+     * @throws ParamException
+     * @throws ApiException
+     */
+    V1Service queryPlatformK8sService(String platformId, String serviceName)throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台下的所有k8s configMap信息
+     * @param platformId 平台id
+     * @return 平台下的所有configMap信息
+     * @throws ParamException
+     * @throws ApiException
+     */
+    List<V1ConfigMap> queryPlatformK8sAllConfigMaps(String platformId) throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台下的指定pod名的configMap信息
+     * @param platformId 平台id
+     * @param configMapName configMap名
+     * @return 查询到的指定条件的pod信息
+     * @throws ParamException
+     * @throws ApiException
+     */
+    V1ConfigMap queryPlatformK8sConfigMap(String platformId, String configMapName)throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台下的所有deployment
+     * @param platformId 平台id
+     * @return 平台下所有平台id
+     * @throws ParamException
+     * @throws ApiException
+     */
+    List<ExtensionsV1beta1Deployment> queryPlatformAllDeployment(String platformId) throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台下的指定名的deployment
+     * @param platformId 平台id
+     * @param deploymentName 指定的deployment名
+     * @return 满足指定条件的deployment
+     */
+    ExtensionsV1beta1Deployment queryPlatformDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException;
 
 }

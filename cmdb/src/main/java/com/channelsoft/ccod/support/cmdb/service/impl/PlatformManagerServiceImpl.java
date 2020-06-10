@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.AppDefine;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
@@ -59,6 +60,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
+
+    @Autowired
+    IK8sApiService k8sApiService;
 
     @Autowired
     PlatformThreePartAppMapper platformThreePartAppMapper;
@@ -1061,5 +1065,93 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 this.platformAppMapper.update(deployApp);
             }
         }
+    }
+
+    @Override
+    public V1Namespace queryPlatformK8sNamespace(String platformId) throws ParamException, ApiException {
+        logger.debug(String.format("begin to query k8s namespace of %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        return this.k8sApiService.queryNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public List<V1Pod> queryPlatformK8sAllPods(String platformId) throws ParamException, ApiException {
+        logger.debug(String.format("begin to query k8s pods of %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        return this.k8sApiService.queryAllPodAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1Pod queryPlatformK8sPod(String platformId, String podName) throws ParamException, ApiException {
+        logger.debug(String.format("begin to query k8s pod %s of %s", podName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        return this.k8sApiService.queryPod(platformId, podName, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public List<V1Service> queryPlatformK8sAllServices(String platformId) throws ParamException, ApiException {
+        logger.debug(String.format("begin to query k8s services of %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        return this.k8sApiService.queryAllServiceAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1Service queryPlatformK8sService(String platformId, String serviceName) throws ParamException, ApiException {
+        logger.debug(String.format("begin to query k8s service %s of %s", serviceName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        return this.k8sApiService.queryService(platformId, serviceName, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public List<V1ConfigMap> queryPlatformK8sAllConfigMaps(String platformId) throws ParamException, ApiException {
+        logger.debug(String.format("begin to query k8s configMap of %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        return this.k8sApiService.queryAllConfigMapAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1ConfigMap queryPlatformK8sConfigMap(String platformId, String configMapName) throws ParamException, ApiException {
+        logger.debug(String.format("begin to query k8s configMap %s of %s", configMapName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        return this.k8sApiService.queryConfigMap(platformId, configMapName, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    private PlatformPo getK8sPlatform(String platformId) throws ParamException
+    {
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+            throw new ParamException(String.format("%s platform not exit", platformId));
+        if(!PlatformType.K8S_CONTAINER.equals(platformPo.getType()))
+        {
+            logger.error(String.format("platform %s type is %s not %s", platformId, platformPo.getType().name, PlatformType.K8S_CONTAINER.name));
+            throw new ParamException(String.format("%s is not %s platform", platformId, PlatformType.K8S_CONTAINER.name));
+        }
+        if(StringUtils.isBlank(platformPo.getApiUrl()))
+        {
+            logger.error(String.format("k8s api url of %s is blank", platformId));
+            throw new ParamException(String.format("k8s api url of %s is blank", platformId));
+        }
+        if(StringUtils.isBlank(platformPo.getAuthToken()))
+        {
+            logger.error(String.format("k8s auth token of %s is blank", platformId));
+            throw new ParamException(String.format("k8s auth token of %s is blank", platformId));
+        }
+        return platformPo;
+    }
+
+    @Override
+    public List<ExtensionsV1beta1Deployment> queryPlatformAllDeployment(String platformId) throws ParamException, ApiException {
+        logger.debug(String.format("query all deployment of platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        List<ExtensionsV1beta1Deployment> list = this.k8sApiService.queryAllDeploymentAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return list;
+    }
+
+    @Override
+    public ExtensionsV1beta1Deployment queryPlatformDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException {
+        logger.debug(String.format("query deployment %s at platform %s", deploymentName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        ExtensionsV1beta1Deployment deployment = this.k8sApiService.queryDeployment(platformId, deploymentName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return deployment;
     }
 }

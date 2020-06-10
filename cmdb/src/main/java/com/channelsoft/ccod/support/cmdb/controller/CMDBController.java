@@ -3,9 +3,12 @@ package com.channelsoft.ccod.support.cmdb.controller;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
+import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +45,9 @@ public class CMDBController {
 
     @Autowired
     IPlatformAppCollectService platformAppCollectService;
+
+    @Autowired
+    IK8sApiService k8sApiService;
 
     private final static Logger logger = LoggerFactory.getLogger(CMDBController.class);
 
@@ -862,6 +868,258 @@ public class CMDBController {
         {
             logger.error(String.format("delete platform FAIL"), ex);
             resultPo = new AjaxResultPo(false, String.format("delete platform FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sNodes", method = RequestMethod.GET)
+    public AjaxResultPo queryAllK8sNode(String k8sApiUrl, String k8sAuthToken)
+    {
+        String uri = String.format("GET %s/k8sNodes", this.apiBasePath);
+        logger.debug(String.format("enter %s controller with k8sApiUrl=%s and authToken=%s", uri, k8sApiUrl, k8sAuthToken));
+        AjaxResultPo resultPo;
+        try
+        {
+            if(StringUtils.isBlank(k8sApiUrl))
+                throw new Exception("k8s api url is blank");
+            if(StringUtils.isBlank(k8sAuthToken))
+                throw new Exception("k8s auth token is blank");
+            List<V1Node> list = k8sApiService.queryAllNode(k8sApiUrl, k8sAuthToken);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query node exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sNodes/{nodeName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sNodeByName(@PathVariable String nodeName, String k8sApiUrl, String k8sAuthToken)
+    {
+        String uri = String.format("GET %s/k8sNodes/%s", this.apiBasePath, nodeName);
+        logger.debug(String.format("enter %s controller with k8sApiUrl=%s and authToken=%s", uri, k8sApiUrl, k8sAuthToken));
+        AjaxResultPo resultPo;
+        try
+        {
+            if(StringUtils.isBlank(k8sApiUrl))
+                throw new Exception("k8s api url is blank");
+            if(StringUtils.isBlank(k8sAuthToken))
+                throw new Exception("k8s auth token is blank");
+            V1Node node = k8sApiService.queryNode(nodeName, k8sApiUrl, k8sAuthToken);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, node);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query node exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sNamespaces", method = RequestMethod.GET)
+    public AjaxResultPo queryAllK8sNamespace(String k8sApiUrl, String k8sAuthToken)
+    {
+        String uri = String.format("GET %s/k8sNamespaces", this.apiBasePath);
+        logger.debug(String.format("enter %s controller with k8sApiUrl=%s and authToken=%s", uri, k8sApiUrl, k8sAuthToken));
+        AjaxResultPo resultPo;
+        try
+        {
+            if(StringUtils.isBlank(k8sApiUrl))
+                throw new Exception("k8s api url is blank");
+            if(StringUtils.isBlank(k8sAuthToken))
+                throw new Exception("k8s auth token is blank");
+            List<V1Namespace> list = k8sApiService.queryAllNamespace(k8sApiUrl, k8sAuthToken);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query namespace exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sNamespaces/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryAppsByName(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sNamespaces/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Namespace namespace = this.platformManagerService.queryPlatformK8sNamespace(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, namespace);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query namespace exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPods/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryAllK8sPod(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sPods/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<V1Pod> list = this.platformManagerService.queryPlatformK8sAllPods(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query pod exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPods/{platformId}/{podName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sPodByName(@PathVariable String platformId, @PathVariable String podName)
+    {
+        String uri = String.format("GET %s/k8sNamespaces/%s/%s", this.apiBasePath, platformId, podName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Pod pod = this.platformManagerService.queryPlatformK8sPod(platformId, podName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, pod);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query pod exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sServices/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryAllK8sService(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sServices/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<V1Service> list = this.platformManagerService.queryPlatformK8sAllServices(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query service exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sServices/{platformId}/{serviceName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sServiceByName(@PathVariable String platformId, @PathVariable String serviceName)
+    {
+        String uri = String.format("GET %s/k8sServices/%s/%s", this.apiBasePath, platformId, serviceName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Service service = this.platformManagerService.queryPlatformK8sService(platformId, serviceName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, service);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query service exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sConfigMaps/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryAllK8sConfigMap(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sConfigMaps/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<V1ConfigMap> list = this.platformManagerService.queryPlatformK8sAllConfigMaps(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query configMap exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sConfigMaps/{platformId}/{serviceName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sConfigMapByName(@PathVariable String platformId, @PathVariable String configMapName)
+    {
+        String uri = String.format("GET %s/k8sConfigMaps/%s/%s", this.apiBasePath, platformId, configMapName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1ConfigMap configMap = this.platformManagerService.queryPlatformK8sConfigMap(platformId, configMapName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, configMap);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query configMap exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sDeployments/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryAllK8sDeployment(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sDeployments/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<ExtensionsV1beta1Deployment> list = this.platformManagerService.queryPlatformAllDeployment(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query deployment exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sDeployments/{platformId}/{deploymentName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sDeploymentByName(@PathVariable String platformId, @PathVariable String deploymentName)
+    {
+        String uri = String.format("GET %s/k8sDeployments/%s/%s", this.apiBasePath, platformId, deploymentName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            ExtensionsV1beta1Deployment deployment = this.platformManagerService.queryPlatformDeploymentByName(platformId, deploymentName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, deployment);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query deployment exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;
     }

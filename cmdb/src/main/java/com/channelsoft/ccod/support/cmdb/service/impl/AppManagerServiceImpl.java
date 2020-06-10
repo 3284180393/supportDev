@@ -575,7 +575,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.isPlatformCheckOngoing = true;
         try
         {
-            List<PlatformAppModuleVo> modules = this.platformAppCollectService.collectPlatformAppData(platformId, platformName, null, null, null, null);
+            List<PlatformAppModuleVo> modules = this.platformAppCollectService.updatePlatformAppData(platformId, platformName, wantList);
             List<PlatformAppModuleVo> failList = new ArrayList<>();
             List<PlatformAppModuleVo> successList = new ArrayList<>();
             for(PlatformAppModuleVo collectedModule : modules)

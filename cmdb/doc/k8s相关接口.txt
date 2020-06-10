@@ -1,0 +1,4 @@
+查询指定平台在k8s的命名空间信息
+api: http://cmdbUrl/cmdb/api/k8sNamespaces/{platformId}
+注意问题：platformId必须存在且类型为K8S_CONTAINER，否则会报错
+实例：http://10.130.40.164:8086/cmdb/api/k8sNamespaces/202005-test
