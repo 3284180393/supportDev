@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.gson.Gson;
+
 /**
  * @ClassName: K8sApiServiceImpl
  * @Author: lanhb
@@ -170,22 +172,22 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public List<ExtensionsV1beta1Deployment> queryAllDeploymentAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+    public List<V1Deployment> queryAllDeploymentAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("begin to get all deployment from %s at namespace %s", k8sApiUrl, namespace));
-        ApiClient client = getConnection(k8sApiUrl, authToken);
-        ExtensionsV1beta1Api api = new ExtensionsV1beta1Api(client);
-        ExtensionsV1beta1DeploymentList list = api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d deployment %s from %s at %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), k8sApiUrl, namespace));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api appsV1Api = new AppsV1Api();
+        V1DeploymentList list = appsV1Api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
+        logger.debug(String.format("find %d deployment from %s at %s", list.getItems().size(), k8sApiUrl, namespace));
         return list.getItems();
     }
 
     @Override
-    public ExtensionsV1beta1Deployment queryDeployment(String namespace, String deploymentName, String k8sApiUrl, String authToken) throws ApiException {
+    public V1Deployment queryDeployment(String namespace, String deploymentName, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("begin to get deployment %s from %s at namespace %s", deploymentName, k8sApiUrl, namespace));
-        ApiClient client = getConnection(k8sApiUrl, authToken);
-        ExtensionsV1beta1Api api = new ExtensionsV1beta1Api(client);
-        ExtensionsV1beta1Deployment deployment = api.readNamespacedDeployment(deploymentName, namespace, null, null, null);
-        logger.debug(String.format("find deployment %s from %s", JSONObject.toJSONString(deployment), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api appsV1Api = new AppsV1Api();
+        V1Deployment deployment = appsV1Api.readNamespacedDeployment(deploymentName, namespace, null, null, null);
+        logger.debug(String.format("find deployment %s from %s", deploymentName, k8sApiUrl));
         return deployment;
     }
 
@@ -384,17 +386,26 @@ public class K8sApiServiceImpl implements IK8sApiService {
 
     private void deploymentTest1() throws Exception
     {
-        String namespace = "pahj";
+        Gson gson = new Gson();
+        String namespace = "123456-wuph";
         getConnection(testK8sApiUrl, testAuthToken);
         CoreV1Api apiInstance = new CoreV1Api();
+        V1ServiceList svcList = apiInstance.listNamespacedService(namespace, null, null, null, null, null, null, null, null, null);
+        System.out.println(gson.toJson(svcList.getItems()));
         AppsV1Api appsV1Api = new AppsV1Api();
         V1DeploymentList list = appsV1Api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
+
+        String someStr = gson.toJson(list.getItems());
+        JSONArray array = JSONArray.parseArray(someStr);
+        System.out.println(array.size());
         for(int i = 0; i < list.getItems().size(); i++)
         {
             V1Deployment deployment = list.getItems().get(i);
-            JSONObject jsonObject = K8sUtils.transferV1DeploymentToJSONObject(deployment);
-            System.out.println(JSONObject.toJSONString(jsonObject));
-            System.out.println("\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2");
+            String nextStr = gson.toJson(deployment);
+            System.out.println(nextStr);
+//            JSONObject jsonObject = K8sUtils.transferV1DeploymentToJSONObject(deployment);
+//            System.out.println(JSONObject.toJSONString(jsonObject));
+//            System.out.println(String.format("\n%d@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%d", i, i));
         }
     }
 

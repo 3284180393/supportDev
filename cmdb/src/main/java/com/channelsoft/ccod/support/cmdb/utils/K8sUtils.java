@@ -103,6 +103,31 @@ public class K8sUtils {
             }
             deployment.getSpec().getTemplate().getSpec().setContainers(new ArrayList<>());
         }
+        V1DeploymentSpec spec = deployment.getSpec();
+        try
+        {
+            JSONObject.toJSONString(spec.getTemplate());
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+        try
+        {
+            JSONObject.toJSONString(spec.getStrategy());
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+        try
+        {
+            JSONObject.toJSONString(spec.getSelector());
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
         JSONObject jsonObject = JSONObject.parseObject(JSONObject.toJSONString(deployment));
         jsonObject.getJSONObject("spec").put("initContainers", initJsonArr);
         jsonObject.getJSONObject("spec").put("containers", containerArr);
@@ -147,5 +172,10 @@ public class K8sUtils {
             jsonProbe.getJSONObject("tcpSocket").put("port", port);
         }
         return jsonProbe;
+    }
+
+    private static JSONObject getStrategyJsonObj(V1DeploymentStrategy strategy)
+    {
+        return null;
     }
 }

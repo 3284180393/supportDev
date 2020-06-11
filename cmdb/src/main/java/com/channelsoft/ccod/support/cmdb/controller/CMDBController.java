@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.controller;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
@@ -9,6 +10,7 @@ import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.utils.K8sUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import com.google.gson.Gson;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -54,6 +56,8 @@ public class CMDBController {
     private final static Logger logger = LoggerFactory.getLogger(CMDBController.class);
 
     private String apiBasePath = "/cmdb/api";
+
+    private Gson gson = new Gson();
 
     @RequestMapping(value = "/apps", method = RequestMethod.POST)
     public AjaxResultPo addNewApp(@RequestBody AppModuleVo moduleVo)
@@ -911,7 +915,8 @@ public class CMDBController {
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
             V1Node node = k8sApiService.queryNode(nodeName, k8sApiUrl, k8sAuthToken);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, node);
+            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(node));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -935,7 +940,8 @@ public class CMDBController {
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
             List<V1Namespace> list = k8sApiService.queryAllNamespace(k8sApiUrl, k8sAuthToken);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -955,8 +961,9 @@ public class CMDBController {
         try
         {
             V1Namespace namespace = this.platformManagerService.queryPlatformK8sNamespace(platformId);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, namespace);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(namespace));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
@@ -975,8 +982,9 @@ public class CMDBController {
         try
         {
             List<V1Pod> list = this.platformManagerService.queryPlatformK8sAllPods(platformId);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
@@ -995,8 +1003,9 @@ public class CMDBController {
         try
         {
             V1Pod pod = this.platformManagerService.queryPlatformK8sPod(platformId, podName);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, pod);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(pod));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
@@ -1015,11 +1024,9 @@ public class CMDBController {
         try
         {
             List<V1Service> list = this.platformManagerService.queryPlatformK8sAllServices(platformId);
-            List<JSONObject> retList = new ArrayList<>();
-            for(V1Service service : list)
-                retList.add(K8sUtils.transferV1ServiceToJSONObject(service));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", retList.size(), retList);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
@@ -1038,9 +1045,9 @@ public class CMDBController {
         try
         {
             V1Service service = this.platformManagerService.queryPlatformK8sService(platformId, serviceName);
-            JSONObject retVal = K8sUtils.transferV1ServiceToJSONObject(service);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, retVal);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(service));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
@@ -1059,8 +1066,9 @@ public class CMDBController {
         try
         {
             List<V1ConfigMap> list = this.platformManagerService.queryPlatformK8sAllConfigMaps(platformId);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
@@ -1079,8 +1087,9 @@ public class CMDBController {
         try
         {
             V1ConfigMap configMap = this.platformManagerService.queryPlatformK8sConfigMap(platformId, configMapName);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, configMap);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(configMap));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
@@ -1098,9 +1107,10 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<ExtensionsV1beta1Deployment> list = this.platformManagerService.queryPlatformAllDeployment(platformId);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            List<V1Deployment> list = this.platformManagerService.queryPlatformAllDeployment(platformId);
+            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
@@ -1118,9 +1128,10 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            ExtensionsV1beta1Deployment deployment = this.platformManagerService.queryPlatformDeploymentByName(platformId, deploymentName);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, deployment);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            V1Deployment deployment = this.platformManagerService.queryPlatformDeploymentByName(platformId, deploymentName);
+            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(deployment));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {

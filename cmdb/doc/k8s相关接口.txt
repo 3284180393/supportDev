@@ -1,4 +1,63 @@
+查询指定k8s服务器上的所有命名空间
+api: http://cmdbUrl//api/k8sNamespaces?k8sApiUrl={k8sApiUrl}&k8sAuthToken={k8sAuthToken}
+实例:http://10.130.41.218:8086/cmdb/api/k8sNamespaces?k8sApiUrl=https://10.130.41.218:6443&k8sAuthToken=eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA
+备注:k8sApiUrl是k8s的api url例如https://10.130.41.218:6443， k8sAuthToken是k8s的访问认证token
+
 查询指定平台在k8s的命名空间信息
 api: http://cmdbUrl/cmdb/api/k8sNamespaces/{platformId}
-注意问题：platformId必须存在且类型为K8S_CONTAINER，否则会报错
-实例：http://10.130.40.164:8086/cmdb/api/k8sNamespaces/202005-test
+实例：http://10.130.41.218:8086/cmdb/api/k8sNamespaces/123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询k8s的所有node
+http://cmdbUrl/cmdb/api/k8sNodes?k8sApiUrl={k8sApiUrl}&k8sAuthToken={k8sAuthToken}
+实例：http://10.130.41.218:8086/cmdb/api/k8sNodes?k8sApiUrl=https://10.130.41.218:6443&k8sAuthToken=eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA
+备注:k8sApiUrl是k8s的api url例如https://10.130.41.218:6443， k8sAuthToken是k8s的访问认证token
+
+查询k8s的指定node
+http://cmdbUrl/cmdb/api/k8sNodes/{nodeName}?k8sApiUrl={k8sApiUrl}&k8sAuthToken={k8sAuthToken}
+实例：http://10.130.41.218:8086/cmdb/api/k8sNodes/node2?k8sApiUrl=https://10.130.41.218:6443&k8sAuthToken=eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA
+备注:k8sApiUrl是k8s的api url例如https://10.130.41.218:6443， k8sAuthToken是k8s的访问认证token
+
+查询指定平台下面的所有服务
+api: http://cmdbUrl/cmdb/api/k8sServices/{platformId}
+实例：http://10.130.41.218:8086/cmdb/api/k8sServices/123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询指定平台的指定服务
+api: http://cmdbUrl/cmdb/api/k8sServices/{platformId}/{serviceName}
+实例:http://10.130.41.218:8086/cmdb/api/k8sServices/123456-wuph/cms1-cloud01
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台所有pod
+api: http://10.130.41.218:8086/cmdb/api/k8sPods/{platformId}
+实例: http://10.130.41.218:8086/cmdb/api/k8sPods/123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台指定pod
+api: http://10.130.41.218:8086/cmdb/api/k8sPods/{platformId}/{podName}
+实例: http://10.130.41.218:8086/cmdb/api/k8sPods/123456-wuph/cas-manage01-6b9bd989c6-d2tg7
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台所有configMap
+api: http://10.130.41.218:8086/cmdb/api/k8sConfigMaps/{platformId}
+实例: http://10.130.41.218:8086/cmdb/api/k8sConfigMaps/kube-system
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台指定configMap
+api: http://10.130.41.218:8086/cmdb/api/k8sConfigMaps/{platformId}/{configMapName}
+实例: http://10.130.41.218:8086/cmdb/api/k8sConfigMaps/kube-system/calico-config
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+
+查询平台所有deployment
+api: http://cmdbUrl/cmdb/api/k8sDeployments/{platformId}
+实例: http://10.130.41.218:8086/cmdb/api/k8sDeployments/123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台指定deployment
+api: http://cmdbUrl/cmdb/api/k8sDeployments/{platformId}/{deploymentName}
+实例: http://10.130.41.218:8086/cmdb/api/k8sDeployments/123456-wuph/cas-manage01
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+
+

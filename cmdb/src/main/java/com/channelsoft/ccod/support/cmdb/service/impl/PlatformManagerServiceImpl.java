@@ -1140,18 +1140,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public List<ExtensionsV1beta1Deployment> queryPlatformAllDeployment(String platformId) throws ParamException, ApiException {
+    public List<V1Deployment> queryPlatformAllDeployment(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all deployment of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<ExtensionsV1beta1Deployment> list = this.k8sApiService.queryAllDeploymentAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1Deployment> list = this.k8sApiService.queryAllDeploymentAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return list;
     }
 
     @Override
-    public ExtensionsV1beta1Deployment queryPlatformDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException {
+    public V1Deployment queryPlatformDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException {
         logger.debug(String.format("query deployment %s at platform %s", deploymentName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        ExtensionsV1beta1Deployment deployment = this.k8sApiService.queryDeployment(platformId, deploymentName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Deployment deployment = this.k8sApiService.queryDeployment(platformId, deploymentName, platformPo.getApiUrl(), platformPo.getAuthToken());
         return deployment;
     }
 }

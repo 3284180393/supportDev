@@ -126,7 +126,7 @@ public interface IK8sApiService {
      * @throws ApiException
      * @throws ApiException
      */
-    List<ExtensionsV1beta1Deployment> queryAllDeploymentAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+    List<V1Deployment> queryAllDeploymentAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 查询指定命名空间下指定服名的Deployment信息
@@ -137,6 +137,6 @@ public interface IK8sApiService {
      * @return 指定条件的Deployment信息
      * @throws ApiException 查询失败
      */
-    ExtensionsV1beta1Deployment queryDeployment(String namespace, String deploymentName, String k8sApiUrl, String authToken) throws ApiException;
+    V1Deployment queryDeployment(String namespace, String deploymentName, String k8sApiUrl, String authToken) throws ApiException;
 
 }

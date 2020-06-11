@@ -144,7 +144,7 @@ public interface IPlatformManagerService {
      * @throws ParamException
      * @throws ApiException
      */
-    List<ExtensionsV1beta1Deployment> queryPlatformAllDeployment(String platformId) throws ParamException, ApiException;
+    List<V1Deployment> queryPlatformAllDeployment(String platformId) throws ParamException, ApiException;
 
     /**
      * 查询指定平台下的指定名的deployment
@@ -152,6 +152,6 @@ public interface IPlatformManagerService {
      * @param deploymentName 指定的deployment名
      * @return 满足指定条件的deployment
      */
-    ExtensionsV1beta1Deployment queryPlatformDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException;
+    V1Deployment queryPlatformDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException;
 
 }
