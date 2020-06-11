@@ -7,6 +7,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
+import com.channelsoft.ccod.support.cmdb.utils.K8sUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
@@ -17,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -1013,7 +1015,10 @@ public class CMDBController {
         try
         {
             List<V1Service> list = this.platformManagerService.queryPlatformK8sAllServices(platformId);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            List<JSONObject> retList = new ArrayList<>();
+            for(V1Service service : list)
+                retList.add(K8sUtils.transferV1ServiceToJSONObject(service));
+            resultPo = new AjaxResultPo(true, "query SUCCESS", retList.size(), retList);
             logger.info(String.format("query SUCCESS, quit %s controller", uri));
         }
         catch (Exception e)
@@ -1033,7 +1038,8 @@ public class CMDBController {
         try
         {
             V1Service service = this.platformManagerService.queryPlatformK8sService(platformId, serviceName);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, service);
+            JSONObject retVal = K8sUtils.transferV1ServiceToJSONObject(service);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, retVal);
             logger.info(String.format("query SUCCESS, quit %s controller", uri));
         }
         catch (Exception e)
@@ -1064,7 +1070,7 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/k8sConfigMaps/{platformId}/{serviceName}", method = RequestMethod.GET)
+    @RequestMapping(value = "/k8sConfigMaps/{platformId}/{configMapName}", method = RequestMethod.GET)
     public AjaxResultPo queryK8sConfigMapByName(@PathVariable String platformId, @PathVariable String configMapName)
     {
         String uri = String.format("GET %s/k8sConfigMaps/%s/%s", this.apiBasePath, platformId, configMapName);

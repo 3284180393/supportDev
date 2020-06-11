@@ -1,8 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.k8s.service;
 
-import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
-import com.channelsoft.ccod.support.cmdb.exception.K8SException;
-import com.channelsoft.ccod.support.cmdb.exception.ParamException;
+import com.alibaba.fastjson.JSONObject;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 

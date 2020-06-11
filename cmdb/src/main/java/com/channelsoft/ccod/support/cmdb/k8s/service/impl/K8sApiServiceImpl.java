@@ -1,25 +1,29 @@
 package com.channelsoft.ccod.support.cmdb.k8s.service.impl;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.fastjson.support.spring.PropertyPreFilters;
-import com.alibaba.fastjson.support.spring.annotation.FastJsonFilter;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
+import com.channelsoft.ccod.support.cmdb.utils.K8sUtils;
+import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.AppsApi;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.ExtensionsV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
+import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.credentials.AccessTokenAuthentication;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,12 +70,12 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1Pod pod = apiInstance.readNamespacedPod(podName, namespace, null, null, null);
-        logger.debug(String.format("find pod %s from %s", JSONObject.toJSONString(pod), k8sApiUrl));
         String[] excludeProperties = {"tcpSocket", "httpGet"};
         PropertyPreFilters filters = new PropertyPreFilters();
         PropertyPreFilters.MySimplePropertyPreFilter excludefilter = filters.addFilter();
         excludefilter.addExcludes(excludeProperties);
         String jsnStr = JSONObject.toJSONString(pod, excludefilter);
+        logger.debug(String.format("find pod %s from %s", jsnStr, k8sApiUrl));
         return JSONObject.parseObject(jsnStr, V1Pod.class);
     }
 
@@ -87,9 +91,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         PropertyPreFilters.MySimplePropertyPreFilter excludefilter = filters.addFilter();
         excludefilter.addExcludes(excludeProperties);
         String jsnStr = JSONArray.toJSONString(pods, excludefilter);
-
-//        logger.debug(String.format(jsonStr));
-        logger.debug(String.format("find %d pods %s at namespace %s from %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), namespace, k8sApiUrl));
+        logger.debug(String.format("find %d pods %s at namespace %s from %s", list.getItems().size(), jsnStr, namespace, k8sApiUrl));
         return JSONArray.parseArray(jsnStr, V1Pod.class);
     }
 
@@ -113,7 +115,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1Service service = apiInstance.readNamespacedService(serviceName, namespace, null, null, null);
-        logger.debug(String.format("find service %s from %s", JSONObject.toJSONString(service), k8sApiUrl));
+        logger.debug(String.format("find service %s from %s success", serviceName, k8sApiUrl));
         return service;
     }
 
@@ -123,7 +125,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1ServiceList list = apiInstance.listNamespacedService(namespace, null, null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d service %s at %s from %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), namespace, k8sApiUrl));
+        logger.debug(String.format("find %d service at %s from %s", list.getItems().size(), namespace, k8sApiUrl));
         return list.getItems();
     }
 
@@ -132,7 +134,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         logger.debug(String.format("begin to query all node from %s", k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1NodeList list = apiInstance.listNode(null, null, null, null, null, null, null, null, null);
+        V1NodeList list = apiInstance.listNode(null, null, null, null ,null, null, null,null, null);
         logger.debug(String.format("find %d node %s from %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), k8sApiUrl));
         return list.getItems();
     }
@@ -192,7 +194,10 @@ public class K8sApiServiceImpl implements IK8sApiService {
     {
         try
         {
-            jsonTest();
+            deploymentTest1();
+//            nodeTest();
+//            serviceTest();
+//            jsonTest();
 //            listAllConfigMap();
 ////            createConfigMapTest();
 //            replaceConfigMapTest();
@@ -271,6 +276,125 @@ public class K8sApiServiceImpl implements IK8sApiService {
             System.err.println("Reason: " + e.getResponseBody());
             System.err.println("Response headers: " + e.getResponseHeaders());
             e.printStackTrace();
+        }
+    }
+
+    private void nodeTest() throws Exception
+    {
+        String namespace = "kube-system";
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1NodeList nodeList = apiInstance.listNode(null, null, null, null ,null, null, null,null, null);
+        String jsonStr = JSONArray.toJSONString(nodeList.getItems());
+        System.out.println(jsonStr);
+    }
+
+    private void serviceTest() throws Exception
+    {
+        String namespace = "kube-system";
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ServiceList list = apiInstance.listNamespacedService(namespace, null, null, null, null, null, null, null, null, null);
+        for(int i = 0; i < list.getItems().size(); i++) {
+            V1Service service = list.getItems().get(i);
+            JSONObject jsonObject = K8sUtils.transferV1ServiceToJSONObject(service);
+            String jsonTestStr = JSONObject.toJSONString(jsonObject);
+            System.out.println(jsonTestStr);
+            V1Service svc = K8sUtils.transferJsonObjectToV1Service(jsonObject);
+            System.out.println(svc);
+//            try {
+//                JSONObject.toJSONString(service);
+//            }
+//            catch (Exception ex)
+//            {
+//                ex.printStackTrace();
+//                try
+//                {
+//                    JSONObject.toJSONString(service.getMetadata());
+//                }
+//                catch (Exception ex1)
+//                {
+//                    ex1.printStackTrace();
+//                }
+//                try
+//                {
+//                    JSONObject.toJSONString(service.getSpec());
+//                }
+//                catch (Exception ex1)
+//                {
+//                    ex1.printStackTrace();
+//                }
+//                try
+//                {
+//                    JSONObject.toJSONString(service.getStatus());
+//                }
+//                catch (Exception ex1)
+//                {
+//                    ex1.printStackTrace();
+//                }
+//
+//                V1ServiceSpec spc = service.getSpec();
+//                try
+//                {
+//                    JSONObject.toJSONString(spc.getPorts());
+//                }
+//                catch (Exception ex1)
+//                {
+//                    ex1.printStackTrace();
+//                }
+//                try
+//                {
+//                    JSONObject.toJSONString(spc.getSessionAffinityConfig());
+//                }
+//                catch (Exception ex1)
+//                {
+//                    ex1.printStackTrace();
+//                }
+//                List<V1ServicePort> ports = spc.getPorts();
+//                for(int j = 0; j < ports.size(); j++)
+//                {
+//                    V1ServicePort port = ports.get(j);
+//                    try
+//                    {
+//                        String[] excludeProperties = {"strValue"};
+//                        PropertyPreFilters filters = new PropertyPreFilters();
+//                        PropertyPreFilters.MySimplePropertyPreFilter excludefilter = filters.addFilter();
+//                        excludefilter.addExcludes(excludeProperties);
+//                        IntOrString tp = port.getTargetPort();
+//                        JSONObject.toJSONString(tp, excludefilter);
+//                    }
+//                    catch (Exception ex1)
+//                    {
+//                        ex1.printStackTrace();
+//                    }
+//
+//                }
+        }
+    }
+
+    private void deploymentTest() throws Exception
+    {
+        String namespace = "pahj";
+        ApiClient client = getConnection(testK8sApiUrl, testAuthToken);
+        ExtensionsV1beta1Api api = new ExtensionsV1beta1Api(client);
+        ExtensionsV1beta1DeploymentList list = api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
+        String json = JSONArray.toJSONString(list.getItems());
+        System.out.println(json);
+    }
+
+    private void deploymentTest1() throws Exception
+    {
+        String namespace = "pahj";
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        AppsV1Api appsV1Api = new AppsV1Api();
+        V1DeploymentList list = appsV1Api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
+        for(int i = 0; i < list.getItems().size(); i++)
+        {
+            V1Deployment deployment = list.getItems().get(i);
+            JSONObject jsonObject = K8sUtils.transferV1DeploymentToJSONObject(deployment);
+            System.out.println(JSONObject.toJSONString(jsonObject));
+            System.out.println("\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2");
         }
     }
 
