@@ -3,7 +3,10 @@ package com.channelsoft.ccod.support.cmdb.k8s.service.impl;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.support.spring.PropertyPreFilters;
+import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
+import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
+import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.utils.K8sUtils;
 import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiClient;
@@ -15,6 +18,7 @@ import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.ExtensionsV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.proto.V1beta1Extensions;
 import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.credentials.AccessTokenAuthentication;
 import org.junit.Test;
@@ -23,10 +27,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 import com.google.gson.Gson;
 
@@ -41,6 +44,11 @@ import com.google.gson.Gson;
 public class K8sApiServiceImpl implements IK8sApiService {
 
     private final static Logger logger = LoggerFactory.getLogger(K8sApiServiceImpl.class);
+
+    private final static Gson gson = new Gson();
+
+    @Autowired
+    INexusService nexusService;
 
     protected String testK8sApiUrl = "https://10.130.41.218:6443";
 
@@ -72,13 +80,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1Pod pod = apiInstance.readNamespacedPod(podName, namespace, null, null, null);
-        String[] excludeProperties = {"tcpSocket", "httpGet"};
-        PropertyPreFilters filters = new PropertyPreFilters();
-        PropertyPreFilters.MySimplePropertyPreFilter excludefilter = filters.addFilter();
-        excludefilter.addExcludes(excludeProperties);
-        String jsnStr = JSONObject.toJSONString(pod, excludefilter);
-        logger.debug(String.format("find pod %s from %s", jsnStr, k8sApiUrl));
-        return JSONObject.parseObject(jsnStr, V1Pod.class);
+        logger.debug(String.format("find pod %s from %s", gson.toJson(pod), k8sApiUrl));
+        return pod;
     }
 
     @Override
@@ -87,14 +90,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1PodList list = apiInstance.listNamespacedPod(namespace, null, null, null, null, null, null, null, null, null);
-        List<V1Pod> pods = list.getItems();
-        String[] excludeProperties = {"tcpSocket", "httpGet"};
-        PropertyPreFilters filters = new PropertyPreFilters();
-        PropertyPreFilters.MySimplePropertyPreFilter excludefilter = filters.addFilter();
-        excludefilter.addExcludes(excludeProperties);
-        String jsnStr = JSONArray.toJSONString(pods, excludefilter);
-        logger.debug(String.format("find %d pods %s at namespace %s from %s", list.getItems().size(), jsnStr, namespace, k8sApiUrl));
-        return JSONArray.parseArray(jsnStr, V1Pod.class);
+        logger.debug(String.format("find %d pods %s at namespace %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
     }
 
     /**
@@ -137,7 +134,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1NodeList list = apiInstance.listNode(null, null, null, null ,null, null, null,null, null);
-        logger.debug(String.format("find %d node %s from %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), k8sApiUrl));
+        logger.debug(String.format("find %d node %s from %s", list.getItems().size(), gson.toJson(list.getItems()), k8sApiUrl));
         return list.getItems();
     }
 
@@ -147,7 +144,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1Node node = apiInstance.readNode(nodeName, null, null, null);
-        logger.debug(String.format("find node %s from %s", JSONObject.toJSONString(node), k8sApiUrl));
+        logger.debug(String.format("find node %s from %s", gson.toJson(node), k8sApiUrl));
         return node;
     }
 
@@ -191,12 +188,119 @@ public class K8sApiServiceImpl implements IK8sApiService {
         return deployment;
     }
 
+    @Override
+    public List<ExtensionsV1beta1Ingress> queryAllIngressAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query all ingress from %s", k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        ExtensionsV1beta1IngressList list = apiInstance.listNamespacedIngress(namespace,null, null, null ,null, null, null, null,null, null);
+        logger.debug(String.format("find %d ingress %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public ExtensionsV1beta1Ingress queryIngress(String namespace, String ingressName, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query ingress at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        ExtensionsV1beta1Ingress ingress = apiInstance.readNamespacedIngress(ingressName, namespace, null, null, null);
+        logger.debug(String.format("find ingress %s at %s from %s", gson.toJson(ingress), namespace, k8sApiUrl));
+        return ingress;
+    }
+
+    @Override
+    public List<V1Endpoints> queryAllEndpointsAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query all endpoints at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1EndpointsList list = apiInstance.listNamespacedEndpoints(namespace, null, null, null, null, null, null, null, null, null);
+        logger.debug(String.format("find %d endpoints %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1Endpoints queryEndpoints(String namespace, String endpointsName, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query endpoints %s at %s from %s", endpointsName, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Endpoints endpoints = apiInstance.readNamespacedEndpoints(endpointsName, namespace, null, null, null);
+        logger.debug(String.format("find endpoints %s at %s from %s", gson.toJson(endpoints), namespace, k8sApiUrl));
+        return endpoints;
+    }
+
+    V1ConfigMap createConfigMapFromFile(String namespace, String configMapName, String fileSavePath, String k8sApiUrl, String authToken) throws ApiException, IOException
+    {
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileSavePath)),
+                "UTF-8"));
+        String lineTxt = null;
+        String context = "";
+        while ((lineTxt = br.readLine()) != null)
+        {
+            context += lineTxt + "\n";
+        }
+        br.close();
+        getConnection(k8sApiUrl, authToken);
+        V1ObjectMeta meta = new V1ObjectMeta();
+        meta.setName(configMapName);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ConfigMap body = new V1ConfigMap();
+        return body;
+    }
+
+    @Override
+    public V1ConfigMap createConfigMapFromNexus(String namespace, String configMapName, String k8sApiUrl, String authToken, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws ApiException, InterfaceCallException, IOException {
+        Map<String, String> dataMap = new HashMap<>();
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String dateStr = sf.format(now);
+        String tmpSaveDir = String.format("%s/temp/cfgs/%s/%s", System.getProperty("user.dir"), configMapName, dateStr);
+        File saveDir = new File(tmpSaveDir);
+        if(!saveDir.exists())
+        {
+            saveDir.mkdirs();
+        }
+        for(NexusAssetInfo cfg : cfgs)
+        {
+            String fileSavePath = this.nexusService.downloadFile(nexusUser, nexusPwd, cfg.getDownloadUrl(), tmpSaveDir, cfg.getNexusAssetFileName());
+            BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileSavePath)),
+                    "UTF-8"));
+            String lineTxt = null;
+            String context = "";
+            while ((lineTxt = br.readLine()) != null)
+            {
+                context += lineTxt + "\n";
+            }
+            br.close();
+            dataMap.put(cfg.getNexusAssetFileName(), context);
+        }
+        V1ObjectMeta meta = new V1ObjectMeta();
+        meta.setName(configMapName);
+        V1ConfigMap body = new V1ConfigMap();
+        body.setMetadata(meta);
+        body.setData(dataMap);
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ConfigMap configMap = apiInstance.createNamespacedConfigMap(namespace, body, null, null,null);
+        return configMap;
+    }
+
+    @Override
+    public void deleteConfigMapByName(String namespace, String configMapName, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete configMap %s at %s from %s", configMapName, namespace,k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        apiInstance.deleteNamespacedConfigMap(configMapName, namespace, null, null, null, null, null, null);
+        logger.debug(String.format("delete success"));
+    }
+
     @Test
     public void cmTest()
     {
         try
         {
-            deploymentTest1();
+            endpointTest();
+//            ingressTest();
+//            deploymentTest1();
 //            nodeTest();
 //            serviceTest();
 //            jsonTest();
@@ -208,6 +312,26 @@ public class K8sApiServiceImpl implements IK8sApiService {
         {
             ex.printStackTrace();
         }
+    }
+
+    protected void endpointTest() throws Exception
+    {
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        String namespace = "123456-wuph";
+        V1EndpointsList list = apiInstance.listNamespacedEndpoints(namespace, null, null, null, null, null, null, null, null, null);
+        System.out.println(gson.toJson(list.getItems()));
+    }
+
+    protected void ingressTest() throws Exception
+    {
+        getConnection(testK8sApiUrl, testAuthToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        ExtensionsV1beta1IngressList list = apiInstance.listIngressForAllNamespaces(null, null, null ,null, null, null, null,null, null);
+        Gson gson = new Gson();
+        System.out.println(gson.toJson(list));
+
+
     }
 
     protected void listAllConfigMap() throws Exception

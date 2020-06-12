@@ -1,26 +1,18 @@
 package com.channelsoft.ccod.support.cmdb.controller;
 
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
-import com.channelsoft.ccod.support.cmdb.constant.PlatformAppOperationMethod;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
-import com.channelsoft.ccod.support.cmdb.utils.K8sUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
-import com.google.gson.Gson;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -56,8 +48,6 @@ public class CMDBController {
     private final static Logger logger = LoggerFactory.getLogger(CMDBController.class);
 
     private String apiBasePath = "/cmdb/api";
-
-    private Gson gson = new Gson();
 
     @RequestMapping(value = "/apps", method = RequestMethod.POST)
     public AjaxResultPo addNewApp(@RequestBody AppModuleVo moduleVo)
@@ -915,8 +905,7 @@ public class CMDBController {
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
             V1Node node = k8sApiService.queryNode(nodeName, k8sApiUrl, k8sAuthToken);
-            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(node));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, node);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -940,8 +929,7 @@ public class CMDBController {
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
             List<V1Namespace> list = k8sApiService.queryAllNamespace(k8sApiUrl, k8sAuthToken);
-            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -961,8 +949,7 @@ public class CMDBController {
         try
         {
             V1Namespace namespace = this.platformManagerService.queryPlatformK8sNamespace(platformId);
-            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(namespace));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, namespace);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -981,9 +968,8 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<V1Pod> list = this.platformManagerService.queryPlatformK8sAllPods(platformId);
-            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            List<V1Pod> list = this.platformManagerService.queryPlatformAllK8sPods(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -1002,9 +988,8 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            V1Pod pod = this.platformManagerService.queryPlatformK8sPod(platformId, podName);
-            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(pod));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            V1Pod pod = this.platformManagerService.queryPlatformK8sPodByName(platformId, podName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, pod);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -1023,9 +1008,8 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<V1Service> list = this.platformManagerService.queryPlatformK8sAllServices(platformId);
-            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            List<V1Service> list = this.platformManagerService.queryPlatformAllK8sServices(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -1044,9 +1028,8 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            V1Service service = this.platformManagerService.queryPlatformK8sService(platformId, serviceName);
-            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(service));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            V1Service service = this.platformManagerService.queryPlatformK8sServiceByName(platformId, serviceName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, service);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -1065,9 +1048,8 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<V1ConfigMap> list = this.platformManagerService.queryPlatformK8sAllConfigMaps(platformId);
-            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            List<V1ConfigMap> list = this.platformManagerService.queryPlatformAllK8sConfigMaps(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -1086,9 +1068,8 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            V1ConfigMap configMap = this.platformManagerService.queryPlatformK8sConfigMap(platformId, configMapName);
-            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(configMap));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            V1ConfigMap configMap = this.platformManagerService.queryPlatformK8sConfigMapByName(platformId, configMapName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, configMap);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -1107,9 +1088,8 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<V1Deployment> list = this.platformManagerService.queryPlatformAllDeployment(platformId);
-            JSONArray jsonArray = JSONArray.parseArray(gson.toJson(list));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", jsonArray.size(), jsonArray);
+            List<V1Deployment> list = this.platformManagerService.queryPlatformAllK8sDeployment(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -1128,14 +1108,93 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            V1Deployment deployment = this.platformManagerService.queryPlatformDeploymentByName(platformId, deploymentName);
-            JSONObject jsonObject = JSONObject.parseObject(gson.toJson(deployment));
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, jsonObject);
+            V1Deployment deployment = this.platformManagerService.queryPlatformK8sDeploymentByName(platformId, deploymentName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, deployment);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
             logger.error(String.format("query deployment exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sIngress/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryPlatformK8sIngress(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sIngress/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<ExtensionsV1beta1Ingress> list = this.platformManagerService.queryPlatformAllK8sIngress(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query ingress exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sIngress/{platformId}/{ingressName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sPlatformK8sIngressByName(@PathVariable String platformId, @PathVariable String ingressName)
+    {
+        String uri = String.format("GET %s/k8sIngress/%s/%s", this.apiBasePath, platformId, ingressName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            ExtensionsV1beta1Ingress ingress = this.platformManagerService.queryPlatformK8sIngressByName(platformId, ingressName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, ingress);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query ingress exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sEndpoints/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryPlatformK8sEndpoints(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sEndpoints/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<V1Endpoints> list = this.platformManagerService.queryPlatformAllK8sEndpoints(platformId);;
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query endpoints exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sEndpoints/{platformId}/{endpointsName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sPlatformK8sEndpointsByName(@PathVariable String platformId, @PathVariable String endpointsName)
+    {
+        String uri = String.format("GET %s/k8sEndpoints/%s/%s", this.apiBasePath, platformId, endpointsName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Endpoints endpoints = this.platformManagerService.queryPlatformK8sEndpointsByName(platformId, endpointsName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, endpoints);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query endpoints exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;

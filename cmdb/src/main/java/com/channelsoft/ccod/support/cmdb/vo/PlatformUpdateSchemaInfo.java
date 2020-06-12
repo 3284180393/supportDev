@@ -67,6 +67,10 @@ public class PlatformUpdateSchemaInfo {
 
     private List<AppFileNexusInfo> publicConfig; //用来存放平台公共配置
 
+    private String k8sApiUrl; //k8s api的url地址
+
+    private String k8sAuthToken; //k8s的认证token
+
     public PlatformUpdateSchemaInfo()
     {
 
@@ -290,5 +294,21 @@ public class PlatformUpdateSchemaInfo {
 
     public void setPublicConfig(List<AppFileNexusInfo> publicConfig) {
         this.publicConfig = publicConfig;
+    }
+
+    public String getK8sApiUrl() {
+        return k8sApiUrl;
+    }
+
+    public void setK8sApiUrl(String k8sApiUrl) {
+        this.k8sApiUrl = k8sApiUrl;
+    }
+
+    public String getK8sAuthToken() {
+        return k8sAuthToken;
+    }
+
+    public void setK8sAuthToken(String k8sAuthToken) {
+        this.k8sAuthToken = k8sAuthToken;
     }
 }

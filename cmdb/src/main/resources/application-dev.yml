@@ -298,6 +298,15 @@ lj-paas:
   host-default-cloud-id: 5
 
 
+image:
+  nexusUrl: nexus.io:5000
+  nexusUser: admain
+  nexusPwd: 123456
+  ccodModuleRepository:
+    - ccod
+  threeAppRepository:
+    - db
+
 k8s:
   gls_oracle_svc_name: oracle
   gls_oracle_sid: xe

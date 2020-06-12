@@ -59,5 +59,24 @@ api: http://cmdbUrl/cmdb/api/k8sDeployments/{platformId}/{deploymentName}
 实例: http://10.130.41.218:8086/cmdb/api/k8sDeployments/123456-wuph/cas-manage01
 备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
 
+查询平台所有ingress
+api: http://cmdbUrl/cmdb/api/k8sIngress/{platformId}
+实例: http://10.130.40.164:8086/cmdb/api/k8sIngress/123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台指定ingress
+api: http://cmdbUrl/cmdb/api/k8sIngress/{platformId}/{ingressName}
+实例: http://10.130.40.164:8086/cmdb/api/k8sEndpoints/123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台所有endpoints
+api: http://cmdbUrl/cmdb/api/k8sEndpoints/{platformId}
+实例: http://10.130.40.164:8086/cmdb/api/k8sIngress/123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台指定endpoint
+api: http://cmdbUrl/cmdb/api/k8sEndpoints/{platformId}/{endpointsName}
+实例: http://10.130.40.164:8086/cmdb/api/k8sEndpoints/123456-wuph/cas-manage01
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
 
 

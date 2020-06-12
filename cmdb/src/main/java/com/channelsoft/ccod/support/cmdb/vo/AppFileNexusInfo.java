@@ -1,5 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.po.Checksum;
+import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
+
 /**
  * @ClassName: AppFileNexusInfo
  * @Author: lanhb
@@ -94,4 +97,19 @@ public class AppFileNexusInfo {
         String downloadUrl = String.format("%s/repository/%s/%s", nexusHostUrl, this.nexusRepository, this.nexusPath);
         return downloadUrl;
     }
+
+    public NexusAssetInfo getNexusAssetInfo(String nexusHostUrl)
+    {
+        NexusAssetInfo assetInfo = new NexusAssetInfo();
+        assetInfo.setRepository(this.nexusRepository);
+        assetInfo.setDownloadUrl(this.getFileNexusDownloadUrl(nexusHostUrl));
+        assetInfo.setFormat("raw");
+        Checksum checksum = new Checksum();
+        checksum.md5 = this.md5;
+        assetInfo.setChecksum(checksum);
+        assetInfo.setId(this.nexusAssetId);
+        assetInfo.setPath(this.nexusPath);
+        return assetInfo;
+    }
+
 }

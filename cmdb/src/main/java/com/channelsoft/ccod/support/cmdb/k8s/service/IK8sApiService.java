@@ -1,10 +1,13 @@
 package com.channelsoft.ccod.support.cmdb.k8s.service;
 
 import com.alibaba.fastjson.JSONObject;
+import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
+import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -139,4 +142,69 @@ public interface IK8sApiService {
      */
     V1Deployment queryDeployment(String namespace, String deploymentName, String k8sApiUrl, String authToken) throws ApiException;
 
+    /**
+     * 查询指定命名空间下的所有ingress
+     * @param namespace 指定命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 查询结果
+     * @throws ApiException
+     */
+    List<ExtensionsV1beta1Ingress> queryAllIngressAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定命名空间下的指定名称的ingress
+     * @param namespace 命名空间
+     * @param ingressName ingress的名称
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定namespace的ingress信息
+     * @throws ApiException
+     */
+    ExtensionsV1beta1Ingress queryIngress(String namespace, String ingressName, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定命名空间下的所有endpoints
+     * @param namespace 指定命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 查询结果
+     * @throws ApiException
+     */
+    List<V1Endpoints> queryAllEndpointsAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定命名空间下的指定名称的ingress
+     * @param namespace 命名空间
+     * @param endpointsName endpoints的名称
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定namespace的ingress信息
+     * @throws ApiException
+     */
+    V1Endpoints queryEndpoints(String namespace, String endpointsName, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     *
+     * @param namespace
+     * @param configMapName
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @param cfgs
+     * @param nexusHostUrl
+     * @param nexusUser
+     * @param nexusPwd
+     * @return
+     */
+    V1ConfigMap createConfigMapFromNexus(String namespace, String configMapName, String k8sApiUrl, String authToken, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws ApiException, InterfaceCallException, IOException;
+
+    /**
+     * 删除已经存在的configMap
+     * @param namespace 命名空间
+     * @param configMapName configMap名称
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @throws ApiException
+     */
+    void deleteConfigMapByName(String namespace, String configMapName, String k8sApiUrl, String authToken) throws ApiException;
 }
