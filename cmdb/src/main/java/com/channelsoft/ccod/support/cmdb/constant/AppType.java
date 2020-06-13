@@ -11,19 +11,9 @@ public enum AppType
 {
     CCOD_KERNEL_MODULE(1, "CCOD_KERNEL_MODULE", "ccod核心模块"),
 
-    TOMCAT_APP(2, "TOMCAT_APP", "tomcat应用"),
+    THREE_PART_APP(2, "THREE_PART_APP", "第三方应用,例如oracle、mysql等"),
 
-    RESIN_APP(3, "RESIN_APP", "resin应用"),
-
-    UNDERLYING_MODULE(4, "UNDERLYING_MODULE", "底层模块"),
-
-    THREE_PART_APP(5, "THREE_PART_APP", "第三方应用"),
-
-    ORACLE(6, "ORACLE", "oracle数据库"),
-
-    MYSQL(7, "MYSQL", "mySql数据库"),
-
-    CCOD_WEBAPPS_MODULE(8, "CCOD_WEBAPPS_MODULE", "ccod门户web应用"),
+    CCOD_WEBAPPS_MODULE(3, "CCOD_WEBAPPS_MODULE", "ccod门户web应用"),
 
     OTHER(99, "OTHER", "其它"),;
 

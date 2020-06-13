@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.AppDefine;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
+import com.channelsoft.ccod.support.cmdb.config.ImageCfg;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
@@ -188,6 +189,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Autowired
     private CCODBiz ccodBiz;
+
+    @Autowired
+    private ImageCfg imageCfg;
 
     private Map<String, List<BizSetDefine>> appSetRelationMap;
 
@@ -4103,6 +4107,47 @@ public class AppManagerServiceImpl implements IAppManagerService {
             assetMap.put(optInfo.getAppAlias(), assetList);
         }
         return assetMap;
+    }
+
+    @Autowired
+    public AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException
+    {
+        String[] arr = imageUrl.split("\\-");
+        if(arr.length != 3)
+            throw new ParamException(String.format("%s is illegal imageUrl", imageUrl));
+        String repository = arr[1];
+        arr = arr[2].split("\\:");
+        if(arr.length != 2)
+            throw new ParamException(String.format("%s is illegal image tag", arr[2]));
+        String appName = arr[0];
+        String version = arr[1];
+        Set<String> ccodRepSet = new HashSet<>(imageCfg.getCcodModuleRepository());
+        Set<String> threeAppRepSet = new HashSet<>(imageCfg.getThreeAppRepository());
+        AppType appType = null;
+        if(ccodRepSet.contains(repository))
+        {
+            for(String name : this.registerAppMap.keySet())
+            {
+                if(name.equals(appName))
+                {
+                    if(this.registerAppMap.get(name).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
+                    {
+                        appType = registerAppMap.get(name).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version).getAppType();
+                        break;
+                    }
+                    else
+                        throw new ParamException(String.format("%s[%s] not register", name, version));
+                }
+            }
+            if(appType == null)
+                throw new NotSupportAppException(String.format("ccod module %s not supported", appName));
+        }
+        else if(threeAppRepSet.contains(repository))
+            appType = AppType.THREE_PART_APP;
+        else
+            appType = AppType.OTHER;
+        logger.debug(String.format("type of image %s is %s", imageUrl, appType.name));
+        return appType;
     }
 
     @Test

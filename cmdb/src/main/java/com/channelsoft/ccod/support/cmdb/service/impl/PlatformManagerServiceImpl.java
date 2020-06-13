@@ -5,10 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.AppDefine;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
-import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
-import com.channelsoft.ccod.support.cmdb.constant.DomainStatus;
-import com.channelsoft.ccod.support.cmdb.constant.K8sServiceType;
-import com.channelsoft.ccod.support.cmdb.constant.PlatformType;
+import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
@@ -303,9 +300,42 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return this.appManagerService.getPlatformTopology(platformId);
     }
 
-    private List<PlatformAppDeployDetailVo> getPlatformDeployAppsFromK8s(String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException
+    private List<PlatformAppDeployDetailVo> getPlatformDeployAppsFromK8sDeployments(String platformId, List<V1Deployment> deployments, List<V1Pod> pods) throws ParamException, NotSupportAppException, ApiException
     {
+
         return null;
+    }
+
+    private K8sPlatformParam parseK8s(String platformId, List<V1Deployment> deployments, List<V1Pod> pods, List<V1Service> services, List<V1ConfigMap> configMaps) throws ParamException, NotSupportAppException, ApiException
+    {
+        K8sPlatformParam param = new K8sPlatformParam();
+        for(V1Deployment deployment : deployments)
+        {
+            String deploymentName = deployment.getMetadata().getName();
+            BizSetDefine setDefine = null;
+            if(deployment.getSpec().getTemplate().getSpec().getInitContainers() != null && deployment.getSpec().getTemplate().getSpec().getInitContainers().size() > 0)
+            {
+                for(V1Container container : deployment.getSpec().getTemplate().getSpec().getInitContainers())
+                {
+                    AppType appType = this.appManagerService.getAppTypeFromImageUrl(container.getImage());
+                    switch (appType)
+                    {
+                        case CCOD_WEBAPPS_MODULE:
+                        case CCOD_KERNEL_MODULE:
+                        {
+
+                            break;
+                        }
+                        case THREE_PART_APP:
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+        }
+        return param;
     }
 
     /**
@@ -1242,5 +1272,20 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         mapList = this.createConfigMapForNewPlatform(createSchema);
         System.out.println(String.format("create %d configMap for %s", mapList.size(), platformId));
+    }
+
+    class K8sPlatformParam()
+    {
+        String platformId;
+
+        List<DomainPo> domains;
+
+        Map<DomainPo, AssemblePo> domainPoAssembleMap;
+
+        Map<AssemblePo, List<PlatformAppPo>> assembleAppMap;
+
+        List<PlatformThreePartAppPo> threeAppList;
+
+        List<PlatformThreePartServicePo> threeSvcList;
     }
 }

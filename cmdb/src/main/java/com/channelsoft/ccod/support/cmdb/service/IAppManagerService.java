@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
+import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -255,5 +256,14 @@ public interface IAppManagerService {
      * @return 满足条件的注册应用模块
      */
     List<AppModuleVo> queryAllHasImageAppModule();
+
+    /**
+     * 从imageUrl解析该应用的类型
+     * @param imageUrl 应用的imageUrl
+     * @return 该应用的类型
+     * @throws ParamException imageUrl不是一个合法的应用imageUrl
+     * @throws NotSupportAppException 该应用对应的应用类型不被支持
+     */
+    AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException;
 
 }
