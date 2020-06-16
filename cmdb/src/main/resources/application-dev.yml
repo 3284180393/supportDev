@@ -21,7 +21,6 @@ ccod:
     isBasic: 1
     fixedDomainName: 相关模块
     fixedDomainId: public
-    domainType: 2
     apps[0]:
       name: LicenseServer
       alias: licenseserver
@@ -40,7 +39,6 @@ ccod:
     isBasic: 1
     fixedDomainName: 网关
     fixedDomainId: gateway
-    domainType: 3
     apps[0]:
       name: umg
   set[2]:
@@ -49,7 +47,6 @@ ccod:
     isBasic: 1
     fixedDomainName: 服务域
     fixedDomainId: cloud
-    domainType: 1
     apps[0]:
       name: DDSServer
       alias: dds
@@ -107,7 +104,6 @@ ccod:
     isBasic: 1
     fixedDomainName: 管理门户域
     fixedDomainId: manage
-    domainType: 4
     apps[0]:
       name: agentProxy
     apps[1]:
@@ -200,7 +196,6 @@ ccod:
     isBasic: 1
     fixedDomainName: 接口
     fixedDomainId: api
-    domainType: 5
     apps:
   set[5]:
     name: 运营门户
@@ -208,7 +203,6 @@ ccod:
     isBasic: 1
     fixedDomainName: 运营门户域
     fixedDomainId: ops
-    domainType: 6
     apps[0]:
       name: gls
       alias: gls
@@ -226,7 +220,6 @@ ccod:
     isBasic: 0
     fixedDomainName: 外拨域
     fixedDomainId: apg-domain
-    domainType: 7
     apps[0]:
       name: AppGateWay
     apps[1]:

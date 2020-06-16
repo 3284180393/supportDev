@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
@@ -31,6 +32,7 @@ public interface IPlatformManagerService {
      * @param ccodVersion 平台的ccod大版本号
      * @param k8sApiUrl k8s api的url
      * @param k8sAuthToken k8s api的访问token
+     * @param func 平台用途
      * @return 平台拓扑
      * @throws ApiException
      * @throws ParamException
@@ -40,7 +42,7 @@ public interface IPlatformManagerService {
      * @throws InterfaceCallException
      * @throws IOException
      */
-    PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException;
+    PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String k8sApiUrl, String k8sAuthToken, PlatformFunction func) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException;
 
     /**
      * 删除指定平台的升级计划
@@ -204,6 +206,9 @@ public interface IPlatformManagerService {
      * @throws NexusException
      */
     List<V1ConfigMap> createConfigMapForNewPlatform(PlatformUpdateSchemaInfo createSchema) throws InterfaceCallException, IOException, ApiException;
+
+
+
 
 //    List<PlatformAppDeployDetailVo> updatePlatformAppTopologyFromK8s(String platformId) throws ApiException;
 }

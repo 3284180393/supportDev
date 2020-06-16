@@ -702,7 +702,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         for(PlatformAppDeployDetailVo detailVo : deployApps)
         {
-            detailVo.setBkSetName(domainMap.get(detailVo.getDomainId()).getType());
+            detailVo.setBkSetName(domainMap.get(detailVo.getDomainId()).getBizSetName());
         }
         long currentTime = System.currentTimeMillis();
         Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));

@@ -2,17 +2,20 @@ package com.channelsoft.ccod.support.cmdb.controller;
 
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import io.kubernetes.client.openapi.models.*;
+import javafx.application.Platform;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 
 
@@ -717,12 +720,13 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
+            PlatformFunction func = param.getFunc() != null ? param.getFunc() : PlatformFunction.ONLINE;
             switch (param.getCollectContent())
             {
                 case APP_MODULE:
                     if(param.getCollectMethod() == PlatformDataCollectParamVo.K8S_API)
                     {
-                        platformManagerService.getPlatformTopologyFromK8s(param.getPlatformName(), param.getPlatformId(), param.getBkBizId(), param.getBkBizId(), param.getCcodVersion(), param.getK8sApiUrl(), param.getK8sAuthToken());
+                        platformManagerService.getPlatformTopologyFromK8s(param.getPlatformName(), param.getPlatformId(), param.getBkBizId(), param.getBkBizId(), param.getCcodVersion(), param.getK8sApiUrl(), param.getK8sAuthToken(), func);
                     }
                     else
                     {
@@ -751,7 +755,7 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/platformTopologies", method = RequestMethod.POST)
-    public AjaxResultPo createNewPlatform(@RequestBody PlatformCreateParamVo param)
+    public AjaxResultPo createNewPlatform(@Valid @RequestBody PlatformCreateParamVo param)
     {
         String uri = String.format("POST %s/platformTopologies", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));

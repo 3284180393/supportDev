@@ -1,6 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformCreateMethod;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformType;
 
 import java.util.Date;
@@ -34,6 +36,10 @@ public class PlatformPo {
 
     private PlatformType type; //平台类型
 
+    private PlatformFunction func; //平台用途
+
+    private PlatformCreateMethod createMethod; //平台创建方式
+
     private String apiUrl; //查询平台相关信息的api的url比如，k8s容器平台的restful api的url
 
     private String authToken; //查询api的认证 token
@@ -43,7 +49,7 @@ public class PlatformPo {
 
     }
 
-    public PlatformPo(String platformId, String platformName, int bkBizId, int bkCloudId, CCODPlatformStatus status, String ccodVersion, String comment)
+    public PlatformPo(String platformId, String platformName, int bkBizId, int bkCloudId, CCODPlatformStatus status, String ccodVersion, String comment, PlatformType type, PlatformFunction func, PlatformCreateMethod createMethod)
     {
         Date now = new Date();
         this.platformId = platformId;
@@ -55,6 +61,9 @@ public class PlatformPo {
         this.status = status.id;
         this.ccodVersion = ccodVersion;
         this.comment = comment;
+        this.type = type;
+        this.func = func;
+        this.createMethod = createMethod;
     }
 
     public String getPlatformId() {
@@ -151,5 +160,21 @@ public class PlatformPo {
 
     public void setAuthToken(String authToken) {
         this.authToken = authToken;
+    }
+
+    public PlatformFunction getFunc() {
+        return func;
+    }
+
+    public void setFunc(PlatformFunction func) {
+        this.func = func;
+    }
+
+    public PlatformCreateMethod getCreateMethod() {
+        return createMethod;
+    }
+
+    public void setCreateMethod(PlatformCreateMethod createMethod) {
+        this.createMethod = createMethod;
     }
 }

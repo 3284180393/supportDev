@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.DomainStatus;
+import com.channelsoft.ccod.support.cmdb.constant.DomainType;
 
 import java.util.Date;
 
@@ -17,6 +18,8 @@ public class DomainPo {
 
     private String domainName; //域名
 
+    private DomainType type; //域类型:是部署在实体机上，还是如k8s容器里
+
     private String platformId; //域所在的平台
 
     private Date createTime; //创建时间
@@ -27,7 +30,7 @@ public class DomainPo {
 
     private String comment; //备注
 
-    private String type; //域类型
+    private String bizSetName; //域归属业务集群名称
 
     private int occurs; //域的设计并发数
 
@@ -41,7 +44,7 @@ public class DomainPo {
     }
 
     public DomainPo(String domainId, String domainName, String platformId, DomainStatus status, String comment,
-                    String type, int occurs, int maxOccurs, String tags)
+                    String bizSetName, int occurs, int maxOccurs, String tags)
     {
         Date now = new Date();
         this.domainId = domainId;
@@ -51,7 +54,7 @@ public class DomainPo {
         this.updateTime = now;
         this.status = status.id;
         this.comment = comment;
-        this.type = type;
+        this.bizSetName = bizSetName;
         this.occurs = occurs;
         this.maxOccurs = maxOccurs;
         this.tags = tags;
@@ -113,12 +116,12 @@ public class DomainPo {
         this.status = status;
     }
 
-    public String getType() {
-        return type;
+    public String getBizSetName() {
+        return bizSetName;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public void setBizSetName(String bizSetName) {
+        this.bizSetName = bizSetName;
     }
 
     public int getOccurs() {
@@ -143,5 +146,13 @@ public class DomainPo {
 
     public void setTags(String tags) {
         this.tags = tags;
+    }
+
+    public DomainType getType() {
+        return type;
+    }
+
+    public void setType(DomainType type) {
+        this.type = type;
     }
 }

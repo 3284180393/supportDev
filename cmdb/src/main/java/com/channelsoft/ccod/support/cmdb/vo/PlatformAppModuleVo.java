@@ -1,8 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
-import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
-import com.channelsoft.ccod.support.cmdb.constant.DomainStatus;
+import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import org.apache.commons.lang3.StringUtils;
 
@@ -263,7 +262,7 @@ public class PlatformAppModuleVo {
     public PlatformPo getPlatform()
     {
         PlatformPo po = new PlatformPo(this.platformId, this.platformName, 0, 0,
-                CCODPlatformStatus.RUNNING, this.ccodVersion, "create by auto data collected");
+                CCODPlatformStatus.RUNNING, this.ccodVersion, "create by auto data collected", PlatformType.PHYSICAL_MACHINE, PlatformFunction.ONLINE, PlatformCreateMethod.ONLINE_MANAGER_COLLECT);
 //        po.setCcodVersion(this.ccodVersion);
 //        po.setComment("");
 //        po.setCreateTime(this.checkTime);

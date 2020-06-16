@@ -1,8 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
-import com.channelsoft.ccod.support.cmdb.constant.DatabaseType;
-import com.channelsoft.ccod.support.cmdb.constant.PlatformUpdateTaskType;
-import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
+import com.channelsoft.ccod.support.cmdb.constant.*;
+import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -25,6 +24,12 @@ public class PlatformUpdateSchemaInfo {
 
     private String platformName; //该平台的平台名,需要同蓝鲸的对应的bizName一致
 
+    private PlatformType platformType; //平台类型
+
+    private PlatformFunction platformFunc; //平台用途
+
+    private PlatformCreateMethod createMethod; //平台创建方式
+
     private int bkBizId; //该平台对应蓝鲸的bizId
 
     private int bkCloudId; //该平台所有服务器所在云
@@ -38,10 +43,6 @@ public class PlatformUpdateSchemaInfo {
     private Date createTime; //计划创建时间
 
     private Date updateTime; //计划最后一次修改时间
-
-    private Date executeTime; //如果该时间为非空，在该时间自动执行
-
-    private Date deadline; //计划完成最后期限
 
     private String title; //升级任务标题
 
@@ -76,7 +77,8 @@ public class PlatformUpdateSchemaInfo {
 
     }
 
-    public PlatformUpdateSchemaInfo(String platformId, String platformName, int bkBizId, int bkCloudId, String ccodVersion,
+    public PlatformUpdateSchemaInfo(String platformId, String platformName, PlatformType platformType, PlatformFunction platformFunc,
+                                    PlatformCreateMethod createMethod, int bkBizId, int bkCloudId, String ccodVersion,
                                     PlatformUpdateTaskType taskType, String title, String comment)
     {
         this.platformId = platformId;
@@ -89,11 +91,12 @@ public class PlatformUpdateSchemaInfo {
         Date now = new Date();
         this.createTime = now;
         this.updateTime = now;
-        this.executeTime = now;
-        this.deadline = now;
         this.title = title;
         this.comment = comment;
         this.domainUpdatePlanList = new ArrayList<>();
+        this.platformType = platformType;
+        this.platformFunc = platformFunc;
+        this.createMethod = createMethod;
     }
 
     public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
@@ -134,22 +137,6 @@ public class PlatformUpdateSchemaInfo {
 
     public void setUpdateTime(Date updateTime) {
         this.updateTime = updateTime;
-    }
-
-    public Date getExecuteTime() {
-        return executeTime;
-    }
-
-    public void setExecuteTime(Date executeTime) {
-        this.executeTime = executeTime;
-    }
-
-    public Date getDeadline() {
-        return deadline;
-    }
-
-    public void setDeadline(Date deadline) {
-        this.deadline = deadline;
     }
 
     public String getTitle() {
@@ -310,5 +297,29 @@ public class PlatformUpdateSchemaInfo {
 
     public void setK8sAuthToken(String k8sAuthToken) {
         this.k8sAuthToken = k8sAuthToken;
+    }
+
+    public PlatformType getPlatformType() {
+        return platformType;
+    }
+
+    public void setPlatformType(PlatformType platformType) {
+        this.platformType = platformType;
+    }
+
+    public PlatformFunction getPlatformFunc() {
+        return platformFunc;
+    }
+
+    public void setPlatformFunc(PlatformFunction platformFunc) {
+        this.platformFunc = platformFunc;
+    }
+
+    public PlatformCreateMethod getCreateMethod() {
+        return createMethod;
+    }
+
+    public void setCreateMethod(PlatformCreateMethod createMethod) {
+        this.createMethod = createMethod;
     }
 }

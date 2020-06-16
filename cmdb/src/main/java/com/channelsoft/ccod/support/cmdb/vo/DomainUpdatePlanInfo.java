@@ -6,7 +6,6 @@ import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 import com.channelsoft.ccod.support.cmdb.po.DomainPo;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -22,6 +21,8 @@ public class DomainUpdatePlanInfo {
     private String domainName; //对应的域名
 
     private String domainId; //对应的域标识
+
+    private DomainType domainType; //域类型
 
     private String bkSetName; //域归属的set名
 
@@ -159,11 +160,19 @@ public class DomainUpdatePlanInfo {
         this.publicConfig = publicConfig;
     }
 
+    public DomainType getDomainType() {
+        return domainType;
+    }
+
+    public void setDomainType(DomainType domainType) {
+        this.domainType = domainType;
+    }
+
     public DomainPo getDomain(String platformId)
     {
         DomainPo po = new DomainPo();
         po.setDomainId(this.domainId);
-        po.setType(this.bkSetName);
+        po.setBizSetName(this.bkSetName);
         po.setTags(tags);
         po.setOccurs(this.occurs);
         po.setMaxOccurs(this.maxOccurs);
@@ -173,6 +182,7 @@ public class DomainUpdatePlanInfo {
         po.setCreateTime(new Date());
         po.setDomainName(this.domainName);
         po.setUpdateTime(new Date());
+        po.setType(this.domainType);
         return po;
     }
 }

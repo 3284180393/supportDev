@@ -1,10 +1,10 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.AppDefine;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
+import com.channelsoft.ccod.support.cmdb.config.ImageCfg;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
@@ -98,6 +98,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Autowired
     CCODBiz ccodBiz;
 
+    @Autowired
+    private ImageCfg imageCfg;
+
     @Value("${nexus.platform-app-cfg-repository}")
     private String platformAppCfgRepository;
 
@@ -173,7 +176,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException {
+    public PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String k8sApiUrl, String k8sAuthToken, PlatformFunction func) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException {
         logger.debug(String.format("begin to get %s(%s) topology from %s with authToke=%s", platformId, platformName, k8sApiUrl, k8sAuthToken));
         Date now = new Date();
         V1Namespace ns = ik8sApiService.queryNamespace(platformId, k8sApiUrl, k8sAuthToken);
@@ -261,6 +264,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         platform.setApiUrl(k8sApiUrl);
         platform.setAuthToken(k8sAuthToken);
         platform.setType(PlatformType.K8S_CONTAINER);
+        platform.setFunc(func);
         platformMapper.insert(platform);
         for(DomainPo domainPo : allDomains)
         {
@@ -309,6 +313,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private K8sPlatformParam parseK8s(String platformId, List<V1Deployment> deployments, List<V1Pod> pods, List<V1Service> services, List<V1ConfigMap> configMaps) throws ParamException, NotSupportAppException, ApiException
     {
         K8sPlatformParam param = new K8sPlatformParam();
+        Map<String, DomainPo> domainMap = new HashMap<>();
+        Map<DomainPo, List<AssemblePo>> domainAssembleMap = new HashMap<>();
+        Map<AssemblePo, List<PlatformAppPo>> assembleAppMap = new HashMap<>();
+        List<PlatformAppDeployDetailVo> deployApps = new ArrayList<>();
+
         for(V1Deployment deployment : deployments)
         {
             String deploymentName = deployment.getMetadata().getName();
@@ -324,6 +333,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         case CCOD_KERNEL_MODULE:
                         {
 
+
                             break;
                         }
                         case THREE_PART_APP:
@@ -338,20 +348,72 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return param;
     }
 
+
+    private PlatformAppDeployDetailVo parsePlatformDeployApp(V1Deployment deployment, V1Container container, List<V1Pod> pods, List<V1Service> services, String deploymentName, String platformId, String platformName, List<AppModuleVo>  registerApps, int bkBizId, int bkCloudId, String ccodVersion, List<LJHostInfo> hostList, String status) throws ParamException, NotSupportAppException
+    {
+        String domainId = deploymentName.split("\\-")[1];
+        BizSetDefine setDefine = getBizSetForDomainId(domainId);
+        AppModuleVo moduleVo = getAppModuleFromImageTag(container.getImage(), registerApps);
+        PlatformAppDeployDetailVo deployApp = new PlatformAppDeployDetailVo();
+        deployApp.setBkSetName(setDefine.getName());
+        deployApp.setBkBizId(bkBizId);
+        deployApp.setDomainName(String.format("%s%s", setDefine.getFixedDomainName(), domainId.replaceAll(setDefine.getFixedDomainId(), "")));
+        deployApp.setDomainId(domainId);
+        deployApp.setAppAlias(container.getName().split("\\-")[0]);
+        deployApp.setAppId(moduleVo.getAppId());
+        deployApp.setAppName(moduleVo.getAppName());
+        deployApp.setAppRunner(deployApp.getAppAlias());
+        deployApp.setAppType(moduleVo.getAppType());
+        deployApp.setAssembleTag(deployment.getSpec().getSelector().getMatchLabels().get("name"));
+        deployApp.setAssembleId(0);
+        if(AppType.CCOD_KERNEL_MODULE.equals(deployApp.getAppType()))
+            deployApp.setBasePath("/binary-file");
+        else
+            deployApp.setBasePath("/war");
+        String hostIp = pods.get(0).getStatus().getHostIP();
+        LJHostInfo host = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity())).get(hostIp);
+        deployApp.setBkHostId(host.getBkHostId());
+        deployApp.setBkModuleId(0);
+        deployApp.setBkSetId(0);
+        deployApp.setCcodVersion(ccodVersion);
+        deployApp.setCfgs(new ArrayList<>());
+        Date now = new Date();
+        deployApp.setCreateTime(now);
+        deployApp.setDeployTime(now);
+        deployApp.setHostIp(hostIp);
+        deployApp.setHostname(host.getOsName());
+        deployApp.setInstallPackage(moduleVo.getInstallPackage());
+        deployApp.setOriginalAlias(deployApp.getAppAlias());
+        deployApp.setPlatformAppId(0);
+        String port = getPortFromK8sService(services);
+        deployApp.setPort(port);
+        deployApp.setPlatformId(platformId);
+        deployApp.setPlatformName(platformName);
+        deployApp.setSrcCfgs(moduleVo.getCfgs());
+        deployApp.setStatus(status);
+        deployApp.setVersion(moduleVo.getVersion());
+        deployApp.setVersionControl(moduleVo.getVersionControl().name);
+        deployApp.setVersionControlUrl(moduleVo.getVersionControlUrl());
+        return deployApp;
+    }
+
     /**
      * 从服务信息中获取端口信息
-     * @param service k8s服务信息
+     * @param services k8s一组服务
      * @return 使用的端口信息
      */
-    private String getPortFromK8sService(V1Service service)
+    private String getPortFromK8sService(List<V1Service> services)
     {
         String port = "";
-        for(V1ServicePort svcPort : service.getSpec().getPorts())
+        for(V1Service service : services)
         {
-            if(svcPort.getNodePort() != null && svcPort.getNodePort() > 0)
-                port = String.format("%s%s:%s/%s;", port, svcPort.getPort(), svcPort.getNodePort(), svcPort.getProtocol());
-            else
-                port = String.format("%s%s/%s;", port, svcPort.getPort(), svcPort.getProtocol());
+            for(V1ServicePort svcPort : service.getSpec().getPorts())
+            {
+                if(svcPort.getNodePort() != null && svcPort.getNodePort() > 0)
+                    port = String.format("%s%s:%s/%s;", port, svcPort.getPort(), svcPort.getNodePort(), svcPort.getProtocol());
+                else
+                    port = String.format("%s%s/%s;", port, svcPort.getPort(), svcPort.getProtocol());
+            }
         }
         port = port.replaceAll(";$", "");
         return port;
@@ -389,7 +451,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(svrPodList.size() != 1)
             throw new ParamException(String.format("%s has select %d pods, which is not support this version", appName, svrPodList.size()));
         V1Pod pod = svrPodList.get(0);
-        String port = getPortFromK8sService(service);
+        String port = getPortFromK8sService(Arrays.asList(service));
         PlatformThreePartAppPo po = new PlatformThreePartAppPo();
         po.setAppName(appName);
         po.setHostIp(pod.getStatus().getHostIP());
@@ -454,7 +516,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             domainPo.setOccurs(600);
             domainPo.setTags(appDefine.getName());
             domainPo.setUpdateTime(now);
-            domainPo.setType(setDefine.getName());
+            domainPo.setBizSetName(setDefine.getName());
             domainPo.setDomainId(domainId);
             allDomains.add(domainPo);
         }
@@ -509,7 +571,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.error(String.format("%s[%s] not register", appDefine.getName(), version));
             throw new ParamException(String.format("%s[%s] not register", appDefine.getName(), version));
         }
-        String port = getPortFromK8sService(service);
+        String port = getPortFromK8sService(Arrays.asList(service));
         AppModuleVo moduleVo = appMap.get(appDefine.getName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
         PlatformAppPo po = new PlatformAppPo();
         po.setAppAlias(alias);
@@ -755,7 +817,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             platformMapper.insert(platformPo);
             logger.debug(String.format("begin to preprocess collected %d app", modules.size()));
             List<PlatformAppModuleVo> successList = this.appManagerService.preprocessCollectedPlatformAppModule(platformName, platformId, domainAppMap.values().stream().flatMap(listContainer->listContainer.stream()).collect(Collectors.toList()), failList);
-            Map<String, List<DomainPo>> setDomainMap = domainList.stream().collect(Collectors.groupingBy(DomainPo::getType));
+            Map<String, List<DomainPo>> setDomainMap = domainList.stream().collect(Collectors.groupingBy(DomainPo::getBizSetName));
             for(String bkSetName : setDomainMap.keySet())
             {
                 List<DomainPo> setDomainList = setDomainMap.get(bkSetName);
@@ -951,7 +1013,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         DomainPo  po  = map.get(comparedAppName).get(0).getDomain();
-        po.setType(bkSetName);
+        po.setBizSetName(bkSetName);
         logger.debug(String.format("%s belong to %s", domainName, bkSetName));
         return po;
     }
@@ -1258,6 +1320,103 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return this.k8sApiService.queryAllConfigMapAtNamespace(platformId, k8sApiUrl, k8sAuthToken);
     }
 
+    /**
+     * 根据域id获得域所在的业务集群
+     * @param domainId 域id
+     * @return 域所在的业务集群
+     */
+    private BizSetDefine getBizSetForDomainId(String domainId) throws ParamException
+    {
+        logger.debug(String.format("to find bisSet for domainId %s", domainId));
+        BizSetDefine setDefine = null;
+        for(BizSetDefine set : this.ccodBiz.getSet())
+        {
+            String regex = String.format("^%s(0[1-9]|[1-9]\\d+)", set.getFixedDomainId());
+            if(domainId.contains(regex))
+            {
+                setDefine = set;
+                break;
+            }
+        }
+        if(setDefine == null)
+            throw new ParamException(String.format("%s is illegal domainId for ccod bizSet", domainId));
+        logger.debug(String.format("bizSet for domainId %s found", domainId));
+        return setDefine;
+    }
+
+    private AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException {
+        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(true)
+                .stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        String[] arr = imageUrl.split("\\-");
+        if(arr.length != 3)
+            throw new ParamException(String.format("%s is illegal imageUrl", imageUrl));
+        String repository = arr[1];
+        arr = arr[2].split("\\:");
+        if(arr.length != 2)
+            throw new ParamException(String.format("%s is illegal image tag", arr[2]));
+        String appName = arr[0];
+        String version = arr[1];
+        Set<String> ccodRepSet = new HashSet<>(imageCfg.getCcodModuleRepository());
+        Set<String> threeAppRepSet = new HashSet<>(imageCfg.getThreeAppRepository());
+        AppType appType = null;
+        if(ccodRepSet.contains(repository))
+        {
+            for(String name : registerAppMap.keySet())
+            {
+                if(name.toLowerCase().equals(appName))
+                {
+                    for(AppModuleVo moduleVo : registerAppMap.get(name))
+                    {
+                        if(moduleVo.getVersion().replaceAll("\\:", "-").equals(version))
+                            appType = moduleVo.getAppType();
+                        break;
+                    }
+                    if(appType == null)
+                        throw new ParamException(String.format("%s[%s] not register", name, version));
+                    break;
+                }
+            }
+            if(appType == null)
+                throw new NotSupportAppException(String.format("ccod module %s not supported", appName));
+        }
+        else if(threeAppRepSet.contains(repository))
+            appType = AppType.THREE_PART_APP;
+        else
+            appType = AppType.OTHER;
+        logger.debug(String.format("type of image %s is %s", imageUrl, appType.name));
+        return appType;
+    }
+
+    /**
+     * 获取镜像标签对应的应用模块信息
+     * @param imageTag 镜像标签
+     * @param registerAppModules 已经注册的应用模块列表
+     * @return 应用模块信息
+     * @throws ParamException
+     * @throws NotSupportAppException
+     */
+    private AppModuleVo getAppModuleFromImageTag(String imageTag, List<AppModuleVo> registerAppModules) throws ParamException, NotSupportAppException {
+        Map<String, List<AppModuleVo>> registerAppMap = registerAppModules.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        String appName = imageTag.split("\\:")[0];
+        String version = imageTag.split("\\:")[1];
+        for(String name : registerAppMap.keySet())
+        {
+            if(name.toLowerCase().equals(appName))
+            {
+                for(AppModuleVo moduleVo : registerAppMap.get(name))
+                {
+                    if(moduleVo.getVersion().replaceAll("\\:", "-").equals(version))
+                    {
+                        logger.debug(String.format("app module for %s found", imageTag));
+                        return moduleVo;
+                    }
+                }
+                throw new ParamException(String.format("can not find ccod app module for %s", imageTag));
+            }
+        }
+        throw new ParamException(String.format("can not find ccod app module for %s", imageTag));
+    }
+
     private void someTest() throws Exception
     {
         String jsonStr = "{\"k8sApiUrl\":\"https://10.130.41.218:6443\",\"k8sAuthToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA\",\"baseDataNexusPath\":\"ccod/4.1/baseVolume.zip\",\"baseDataNexusRepository\":\"platform_base_data\",\"bkBizId\":34,\"bkCloudId\":0,\"ccodVersion\":\"CCOD4.1\",\"comment\":\"create 工具组平台(202005-test) by clone 123456-wuph(ccod开发测试平台)\",\"createTime\":1591061579290,\"deadline\":1591061579290,\"domainUpdatePlanList\":[{\"appUpdateOperationList\":[{\"addDelay\":0,\"appAlias\":\"licenseserver\",\"appName\":\"LicenseServer\",\"appRunner\":\"licenseserver\",\"basePath\":\"/home/ccodrunner/Platform\",\"cfgs\":[{\"deployPath\":\"./bin/license/\",\"ext\":\"ini\",\"fileName\":\"Config.ini\",\"fileSize\":0,\"md5\":\"6c513269c4e2bc10f4a6cf0eb05e5bfc\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNlZGYyZTBkYjgyNWQ0OTRi\",\"nexusPath\":\"/configText/202005-test/public01_licenseserver/Config.ini\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"5214\"},{\"addDelay\":0,\"appAlias\":\"configserver\",\"appName\":\"configserver\",\"appRunner\":\"configserver\",\"basePath\":\"/home/cfs/Platform/\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"ccs_config.cfg\",\"fileSize\":0,\"md5\":\"1095494274dc98445b79ec1d32900a6f\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY5NWYyNTlkYWY3ZWEzZWNl\",\"nexusPath\":\"/configText/202005-test/public01_configserver/ccs_config.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"ccs_logger.cfg\",\"fileSize\":0,\"md5\":\"197075eb110327da19bfc2a31f24b302\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ1NGYyYWEyOGE2ZGNhYjlh\",\"nexusPath\":\"/configText/202005-test/public01_configserver/ccs_logger.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"aca2af60caa0fb9f4af57f37f869dafc90472525\"},{\"addDelay\":30,\"appAlias\":\"glsserver\",\"appName\":\"glsServer\",\"appRunner\":\"glsserver\",\"basePath\":\"/home/ccodrunner/Platform\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"gls_config.cfg\",\"fileSize\":0,\"md5\":\"f23a83a2d871d59c89d12b0281e10e90\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNmMmRiNjc0YzQ5YmE4Nzdj\",\"nexusPath\":\"/configText/202005-test/public01_glsserver/gls_config.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"gls_logger.cfg\",\"fileSize\":0,\"md5\":\"7b8e1879eab906cba05dabf3f6e0bc37\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFhYTlmZWY0MTJkMDY2ZTM3\",\"nexusPath\":\"/configText/202005-test/public01_glsserver/gls_logger.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"7b699a4aece10ef28dce83ab36e4d79213ec4f69\"}],\"bkSetName\":\"公共组件\",\"comment\":\"clone from 公共组件01 of 123456-wuph\",\"createTime\":1591061579289,\"domainId\":\"public01\",\"domainName\":\"公共组件01\",\"executeTime\":1591061579289,\"maxOccurs\":1000,\"occurs\":600,\"status\":\"CREATE\",\"tags\":\"入呼叫,外呼\",\"updateTime\":1591061579289,\"updateType\":\"ADD\"},{\"appUpdateOperationList\":[{\"addDelay\":20,\"appAlias\":\"dds\",\"appName\":\"DDSServer\",\"appRunner\":\"dds\",\"basePath\":\"/home/ccodrunner/Platform\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dds_logger.cfg\",\"fileSize\":0,\"md5\":\"7f783a4ea73510c73ac830f135f4c762\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ5MDNhNjZiNDlmZDMxNzYx\",\"nexusPath\":\"/configText/202005-test/cloud01_dds/dds_logger.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dds_config.cfg\",\"fileSize\":0,\"md5\":\"d89e98072e96a06efa41c69855f4a3cc\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjZjOTYzMzczYzhmZjFjMTRm\",\"nexusPath\":\"/configText/202005-test/cloud01_dds/dds_config.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"150:18722\"},{\"addDelay\":20,\"appAlias\":\"ucds\",\"appName\":\"UCDServer\",\"appRunner\":\"ucds\",\"basePath\":\"/home/ccodrunner/Platform\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"ucds_config.cfg\",\"fileSize\":0,\"md5\":\"f4445f10c75c9ef2f6d4de739c634498\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWMxMzRlYzQyOWIwNzZlMDU0\",\"nexusPath\":\"/configText/202005-test/cloud01_ucds/ucds_config.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"ucds_logger.cfg\",\"fileSize\":0,\"md5\":\"ec57329ddcec302e0cc90bdbb8232a3c\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFjYWUzYjQxZWU5NTMxOTg4\",\"nexusPath\":\"/configText/202005-test/cloud01_ucds/ucds_logger.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"DRWRClient.cfg\",\"fileSize\":0,\"md5\":\"8b901d87855de082318314d868664c03\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ2NWYyYzE5NTAwNDY4YzQ1\",\"nexusPath\":\"/configText/202005-test/cloud01_ucds/DRWRClient.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"deb3c3c4bf62c5ae5b3f8a467029a03ed95fb39e\"},{\"addDelay\":20,\"appAlias\":\"dcs\",\"appName\":\"dcs\",\"appRunner\":\"dcs\",\"basePath\":\"/home/ccodrunner/Platform\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dc_log4cpp.cfg\",\"fileSize\":0,\"md5\":\"5784d6983f5e6722622b727d0987a15e\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE0ODU4YTJmMGM3M2FlNTE5\",\"nexusPath\":\"/configText/202005-test/cloud01_dcs/dc_log4cpp.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"DCServer.cfg\",\"fileSize\":0,\"md5\":\"ce208427723a0ebc0fff405fd7c382dc\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjYwNGZjN2U3YWFlN2YwYWYy\",\"nexusPath\":\"/configText/202005-test/cloud01_dcs/DCServer.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"155:21974\"},{\"addDelay\":20,\"appAlias\":\"cms1\",\"appName\":\"cmsserver\",\"appRunner\":\"cms1\",\"basePath\":\"/home/ccodrunner/Platform/\",\"cfgs\":[{\"deployPath\":\"./etc/\",\"ext\":\"xml\",\"fileName\":\"beijing.xml\",\"fileSize\":0,\"md5\":\"4074321f266b42fe7d7266b6fa9d7ca2\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ5NmMwMTdkNWU4ZjE3NGRi\",\"nexusPath\":\"/configText/202005-test/cloud01_cms1/beijing.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./etc/\",\"ext\":\"cms2\",\"fileName\":\"config.cms2\",\"fileSize\":0,\"md5\":\"cf032451250db89948f775e4d7799e40\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjZlYmViNGRkNzM3YjM5MzE5\",\"nexusPath\":\"/configText/202005-test/cloud01_cms1/config.cms2\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./etc/\",\"ext\":\"cfg\",\"fileName\":\"cms_log4cpp.cfg\",\"fileSize\":0,\"md5\":\"b16210d40a7ef123eef0296393df37b8\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNmMDEzYTFjMTFkNzBlNDkz\",\"nexusPath\":\"/configText/202005-test/cloud01_cms1/cms_log4cpp.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"4c303e2a4b97a047f63eb01b247303c9306fbda5\"},{\"addDelay\":20,\"appAlias\":\"cms2\",\"appName\":\"cmsserver\",\"appRunner\":\"cms2\",\"basePath\":\"/home/ccodrunner/Platform/\",\"cfgs\":[{\"deployPath\":\"./etc/\",\"ext\":\"xml\",\"fileName\":\"beijing.xml\",\"fileSize\":0,\"md5\":\"4074321f266b42fe7d7266b6fa9d7ca2\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWM0OTk5N2I3NjRhZWIzNDg5\",\"nexusPath\":\"/configText/202005-test/cloud01_cms2/beijing.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./etc/\",\"ext\":\"cfg\",\"fileName\":\"cms_log4cpp.cfg\",\"fileSize\":0,\"md5\":\"b16210d40a7ef123eef0296393df37b8\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQxN2NjMTNmZmJhYjRlMWZh\",\"nexusPath\":\"/configText/202005-test/cloud01_cms2/cms_log4cpp.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./etc/\",\"ext\":\"cms2\",\"fileName\":\"config.cms2\",\"fileSize\":0,\"md5\":\"5f5e2e498e5705b84297b2721fdbb603\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFiODMyZmE4OTU2MmM3NmNh\",\"nexusPath\":\"/configText/202005-test/cloud01_cms2/config.cms2\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"4c303e2a4b97a047f63eb01b247303c9306fbda5\"},{\"addDelay\":20,\"appAlias\":\"ucx\",\"appName\":\"ucxserver\",\"appRunner\":\"ucx\",\"basePath\":\"/home/ccodrunner/Platform/\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"ucx\",\"fileName\":\"config.ucx\",\"fileSize\":0,\"md5\":\"0c7c8b38115a9d0cabb2d1505f195821\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjZlNTVjMGQzNzkxMjA3MzYw\",\"nexusPath\":\"/configText/202005-test/cloud01_ucx/config.ucx\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"1fef2157ea07c483979b424c758192bd709e6c2a\"},{\"addDelay\":20,\"appAlias\":\"daengine\",\"appName\":\"daengine\",\"appRunner\":\"daengine\",\"basePath\":\"/home/ccodrunner/Platform\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dae.cfg\",\"fileSize\":0,\"md5\":\"431128629db6c93804b86cc1f9428a87\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE1ODQyOGRjYjc2YzRjODdj\",\"nexusPath\":\"/configText/202005-test/cloud01_daengine/dae.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dae_logger.cfg\",\"fileSize\":0,\"md5\":\"ac2fde58b18a5ab1ee66d911982a326c\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY3Mzc5Y2E3NzU2ZjczMDEy\",\"nexusPath\":\"/configText/202005-test/cloud01_daengine/dae_logger.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dae_config.cfg\",\"fileSize\":0,\"md5\":\"04544c8572c42b176d501461168dacf4\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWMxM2UzYmZmYzhmOGY2NWMw\",\"nexusPath\":\"/configText/202005-test/cloud01_daengine/dae_config.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dae_log4cpp.cfg\",\"fileSize\":0,\"md5\":\"ece32d86439201eefa186fbe8ad6db06\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ2OWMwMGQ4YTFlZjRhZDQ4\",\"nexusPath\":\"/configText/202005-test/cloud01_daengine/dae_log4cpp.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"179:20744\"},{\"addDelay\":20,\"appAlias\":\"dcproxy\",\"appName\":\"dcproxy\",\"appRunner\":\"dcproxy\",\"basePath\":\"/home/ccodrunner/Platform\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dcp_config.cfg\",\"fileSize\":0,\"md5\":\"087cb6d8e6263dc6f1e8079fac197983\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWM5YThlM2QxMjI2NDc3NzZh\",\"nexusPath\":\"/configText/202005-test/cloud01_dcproxy/dcp_config.cfg\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"dcp_logger.cfg\",\"fileSize\":0,\"md5\":\"8d3d4de160751677d6a568c9d661d7c0\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWEyZmRkNzJmMWJjZDMwYWNj\",\"nexusPath\":\"/configText/202005-test/cloud01_dcproxy/dcp_logger.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"195:21857\"},{\"addDelay\":0,\"appAlias\":\"ss\",\"appName\":\"StatSchedule\",\"appRunner\":\"ss\",\"basePath\":\"/home/ccodrunner/Platform\",\"cfgs\":[{\"deployPath\":\"./cfg/\",\"ext\":\"cfg\",\"fileName\":\"ss_config.cfg\",\"fileSize\":0,\"md5\":\"825e14101d79c733b2ea8becb8ea4e3b\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ5YTgxMTU1YjhmNDMyZjU4\",\"nexusPath\":\"/configText/202005-test/cloud01_ss/ss_config.cfg\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"154:21104\"}],\"bkSetName\":\"域服务\",\"comment\":\"clone from 域服务01 of 123456-wuph\",\"createTime\":1591061579289,\"domainId\":\"cloud01\",\"domainName\":\"域服务01\",\"executeTime\":1591061579289,\"maxOccurs\":1000,\"occurs\":600,\"status\":\"CREATE\",\"tags\":\"入呼叫,外呼\",\"updateTime\":1591061579289,\"updateType\":\"ADD\"},{\"appUpdateOperationList\":[{\"addDelay\":0,\"appAlias\":\"cas\",\"appName\":\"cas\",\"appRunner\":\"cas\",\"basePath\":\"/home/portal/tomcat/webapps/\",\"cfgs\":[{\"deployPath\":\"./cas/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"8ba7dddf4b7be9132e56841a7206ef74\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE2MDA0MWExZjQ1ODc4Njhh\",\"nexusPath\":\"/configText/202005-test/manage01_cas/web.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./cas/WEB-INF/\",\"ext\":\"properties\",\"fileName\":\"cas.properties\",\"fileSize\":0,\"md5\":\"6622e01a4df917d747e078e89c774a52\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY3N2E3NDBhYmM0NzU2NDg5\",\"nexusPath\":\"/configText/202005-test/manage01_cas/cas.properties\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"10973\"},{\"addDelay\":0,\"appAlias\":\"customwebservice\",\"appName\":\"customWebservice\",\"appRunner\":\"customwebservice\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./customWebservice/WEB-INF/classes/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"96e5bc553847dab185d32c260310bb77\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGRiNGZjNzM0NjU4MDMyNTZl\",\"nexusPath\":\"/configText/202005-test/manage01_customwebservice/web.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./customWebservice/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"config.properties\",\"fileSize\":0,\"md5\":\"24eebd53ad6d6d2585f8164d189b4592\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWM3ZDgwMWZlMjNlNjU1MWNk\",\"nexusPath\":\"/configText/202005-test/manage01_customwebservice/config.properties\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"19553\"},{\"addDelay\":0,\"appAlias\":\"dcms\",\"appName\":\"dcms\",\"appRunner\":\"dcms\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./dcms/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"52ba707ab07e7fcd50d3732268dd9b9d\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjZiMDVmY2FhMjFmZmNhN2Iz\",\"nexusPath\":\"/configText/202005-test/manage01_dcms/web.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcms/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"config.properties\",\"fileSize\":0,\"md5\":\"98a8781d1808c69448c9666642d7b8ed\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWM5NTA4MmY4ODU2NmJhZmJj\",\"nexusPath\":\"/configText/202005-test/manage01_dcms/config.properties\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcms/WEB-INF/classes/\",\"ext\":\"xml\",\"fileName\":\"Param-Config.xml\",\"fileSize\":0,\"md5\":\"9a977ea04c6e936307bec2683cadd379\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFlODhlMDRiZWM1NTBkZTc0\",\"nexusPath\":\"/configText/202005-test/manage01_dcms/Param-Config.xml\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"11110\"},{\"addDelay\":0,\"appAlias\":\"dcmsrecord\",\"appName\":\"dcmsRecord\",\"appRunner\":\"dcmsrecord\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./dcmsRecord/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"a4500823701a6b430a98b25eeee6fea3\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY4YjgyMjllYTBmNzcwYzI4\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsrecord/web.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsRecord/WEB-INF/classes/\",\"ext\":\"xml\",\"fileName\":\"applicationContext.xml\",\"fileSize\":0,\"md5\":\"5a355d87e0574ffa7bc120f61d8bf61e\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWEwODE2YjIwM2VjNmEzYjA0\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsrecord/applicationContext.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsRecord/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"config.properties\",\"fileSize\":0,\"md5\":\"830bf1a0205f407eba5f3a449b749cba\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGRlOGM3ZWI3YmIwMGI5ZDJk\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsrecord/config.properties\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"21763\"},{\"addDelay\":0,\"appAlias\":\"dcmssg\",\"appName\":\"dcmssg\",\"appRunner\":\"dcmssg\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./dcmsSG/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"config.properties\",\"fileSize\":0,\"md5\":\"e76da17fe273dc7f563a9c7c86183d20\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ0Y2ZlOWIxNTkzOWVhZTYz\",\"nexusPath\":\"/configText/202005-test/manage01_dcmssg/config.properties\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsSG/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"52a87ceaeebd7b9bb290ee863abe98c9\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWMyYWJhYzhlZWNiYjdmNTAw\",\"nexusPath\":\"/configText/202005-test/manage01_dcmssg/web.xml\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"20070\"},{\"addDelay\":0,\"appAlias\":\"dcmsstatics\",\"appName\":\"dcmsStatics\",\"appRunner\":\"dcmsstaticsreport2\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./dcmsStatics/WEB-INF/classes/\",\"ext\":\"xml\",\"fileName\":\"applicationContext.xml\",\"fileSize\":0,\"md5\":\"2a7ef2d3a9fc97e8e59db7f21b7d4d45\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNkZmI4MWI4ODk5NjNkZDZk\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstatics/applicationContext.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsStatics/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"7212df6a667e72ecb604b03fee20f639\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY0ZDc1YmFiZTlkMDUxYTRi\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstatics/web.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsStatics/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"config.properties\",\"fileSize\":0,\"md5\":\"973ba4d65b93a47bb5ead294b9415e68\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE4ODkyNWYwNTA1ZTk1NWJi\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstatics/config.properties\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"20537\"},{\"addDelay\":0,\"appAlias\":\"dcmsstaticsreport\",\"appName\":\"dcmsStaticsReport\",\"appRunner\":\"dcmsstaticsreport1\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./dcmsStaticsReport/WEB-INF/classes/\",\"ext\":\"xml\",\"fileName\":\"applicationContext.xml\",\"fileSize\":0,\"md5\":\"1e2f67f773110caf7a91a1113564ce4c\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY3MzVkODMwZTVlMTFkZTRk\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstaticsreport/applicationContext.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsStaticsReport/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"config.properties\",\"fileSize\":0,\"md5\":\"f02bb5a99546b80a3a82f55154be143d\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWEyYzVkMWFhMDExOTUwODQz\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstaticsreport/config.properties\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsStaticsReport/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"5a32768163ade7c4bce70270d79b6c66\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGRlOGM5MTIwOTY2ZWRkMjZk\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstaticsreport/web.xml\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"20528\"},{\"addDelay\":0,\"appAlias\":\"dcmswebservice\",\"appName\":\"dcmsWebservice\",\"appRunner\":\"dcmswebservice\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./dcmsWebservice/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"config.properties\",\"fileSize\":0,\"md5\":\"9a9671156ab2454951b9561fbefeed42\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWMxYjBmNjYxYzFmNDljYTkx\",\"nexusPath\":\"/configText/202005-test/manage01_dcmswebservice/config.properties\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsWebservice/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"d93dd1fe127f46a13f27d6f8d4a7def3\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ3YzI3NWZhZTNlMjFkMmVm\",\"nexusPath\":\"/configText/202005-test/manage01_dcmswebservice/web.xml\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"20503\"},{\"addDelay\":0,\"appAlias\":\"dcmsx\",\"appName\":\"dcmsx\",\"appRunner\":\"dcmsx\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./dcmsx/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"5d6550ab653769a49006b4957f9a0a65\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY3OWVmMzQyNGYzODg0ODBi\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsx/web.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./dcmsx/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"application.properties\",\"fileSize\":0,\"md5\":\"675edca3ccfa6443d8dfc9b34b1eee0b\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE4MmE0YzY0YjQxNDc1ODU4\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsx/application.properties\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"master_8efabf4\"},{\"addDelay\":0,\"appAlias\":\"safetymonitor\",\"appName\":\"safetyMonitor\",\"appRunner\":\"safetymonitor\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./safetyMonitor/WEB-INF/classes/\",\"ext\":\"xml\",\"fileName\":\"applicationContext.xml\",\"fileSize\":0,\"md5\":\"4543cb1aba46640edc3e815750fd3a94\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY5ZDNkNTQ5NTk5Yjg0Mjc2\",\"nexusPath\":\"/configText/202005-test/manage01_safetymonitor/applicationContext.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./safetyMonitor/WEB-INF/classes/\",\"ext\":\"properties\",\"fileName\":\"config.properties\",\"fileSize\":0,\"md5\":\"752b9c6cc870d294fa413d64c090e49e\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNmYjk0NDEwZTVlN2NkMjIw\",\"nexusPath\":\"/configText/202005-test/manage01_safetymonitor/config.properties\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"./safetyMonitor/WEB-INF/\",\"ext\":\"xml\",\"fileName\":\"web.xml\",\"fileSize\":0,\"md5\":\"4d952d3e6d356156dd461144416f4816\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ1MjYyN2JlYzdjMGI0ZmRl\",\"nexusPath\":\"/configText/202005-test/manage01_safetymonitor/web.xml\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"20383\"}],\"bkSetName\":\"管理门户\",\"comment\":\"clone from 管理门户01 of 123456-wuph\",\"createTime\":1591061579289,\"domainId\":\"manage01\",\"domainName\":\"管理门户01\",\"executeTime\":1591061579289,\"maxOccurs\":1000,\"occurs\":600,\"status\":\"CREATE\",\"tags\":\"入呼叫,外呼\",\"updateTime\":1591061579289,\"updateType\":\"ADD\"},{\"appUpdateOperationList\":[{\"addDelay\":0,\"appAlias\":\"gls\",\"appName\":\"gls\",\"appRunner\":\"gls\",\"basePath\":\"/home/ccodrunner/resin-4.0.13/webapps/\",\"cfgs\":[{\"deployPath\":\"./gls/WEB-INF/classes/\",\"ext\":\"xml\",\"fileName\":\"Param-Config.xml\",\"fileSize\":0,\"md5\":\"1da62c81dacf6d7ee21fca3384f134c5\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE4M2U3MDJjNjViN2E5MjQw\",\"nexusPath\":\"/configText/202005-test/ops01_gls/Param-Config.xml\",\"nexusRepository\":\"tmp\"}],\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"platformAppId\":0,\"targetVersion\":\"10309\"}],\"bkSetName\":\"运营门户\",\"comment\":\"clone from 运营门户01 of 123456-wuph\",\"createTime\":1591061579290,\"domainId\":\"ops01\",\"domainName\":\"运营门户01\",\"executeTime\":1591061579290,\"maxOccurs\":1000,\"occurs\":600,\"status\":\"CREATE\",\"tags\":\"入呼叫,外呼\",\"updateTime\":1591061579290,\"updateType\":\"ADD\"}],\"executeTime\":1591061579290,\"glsDBPwd\":\"ccod\",\"glsDBType\":\"ORACLE\",\"glsDBUser\":\"ccod\",\"k8sHostIp\":\"10.130.41.218\",\"platformId\":\"202005-test\",\"platformName\":\"工具组平台\",\"publicConfig\":[{\"deployPath\":\"/root/resin-4.0.13/conf\",\"fileName\":\"local_datasource.xml\",\"fileSize\":0,\"md5\":\"112940181aeb983baa9d7fd2733f194f\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNmNmE4MWY3MWI3MmJlY2Ji\",\"nexusPath\":\"/configText/202005-test/publicConfig/local_datasource.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"/root/resin-4.0.13/conf\",\"fileName\":\"local_jvm.xml\",\"fileSize\":0,\"md5\":\"d172a5321944aba5bc19c35d00950afc\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGRjMWQyMTIwNWRmYmY1MDM0\",\"nexusPath\":\"/configText/202005-test/publicConfig/local_jvm.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"/usr/local/lib\",\"fileName\":\"tnsnames.ora\",\"fileSize\":0,\"md5\":\"811f7f9472d5f6e733d732619a17ac77\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY0NzFkOTU3MGMyODRjMGJm\",\"nexusPath\":\"/configText/202005-test/publicConfig/tnsnames.ora\",\"nexusRepository\":\"tmp\"}],\"schemaId\":\"e2b849bd-0ac4-4591-97f3-eee6e7084a58\",\"status\":\"CREATE\",\"taskType\":\"CREATE\",\"title\":\"新建工具组平台(202005-test)计划\",\"updateTime\":1591061579290}";
@@ -1274,13 +1433,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         System.out.println(String.format("create %d configMap for %s", mapList.size(), platformId));
     }
 
-    class K8sPlatformParam()
+    protected class K8sPlatformParam
     {
         String platformId;
 
         List<DomainPo> domains;
 
-        Map<DomainPo, AssemblePo> domainPoAssembleMap;
+        Map<DomainPo, List<AssemblePo>> domainPoAssembleMap;
 
         Map<AssemblePo, List<PlatformAppPo>> assembleAppMap;
 

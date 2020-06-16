@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.PlatformDataCollectContent;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 
 /**
  * @ClassName: PlatformDataCollectParamVo
@@ -40,6 +41,8 @@ public class PlatformDataCollectParamVo {
     private String k8sApiUrl; //访问k8s api的接口地址
 
     private String k8sAuthToken; //访问k8s api接口的认证token
+
+    private PlatformFunction func; //平台的用途
 
     public int getCollectMethod() {
         return collectMethod;
@@ -143,5 +146,13 @@ public class PlatformDataCollectParamVo {
 
     public void setK8sAuthToken(String k8sAuthToken) {
         this.k8sAuthToken = k8sAuthToken;
+    }
+
+    public PlatformFunction getFunc() {
+        return func;
+    }
+
+    public void setFunc(PlatformFunction func) {
+        this.func = func;
     }
 }

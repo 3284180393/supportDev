@@ -26,8 +26,6 @@ public class BizSetDefine {
 
     private String fixedDomainId; //如果非空,将用它作为set下面域的固定id
 
-    private int domainType; //该set下域域类型
-
     private List<AppDefine> apps; //该set关联的apps
 
     public String getName() {
@@ -76,14 +74,6 @@ public class BizSetDefine {
 
     public void setApps(List<AppDefine> apps) {
         this.apps = apps;
-    }
-
-    public int getDomainType() {
-        return domainType;
-    }
-
-    public void setDomainType(int domainType) {
-        this.domainType = domainType;
     }
 
 }

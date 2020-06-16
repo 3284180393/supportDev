@@ -159,19 +159,6 @@ public interface IAppManagerService {
     void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException;
 
     /**
-     * 创建demo新平台
-     * @param platformId 平台id
-     * @param platformName 平台名
-     * @param bkCloudId 平台服务器所在的机房id
-     * @param planAppList 新建平台计划部署的应用
-     * @return 创建的平台
-     * @throws ParamException 计划的参数异常
-     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
-     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
-     */
-    PlatformUpdateSchemaInfo createDemoNewPlatform(String platformId, String platformName, int bkBizId, int bkCloudId, List<String> planAppList) throws ParamException, InterfaceCallException, LJPaasException;
-
-    /**
      * 创建新的升级计划
      * @param paramVo 被创建的平台相关参数
      * @return 新建的平台创建计划
@@ -265,5 +252,16 @@ public interface IAppManagerService {
      * @throws NotSupportAppException 该应用对应的应用类型不被支持
      */
     AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException;
+
+    /**
+     * 根据应用别名获取某个业务集群下的应用模块信息
+     * @param bizSetName 业务集群名
+     * @param appAlias 应用别名
+     * @param version 应用版本
+     * @return 对应的应用模块信息
+     * @throws ParamException 业务集群、应用、应用版本不存在
+     * @throws NotSupportAppException 业务集群不支持该应用
+     */
+    AppModuleVo getAppModuleForBizSet(String bizSetName, String appAlias, String version) throws ParamException, NotSupportAppException;
 
 }

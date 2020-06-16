@@ -1,17 +1,19 @@
 package com.channelsoft.ccod.support.cmdb.constant;
 
 /**
- * @ClassName: DomainType
+ * @ClassName: PlatformFunction
  * @Author: lanhb
- * @Description: 用来定义域的枚举
- * @Date: 2020/2/15 21:53
+ * @Description: 用来定义平台功能的枚举类
+ * @Date: 2020/6/15 14:04
  * @Version: 1.0
  */
-public enum DomainType {
+public enum PlatformFunction {
 
-    PHYSICAL_MACHINE(1, "PHYSICAL_MACHINE", "域由实体机搭建"),
+    ONLINE(1, "ONLINE", "在线运营平台"),
 
-    K8S_CONTAINER(2, "K8S_CONTAINER", "域部署在基于k8s容器里"),;
+    TEST(2, "TEST", "测试平台"),
+
+    PROTOTYPE(999, "PROTOTYPE", "原型平台"),;
 
     public int id;
 
@@ -19,18 +21,18 @@ public enum DomainType {
 
     public String desc;
 
-    private DomainType(int id, String name, String desc)
+    private PlatformFunction(int id, String name, String desc)
     {
         this.id = id;
         this.name = name;
         this.desc = desc;
     }
 
-    public static DomainType getEnum(String name)
+    public static PlatformFunction getEnum(String name)
     {
         if(name == null)
             return null;
-        for (DomainType type : DomainType.values())
+        for (PlatformFunction type : PlatformFunction.values())
         {
             if (type.name.equals(name))
             {
@@ -40,9 +42,9 @@ public enum DomainType {
         return null;
     }
 
-    public static DomainType getEnumById(int id)
+    public static PlatformFunction getEnumById(int id)
     {
-        for (DomainType type : DomainType.values())
+        for (PlatformFunction type : PlatformFunction.values())
         {
             if (type.id == id)
             {
@@ -51,4 +53,5 @@ public enum DomainType {
         }
         return null;
     }
+
 }
