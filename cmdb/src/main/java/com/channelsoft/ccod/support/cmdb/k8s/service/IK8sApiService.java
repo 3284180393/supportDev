@@ -174,15 +174,77 @@ public interface IK8sApiService {
     List<V1Endpoints> queryAllEndpointsAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
-     * 查询指定命名空间下的指定名称的ingress
+     * 查询指定命名空间下的指定名称的endpoints
      * @param namespace 命名空间
      * @param endpointsName endpoints的名称
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
-     * @return 指定namespace的ingress信息
+     * @return 指定条件的endpoints信息
      * @throws ApiException
      */
     V1Endpoints queryEndpoints(String namespace, String endpointsName, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定命名空间下的所有secret
+     * @param namespace 指定命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 查询结果
+     * @throws ApiException
+     */
+    List<V1Secret> queryAllSecretAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定命名空间下的指定名称的secret
+     * @param namespace 命名空间
+     * @param secretName secret的名称
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的SECRET信息
+     * @throws ApiException
+     */
+    V1Secret querySecret(String namespace, String secretName, String k8sApiUrl, String authToken) throws ApiException;
+
+
+    /**
+     * 查询指定命名空间下的所有PersistentVolumeClaim
+     * @param namespace 指定命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 查询结果
+     * @throws ApiException
+     */
+    List<V1PersistentVolumeClaim> queryAllPersistentVolumeClaimAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定命名空间下的指定名称的PersistentVolumeClaim
+     * @param namespace 命名空间
+     * @param persistentVolumeClaimName volumeClaim的名称
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的PersistentVolumeClaim信息
+     * @throws ApiException
+     */
+    V1PersistentVolumeClaim queryPersistentVolumeClaim(String namespace, String persistentVolumeClaimName, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询所有PersistentVolume
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return k8s服务器上所有的PersistentVolume
+     * @throws ApiException
+     */
+    List<V1PersistentVolume> queryAllPersistentVolume(String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定的PersistentVolume信息
+     * @param persistentVolumeName PersistentVolumeName名
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的PersistentVolume信息
+     * @throws ApiException 查询失败
+     */
+    V1PersistentVolume queryPersistentVolume(String persistentVolumeName, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      *

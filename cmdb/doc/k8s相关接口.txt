@@ -61,22 +61,50 @@ api: http://cmdbUrl/cmdb/api/k8sDeployments/{platformId}/{deploymentName}
 
 查询平台所有ingress
 api: http://cmdbUrl/cmdb/api/k8sIngress/{platformId}
-实例: http://10.130.40.164:8086/cmdb/api/k8sIngress/123456-wuph
+实例: http://10.130.41.218:8086/cmdb/api/k8sIngress/123456-wuph
 备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
 
 查询平台指定ingress
 api: http://cmdbUrl/cmdb/api/k8sIngress/{platformId}/{ingressName}
-实例: http://10.130.40.164:8086/cmdb/api/k8sEndpoints/123456-wuph
+实例: http://10.130.41.218:8086/cmdb/api/k8sEndpoints/123456-wuph
 备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
 
 查询平台所有endpoints
 api: http://cmdbUrl/cmdb/api/k8sEndpoints/{platformId}
-实例: http://10.130.40.164:8086/cmdb/api/k8sIngress/123456-wuph
+实例: http://10.130.41.218:8086/cmdb/api/k8sIngress/123456-wuph
 备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
 
 查询平台指定endpoint
 api: http://cmdbUrl/cmdb/api/k8sEndpoints/{platformId}/{endpointsName}
-实例: http://10.130.40.164:8086/cmdb/api/k8sEndpoints/123456-wuph/cas-manage01
+实例: http://10.130.41.218:8086/cmdb/api/k8sEndpoints/123456-wuph/cas-manage01
 备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
 
+查询平台所有Secret
+api: http://cmdbUrl/cmdb/api/k8sSecrets/{platformId}
+实例: http://10.130.41.218:8086/cmdb/api/k8sSecrets/123456-wuph/default-token-bskns
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
 
+查询平台指定SECRETE
+api: http://cmdbUrl/cmdb/api/k8sEndpoints/{platformId}/{secretName}
+实例: http://10.130.41.218:8086/cmdb/api/k8sSecrets/123456-wuph/default-token-bskns
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台所有PersistentVolumeClaim
+api: http://cmdbUrl/cmdb/api/k8sPersistentVolumeClaim/{platformId}
+实例: http://10.130.41.218:8086/cmdb/api/k8sPersistentVolumeClaim/123456-wuph/base-volume-123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询平台指定PersistentVolumeClaim
+api: http://cmdbUrl/cmdb/api/k8sPersistentVolumeClaim/{platformId}/{persistentVolumeClaimName}
+实例: http://10.130.41.218:8086/cmdb/api/k8sPersistentVolumeClaim/123456-wuph/base-volume-123456-wuph
+备注：platformId必须是cmdb已经存在的平台且平台类型为K8S_CONTAINER
+
+查询k8s的所有PersistentVolume
+http://cmdbUrl/cmdb/api/k8sPersistentVolumes?k8sApiUrl={k8sApiUrl}&k8sAuthToken={k8sAuthToken}
+实例：http://10.130.41.218:8086/cmdb/api/k8sPersistentVolumes?k8sApiUrl=https://10.130.41.218:6443&k8sAuthToken=eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA
+备注:k8sApiUrl是k8s的api url例如https://10.130.41.218:6443， k8sAuthToken是k8s的访问认证token
+
+查询k8s的指定PersistentVolume
+http://cmdbUrl/cmdb/api/k8sPersistentVolumes/{persistentVolumeName}?k8sApiUrl={k8sApiUrl}&k8sAuthToken={k8sAuthToken}
+实例：http://10.130.41.218:8086/cmdb/api/k8sPersistentVolumes/base-volume-123456-wuph?k8sApiUrl=https://10.130.41.218:6443&k8sAuthToken=eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA
+备注:k8sApiUrl是k8s的api url例如https://10.130.41.218:6443， k8sAuthToken是k8s的访问认证token

@@ -1287,6 +1287,38 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
+    public List<V1Secret> queryPlatformAllK8sSecret(String platformId) throws ParamException, ApiException {
+        logger.debug(String.format("query all endpoints of platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        List<V1Secret> list = this.k8sApiService.queryAllSecretAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return list;
+    }
+
+    @Override
+    public V1Secret queryPlatformK8sSecretByName(String platformId, String secretName) throws ParamException, ApiException {
+        logger.debug(String.format("query secretName %s at platform %s", secretName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Secret secret = this.k8sApiService.querySecret(platformId, secretName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return secret;
+    }
+
+    @Override
+    public List<V1PersistentVolumeClaim> queryPlatformAllK8sPersistentVolumeClaim(String platformId) throws ParamException, ApiException {
+        logger.debug(String.format("query all PersistentVolumeClaim of platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        List<V1PersistentVolumeClaim> list = this.k8sApiService.queryAllPersistentVolumeClaimAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return list;
+    }
+
+    @Override
+    public V1PersistentVolumeClaim queryPlatformK8sPersistentVolumeClaimByName(String platformId, String persistentVolumeClaimName) throws ParamException, ApiException {
+        logger.debug(String.format("query PersistentVolumeClaim %s at platform %s", persistentVolumeClaimName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1PersistentVolumeClaim claim = this.k8sApiService.queryPersistentVolumeClaim(platformId, persistentVolumeClaimName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return claim;
+    }
+
+    @Override
     public List<V1ConfigMap> createConfigMapForNewPlatform(PlatformUpdateSchemaInfo createSchema) throws InterfaceCallException, IOException, ApiException {
         String platformId = createSchema.getPlatformId();
         String k8sApiUrl = createSchema.getK8sApiUrl();

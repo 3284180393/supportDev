@@ -1203,4 +1203,132 @@ public class CMDBController {
         }
         return resultPo;
     }
+
+    @RequestMapping(value = "/k8sSecrets/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryPlatformK8sSecret(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sSecrets/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<V1Secret> list = this.platformManagerService.queryPlatformAllK8sSecret(platformId);;
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query Secret exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sSecrets/{platformId}/{secretName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sPlatformK8sSecretByName(@PathVariable String platformId, @PathVariable String secretName)
+    {
+        String uri = String.format("GET %s/k8sSecrets/%s/%s", this.apiBasePath, platformId, secretName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Secret secret = this.platformManagerService.queryPlatformK8sSecretByName(platformId, secretName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, secret);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query Secret exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumeClaim/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo queryPlatformK8sPersistentVolumeClaims(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/k8sPersistentVolumeClaim/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<V1PersistentVolumeClaim> list = this.platformManagerService.queryPlatformAllK8sPersistentVolumeClaim(platformId);;
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query PersistentVolumeClaim exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumeClaim/{platformId}/{persistentVolumeClaimName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sPlatformK8sPersistentVolumeClaimByName(@PathVariable String platformId, @PathVariable String persistentVolumeClaimName)
+    {
+        String uri = String.format("GET %s/k8sPersistentVolumeClaim/%s/%s", this.apiBasePath, platformId, persistentVolumeClaimName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1PersistentVolumeClaim claim = this.platformManagerService.queryPlatformK8sPersistentVolumeClaimByName(platformId, persistentVolumeClaimName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, claim);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query PersistentVolumeClaim exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumes", method = RequestMethod.GET)
+    public AjaxResultPo queryAllK8sk8sPersistentVolumes(String k8sApiUrl, String k8sAuthToken)
+    {
+        String uri = String.format("GET %s/k8sPersistentVolumes", this.apiBasePath);
+        logger.debug(String.format("enter %s controller with k8sApiUrl=%s and authToken=%s", uri, k8sApiUrl, k8sAuthToken));
+        AjaxResultPo resultPo;
+        try
+        {
+            if(StringUtils.isBlank(k8sApiUrl))
+                throw new Exception("k8s api url is blank");
+            if(StringUtils.isBlank(k8sAuthToken))
+                throw new Exception("k8s auth token is blank");
+            List<V1PersistentVolume> list = k8sApiService.queryAllPersistentVolume(k8sApiUrl, k8sAuthToken);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query PersistentVolume exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumes/{persistentVolumeName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sPersistentVolumeByName(@PathVariable String persistentVolumeName, String k8sApiUrl, String k8sAuthToken)
+    {
+        String uri = String.format("GET %s/k8sPersistentVolumes/%s", this.apiBasePath, persistentVolumeName);
+        logger.debug(String.format("enter %s controller with k8sApiUrl=%s and authToken=%s", uri, k8sApiUrl, k8sAuthToken));
+        AjaxResultPo resultPo;
+        try
+        {
+            if(StringUtils.isBlank(k8sApiUrl))
+                throw new Exception("k8s api url is blank");
+            if(StringUtils.isBlank(k8sAuthToken))
+                throw new Exception("k8s auth token is blank");
+            V1PersistentVolume volume = k8sApiService.queryPersistentVolume(persistentVolumeName, k8sApiUrl, k8sAuthToken);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, volume);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query PersistentVolume exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
 }

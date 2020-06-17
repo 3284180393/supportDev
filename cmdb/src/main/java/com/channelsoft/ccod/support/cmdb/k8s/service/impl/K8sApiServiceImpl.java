@@ -8,17 +8,14 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.utils.K8sUtils;
-import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
-import io.kubernetes.client.openapi.apis.AppsApi;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.ExtensionsV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.openapi.models.V1Service;
-import io.kubernetes.client.proto.V1beta1Extensions;
 import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.credentials.AccessTokenAuthentication;
 import org.junit.Test;
@@ -228,6 +225,66 @@ public class K8sApiServiceImpl implements IK8sApiService {
         return endpoints;
     }
 
+    @Override
+    public List<V1Secret> queryAllSecretAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query all secret at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1SecretList list = apiInstance.listNamespacedSecret(namespace, null ,null, null, null, null, null, null, null, null);
+        logger.debug(String.format("find %d secret %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1Secret querySecret(String namespace, String secretName, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query secret $s at %s from %s", secretName, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Secret secret = apiInstance.readNamespacedSecret(secretName, namespace, null, null, null);
+        logger.debug(String.format("find secret %s at %s from %s", gson.toJson(secret), namespace, k8sApiUrl));
+        return secret;
+    }
+
+    @Override
+    public List<V1PersistentVolumeClaim> queryAllPersistentVolumeClaimAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query all persistentVolumeClaim at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PersistentVolumeClaimList list = apiInstance.listNamespacedPersistentVolumeClaim(namespace, null ,null, null, null, null, null, null, null, null);
+        logger.debug(String.format("find %d persistentVolumeClaim %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1PersistentVolumeClaim queryPersistentVolumeClaim(String namespace, String persistentVolumeClaimName, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query persistentVolumeClaim $s at %s from %s", persistentVolumeClaimName, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PersistentVolumeClaim claim = apiInstance.readNamespacedPersistentVolumeClaim(persistentVolumeClaimName, namespace, null, null, null);
+        logger.debug(String.format("find persistentVolumeClaim %s at %s from %s", gson.toJson(claim), namespace, k8sApiUrl));
+        return claim;
+    }
+
+    @Override
+    public List<V1PersistentVolume> queryAllPersistentVolume(String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query all PersistentVolume from %s", k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PersistentVolumeList list = apiInstance.listPersistentVolume(null, null, null, null, null, null, null, null, null);
+        logger.debug(String.format("find %d PersistentVolume %s from %s", list.getItems().size(), gson.toJson(list.getItems()), k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1PersistentVolume queryPersistentVolume(String persistentVolumeName, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query PersistentVolume %s from %s", persistentVolumeName, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PersistentVolume volume = apiInstance.readPersistentVolume(persistentVolumeName, null, null, null);
+        logger.debug(String.format("find PersistentVolume %s from %s", gson.toJson(volume), k8sApiUrl));
+        return volume;
+    }
+
     V1ConfigMap createConfigMapFromFile(String namespace, String configMapName, String fileSavePath, String k8sApiUrl, String authToken) throws ApiException, IOException
     {
         BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileSavePath)),
@@ -298,7 +355,10 @@ public class K8sApiServiceImpl implements IK8sApiService {
     {
         try
         {
-            endpointTest();
+//            pstClaimTest();
+            pstVolumesTest();
+//            secretTest();
+//            endpointTest();
 //            ingressTest();
 //            deploymentTest1();
 //            nodeTest();
@@ -619,4 +679,35 @@ public class K8sApiServiceImpl implements IK8sApiService {
         }
     }
 
+    private void secretTest() throws Exception
+    {
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        Gson gson = new Gson();
+        String namespace = "123456-wuph";
+        V1SecretList secretList = apiInstance.listNamespacedSecret(namespace, null, null, null, null, null, null, null, null, null);
+        System.out.println(gson.toJson(secretList.getItems()));
+    }
+
+    private void pstClaimTest() throws Exception
+    {
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        Gson gson = new Gson();
+        String namespace = "123456-wuph";
+        V1PersistentVolumeClaimList list = apiInstance.listNamespacedPersistentVolumeClaim(namespace, null, null, null, null ,null, null, null, null, null);
+        System.out.println(gson.toJson(list.getItems()));
+    }
+
+    private void pstVolumesTest() throws Exception
+    {
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        Gson gson = new Gson();
+        String namespace = "123456-wuph";
+        V1PersistentVolumeList list = apiInstance.listPersistentVolume(null, null, null, null, null, null, null, null, null);
+        System.out.println(gson.toJson(list.getItems()));
+        V1PersistentVolume volume = apiInstance.readPersistentVolume("base-volume-123456-wuph", null, null, null);
+        System.out.println(gson.toJson(volume));
+    }
 }

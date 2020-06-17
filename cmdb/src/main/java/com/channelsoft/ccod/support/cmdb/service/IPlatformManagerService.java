@@ -198,6 +198,44 @@ public interface IPlatformManagerService {
     V1Endpoints queryPlatformK8sEndpointsByName(String platformId, String endpointsName) throws ParamException, ApiException;
 
     /**
+     * 查询平台所有Secret
+     * @param platformId 指定平台id
+     * @return 指定平台的所有k8s Secret
+     * @throws ParamException
+     * @throws ApiException
+     */
+    List<V1Secret> queryPlatformAllK8sSecret(String platformId) throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台的指定名称的k8s Secret
+     * @param platformId 平台id
+     * @param secretName  k8s Secret名称
+     * @return 查询结果
+     * @throws ParamException
+     * @throws ApiException
+     */
+    V1Secret queryPlatformK8sSecretByName(String platformId, String secretName) throws ParamException, ApiException;
+
+    /**
+     * 查询平台所有PersistentVolumeClaim
+     * @param platformId 指定平台id
+     * @return 指定平台的所有k8s PersistentVolumeClaim
+     * @throws ParamException
+     * @throws ApiException
+     */
+    List<V1PersistentVolumeClaim> queryPlatformAllK8sPersistentVolumeClaim(String platformId) throws ParamException, ApiException;
+
+    /**
+     * 查询指定平台的指定名称的k8s PersistentVolumeClaim
+     * @param platformId 平台id
+     * @param persistentVolumeClaimName  k8s PersistentVolumeClaim名称
+     * @return 查询结果
+     * @throws ParamException
+     * @throws ApiException
+     */
+    V1PersistentVolumeClaim queryPlatformK8sPersistentVolumeClaimByName(String platformId, String persistentVolumeClaimName) throws ParamException, ApiException;
+
+    /**
      * 为新建平台创建configMap
      * @param createSchema 新建平台schema
      * @return 为新平台创建的configMap
