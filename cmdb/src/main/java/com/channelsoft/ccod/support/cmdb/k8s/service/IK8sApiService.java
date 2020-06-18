@@ -269,4 +269,36 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     void deleteConfigMapByName(String namespace, String configMapName, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 在指定的k8s系统里为指定命名空间创建deployment
+     * @param namespace 需要创建deployment的命名空间
+     * @param deployment 需要被创建的deployment
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 创建后的deployment
+     * @throws ApiException
+     */
+    V1Deployment createNamespacedDeployment(String namespace, V1Deployment deployment, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 在指定的k8s系统里为指定命名空间创建deployment
+     * @param namespace 创建service的命名空间
+     * @param service 需要被创建的service
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 创建后的deployment
+     * @throws ApiException
+     */
+    V1Service createNamespacedService(String namespace, V1Service service, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 创建指定的namespace
+     * @param namespace 需要被创建的命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 创建后的deployment
+     * @throws ApiException
+     */
+    V1Namespace createNamespaced(V1Namespace namespace, String k8sApiUrl, String authToken) throws ApiException;
 }

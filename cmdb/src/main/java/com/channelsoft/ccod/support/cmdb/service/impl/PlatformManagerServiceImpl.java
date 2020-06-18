@@ -349,6 +349,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
 
+
     private PlatformAppDeployDetailVo parsePlatformDeployApp(V1Deployment deployment, V1Container container, List<V1Pod> pods, List<V1Service> services, String deploymentName, String platformId, String platformName, List<AppModuleVo>  registerApps, int bkBizId, int bkCloudId, String ccodVersion, List<LJHostInfo> hostList, String status) throws ParamException, NotSupportAppException
     {
         String domainId = deploymentName.split("\\-")[1];

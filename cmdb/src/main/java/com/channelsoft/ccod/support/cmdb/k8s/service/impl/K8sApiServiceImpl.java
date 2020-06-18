@@ -8,6 +8,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.utils.K8sUtils;
+import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
@@ -18,6 +19,7 @@ import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.util.ClientBuilder;
 import io.kubernetes.client.util.credentials.AccessTokenAuthentication;
+import io.kubernetes.client.util.labels.LabelSelector;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -350,13 +352,49 @@ public class K8sApiServiceImpl implements IK8sApiService {
         logger.debug(String.format("delete success"));
     }
 
+    @Override
+    public V1Deployment createNamespacedDeployment(String namespace, V1Deployment deployment, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create deployment %s for %s at %s", gson.toJson(deployment), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1Deployment create = apiInstance.createNamespacedDeployment(namespace, deployment, null, null, null);
+        logger.debug(String.format("deployment %s created for %s at %s", gson.toJson(create), namespace, k8sApiUrl));
+        return create;
+    }
+
+    @Override
+    public V1Service createNamespacedService(String namespace, V1Service service, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create service %s for %s at %s", gson.toJson(service), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();;
+        V1Service create = apiInstance.createNamespacedService(namespace, service, null, null, null);
+        logger.debug(String.format("service %s created for %s at %s", gson.toJson(create), namespace, k8sApiUrl));
+        return create;
+    }
+
+    @Override
+    public V1Namespace createNamespaced(V1Namespace namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create namespace %s at %s", gson.toJson(namespace), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();;
+        V1Namespace create = apiInstance.createNamespace(namespace,null, null, null);
+        logger.debug(String.format("namespace %s created at %s", gson.toJson(create), k8sApiUrl));
+        return create;
+    }
+
     @Test
     public void cmTest()
     {
         try
         {
+            createIngressTest();
+//            createServiceTest();
+//            createDeploymentTest();
+//            podTest();
+//            deploymentTest();
+//            podTest();
 //            pstClaimTest();
-            pstVolumesTest();
+//            pstVolumesTest();
 //            secretTest();
 //            endpointTest();
 //            ingressTest();
@@ -367,11 +405,35 @@ public class K8sApiServiceImpl implements IK8sApiService {
 //            listAllConfigMap();
 ////            createConfigMapTest();
 //            replaceConfigMapTest();
+            createNamespaceTest();
         }
         catch (Exception ex)
         {
             ex.printStackTrace();
         }
+    }
+
+    private void createIngressTest() throws Exception
+    {
+        String jsonStr = "{\"apiVersion\":\"extensions/v1beta1\",\"kind\":\"Ingress\",\"metadata\":{\"annotations\":{\"kubectl.kubernetes.io/last-applied-configuration\":\"{\\\"apiVersion\\\":\\\"extensions/v1beta1\\\",\\\"kind\\\":\\\"Ingress\\\",\\\"metadata\\\":{\\\"annotations\\\":{},\\\"name\\\":\\\"cas-manage01\\\",\\\"namespace\\\":\\\"202005-test\\\"},\\\"spec\\\":{\\\"rules\\\":[{\\\"host\\\":\\\"202005-test.ccod.com\\\",\\\"http\\\":{\\\"paths\\\":[{\\\"backend\\\":{\\\"serviceName\\\":\\\"cas-manage01\\\",\\\"servicePort\\\":80},\\\"path\\\":\\\"/cas\\\"}]}}]}}\\n\"},\"name\":\"cas-manage01\",\"namespace\":\"202005-test\"},\"spec\":{\"rules\":[{\"host\":\"202005-test.ccod.com\",\"http\":{\"paths\":[{\"backend\":{\"serviceName\":\"cas-manage01\",\"servicePort\":80},\"path\":\"/cass\"}]}}]}}";
+        ExtensionsV1beta1Ingress ingress = gson.fromJson(jsonStr, ExtensionsV1beta1Ingress.class);
+        getConnection(testK8sApiUrl, testAuthToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        String namespace = "202005-test";
+        ExtensionsV1beta1Ingress create = apiInstance.createNamespacedIngress(namespace, ingress, null, null, null);
+        System.out.println(gson.toJson(create));
+
+    }
+
+    private void createNamespaceTest() throws Exception
+    {
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        String namespace = "123456-wuph";
+        String jsonStr = "{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"name\":\"just-test\"},\"spec\":{\"finalizers\":[\"kubernetes\"]}}";
+        V1Namespace ns = gson.fromJson(jsonStr, V1Namespace.class);
+        V1Namespace create = apiInstance.createNamespace(ns, null, null, null);
+        System.out.println(gson.toJson(create));
     }
 
     protected void endpointTest() throws Exception
@@ -381,6 +443,17 @@ public class K8sApiServiceImpl implements IK8sApiService {
         String namespace = "123456-wuph";
         V1EndpointsList list = apiInstance.listNamespacedEndpoints(namespace, null, null, null, null, null, null, null, null, null);
         System.out.println(gson.toJson(list.getItems()));
+    }
+
+    private void createServiceTest() throws Exception
+    {
+        String jsonStr = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"name\":\"cms1-cloud01\"},\"name\":\"cms1-cloud01\"},\"spec\":{\"ports\":[{\"name\":\"cms1-cloud01-17119\",\"port\":17119,\"protocol\":\"TCP\",\"targetPort\":17119},{\"name\":\"cms1-cloud01-11520\",\"port\":11520,\"protocol\":\"TCP\",\"targetPort\":11520}],\"selector\":{\"name\":\"cms1-cloud01\"},\"type\":\"ClusterIP\"}}";
+        V1Service service = gson.fromJson(jsonStr, V1Service.class);
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        String namespace = "202005-test";
+        V1Service create = apiInstance.createNamespacedService(namespace, service, null, null, null);
+        System.out.println(gson.toJson(create));
     }
 
     protected void ingressTest() throws Exception
@@ -475,6 +548,36 @@ public class K8sApiServiceImpl implements IK8sApiService {
         System.out.println(jsonStr);
     }
 
+    private void podTest() throws Exception
+    {
+        String namespace = "202005-test";
+        getConnection(testK8sApiUrl, testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PodList podList = apiInstance.listNamespacedPod(namespace, null, null, null, null, null, null, null, null, null);
+//        int replicas = 9;
+//        String jsonPatchStr = "[{\"op\":\"replace\",\"path\":\"/spec/replicas\", \"value\": " + replicas + " }]";
+//        JSONArray jsonArray = JSONArray.parseArray(jsonPatchStr);
+//        for(int i = 0; i < jsonArray.size(); i++)
+//        {
+//            JSONObject object = jsonArray.getJSONObject(i);
+//            System.out.println(JSONObject.toJSONString(object));
+//        }
+//        System.out.println(gson.toJson(podList.getItems()));
+        for(V1Pod pod : podList.getItems())
+        {
+            String alias = pod.getMetadata().getName().split("\\-")[0];
+            Map<String, String> labelMap = new HashMap<>();
+            labelMap.put("name", "daengine-cloud01");
+            labelMap.put("alias", alias);
+            String jsonPatchStr = "[{\"op\":\"replace\",\"path\":\"/metadata/labels\", \"value\": " + JSONObject.toJSONString(labelMap) + " }]";
+//            String jsonPatchStr = "[{\"op\":\"replace\",\"path\":\"/metadata/labels\", \"value\": " + "name=pid" + " }]";
+            System.out.println(jsonPatchStr);
+            V1Patch body = new V1Patch(jsonPatchStr);
+            V1Pod newPod = apiInstance.patchNamespacedPod(pod.getMetadata().getName(), namespace, body, null, null, null, true);
+            System.out.print(newPod);
+        }
+    }
+
     private void serviceTest() throws Exception
     {
         String namespace = "kube-system";
@@ -558,14 +661,45 @@ public class K8sApiServiceImpl implements IK8sApiService {
         }
     }
 
+    private void createDeploymentTest() throws Exception
+    {
+        String jsonStr = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"annotations\":{\"deployment.kubernetes.io/revision\":\"1\"},\"labels\":{\"name\":\"cms1-cloud01\"},\"name\":\"cms1-cloud01\",\"namespace\":\"202005-test\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"cms1-cloud01\"}},\"strategy\":{\"type\":\"Recreate\"},\"template\":{\"metadata\":{\"creationTimestamp\":null,\"labels\":{\"name\":\"cms1-cloud01\"}},\"spec\":{\"containers\":[{\"args\":[\"mkdir -p /root/Platform/bin;cd /root/Platform; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/cloud01_cms1/beijing.xml -P ./etc -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/cloud01_cms1/cms_log4cpp.cfg -P ./etc -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/cloud01_cms1/config.cms2 -P ./etc -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/publicConfig/tnsnames.ora -P /usr/local/lib -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/ccod/mod_number.so -P /root/Platform/bin -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/ccod/hlr.gz -P /root/Platform/etc -N; cd /root/Platform/etc;tar -xzf hlr.gz; cd /root/Platform/bin;/root/Platform/bin/cmsserver --config.main=../etc/config.cms2;\"],\"command\":[\"/bin/sh\",\"-c\"],\"env\":[{\"name\":\"LD_LIBRARY_PATH\",\"value\":\"/usr/local/lib/:/usr/lib/\"}],\"image\":\"nexus.io:5000/ccod-base/centos-backend:0.4\",\"imagePullPolicy\":\"IfNotPresent\",\"livenessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":30,\"periodSeconds\":30,\"successThreshold\":1,\"tcpSocket\":{\"port\":17119},\"timeoutSeconds\":1},\"name\":\"cms1-cloud01\",\"ports\":[{\"containerPort\":17119,\"protocol\":\"TCP\"},{\"containerPort\":11520,\"protocol\":\"TCP\"}],\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"},\"requests\":{\"cpu\":\"500m\",\"memory\":\"500Mi\"}},\"terminationMessagePath\":\"/dev/termination-log\",\"terminationMessagePolicy\":\"File\",\"volumeMounts\":[{\"mountPath\":\"/root/Platform/bin\",\"name\":\"binary-file\"},{\"mountPath\":\"/root/Platform/log\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"workingDir\":\"/root/Platform\"}],\"dnsPolicy\":\"ClusterFirst\",\"initContainers\":[{\"args\":[\"cp /opt/cmsserver /binary-file/;\"],\"command\":[\"/bin/sh\",\"-c\"],\"image\":\"nexus.io:5000/ccod/cmsserver:4c303e2a4b97a047f63eb01b247303c9306fbda5\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"init-cmsserver\",\"resources\":{},\"terminationMessagePath\":\"/dev/termination-log\",\"terminationMessagePolicy\":\"File\",\"volumeMounts\":[{\"mountPath\":\"/binary-file\",\"name\":\"binary-file\"}],\"workingDir\":\"/opt\"}],\"restartPolicy\":\"Always\",\"schedulerName\":\"default-scheduler\",\"securityContext\":{},\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"emptyDir\":{},\"name\":\"binary-file\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/202005-test/cms1-cloud01/cms1-cloud01/\",\"type\":\"\"},\"name\":\"ccod-runtime\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/core\",\"type\":\"\"},\"name\":\"core\"}]}}}}";
+        V1Deployment deployment = gson.fromJson(jsonStr, V1Deployment.class);
+        String namespace = "202005-test";
+        getConnection(testK8sApiUrl, testAuthToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1Deployment create = apiInstance.createNamespacedDeployment(namespace, deployment, null, null, null);
+        System.out.println(gson.toJson(create));
+
+    }
+
     private void deploymentTest() throws Exception
     {
-        String namespace = "pahj";
-        ApiClient client = getConnection(testK8sApiUrl, testAuthToken);
-        ExtensionsV1beta1Api api = new ExtensionsV1beta1Api(client);
-        ExtensionsV1beta1DeploymentList list = api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
-        String json = JSONArray.toJSONString(list.getItems());
-        System.out.println(json);
+        String namespace = "202005-test";
+        getConnection(testK8sApiUrl, testAuthToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+//        CoreV1Api apiInstance = new CoreV1Api();
+        V1DeploymentList list = apiInstance.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
+        for(V1Deployment deployment : list.getItems())
+        {
+            if(!deployment.getMetadata().getName().equals("daengine-cloud01"))
+                continue;
+            String name = deployment.getMetadata().getName();
+//            String jsonPatchStr = "[{\"op\":\"replace\",\"path\":\"/spec/replicas\", \"value\": " + 3 + " }]";
+            Map<String, String> labelMap = new HashMap<>();
+            labelMap.put("name", "daengine-cloud01");
+            labelMap.put("alias", "daengine");
+            String jsonPatchStr = "[{\"op\":\"replace\",\"path\":\"/spec/template/metadata/labels\", \"value\": " + JSONObject.toJSONString(labelMap) + " }]";
+//            String jsonPatchStr = "[{\"op\":\"replace\",\"path\":\"/metadata/labels\", \"value\": " + "name=just-test" + " }]";
+            V1Patch body = new V1Patch(jsonPatchStr);
+            try {
+                V1Deployment result1 = apiInstance.patchNamespacedDeployment(name, namespace, body, null, null, null, null);
+                System.out.println(result1);
+            } catch (ApiException e) {
+                e.printStackTrace();
+                logger.error("k8s副本更新失败！");
+            }
+        }
     }
 
     private void deploymentTest1() throws Exception
