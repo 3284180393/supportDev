@@ -54,38 +54,18 @@ public class K8sApiServiceImpl implements IK8sApiService {
     protected String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA";
 
     @Override
-    public V1Namespace queryNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to get namespace %s from %s", namespace, k8sApiUrl));
+    public V1Pod readNamespacedPod(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read pod %s from %s with namespace %s", name, k8sApiUrl, namespace));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1Namespace ns = apiInstance.readNamespace(namespace, null, null, null);
-        logger.debug(String.format("find namespace %s from %s", JSONObject.toJSONString(ns), k8sApiUrl));
-        return ns;
-    }
-
-    @Override
-    public List<V1Namespace> queryAllNamespace(String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("list all namespace from %s", k8sApiUrl));
-        getConnection(k8sApiUrl, authToken);
-        CoreV1Api apiInstance = new CoreV1Api();
-        V1NamespaceList list = apiInstance.listNamespace(null, null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d namespace %s from %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), k8sApiUrl));
-        return list.getItems();
-    }
-
-    @Override
-    public V1Pod queryPod(String namespace, String podName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to get pod %s from %s with namespace %s", podName, k8sApiUrl, namespace));
-        getConnection(k8sApiUrl, authToken);
-        CoreV1Api apiInstance = new CoreV1Api();
-        V1Pod pod = apiInstance.readNamespacedPod(podName, namespace, null, null, null);
+        V1Pod pod = apiInstance.readNamespacedPod(name, namespace, null, null, null);
         logger.debug(String.format("find pod %s from %s", gson.toJson(pod), k8sApiUrl));
         return pod;
     }
 
     @Override
-    public List<V1Pod> queryAllPodAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query all pods at namespace %s from %s", namespace, k8sApiUrl));
+    public List<V1Pod> listNamespacedPod(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list pods at namespace %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1PodList list = apiInstance.listNamespacedPod(namespace, null, null, null, null, null, null, null, null, null);
@@ -108,27 +88,27 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public V1Service queryService(String namespace, String serviceName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to get service %s from %s with namespace %s", serviceName, k8sApiUrl, namespace));
+    public V1Service readNamespacedService(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read service %s at %s from %s ", name, namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1Service service = apiInstance.readNamespacedService(serviceName, namespace, null, null, null);
-        logger.debug(String.format("find service %s from %s success", serviceName, k8sApiUrl));
+        V1Service service = apiInstance.readNamespacedService(name, namespace, null, null, null);
+        logger.info(String.format("find service %s from %s ", gson.toJson(service), k8sApiUrl));
         return service;
     }
 
     @Override
-    public List<V1Service> queryAllServiceAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query all service at namespace %s from %s", namespace, k8sApiUrl));
+    public List<V1Service> listNamespacedService(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list service at namespace %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1ServiceList list = apiInstance.listNamespacedService(namespace, null, null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d service at %s from %s", list.getItems().size(), namespace, k8sApiUrl));
+        logger.info(String.format("find %d service %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
         return list.getItems();
     }
 
     @Override
-    public List<V1Node> queryAllNode(String k8sApiUrl, String authToken) throws ApiException {
+    public List<V1Node> listNode(String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("begin to query all node from %s", k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
@@ -138,154 +118,257 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public V1Node queryNode(String nodeName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to get node %s from %s", nodeName, k8sApiUrl));
+    public V1Node readNode(String name, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to get node %s from %s", name, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1Node node = apiInstance.readNode(nodeName, null, null, null);
-        logger.debug(String.format("find node %s from %s", gson.toJson(node), k8sApiUrl));
+        V1Node node = apiInstance.readNode(name, null, null, null);
+        logger.info(String.format("find node %s from %s", gson.toJson(node), k8sApiUrl));
         return node;
     }
 
     @Override
-    public List<V1ConfigMap> queryAllConfigMapAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query all configMap at namespace %s from %s", namespace, k8sApiUrl));
+    public List<V1ConfigMap> listNamespacedConfigMap(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list configMaps at %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1ConfigMapList list = apiInstance.listNamespacedConfigMap(namespace, null, null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d configMap %s at %s from %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), namespace, k8sApiUrl));
+        logger.info(String.format("find %d configMap %s at %s from %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), namespace, k8sApiUrl));
         return list.getItems();
     }
 
     @Override
-    public V1ConfigMap queryConfigMap(String namespace, String configMapName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to get configMap %s from %s at namespace %s", configMapName, k8sApiUrl, namespace));
+    public V1ConfigMap readNamespacedConfigMap(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read configMap %s from %s at namespace %s", name, k8sApiUrl, namespace));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1ConfigMap configMap = apiInstance.readNamespacedConfigMap(configMapName, namespace, null, null, null);
-        logger.debug(String.format("find configMap %s from %s", JSONObject.toJSONString(configMap), k8sApiUrl));
+        V1ConfigMap configMap = apiInstance.readNamespacedConfigMap(name, namespace, null, null, null);
+        logger.debug(String.format("find configMap %s from %s", gson.toJson(configMap), k8sApiUrl));
         return configMap;
     }
 
     @Override
-    public List<V1Deployment> queryAllDeploymentAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to get all deployment from %s at namespace %s", k8sApiUrl, namespace));
+    public List<V1Deployment> listNamespacedDeployment(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list deployment at %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         AppsV1Api appsV1Api = new AppsV1Api();
         V1DeploymentList list = appsV1Api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d deployment from %s at %s", list.getItems().size(), k8sApiUrl, namespace));
+        logger.info(String.format("find %d deployment %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
         return list.getItems();
     }
 
     @Override
-    public V1Deployment queryDeployment(String namespace, String deploymentName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to get deployment %s from %s at namespace %s", deploymentName, k8sApiUrl, namespace));
+    public V1Deployment readNamespacedDeployment(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read deployment %s from %s at %s", name, k8sApiUrl, namespace));
         getConnection(k8sApiUrl, authToken);
         AppsV1Api appsV1Api = new AppsV1Api();
-        V1Deployment deployment = appsV1Api.readNamespacedDeployment(deploymentName, namespace, null, null, null);
-        logger.debug(String.format("find deployment %s from %s", deploymentName, k8sApiUrl));
+        V1Deployment deployment = appsV1Api.readNamespacedDeployment(name, namespace, null, null, null);
+        logger.debug(String.format("find deployment %s from %s", name, k8sApiUrl));
         return deployment;
     }
 
     @Override
-    public List<ExtensionsV1beta1Ingress> queryAllIngressAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query all ingress from %s", k8sApiUrl));
-        getConnection(k8sApiUrl, authToken);
-        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
-        ExtensionsV1beta1IngressList list = apiInstance.listNamespacedIngress(namespace,null, null, null ,null, null, null, null,null, null);
-        logger.debug(String.format("find %d ingress %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
-        return list.getItems();
-    }
-
-    @Override
-    public ExtensionsV1beta1Ingress queryIngress(String namespace, String ingressName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query ingress at %s from %s", namespace, k8sApiUrl));
-        getConnection(k8sApiUrl, authToken);
-        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
-        ExtensionsV1beta1Ingress ingress = apiInstance.readNamespacedIngress(ingressName, namespace, null, null, null);
-        logger.debug(String.format("find ingress %s at %s from %s", gson.toJson(ingress), namespace, k8sApiUrl));
-        return ingress;
-    }
-
-    @Override
-    public List<V1Endpoints> queryAllEndpointsAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+    public List<V1Endpoints> listNamespacedEndpoints(String namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("begin to query all endpoints at %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1EndpointsList list = apiInstance.listNamespacedEndpoints(namespace, null, null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d endpoints %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        logger.info(String.format("find %d endpoints %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
         return list.getItems();
     }
 
     @Override
-    public V1Endpoints queryEndpoints(String namespace, String endpointsName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query endpoints %s at %s from %s", endpointsName, namespace, k8sApiUrl));
+    public V1Endpoints readNamespacedEndpoints(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read endpoints %s at %s from %s", name, namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1Endpoints endpoints = apiInstance.readNamespacedEndpoints(endpointsName, namespace, null, null, null);
-        logger.debug(String.format("find endpoints %s at %s from %s", gson.toJson(endpoints), namespace, k8sApiUrl));
+        V1Endpoints endpoints = apiInstance.readNamespacedEndpoints(name, namespace, null, null, null);
+        logger.info(String.format("find endpoints %s from %s", gson.toJson(endpoints), k8sApiUrl));
         return endpoints;
     }
 
     @Override
-    public List<V1Secret> queryAllSecretAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query all secret at %s from %s", namespace, k8sApiUrl));
+    public V1Endpoints createNamespacedEndpoints(String namespace, V1Endpoints endpoints, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create Endpoints %s at %s from %s", gson.toJson(endpoints), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Endpoints create = apiInstance.createNamespacedEndpoints(namespace, endpoints, null, null, null);
+        logger.info(String.format("Endpoints %s created from %s", gson.toJson(create), k8sApiUrl));
+        return create;
+    }
+
+    @Override
+    public V1Endpoints replaceNamespacedEndpoints(String name, String namespace, V1Endpoints endpoints, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("replace Endpoints %s at %s to %s from %s", name, namespace, gson.toJson(endpoints), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Endpoints replace = apiInstance.replaceNamespacedEndpoints(name, namespace, endpoints, null, null, null);
+        logger.info(String.format("Endpoints %s at %s replaced to %s", name, namespace, gson.toJson(replace)));
+        return replace;
+    }
+
+    @Override
+    public V1Status deleteNamespacedEndpoints(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete Endpoints %s at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Status status = apiInstance.deleteNamespacedEndpoints(name, namespace, null, null, null, null, null, null);
+        logger.info(String.format("Endpoints %s at %s deleted : %s", name, namespace, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public List<V1Secret> listNamespacedSecret(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list secret at %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1SecretList list = apiInstance.listNamespacedSecret(namespace, null ,null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d secret %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        logger.info(String.format("find %d secret %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
         return list.getItems();
     }
 
     @Override
-    public V1Secret querySecret(String namespace, String secretName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query secret $s at %s from %s", secretName, namespace, k8sApiUrl));
+    public V1Secret readNamespacedSecret(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read secret %s at %s from %s", name, namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1Secret secret = apiInstance.readNamespacedSecret(secretName, namespace, null, null, null);
-        logger.debug(String.format("find secret %s at %s from %s", gson.toJson(secret), namespace, k8sApiUrl));
+        V1Secret secret = apiInstance.readNamespacedSecret(name, namespace, null, null, null);
+        logger.info(String.format("find secret %s at %s from %s", gson.toJson(secret), namespace, k8sApiUrl));
         return secret;
     }
 
     @Override
-    public List<V1PersistentVolumeClaim> queryAllPersistentVolumeClaimAtNamespace(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query all persistentVolumeClaim at %s from %s", namespace, k8sApiUrl));
+    public V1Secret createNamespacedSecret(String namespace, V1Secret secret, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create Secret %s for %s from %s", gson.toJson(secret), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Secret create = apiInstance.createNamespacedSecret(namespace, secret, null, null, null);
+        logger.info(String.format("secret %s been created for %s from %s", gson.toJson(create), namespace, k8sApiUrl));
+        return create;
+    }
+
+    @Override
+    public V1Secret replaceNamespacedSecret(String name, String namespace, V1Secret secret, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("replace Secret %s at %s to %s from %s", name, namespace, gson.toJson(secret), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Secret replace = apiInstance.replaceNamespacedSecret(name, namespace, secret, null, null, null);
+        logger.info(String.format("Secret %s at %s has been replaced to %s from %s", name, namespace, gson.toJson(replace), k8sApiUrl));
+        return replace;
+    }
+
+    @Override
+    public V1Status deleteNamespacedSecret(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete Secret %s at %s from %s", name, name, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Status status = apiInstance.deleteNamespacedSecret(name, namespace, null, null, null, null, null, null);
+        logger.info(String.format("from %s Secret %s at %s delete : %s", k8sApiUrl, name, namespace, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public List<V1PersistentVolumeClaim> listNamespacedPersistentVolumeClaim(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list persistentVolumeClaim at %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1PersistentVolumeClaimList list = apiInstance.listNamespacedPersistentVolumeClaim(namespace, null ,null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d persistentVolumeClaim %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        logger.info(String.format("find %d persistentVolumeClaim %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
         return list.getItems();
     }
 
     @Override
-    public V1PersistentVolumeClaim queryPersistentVolumeClaim(String namespace, String persistentVolumeClaimName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query persistentVolumeClaim $s at %s from %s", persistentVolumeClaimName, namespace, k8sApiUrl));
+    public V1PersistentVolumeClaim readNamespacedPersistentVolumeClaim(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query persistentVolumeClaim $s at %s from %s", name, namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1PersistentVolumeClaim claim = apiInstance.readNamespacedPersistentVolumeClaim(persistentVolumeClaimName, namespace, null, null, null);
-        logger.debug(String.format("find persistentVolumeClaim %s at %s from %s", gson.toJson(claim), namespace, k8sApiUrl));
+        V1PersistentVolumeClaim claim = apiInstance.readNamespacedPersistentVolumeClaim(name, namespace, null, null, null);
+        logger.info(String.format("find persistentVolumeClaim %s at %s from %s", gson.toJson(claim), namespace, k8sApiUrl));
         return claim;
     }
 
     @Override
-    public List<V1PersistentVolume> queryAllPersistentVolume(String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query all PersistentVolume from %s", k8sApiUrl));
+    public V1PersistentVolumeClaim createNamespacedPersistentVolumeClaim(String namespace, V1PersistentVolumeClaim persistentVolumeClaim, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create PersistentVolumeClaim %s for %s from %s", gson.toJson(persistentVolumeClaim), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PersistentVolumeClaim create = apiInstance.createNamespacedPersistentVolumeClaim(namespace, persistentVolumeClaim, null, null, null);
+        logger.info(String.format("PersistentVolumeClaim %s been created for %s from %s", gson.toJson(create), namespace, k8sApiUrl));
+        return create;
+    }
+
+    @Override
+    public V1PersistentVolumeClaim replaceNamespacedPersistentVolumeClaim(String name, String namespace, V1PersistentVolumeClaim persistentVolumeClaim, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("replace PersistentVolumeClaim %s at %s to %s from %s", name, namespace, gson.toJson(persistentVolumeClaim), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PersistentVolumeClaim replace = apiInstance.replaceNamespacedPersistentVolumeClaim(name, namespace, persistentVolumeClaim, null, null, null);
+        logger.info(String.format("PersistentVolumeClaim %s at %s has been replaced to %s from %s", name, namespace, gson.toJson(replace), k8sApiUrl));
+        return replace;
+    }
+
+    @Override
+    public V1Status deleteNamespacedPersistentVolumeClaim(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete PersistentVolumeClaim %s at %s from %s", name, name, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Status status = apiInstance.deleteNamespacedSecret(name, namespace, null, null, null, null, null, null);
+        logger.info(String.format("from %s PersistentVolumeClaim %s at %s delete : %s", k8sApiUrl, name, namespace, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public List<V1PersistentVolume> listPersistentVolume(String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list PersistentVolume from %s", k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
         V1PersistentVolumeList list = apiInstance.listPersistentVolume(null, null, null, null, null, null, null, null, null);
-        logger.debug(String.format("find %d PersistentVolume %s from %s", list.getItems().size(), gson.toJson(list.getItems()), k8sApiUrl));
+        logger.info(String.format("find %d PersistentVolume %s from %s", list.getItems().size(), gson.toJson(list.getItems()), k8sApiUrl));
         return list.getItems();
     }
 
     @Override
-    public V1PersistentVolume queryPersistentVolume(String persistentVolumeName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("begin to query PersistentVolume %s from %s", persistentVolumeName, k8sApiUrl));
+    public V1PersistentVolume readPersistentVolume(String name, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read PersistentVolume %s  from %s", name, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1PersistentVolume volume = apiInstance.readPersistentVolume(persistentVolumeName, null, null, null);
+        V1PersistentVolume volume = apiInstance.readPersistentVolume(name, null, null, null);
         logger.debug(String.format("find PersistentVolume %s from %s", gson.toJson(volume), k8sApiUrl));
         return volume;
     }
+
+    @Autowired
+    public V1PersistentVolume createPersistentVolume(V1PersistentVolume persistentVolume, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create PersistentVolume %s from %s", gson.toJson(persistentVolume), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PersistentVolume create = apiInstance.createPersistentVolume(persistentVolume, null, null, null);
+        logger.info(String.format("create PersistentVolume %s SUCCESS from %s", gson.toJson(create), k8sApiUrl));
+        return create;
+    }
+
+    @Autowired
+    public V1PersistentVolume replacePersistentVolume(String name, V1PersistentVolume persistentVolume, String k8sApiUrl, String authToken) throws ApiException
+    {
+        logger.debug(String.format("replace PersistentVolume %s to %s from %s", name, gson.toJson(persistentVolume), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1PersistentVolume replace = apiInstance.replacePersistentVolume(name, persistentVolume, null, null, null);
+        logger.info(String.format("%s PersistentVolume has been replaced by %s from %s", name, gson.toJson(replace), k8sApiUrl));
+        return replace;
+    }
+
+    @Autowired
+    public V1Status deletePersistentVolume(String name, String k8sApiUrl, String authToken) throws ApiException
+    {
+        logger.debug(String.format("delete PersistentVolume %s from %s", name, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Status status = apiInstance.deletePersistentVolume(name, null, null, null, null, null, null);
+        logger.info(String.format("PersistentVolume %s has been delete %s from %s", name, gson.toJson(status), k8sApiUrl));
+        return status;
+    }
+
 
     V1ConfigMap createConfigMapFromFile(String namespace, String configMapName, String fileSavePath, String k8sApiUrl, String authToken) throws ApiException, IOException
     {
@@ -363,23 +446,153 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public V1Status deleteNamespacedDeployment(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete Deployment %s at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1Status status = apiInstance.deleteNamespacedDeployment(name, namespace, null, null, null, null, null, null);
+        logger.info(String.format("delete Deployment %s at %s from %s : %s", name, namespace, k8sApiUrl, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public V1Status deleteCollectionNamespacedDeployment(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete all Deployment at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1Status status = apiInstance.deleteCollectionNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        logger.info(String.format("delete all Deployment at %s from %s : %s", namespace, k8sApiUrl, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public V1Deployment replaceNamespacedDeployment(String name, String namespace, V1Deployment deployment, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("replace Deployment %s at %s from %s to %s", name, namespace, k8sApiUrl, gson.toJson(deployment)));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1Deployment replace = apiInstance.replaceNamespacedDeployment(name, namespace, deployment, null, null, null);
+        logger.info(String.format("replace Deployment %s at %s from %s to %s SUCCESS", name, namespace, k8sApiUrl, gson.toJson(replace)));
+        return replace;
+    }
+
+    @Override
     public V1Service createNamespacedService(String namespace, V1Service service, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("create service %s for %s at %s", gson.toJson(service), namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
-        CoreV1Api apiInstance = new CoreV1Api();;
+        CoreV1Api apiInstance = new CoreV1Api();
         V1Service create = apiInstance.createNamespacedService(namespace, service, null, null, null);
         logger.debug(String.format("service %s created for %s at %s", gson.toJson(create), namespace, k8sApiUrl));
         return create;
     }
 
     @Override
-    public V1Namespace createNamespaced(V1Namespace namespace, String k8sApiUrl, String authToken) throws ApiException {
+    public V1Status deleteNamespacedService(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete Service %s at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Status status = apiInstance.deleteNamespacedService(name, namespace, null, null, null, null, null, null);
+        logger.info(String.format("delete Service %s at %s from %s : %s", name, namespace, k8sApiUrl, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public V1Service replaceNamespacedService(String name, String namespace, V1Service service, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("replace Service %s at %s from %s to %s", name, namespace, k8sApiUrl, gson.toJson(service)));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Service replace = apiInstance.replaceNamespacedService(name, namespace, service, null, null, null);
+        logger.info(String.format("replace Service %s at %s from %s to %s SUCCESS", name, namespace, k8sApiUrl, gson.toJson(replace)));
+        return replace;
+    }
+
+    @Override
+    public V1Namespace readNamespace(String name, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read namespace %s from %s", name, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Namespace ns = apiInstance.readNamespace(name, null, null, null);
+        logger.debug(String.format("find namespace %s from %s", gson.toJson(ns), k8sApiUrl));
+        return ns;
+    }
+
+    @Override
+    public List<V1Namespace> listNamespace(String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list all namespace from %s", k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1NamespaceList list = apiInstance.listNamespace(null, null, null, null, null, null, null, null, null);
+        logger.debug(String.format("find %d namespace %s from %s", list.getItems().size(), JSONArray.toJSONString(list.getItems()), k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1Namespace createNamespace(V1Namespace namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("create namespace %s at %s", gson.toJson(namespace), k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
-        CoreV1Api apiInstance = new CoreV1Api();;
+        CoreV1Api apiInstance = new CoreV1Api();
         V1Namespace create = apiInstance.createNamespace(namespace,null, null, null);
         logger.debug(String.format("namespace %s created at %s", gson.toJson(create), k8sApiUrl));
         return create;
+    }
+
+    @Override
+    public V1Status deleteNamespace(String name, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete namespace %s from %s", name, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Status status = apiInstance.deleteNamespace(name, null, null, null, null, null, null);
+        logger.info(String.format("delete %s from %s : %s", name, k8sApiUrl, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public List<ExtensionsV1beta1Ingress> listNamespacedIngress(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list all Ingress at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        ExtensionsV1beta1IngressList list = apiInstance.listNamespacedIngress(namespace,null, null, null ,null, null, null, null,null, null);
+        logger.info(String.format("find %d Ingress %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public ExtensionsV1beta1Ingress readNamespacedIngress(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to query Ingress at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        ExtensionsV1beta1Ingress ingress = apiInstance.readNamespacedIngress(name, namespace, null, null, null);
+        logger.debug(String.format("find ingress %s at %s from %s", gson.toJson(ingress), namespace, k8sApiUrl));
+        return ingress;
+    }
+
+    @Override
+    public ExtensionsV1beta1Ingress createNamespacedIngress(String namespace, ExtensionsV1beta1Ingress ingress, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create ingress %s for %s at %s", gson.toJson(ingress), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        ExtensionsV1beta1Ingress create = apiInstance.createNamespacedIngress(namespace, ingress, null, null, null);
+        logger.debug(String.format("ingress %s created for %s at %s", gson.toJson(create), namespace, k8sApiUrl));
+        return create;
+    }
+
+    @Override
+    public V1Status deleteNamespacedIngress(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete Ingress %s at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        V1Status status = apiInstance.deleteNamespacedIngress(name, namespace, null, null, null, null, null, null);
+        logger.info(String.format("delete Ingress %s at %s from %s : %s", name, namespace, k8sApiUrl, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public ExtensionsV1beta1Ingress replaceNamespacedIngress(String name, String namespace, ExtensionsV1beta1Ingress ingress, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("replace Ingress %s at %s from %s to %s", name, namespace, k8sApiUrl, gson.toJson(ingress)));
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        ExtensionsV1beta1Ingress replace = apiInstance.replaceNamespacedIngress(name, namespace, ingress, null, null, null);
+        logger.info(String.format("replace Ingress %s at %s from %s to %s SUCCESS", name, namespace, k8sApiUrl, gson.toJson(replace)));
+        return replace;
     }
 
     @Test

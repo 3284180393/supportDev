@@ -7,6 +7,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import com.google.gson.Gson;
 import io.kubernetes.client.openapi.models.*;
 import javafx.application.Platform;
 import org.apache.commons.lang3.StringUtils;
@@ -51,6 +52,8 @@ public class CMDBController {
     private final static Logger logger = LoggerFactory.getLogger(CMDBController.class);
 
     private String apiBasePath = "/cmdb/api";
+
+    private final static Gson gson = new Gson();
 
     @RequestMapping(value = "/apps", method = RequestMethod.POST)
     public AjaxResultPo addNewApp(@RequestBody AppModuleVo moduleVo)
@@ -884,7 +887,7 @@ public class CMDBController {
                 throw new Exception("k8s api url is blank");
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
-            List<V1Node> list = k8sApiService.queryAllNode(k8sApiUrl, k8sAuthToken);
+            List<V1Node> list = k8sApiService.listNode(k8sApiUrl, k8sAuthToken);
             resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -908,7 +911,7 @@ public class CMDBController {
                 throw new Exception("k8s api url is blank");
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
-            V1Node node = k8sApiService.queryNode(nodeName, k8sApiUrl, k8sAuthToken);
+            V1Node node = k8sApiService.readNode(nodeName, k8sApiUrl, k8sAuthToken);
             resultPo = new AjaxResultPo(true, "query SUCCESS", 1, node);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -932,7 +935,7 @@ public class CMDBController {
                 throw new Exception("k8s api url is blank");
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
-            List<V1Namespace> list = k8sApiService.queryAllNamespace(k8sApiUrl, k8sAuthToken);
+            List<V1Namespace> list = k8sApiService.listNamespace(k8sApiUrl, k8sAuthToken);
             resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -1044,6 +1047,66 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/k8sServices/{platformId}", method = RequestMethod.POST)
+    public AjaxResultPo createK8sPlatformK8sService(@PathVariable String platformId, @RequestBody V1Service service)
+    {
+        String uri = String.format("Post %s/k8sServices/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(service)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Service create = this.platformManagerService.createK8sPlatformService(platformId, service);
+            resultPo = new AjaxResultPo(true, "create Service SUCCESS", 1, create);
+            logger.info(String.format("create Service SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create Service exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sServices/{platformId}/{serviceName}", method = RequestMethod.PUT)
+    public AjaxResultPo replaceK8sPlatformService(@PathVariable String platformId, @PathVariable String serviceName, @RequestBody V1Service service)
+    {
+        String uri = String.format("PUT %s/k8sServices/%s/%s", this.apiBasePath, platformId, serviceName);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(service)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Service replace = this.platformManagerService.replaceK8sPlatformService(platformId, serviceName, service);
+            resultPo = new AjaxResultPo(true, "replace Service SUCCESS", 1, replace);
+            logger.info(String.format("replace Service Service, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("replace Service exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sServices/{platformId}/{serviceName}", method = RequestMethod.DELETE)
+    public AjaxResultPo deleteK8sPlatformK8sService(@PathVariable String platformId, @PathVariable String serviceName)
+    {
+        String uri = String.format("delete %s/k8sServices/%s/%s", this.apiBasePath, platformId, serviceName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            this.platformManagerService.deleteK8sPlatformService(platformId, serviceName);
+            resultPo = new AjaxResultPo(true, "delete Service SUCCESS", 1, null);
+            logger.info(String.format("delete Service SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("delete Service exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping(value = "/k8sConfigMaps/{platformId}", method = RequestMethod.GET)
     public AjaxResultPo queryAllK8sConfigMap(@PathVariable String platformId)
     {
@@ -1124,6 +1187,66 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/k8sDeployments/{platformId}", method = RequestMethod.POST)
+    public AjaxResultPo createK8sPlatformK8sDeployments(@PathVariable String platformId, @RequestBody V1Deployment deployment)
+    {
+        String uri = String.format("Post %s/k8sDeployments/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(deployment)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Deployment create = this.platformManagerService.createK8sPlatformDeployment(platformId, deployment);
+            resultPo = new AjaxResultPo(true, "create Deployments SUCCESS", 1, create);
+            logger.info(String.format("create Deployments SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create Deployments exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sDeployments/{platformId}/{deploymentName}", method = RequestMethod.PUT)
+    public AjaxResultPo replaceK8sPlatformDeployments(@PathVariable String platformId, @PathVariable String deploymentName, @RequestBody V1Deployment deployment)
+    {
+        String uri = String.format("PUT %s/k8sDeployments/%s/%s", this.apiBasePath, platformId, deploymentName);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(deployment)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Deployment replace = this.platformManagerService.replaceK8sPlatformDeployment(platformId, deploymentName, deployment);
+            resultPo = new AjaxResultPo(true, "replace Deployments SUCCESS", 1, replace);
+            logger.info(String.format("replace Deployments SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("replace Deployments exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sDeployments/{platformId}/{deploymentName}", method = RequestMethod.DELETE)
+    public AjaxResultPo deleteK8sPlatformK8sDeployments(@PathVariable String platformId, @PathVariable String deploymentName)
+    {
+        String uri = String.format("delete %s/k8sDeployments/%s/%s", this.apiBasePath, platformId, deploymentName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            this.platformManagerService.deleteK8sPlatformDeployment(platformId, deploymentName);
+            resultPo = new AjaxResultPo(true, "delete Deployments SUCCESS", 1, null);
+            logger.info(String.format("delete Deployments SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("delete Deployments exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping(value = "/k8sIngress/{platformId}", method = RequestMethod.GET)
     public AjaxResultPo queryPlatformK8sIngress(@PathVariable String platformId)
     {
@@ -1164,6 +1287,66 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/k8sIngress/{platformId}", method = RequestMethod.POST)
+    public AjaxResultPo createK8sPlatformK8sIngress(@PathVariable String platformId, @RequestBody ExtensionsV1beta1Ingress ingress)
+    {
+        String uri = String.format("Post %s/k8sIngress/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(ingress)));
+        AjaxResultPo resultPo;
+        try
+        {
+            ExtensionsV1beta1Ingress create = this.platformManagerService.createK8sPlatformIngress(platformId, ingress);
+            resultPo = new AjaxResultPo(true, "create Ingress SUCCESS", 1, create);
+            logger.info(String.format("create Ingress SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create Ingress exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sIngress/{platformId}/{ingressName}", method = RequestMethod.PUT)
+    public AjaxResultPo replaceK8sPlatformIngress(@PathVariable String platformId, @PathVariable String ingressName, @RequestBody ExtensionsV1beta1Ingress ingress)
+    {
+        String uri = String.format("PUT %s/k8sIngress/%s/%s", this.apiBasePath, platformId, ingressName);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(ingress)));
+        AjaxResultPo resultPo;
+        try
+        {
+            ExtensionsV1beta1Ingress replace = this.platformManagerService.replaceK8sPlatformIngress(platformId, ingressName, ingress);
+            resultPo = new AjaxResultPo(true, "replace Ingress SUCCESS", 1, replace);
+            logger.info(String.format("replace Ingress SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("replace Ingress exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sIngress/{platformId}/{ingressName}", method = RequestMethod.DELETE)
+    public AjaxResultPo deleteK8sPlatformK8sIngress(@PathVariable String platformId, @PathVariable String ingressName)
+    {
+        String uri = String.format("delete %s/k8sIngress/%s/%s", this.apiBasePath, platformId, ingressName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            this.platformManagerService.deleteK8sPlatformIngress(platformId, ingressName);
+            resultPo = new AjaxResultPo(true, "delete Ingress SUCCESS", 1, null);
+            logger.info(String.format("delete Ingress SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("delete Ingress exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping(value = "/k8sEndpoints/{platformId}", method = RequestMethod.GET)
     public AjaxResultPo queryPlatformK8sEndpoints(@PathVariable String platformId)
     {
@@ -1179,6 +1362,66 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("query endpoints exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sEndpoints/{platformId}", method = RequestMethod.POST)
+    public AjaxResultPo createK8sPlatformK8sEndpoints(@PathVariable String platformId, @RequestBody V1Endpoints endpoints)
+    {
+        String uri = String.format("Post %s/k8sEndpoints/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(endpoints)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Endpoints create = this.platformManagerService.createK8sPlatformEndpoints(platformId, endpoints);
+            resultPo = new AjaxResultPo(true, "create Endpoints SUCCESS", 1, create);
+            logger.info(String.format("create Endpoints SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create Endpoints exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sEndpoints/{platformId}/{endpointsName}", method = RequestMethod.PUT)
+    public AjaxResultPo replacePlatformK8sEndpointsByName(@PathVariable String platformId, @PathVariable String endpointsName, @RequestBody V1Endpoints endpoints)
+    {
+        String uri = String.format("PUT %s/k8sEndpoints/%s/%s", this.apiBasePath, platformId, endpointsName);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(endpoints)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Endpoints replace = this.platformManagerService.replaceK8sPlatformEndpoints(platformId, endpointsName, endpoints);
+            resultPo = new AjaxResultPo(true, "replace Endpoints SUCCESS", 1, replace);
+            logger.info(String.format("replace Endpoints SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("replace Endpoints exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sEndpoints/{platformId}/{endpointsName}", method = RequestMethod.DELETE)
+    public AjaxResultPo deleteK8sPlatformK8sEndpoints(@PathVariable String platformId, @PathVariable String endpointsName)
+    {
+        String uri = String.format("delete %s/k8sEndpoints/%s/%s", this.apiBasePath, platformId, endpointsName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            this.platformManagerService.deleteK8sPlatformEndpoints(platformId, endpointsName);
+            resultPo = new AjaxResultPo(true, "delete Endpoints SUCCESS", 1, null);
+            logger.info(String.format("delete Endpoints SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("delete Endpoints exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;
@@ -1244,6 +1487,66 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/k8sSecrets/{platformId}", method = RequestMethod.POST)
+    public AjaxResultPo createK8sPlatformK8sSecret(@PathVariable String platformId, @RequestBody V1Secret secret)
+    {
+        String uri = String.format("Post %s/k8sSecrets/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(secret)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Secret create = this.platformManagerService.createK8sPlatformSecret(platformId, secret);
+            resultPo = new AjaxResultPo(true, "create Secret SUCCESS", 1, create);
+            logger.info(String.format("create Secret SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create Secret exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sSecrets/{platformId}/{secretName}", method = RequestMethod.PUT)
+    public AjaxResultPo replacePlatformK8sSecret(@PathVariable String platformId, @PathVariable String secretName, @RequestBody V1Secret secret)
+    {
+        String uri = String.format("PUT %s/k8sSecrets/%s/%s", this.apiBasePath, platformId, secretName);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(secret)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1Secret replace = this.platformManagerService.replaceK8sPlatformSecret(platformId, secretName, secret);
+            resultPo = new AjaxResultPo(true, "replace Secret SUCCESS", 1, replace);
+            logger.info(String.format("replace Secret SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("replace Secret exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sSecrets/{platformId}/{secretName}", method = RequestMethod.DELETE)
+    public AjaxResultPo deleteK8sPlatformK8sSecret(@PathVariable String platformId, @PathVariable String secretName)
+    {
+        String uri = String.format("delete %s/k8sSecrets/%s/%s", this.apiBasePath, platformId, secretName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            this.platformManagerService.deleteK8sPlatformSecret(platformId, secretName);
+            resultPo = new AjaxResultPo(true, "delete Secret SUCCESS", 1, null);
+            logger.info(String.format("delete Secret SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("delete Secret exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping(value = "/k8sPersistentVolumeClaim/{platformId}", method = RequestMethod.GET)
     public AjaxResultPo queryPlatformK8sPersistentVolumeClaims(@PathVariable String platformId)
     {
@@ -1284,6 +1587,66 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/k8sPersistentVolumeClaim/{platformId}", method = RequestMethod.POST)
+    public AjaxResultPo createK8sPlatformK8sPersistentVolumeClaim(@PathVariable String platformId, @RequestBody V1PersistentVolumeClaim persistentVolumeClaim)
+    {
+        String uri = String.format("Post %s/k8sPersistentVolumeClaim/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(persistentVolumeClaim)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1PersistentVolumeClaim create = this.platformManagerService.createK8sPlatformPersistentVolumeClaim(platformId, persistentVolumeClaim);
+            resultPo = new AjaxResultPo(true, "create PersistentVolumeClaim SUCCESS", 1, create);
+            logger.info(String.format("create PersistentVolumeClaim SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create PersistentVolumeClaim exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumeClaim/{platformId}/{persistentVolumeClaimName}", method = RequestMethod.PUT)
+    public AjaxResultPo replaceK8sPlatformPersistentVolumeClaim(@PathVariable String platformId, @PathVariable String persistentVolumeClaimName, @RequestBody V1PersistentVolumeClaim persistentVolumeClaim)
+    {
+        String uri = String.format("PUT %s/k8sPersistentVolumeClaim/%s/%s", this.apiBasePath, platformId, persistentVolumeClaimName);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(persistentVolumeClaim)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1PersistentVolumeClaim replace = this.platformManagerService.replaceK8sPlatformPersistentVolumeClaim(platformId, persistentVolumeClaimName, persistentVolumeClaim);
+            resultPo = new AjaxResultPo(true, "replace PersistentVolumeClaim SUCCESS", 1, replace);
+            logger.info(String.format("replace PersistentVolumeClaim SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("replace PersistentVolumeClaim exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumeClaim/{platformId}/{persistentVolumeClaimName}", method = RequestMethod.DELETE)
+    public AjaxResultPo deleteK8sPlatformK8sPersistentVolumeClaim(@PathVariable String platformId, @PathVariable String persistentVolumeClaimName)
+    {
+        String uri = String.format("delete %s/k8sPersistentVolumeClaim/%s/%s", this.apiBasePath, platformId, persistentVolumeClaimName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            this.platformManagerService.deleteK8sPlatformPersistentVolumeClaim(platformId, persistentVolumeClaimName);
+            resultPo = new AjaxResultPo(true, "delete PersistentVolumeClaim SUCCESS", 1, null);
+            logger.info(String.format("delete PersistentVolumeClaim SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("delete PersistentVolumeClaim exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping(value = "/k8sPersistentVolumes", method = RequestMethod.GET)
     public AjaxResultPo queryAllK8sk8sPersistentVolumes(String k8sApiUrl, String k8sAuthToken)
     {
@@ -1296,7 +1659,7 @@ public class CMDBController {
                 throw new Exception("k8s api url is blank");
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
-            List<V1PersistentVolume> list = k8sApiService.queryAllPersistentVolume(k8sApiUrl, k8sAuthToken);
+            List<V1PersistentVolume> list = k8sApiService.listPersistentVolume(k8sApiUrl, k8sAuthToken);
             resultPo = new AjaxResultPo(true, "query SUCCESS", list.size(), list);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -1320,13 +1683,73 @@ public class CMDBController {
                 throw new Exception("k8s api url is blank");
             if(StringUtils.isBlank(k8sAuthToken))
                 throw new Exception("k8s auth token is blank");
-            V1PersistentVolume volume = k8sApiService.queryPersistentVolume(persistentVolumeName, k8sApiUrl, k8sAuthToken);
+            V1PersistentVolume volume = k8sApiService.readPersistentVolume(persistentVolumeName, k8sApiUrl, k8sAuthToken);
             resultPo = new AjaxResultPo(true, "query SUCCESS", 1, volume);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
             logger.error(String.format("query PersistentVolume exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumes", method = RequestMethod.POST)
+    public AjaxResultPo createK8sPlatformK8sPersistentVolume(@RequestBody V1PersistentVolume persistentVolume, String k8sApiUrl, String k8sAuthToken)
+    {
+        String uri = String.format("Post %s/k8sPersistentVolumes", this.apiBasePath);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(persistentVolume)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1PersistentVolume create = this.k8sApiService.createPersistentVolume(persistentVolume, k8sApiUrl, k8sAuthToken);
+            resultPo = new AjaxResultPo(true, "create PersistentVolume SUCCESS", 1, create);
+            logger.info(String.format("create PersistentVolume SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create PersistentVolume exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumes/{persistentVolumeName}", method = RequestMethod.PUT)
+    public AjaxResultPo replaceK8sPlatformPersistentVolume(@PathVariable String persistentVolumeName, @RequestBody V1PersistentVolume persistentVolume, String k8sApiUrl, String k8sAuthToken)
+    {
+        String uri = String.format("PUT %s/k8sPersistentVolumes/%s", this.apiBasePath, persistentVolumeName);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(persistentVolume)));
+        AjaxResultPo resultPo;
+        try
+        {
+            V1PersistentVolume replace = this.k8sApiService.replacePersistentVolume(persistentVolumeName, persistentVolume, k8sApiUrl, k8sAuthToken);
+            resultPo = new AjaxResultPo(true, "replace PersistentVolume SUCCESS", 1, replace);
+            logger.info(String.format("replace PersistentVolume SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("replace PersistentVolume exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPersistentVolumes/{persistentVolumeName}", method = RequestMethod.DELETE)
+    public AjaxResultPo deleteK8sPlatformK8sPersistentVolume(@PathVariable String persistentVolumeName, String k8sApiUrl, String k8sAuthToken)
+    {
+        String uri = String.format("delete %s/k8sPersistentVolumes/%s", this.apiBasePath, persistentVolumeName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            this.k8sApiService.deletePersistentVolume(persistentVolumeName, k8sApiUrl, k8sAuthToken);
+            resultPo = new AjaxResultPo(true, "delete PersistentVolume SUCCESS", 1, null);
+            logger.info(String.format("delete PersistentVolume SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("delete PersistentVolume exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;

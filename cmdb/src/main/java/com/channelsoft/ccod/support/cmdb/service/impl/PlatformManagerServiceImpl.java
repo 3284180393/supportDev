@@ -179,14 +179,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String k8sApiUrl, String k8sAuthToken, PlatformFunction func) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException {
         logger.debug(String.format("begin to get %s(%s) topology from %s with authToke=%s", platformId, platformName, k8sApiUrl, k8sAuthToken));
         Date now = new Date();
-        V1Namespace ns = ik8sApiService.queryNamespace(platformId, k8sApiUrl, k8sAuthToken);
+        V1Namespace ns = ik8sApiService.readNamespace(platformId, k8sApiUrl, k8sAuthToken);
         if(!"Active".equals(ns.getStatus().getPhase()))
         {
             logger.error(String.format("status of %s is %s", platformId, ns.getStatus().getPhase()));
             throw new ParamException(String.format("status of %s is %s", platformId, ns.getStatus().getPhase()));
         }
-        List<V1Pod> podList = ik8sApiService.queryAllPodAtNamespace(platformId, k8sApiUrl, k8sAuthToken);
-        List<V1Service> serviceList = ik8sApiService.queryAllServiceAtNamespace(platformId, k8sApiUrl, k8sAuthToken);
+        List<V1Pod> podList = ik8sApiService.listNamespacedPod(platformId, k8sApiUrl, k8sAuthToken);
+        List<V1Service> serviceList = ik8sApiService.listNamespacedService(platformId, k8sApiUrl, k8sAuthToken);
         Map<String, List<V1Pod>> srvPodMap = new HashMap<>();
         Map<K8sServiceType, List<V1Service>> typeSrvMap = new HashMap<>();
         for(V1Service k8sSvr : serviceList)
@@ -1171,49 +1171,72 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Namespace queryPlatformK8sNamespace(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s namespace of %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.queryNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.readNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
     }
 
     @Override
     public List<V1Pod> queryPlatformAllK8sPods(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s pods of %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.queryAllPodAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.listNamespacedPod(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
     }
 
     @Override
     public V1Pod queryPlatformK8sPodByName(String platformId, String podName) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s pod %s of %s", podName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.queryPod(platformId, podName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.readNamespacedPod(podName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
     }
 
     @Override
     public List<V1Service> queryPlatformAllK8sServices(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s services of %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.queryAllServiceAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.listNamespacedService(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
     }
 
     @Override
     public V1Service queryPlatformK8sServiceByName(String platformId, String serviceName) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s service %s of %s", serviceName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.queryService(platformId, serviceName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.readNamespacedService(serviceName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1Service createK8sPlatformService(String platformId, V1Service service) throws ParamException, ApiException {
+        logger.debug(String.format("create new Service for platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Service create = this.k8sApiService.createNamespacedService(platformId, service, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return create;
+    }
+
+    @Override
+    public void deleteK8sPlatformService(String platformId, String serviceName) throws ParamException, ApiException {
+        logger.debug(String.format("delete Service %s from platform %s"));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        this.k8sApiService.deleteNamespacedEndpoints(serviceName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1Service replaceK8sPlatformService(String platformId, String serviceName, V1Service service) throws ParamException, ApiException {
+        logger.debug(String.format("replace Service %s of platform %s", serviceName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Service replace = this.k8sApiService.replaceNamespacedService(serviceName, platformId, service, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return replace;
     }
 
     @Override
     public List<V1ConfigMap> queryPlatformAllK8sConfigMaps(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s configMap of %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.queryAllConfigMapAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.listNamespacedConfigMap(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
     }
 
     @Override
     public V1ConfigMap queryPlatformK8sConfigMapByName(String platformId, String configMapName) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s configMap %s of %s", configMapName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.queryConfigMap(platformId, configMapName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.readNamespacedConfigMap(platformId, configMapName, platformPo.getApiUrl(), platformPo.getAuthToken());
     }
 
     private PlatformPo getK8sPlatform(String platformId) throws ParamException
@@ -1243,7 +1266,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public List<V1Deployment> queryPlatformAllK8sDeployment(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all deployment of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<V1Deployment> list = this.k8sApiService.queryAllDeploymentAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1Deployment> list = this.k8sApiService.listNamespacedDeployment(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return list;
     }
 
@@ -1251,15 +1274,38 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Deployment queryPlatformK8sDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException {
         logger.debug(String.format("query deployment %s at platform %s", deploymentName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Deployment deployment = this.k8sApiService.queryDeployment(platformId, deploymentName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Deployment deployment = this.k8sApiService.readNamespacedDeployment(deploymentName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return deployment;
+    }
+
+    @Override
+    public V1Deployment createK8sPlatformDeployment(String platformId, V1Deployment deployment) throws ParamException, ApiException {
+        logger.debug(String.format("create new Deployment for platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Deployment create = this.k8sApiService.createNamespacedDeployment(platformId, deployment, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return create;
+    }
+
+    @Override
+    public void deleteK8sPlatformDeployment(String platformId, String deploymentName) throws ParamException, ApiException {
+        logger.debug(String.format("delete Deployment %s from platform %s"));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        this.k8sApiService.deleteNamespacedEndpoints(deploymentName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1Deployment replaceK8sPlatformDeployment(String platformId, String deploymentName, V1Deployment deployment) throws ParamException, ApiException {
+        logger.debug(String.format("replace Deployment %s of platform %s", deploymentName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Deployment replace = this.k8sApiService.replaceNamespacedDeployment(deploymentName, platformId, deployment, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return replace;
     }
 
     @Override
     public ExtensionsV1beta1Ingress queryPlatformK8sIngressByName(String platformId, String ingressName) throws ParamException, ApiException {
         logger.debug(String.format("query ingress %s at platform %s", ingressName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        ExtensionsV1beta1Ingress ingress = this.k8sApiService.queryIngress(platformId, ingressName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        ExtensionsV1beta1Ingress ingress = this.k8sApiService.readNamespacedIngress(ingressName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return ingress;
     }
 
@@ -1267,15 +1313,38 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public List<ExtensionsV1beta1Ingress> queryPlatformAllK8sIngress(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all ingress of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<ExtensionsV1beta1Ingress> list = this.k8sApiService.queryAllIngressAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<ExtensionsV1beta1Ingress> list = this.k8sApiService.listNamespacedIngress(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return list;
+    }
+
+    @Override
+    public ExtensionsV1beta1Ingress createK8sPlatformIngress(String platformId, ExtensionsV1beta1Ingress ingress) throws ParamException, ApiException {
+        logger.debug(String.format("create new Ingress for platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        ExtensionsV1beta1Ingress create = this.k8sApiService.createNamespacedIngress(platformId, ingress, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return create;
+    }
+
+    @Override
+    public void deleteK8sPlatformIngress(String platformId, String ingressName) throws ParamException, ApiException {
+        logger.debug(String.format("delete Ingress %s from platform %s"));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        this.k8sApiService.deleteNamespacedIngress(ingressName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public ExtensionsV1beta1Ingress replaceK8sPlatformIngress(String platformId, String ingressName, ExtensionsV1beta1Ingress ingress) throws ParamException, ApiException {
+        logger.debug(String.format("replace Ingress %s of platform %s", ingressName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        ExtensionsV1beta1Ingress replace = this.k8sApiService.replaceNamespacedIngress(ingressName, platformId, ingress, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return replace;
     }
 
     @Override
     public List<V1Endpoints> queryPlatformAllK8sEndpoints(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all endpoints of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<V1Endpoints> list = this.k8sApiService.queryAllEndpointsAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1Endpoints> list = this.k8sApiService.listNamespacedEndpoints(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return list;
     }
 
@@ -1283,15 +1352,38 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Endpoints queryPlatformK8sEndpointsByName(String platformId, String endpointsName) throws ParamException, ApiException {
         logger.debug(String.format("query endpoints %s at platform %s", endpointsName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Endpoints endpoints = this.k8sApiService.queryEndpoints(platformId, endpointsName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Endpoints endpoints = this.k8sApiService.readNamespacedEndpoints(endpointsName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return endpoints;
+    }
+
+    @Override
+    public V1Endpoints createK8sPlatformEndpoints(String platformId, V1Endpoints endpoints) throws ParamException, ApiException {
+        logger.debug(String.format("create new Endpoints for platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Endpoints create = this.k8sApiService.createNamespacedEndpoints(platformId, endpoints, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return create;
+    }
+
+    @Override
+    public void deleteK8sPlatformEndpoints(String platformId, String endpointsName) throws ParamException, ApiException {
+        logger.debug(String.format("delete Endpoints %s from platform %s"));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        this.k8sApiService.deleteNamespacedEndpoints(endpointsName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1Endpoints replaceK8sPlatformEndpoints(String platformId, String endpointName, V1Endpoints endpoints) throws ParamException, ApiException {
+        logger.debug(String.format("replace Endpoints %s of platform %s", endpointName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Endpoints replace = this.k8sApiService.replaceNamespacedEndpoints(endpointName, platformId, endpoints, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return replace;
     }
 
     @Override
     public List<V1Secret> queryPlatformAllK8sSecret(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all endpoints of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<V1Secret> list = this.k8sApiService.queryAllSecretAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1Secret> list = this.k8sApiService.listNamespacedSecret(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return list;
     }
 
@@ -1299,15 +1391,38 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Secret queryPlatformK8sSecretByName(String platformId, String secretName) throws ParamException, ApiException {
         logger.debug(String.format("query secretName %s at platform %s", secretName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Secret secret = this.k8sApiService.querySecret(platformId, secretName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Secret secret = this.k8sApiService.readNamespacedSecret(secretName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return secret;
+    }
+
+    @Override
+    public V1Secret createK8sPlatformSecret(String platformId, V1Secret secret) throws ParamException, ApiException {
+        logger.debug(String.format("create new Secret for platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Secret create = this.k8sApiService.createNamespacedSecret(platformId, secret, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return create;
+    }
+
+    @Override
+    public void deleteK8sPlatformSecret(String platformId, String secretName) throws ParamException, ApiException {
+        logger.debug(String.format("delete Secret %s from platform %s"));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        this.k8sApiService.deleteNamespacedSecret(secretName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1Secret replaceK8sPlatformSecret(String platformId, String secretName, V1Secret secret) throws ParamException, ApiException {
+        logger.debug(String.format("replace Secret %s of platform %s", secretName, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1Secret replace = this.k8sApiService.replaceNamespacedSecret(secretName, platformId, secret, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return replace;
     }
 
     @Override
     public List<V1PersistentVolumeClaim> queryPlatformAllK8sPersistentVolumeClaim(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all PersistentVolumeClaim of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<V1PersistentVolumeClaim> list = this.k8sApiService.queryAllPersistentVolumeClaimAtNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1PersistentVolumeClaim> list = this.k8sApiService.listNamespacedPersistentVolumeClaim(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return list;
     }
 
@@ -1315,8 +1430,31 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1PersistentVolumeClaim queryPlatformK8sPersistentVolumeClaimByName(String platformId, String persistentVolumeClaimName) throws ParamException, ApiException {
         logger.debug(String.format("query PersistentVolumeClaim %s at platform %s", persistentVolumeClaimName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1PersistentVolumeClaim claim = this.k8sApiService.queryPersistentVolumeClaim(platformId, persistentVolumeClaimName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1PersistentVolumeClaim claim = this.k8sApiService.readNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
         return claim;
+    }
+
+    @Override
+    public V1PersistentVolumeClaim createK8sPlatformPersistentVolumeClaim(String platformId, V1PersistentVolumeClaim persistentVolumeClaim) throws ParamException, ApiException {
+        logger.debug(String.format("create new PersistentVolumeClaim for platform %s", platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1PersistentVolumeClaim create = this.k8sApiService.createNamespacedPersistentVolumeClaim(platformId, persistentVolumeClaim, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return create;
+    }
+
+    @Override
+    public void deleteK8sPlatformPersistentVolumeClaim(String platformId, String persistentVolumeClaimName) throws ParamException, ApiException {
+        logger.debug(String.format("delete PersistentVolumeClaim %s from platform %s"));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        this.k8sApiService.deleteNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+    }
+
+    @Override
+    public V1PersistentVolumeClaim replaceK8sPlatformPersistentVolumeClaim(String platformId, String persistentVolumeClaimName, V1PersistentVolumeClaim persistentVolumeClaim) throws ParamException, ApiException {
+        logger.debug(String.format("replace PersistentVolumeClaim %s of platform %s", persistentVolumeClaim, platformId));
+        PlatformPo platformPo = getK8sPlatform(platformId);
+        V1PersistentVolumeClaim replace = this.k8sApiService.replaceNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, persistentVolumeClaim, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return replace;
     }
 
     @Override
@@ -1350,7 +1488,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 this.k8sApiService.createConfigMapFromNexus(platformId, String.format("%s-%s", optInfo.getAppAlias(), domainId), k8sApiUrl, k8sAuthToken, appCfgs, this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
             }
         }
-        return this.k8sApiService.queryAllConfigMapAtNamespace(platformId, k8sApiUrl, k8sAuthToken);
+        return this.k8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken);
     }
 
     /**
@@ -1457,7 +1595,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String platformId = createSchema.getPlatformId();
         String k8sApiUrl = createSchema.getK8sApiUrl();
         String k8sAuthToken = createSchema.getK8sAuthToken();
-        List<V1ConfigMap> mapList = this.k8sApiService.queryAllConfigMapAtNamespace(platformId, k8sApiUrl, k8sAuthToken);
+        List<V1ConfigMap> mapList = this.k8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken);
         for(V1ConfigMap configMap : mapList)
         {
             this.k8sApiService.deleteConfigMapByName(platformId, configMap.getMetadata().getName(), k8sApiUrl, k8sAuthToken);

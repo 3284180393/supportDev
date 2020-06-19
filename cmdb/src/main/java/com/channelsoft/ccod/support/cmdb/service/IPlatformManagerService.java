@@ -2,10 +2,6 @@ package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.exception.*;
-import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
-import com.channelsoft.ccod.support.cmdb.vo.PlatformAppDeployDetailVo;
-import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformTopologyInfo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformUpdateSchemaInfo;
 import io.kubernetes.client.openapi.ApiException;
@@ -124,6 +120,36 @@ public interface IPlatformManagerService {
     V1Service queryPlatformK8sServiceByName(String platformId, String serviceName)throws ParamException, ApiException;
 
     /**
+     * 为指定的平台创建 k8s Service
+     * @param platformId 平台id
+     * @param service 需要创建的SService定义
+     * @return 被创建的Service
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1Service createK8sPlatformService(String platformId, V1Service service) throws ParamException, ApiException;
+
+    /**
+     * 为平台删除指定的Service
+     * @param platformId 平台id
+     * @param serviceName 被删除的Service的名称
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    void deleteK8sPlatformService(String platformId, String serviceName) throws ParamException, ApiException;
+
+    /**
+     * 替换平台已有的Service
+     * @param platformId 平台id
+     * @param serviceName 被替换的Service名称
+     * @param service 新Service的定义
+     * @return 被替换后的Service详细信息
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1Service replaceK8sPlatformService(String platformId, String serviceName, V1Service service) throws ParamException, ApiException;
+
+    /**
      * 查询指定平台下的所有k8s configMap信息
      * @param platformId 平台id
      * @return 平台下的所有configMap信息
@@ -160,6 +186,36 @@ public interface IPlatformManagerService {
     V1Deployment queryPlatformK8sDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException;
 
     /**
+     * 为指定的平台创建 k8s Deployment
+     * @param platformId 平台id
+     * @param deployment 需要创建的Deployment定义
+     * @return 被创建的Deployment
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1Deployment createK8sPlatformDeployment(String platformId, V1Deployment deployment) throws ParamException, ApiException;
+
+    /**
+     * 为平台删除指定的Deployment
+     * @param platformId 平台id
+     * @param deploymentName 被删除的Deployment的名称
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    void deleteK8sPlatformDeployment(String platformId, String deploymentName) throws ParamException, ApiException;
+
+    /**
+     * 替换平台已有的Deployment
+     * @param platformId 平台id
+     * @param deploymentName 被替换的Deployment名称
+     * @param deployment 新Deployment的定义
+     * @return 被替换后的Deployment详细信息
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1Deployment replaceK8sPlatformDeployment(String platformId, String deploymentName, V1Deployment deployment) throws ParamException, ApiException;
+
+    /**
      * 查询平台指定名的k8s ingress信息
      * @param platformId 平台id
      * @param ingressName k8s ingress名
@@ -177,6 +233,36 @@ public interface IPlatformManagerService {
      * @throws ApiException
      */
     List<ExtensionsV1beta1Ingress> queryPlatformAllK8sIngress(String platformId) throws ParamException, ApiException;
+
+    /**
+     * 为指定的平台创建 k8s Ingress
+     * @param platformId 平台id
+     * @param ingress 需要创建的Ingress定义
+     * @return 被创建的Ingress
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    ExtensionsV1beta1Ingress createK8sPlatformIngress(String platformId, ExtensionsV1beta1Ingress ingress) throws ParamException, ApiException;
+
+    /**
+     * 为平台删除指定的Ingress
+     * @param platformId 平台id
+     * @param ingressName 被删除的Ingress的名称
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    void deleteK8sPlatformIngress(String platformId, String ingressName) throws ParamException, ApiException;
+
+    /**
+     * 替换平台已有的Ingress
+     * @param platformId 平台id
+     * @param ingressName 被替换的Ingress名称
+     * @param ingress 新Ingress的定义
+     * @return 被替换后的Ingress详细信息
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    ExtensionsV1beta1Ingress replaceK8sPlatformIngress(String platformId, String ingressName, ExtensionsV1beta1Ingress ingress) throws ParamException, ApiException;
 
     /**
      * 查询平台所有endpoints
@@ -198,6 +284,36 @@ public interface IPlatformManagerService {
     V1Endpoints queryPlatformK8sEndpointsByName(String platformId, String endpointsName) throws ParamException, ApiException;
 
     /**
+     * 为指定的平台创建 k8s Endpoints
+     * @param platformId 平台id
+     * @param endpoints 需要创建的Endpoints定义
+     * @return 被创建的Endpoints
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1Endpoints createK8sPlatformEndpoints(String platformId, V1Endpoints endpoints) throws ParamException, ApiException;
+
+    /**
+     * 为平台删除指定的Endpoints
+     * @param platformId 平台id
+     * @param endpointsName 被删除的Endpoints的名称
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    void deleteK8sPlatformEndpoints(String platformId, String endpointsName) throws ParamException, ApiException;
+
+    /**
+     * 替换平台已有的Endpoints
+     * @param platformId 平台id
+     * @param endpointName 被替换的Endpoints名称
+     * @param endpoints 新Endpoints的定义
+     * @return 被替换后的Endpoints详细信息
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1Endpoints replaceK8sPlatformEndpoints(String platformId, String endpointName, V1Endpoints endpoints) throws ParamException, ApiException;
+
+    /**
      * 查询平台所有Secret
      * @param platformId 指定平台id
      * @return 指定平台的所有k8s Secret
@@ -215,6 +331,36 @@ public interface IPlatformManagerService {
      * @throws ApiException
      */
     V1Secret queryPlatformK8sSecretByName(String platformId, String secretName) throws ParamException, ApiException;
+
+    /**
+     * 为指定的平台创建 k8s Secret
+     * @param platformId 平台id
+     * @param secret 需要创建的Secret定义
+     * @return 被创建的Secret
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1Secret createK8sPlatformSecret(String platformId, V1Secret secret) throws ParamException, ApiException;
+
+    /**
+     * 为平台删除指定的Secret
+     * @param platformId 平台id
+     * @param secretName 被删除的Secret的名称
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    void deleteK8sPlatformSecret(String platformId, String secretName) throws ParamException, ApiException;
+
+    /**
+     * 替换平台已有的Secret
+     * @param platformId 平台id
+     * @param secretName 被替换的Secret名称
+     * @param secret 新Secret的定义
+     * @return 被替换后的Secret详细信息
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1Secret replaceK8sPlatformSecret(String platformId, String secretName, V1Secret secret) throws ParamException, ApiException;
 
     /**
      * 查询平台所有PersistentVolumeClaim
@@ -236,6 +382,36 @@ public interface IPlatformManagerService {
     V1PersistentVolumeClaim queryPlatformK8sPersistentVolumeClaimByName(String platformId, String persistentVolumeClaimName) throws ParamException, ApiException;
 
     /**
+     * 为指定的平台创建 k8s PersistentVolumeClaim
+     * @param platformId 平台id
+     * @param persistentVolumeClaim 需要创建的PersistentVolumeClaim定义
+     * @return 被创建的PersistentVolumeClaim
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1PersistentVolumeClaim createK8sPlatformPersistentVolumeClaim(String platformId, V1PersistentVolumeClaim persistentVolumeClaim) throws ParamException, ApiException;
+
+    /**
+     * 为平台删除指定的PersistentVolumeClaim
+     * @param platformId 平台id
+     * @param persistentVolumeClaimName 被删除的PersistentVolumeClaim的名称
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    void deleteK8sPlatformPersistentVolumeClaim(String platformId, String persistentVolumeClaimName) throws ParamException, ApiException;
+
+    /**
+     * 替换平台已有的PersistentVolumeClaim
+     * @param platformId 平台id
+     * @param persistentVolumeClaimName 被替换的PersistentVolumeClaim名称
+     * @param persistentVolumeClaim 新PersistentVolumeClaim的定义
+     * @return 被替换后的PersistentVolumeClaim详细信息
+     * @throws ParamException 平台不存在或是平台的类型不是K8S_CONTAINER
+     * @throws ApiException 调用k8s api异常
+     */
+    V1PersistentVolumeClaim replaceK8sPlatformPersistentVolumeClaim(String platformId, String persistentVolumeClaimName, V1PersistentVolumeClaim persistentVolumeClaim) throws ParamException, ApiException;
+
+    /**
      * 为新建平台创建configMap
      * @param createSchema 新建平台schema
      * @return 为新平台创建的configMap
@@ -244,7 +420,6 @@ public interface IPlatformManagerService {
      * @throws NexusException
      */
     List<V1ConfigMap> createConfigMapForNewPlatform(PlatformUpdateSchemaInfo createSchema) throws InterfaceCallException, IOException, ApiException;
-
 
 //    List<PlatformAppDeployDetailVo> updatePlatformAppTopologyFromK8s(String platformId) throws ApiException;
 }
