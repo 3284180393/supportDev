@@ -304,52 +304,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return this.appManagerService.getPlatformTopology(platformId);
     }
 
-    private List<PlatformAppDeployDetailVo> getPlatformDeployAppsFromK8sDeployments(String platformId, List<V1Deployment> deployments, List<V1Pod> pods) throws ParamException, NotSupportAppException, ApiException
-    {
-
-        return null;
-    }
-
-    private K8sPlatformParam parseK8s(String platformId, List<V1Deployment> deployments, List<V1Pod> pods, List<V1Service> services, List<V1ConfigMap> configMaps) throws ParamException, NotSupportAppException, ApiException
-    {
-        K8sPlatformParam param = new K8sPlatformParam();
-        Map<String, DomainPo> domainMap = new HashMap<>();
-        Map<DomainPo, List<AssemblePo>> domainAssembleMap = new HashMap<>();
-        Map<AssemblePo, List<PlatformAppPo>> assembleAppMap = new HashMap<>();
-        List<PlatformAppDeployDetailVo> deployApps = new ArrayList<>();
-
-        for(V1Deployment deployment : deployments)
-        {
-            String deploymentName = deployment.getMetadata().getName();
-            BizSetDefine setDefine = null;
-            if(deployment.getSpec().getTemplate().getSpec().getInitContainers() != null && deployment.getSpec().getTemplate().getSpec().getInitContainers().size() > 0)
-            {
-                for(V1Container container : deployment.getSpec().getTemplate().getSpec().getInitContainers())
-                {
-                    AppType appType = this.appManagerService.getAppTypeFromImageUrl(container.getImage());
-                    switch (appType)
-                    {
-                        case CCOD_WEBAPPS_MODULE:
-                        case CCOD_KERNEL_MODULE:
-                        {
-
-
-                            break;
-                        }
-                        case THREE_PART_APP:
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-
-        }
-        return param;
-    }
-
-
-
     private PlatformAppDeployDetailVo parsePlatformDeployApp(V1Deployment deployment, V1Container container, List<V1Pod> pods, List<V1Service> services, String deploymentName, String platformId, String platformName, List<AppModuleVo>  registerApps, int bkBizId, int bkCloudId, String ccodVersion, List<LJHostInfo> hostList, String status) throws ParamException, NotSupportAppException
     {
         String domainId = deploymentName.split("\\-")[1];
@@ -1604,18 +1558,139 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         System.out.println(String.format("create %d configMap for %s", mapList.size(), platformId));
     }
 
-    protected class K8sPlatformParam
+    private K8sPlatformParamVo getK8sPlatformParam(String platformId, String platformName, String ccodVersion, List<V1Deployment> deployments, List<V1Service> services, List<V1ConfigMap> configMaps, List<AppModuleVo> registerApps) throws K8sDataException, ParamException, NotSupportAppException
     {
-        String platformId;
+        K8sPlatformParamVo paramVo = new K8sPlatformParamVo(platformId, platformName);
+        Map<String, List<V1Service>> serviceMap = new HashMap<>();
+        for(V1Service service : services)
+        {
+            String[] arr = service.getMetadata().getName().split("\\-");
+            String key = arr.length > 1 ? String.format("%s-%s", arr[0], arr[1]) : arr[0];
+            if(!serviceMap.containsKey(key))
+                serviceMap.put(key, new ArrayList<>());
+            serviceMap.get(key).add(service);
+        }
+        Map<String, V1ConfigMap> configMapMap = new HashMap<>();
+        for(V1ConfigMap configMap : configMaps)
+            configMapMap.put(configMap.getMetadata().getName(), configMap);
+        for(V1Deployment deployment : deployments)
+        {
+            String deploymentName = deployment.getMetadata().getName();
+            List<V1Container> containers = new ArrayList<>();
+            if(deployment.getSpec().getTemplate().getSpec().getInitContainers() != null)
+                containers.addAll(deployment.getSpec().getTemplate().getSpec().getInitContainers());
+            if(deployment.getSpec().getTemplate().getSpec().getContainers() != null)
+                containers.addAll(deployment.getSpec().getTemplate().getSpec().getContainers());
+            for(V1Container container : containers)
+            {
+                AppType appType = getAppTypeFromImageUrl(container.getImage());
+                switch (appType)
+                {
+                    case CCOD_KERNEL_MODULE:
+                    case CCOD_WEBAPPS_MODULE:
+                        AppModuleVo moduleVo = getAppModuleFromImageTag(container.getImage(), registerApps);
+                        if(paramVo.getDeployAppList().stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppName, Function.identity())).containsKey(moduleVo.getAppName()))
+                            throw new K8sDataException(String.format("deployment %s has duplicate module %s", deploymentName, moduleVo.getAppName()));
+                        PlatformAppDeployDetailVo deployApp = getK8sPlatformAppDeployDetail(platformName, ccodVersion, deployment, container, serviceMap.get(container.getName()), moduleVo, configMapMap.get(container.getName()).getData());
+                        paramVo.getDeployAppList().add(deployApp);
+                        serviceMap.remove(container.getName());
+                        break;
+                    case THREE_PART_APP:
+                        PlatformThreePartAppPo threePartAppPo = getK8sPlatformThreePartApp(deployment, container, serviceMap.get(container.getName()));
+                        paramVo.getThreeAppList().add(threePartAppPo);
+                        serviceMap.remove(container.getName());
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        for(List<V1Service> threeSvcs : serviceMap.values())
+        {
+            for(V1Service threeSvc : threeSvcs)
+            {
+                PlatformThreePartServicePo threePartServicePo = getK8sPlatformThreePartService(threeSvc);
+                paramVo.getThreeSvcList().add(threePartServicePo);
+            }
+        }
+        return paramVo;
+    }
 
-        List<DomainPo> domains;
 
-        Map<DomainPo, List<AssemblePo>> domainPoAssembleMap;
+    private PlatformThreePartServicePo getK8sPlatformThreePartService(V1Service service)
+    {
+        PlatformThreePartServicePo po = new PlatformThreePartServicePo();
+        po.setServiceName(service.getMetadata().getName());
+        po.setPlatformId(service.getMetadata().getNamespace());
+        po.setHostIp(service.getSpec().getClusterIP());
+        po.setPort(getPortFromK8sService(Arrays.asList(service)));
+        return po;
+    }
 
-        Map<AssemblePo, List<PlatformAppPo>> assembleAppMap;
+    private PlatformThreePartAppPo getK8sPlatformThreePartApp(V1Deployment deployment, V1Container container, List<V1Service> services)
+    {
+        PlatformThreePartAppPo po = new PlatformThreePartAppPo();
+        int replicas = deployment.getStatus().getReplicas() != null ? deployment.getStatus().getReplicas() : 0;
+        int availableReplicas = deployment.getStatus().getAvailableReplicas() != null ? deployment.getStatus().getAvailableReplicas() : 0;
+        int unavailableReplicas = deployment.getStatus().getUnavailableReplicas() != null ? deployment.getStatus().getUnavailableReplicas() : 0;
+        po.setReplicas(replicas);
+        po.setAvailableReplicas(availableReplicas);
+        String status = "Running";
+        if(unavailableReplicas == replicas)
+            status = "Error";
+        else if(availableReplicas < replicas)
+            status = "Updating";
+        po.setStatus(status);
+        po.setPort(getPortFromK8sService(services));
+        po.setHostIp(services.get(0).getSpec().getClusterIP());
+        po.setPlatformId(deployment.getMetadata().getNamespace());
+        po.setAppName(container.getName());
+        return po;
+    }
 
-        List<PlatformThreePartAppPo> threeAppList;
-
-        List<PlatformThreePartServicePo> threeSvcList;
+    private PlatformAppDeployDetailVo getK8sPlatformAppDeployDetail(String platformName, String ccodVersion, V1Deployment deployment, V1Container container, List<V1Service> services, AppModuleVo appModuleVo, Map<String, String> configMap) throws ParamException
+    {
+        String platformId = deployment.getMetadata().getNamespace();
+        PlatformAppDeployDetailVo vo = new PlatformAppDeployDetailVo();
+        vo.setAppId(appModuleVo.getAppId());
+        vo.setPlatformId(platformId);
+        vo.setPlatformName(platformName);
+        String[] arr = deployment.getMetadata().getName().split("\\-");
+        vo.setAssembleTag(arr[0]);
+        String domainId = arr[arr.length - 1];
+        BizSetDefine setDefine = getBizSetForDomainId(domainId);
+        vo.setDomainId(domainId);
+        vo.setDomainName(String.format("%s%s", setDefine.getFixedDomainName(), domainId.replaceAll(setDefine.getFixedDomainId(), "")));
+        String alias = container.getName().split("\\-")[0];
+        vo.setAppAlias(alias);
+        vo.setOriginalAlias(alias);
+        vo.setAppType(appModuleVo.getAppType());
+        vo.setHostIp(services.get(0).getSpec().getClusterIP());
+        vo.setPort(getPortFromK8sService(services));
+        int replicas = deployment.getStatus().getReplicas() != null ? deployment.getStatus().getReplicas() : 0;
+        int availableReplicas = deployment.getStatus().getAvailableReplicas() != null ? deployment.getStatus().getAvailableReplicas() : 0;
+        int unavailableReplicas = deployment.getStatus().getUnavailableReplicas() != null ? deployment.getStatus().getUnavailableReplicas() : 0;
+        vo.setReplicas(replicas);
+        vo.setAvailableReplicas(availableReplicas);
+        String status = "Running";
+        if(unavailableReplicas == replicas)
+            status = "Error";
+        else if(availableReplicas < replicas)
+            status = "Updating";
+        vo.setStatus(status);
+        vo.setAppRunner(alias);
+        vo.setCcodVersion(ccodVersion);
+        vo.setBasePath("/");
+        Date now = new Date();
+        vo.setDeployTime(now);
+        vo.setVersion(appModuleVo.getVersion());
+        vo.setCreateTime(now);
+        vo.setVersionControl(appModuleVo.getVersionControl().name);
+        vo.setVersionControlUrl(appModuleVo.getVersionControlUrl());
+        vo.setInstallPackage(appModuleVo.getInstallPackage());
+        vo.setSrcCfgs(appModuleVo.getCfgs());
+        vo.setBkSetName(setDefine.getName());
+        vo.setConfigMap(configMap);
+        return vo;
     }
 }

@@ -244,13 +244,13 @@ public interface IK8sApiService {
 
     /**
      * 向k8s添加新的 PersistentVolume
-     * @param name 需要添加的PersistentVolume
+     * @param persistentVolume 需要添加的PersistentVolume
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
      * @return 新创建的PersistentVolume信息
      * @throws ApiException 查询失败
      */
-    V1PersistentVolume createPersistentVolume(V1PersistentVolume name, String k8sApiUrl, String authToken) throws ApiException;
+    V1PersistentVolume createPersistentVolume(V1PersistentVolume persistentVolume, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 从k8s删除已有的PersistentVolume

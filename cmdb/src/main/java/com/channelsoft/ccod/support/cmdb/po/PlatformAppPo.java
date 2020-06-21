@@ -32,6 +32,10 @@ public class PlatformAppPo {
 
     private String port;  //如果应用对外提供服务端口，该值标识端口信息，例如1521:32492/TCP，1521为pod端口，32492为nodePort，
 
+    private int replicas; //运行副本数目
+
+    private int availableReplicas; //可用副本数目
+
     private String appRunner; //应用运行用户
 
     private String basePath; //该应用的basePath
@@ -132,6 +136,22 @@ public class PlatformAppPo {
 
     public void setOriginalAlias(String originalAlias) {
         this.originalAlias = originalAlias;
+    }
+
+    public int getReplicas() {
+        return replicas;
+    }
+
+    public void setReplicas(int replicas) {
+        this.replicas = replicas;
+    }
+
+    public int getAvailableReplicas() {
+        return availableReplicas;
+    }
+
+    public void setAvailableReplicas(int availableReplicas) {
+        this.availableReplicas = availableReplicas;
     }
 
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {

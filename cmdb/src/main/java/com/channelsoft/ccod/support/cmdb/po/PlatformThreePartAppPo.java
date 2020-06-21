@@ -15,6 +15,10 @@ public class PlatformThreePartAppPo {
 
     private String appName;
 
+    private int replicas; //运行副本数目
+
+    private int availableReplicas; //可用副本数目
+
     private String hostIp;
 
     private String port;
@@ -67,5 +71,21 @@ public class PlatformThreePartAppPo {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public int getReplicas() {
+        return replicas;
+    }
+
+    public void setReplicas(int replicas) {
+        this.replicas = replicas;
+    }
+
+    public int getAvailableReplicas() {
+        return availableReplicas;
+    }
+
+    public void setAvailableReplicas(int availableReplicas) {
+        this.availableReplicas = availableReplicas;
     }
 }

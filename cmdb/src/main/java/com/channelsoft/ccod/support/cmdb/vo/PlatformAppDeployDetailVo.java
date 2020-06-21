@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
@@ -9,6 +10,7 @@ import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @ClassName: PlatformAppDeployDetailVo
@@ -49,6 +51,10 @@ public class PlatformAppDeployDetailVo {
 
     private String port; //应用的相关port
 
+    private int replicas; //运行副本数目
+
+    private int availableReplicas; //可用副本数目
+
     private String status; //应用的相关status
 
     private String appRunner; //运行用户名
@@ -82,6 +88,38 @@ public class PlatformAppDeployDetailVo {
     private int bkModuleId; //该应用在蓝鲸paas的唯一id
 
     private int bkHostId; //该应用在蓝鲸paas的服务器id
+
+    private Map<String, String> configMap; //用来定义配置文件的configMap,key为config文件名,value为config文件的内容
+
+    public static PlatformAppDeployDetailVo getK8sPlatformAppDeployDetail(String alias, AppModuleVo appModuleVo, Map<String, String> configMap, String ccodVersion, String platformId, String platformName, BizSetDefine setDefine, String domainId, String assembleTag, String hostIp, String status, String port)
+    {
+        PlatformAppDeployDetailVo vo = new PlatformAppDeployDetailVo();
+        vo.appId = appModuleVo.getAppId();
+        vo.platformId = platformId;
+        vo.platformName = platformName;
+        vo.domainId = domainId;
+        vo.domainName = String.format("%s%s", setDefine.getFixedDomainName(), domainId.replaceAll(setDefine.getFixedDomainId(), ""));
+        vo.appAlias= alias;
+        vo.originalAlias = alias;
+        vo.appType = appModuleVo.getAppType();
+        vo.hostIp = hostIp;
+        vo.port = port;
+        vo.status = status;
+        vo.appRunner = alias;
+        vo.ccodVersion = ccodVersion;
+        vo.basePath = "/";
+        Date now = new Date();
+        vo.deployTime = now;
+        vo.version = appModuleVo.getVersion();
+        vo.createTime = now;
+        vo.versionControl = appModuleVo.getVersionControl().name;
+        vo.versionControlUrl = appModuleVo.getVersionControlUrl();
+        vo.installPackage = appModuleVo.getInstallPackage();
+        vo.srcCfgs = appModuleVo.getCfgs();
+        vo.bkSetName = setDefine.getName();
+        vo.configMap = configMap;
+        return vo;
+    }
 
     public PlatformAppDeployDetailVo()
     {}
@@ -342,6 +380,30 @@ public class PlatformAppDeployDetailVo {
         this.status = status;
     }
 
+    public Map<String, String> getConfigMap() {
+        return configMap;
+    }
+
+    public void setConfigMap(Map<String, String> configMap) {
+        this.configMap = configMap;
+    }
+
+    public int getReplicas() {
+        return replicas;
+    }
+
+    public void setReplicas(int replicas) {
+        this.replicas = replicas;
+    }
+
+    public int getAvailableReplicas() {
+        return availableReplicas;
+    }
+
+    public void setAvailableReplicas(int availableReplicas) {
+        this.availableReplicas = availableReplicas;
+    }
+
     public PlatformAppPo getPlatformApp()
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -356,6 +418,11 @@ public class PlatformAppDeployDetailVo {
         po.setAppAlias(this.appAlias);
         po.setPlatformAppId(this.platformAppId);
         po.setAssembleId(this.assembleId);
+        po.setReplicas(this.replicas);
+        po.setAvailableReplicas(this.availableReplicas);
         return po;
     }
+
+
+
 }
