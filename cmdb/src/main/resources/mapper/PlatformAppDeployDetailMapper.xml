@@ -8,6 +8,7 @@
         <result column="platform_name" property="platformName" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="domain_name" property="domainName" jdbcType="VARCHAR" />
+        <result column="biz_set_name" property="bkSetName" jdbcType="VARCHAR" />
         <result column="assemble_id" property="assembleId" jdbcType="INTEGER" />
         <result column="assemble_tag" property="assembleTag" jdbcType="VARCHAR" />
         <result column="status" property="status" jdbcType="VARCHAR" />
@@ -28,7 +29,6 @@
 
         <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
         <result column="bk_set_id" property="bkSetId" jdbcType="INTEGER" />
-        <result column="bk_set_name" property="bkSetName" jdbcType="VARCHAR" />
         <result column="bk_module_id" property="bkModuleId" jdbcType="INTEGER" />
         <result column="bk_host_id" property="bkHostId" jdbcType="INTEGER" />
 
@@ -55,6 +55,7 @@
 	    pf.platform_id,
 	    dm.domain_id,
 	    dm.domain_name,
+	    dm.biz_set_name,
 	    asb.assemble_id,
 		asb.tag AS assemble_tag,
 		asb.status AS status,

@@ -7,7 +7,9 @@ import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
+import io.kubernetes.client.openapi.models.V1ConfigMap;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -88,38 +90,6 @@ public class PlatformAppDeployDetailVo {
     private int bkModuleId; //该应用在蓝鲸paas的唯一id
 
     private int bkHostId; //该应用在蓝鲸paas的服务器id
-
-    private Map<String, String> configMap; //用来定义配置文件的configMap,key为config文件名,value为config文件的内容
-
-    public static PlatformAppDeployDetailVo getK8sPlatformAppDeployDetail(String alias, AppModuleVo appModuleVo, Map<String, String> configMap, String ccodVersion, String platformId, String platformName, BizSetDefine setDefine, String domainId, String assembleTag, String hostIp, String status, String port)
-    {
-        PlatformAppDeployDetailVo vo = new PlatformAppDeployDetailVo();
-        vo.appId = appModuleVo.getAppId();
-        vo.platformId = platformId;
-        vo.platformName = platformName;
-        vo.domainId = domainId;
-        vo.domainName = String.format("%s%s", setDefine.getFixedDomainName(), domainId.replaceAll(setDefine.getFixedDomainId(), ""));
-        vo.appAlias= alias;
-        vo.originalAlias = alias;
-        vo.appType = appModuleVo.getAppType();
-        vo.hostIp = hostIp;
-        vo.port = port;
-        vo.status = status;
-        vo.appRunner = alias;
-        vo.ccodVersion = ccodVersion;
-        vo.basePath = "/";
-        Date now = new Date();
-        vo.deployTime = now;
-        vo.version = appModuleVo.getVersion();
-        vo.createTime = now;
-        vo.versionControl = appModuleVo.getVersionControl().name;
-        vo.versionControlUrl = appModuleVo.getVersionControlUrl();
-        vo.installPackage = appModuleVo.getInstallPackage();
-        vo.srcCfgs = appModuleVo.getCfgs();
-        vo.bkSetName = setDefine.getName();
-        vo.configMap = configMap;
-        return vo;
-    }
 
     public PlatformAppDeployDetailVo()
     {}
@@ -380,14 +350,6 @@ public class PlatformAppDeployDetailVo {
         this.status = status;
     }
 
-    public Map<String, String> getConfigMap() {
-        return configMap;
-    }
-
-    public void setConfigMap(Map<String, String> configMap) {
-        this.configMap = configMap;
-    }
-
     public int getReplicas() {
         return replicas;
     }
@@ -423,6 +385,14 @@ public class PlatformAppDeployDetailVo {
         return po;
     }
 
+    public String getCfgNexusDirectory(String tag)
+    {
+        return String.format(String.format("%s/%s/%s/%s/%s/%s", platformId, tag, domainId, appName, appAlias, version));
+    }
 
-
+    public String getCfgNexusDirectory(Date date)
+    {
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        return getCfgNexusDirectory(sf.format(date));
+    }
 }

@@ -1,0 +1,2 @@
+ 登录到镜像的容器
+ kubectl exec -it -n 202005-test cas-manage01-65ccb9b5c5-xlk7h /bin/bash

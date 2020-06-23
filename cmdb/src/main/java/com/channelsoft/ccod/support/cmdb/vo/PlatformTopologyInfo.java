@@ -1,6 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformCreateMethod;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformType;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformThreePartAppPo;
@@ -49,6 +51,10 @@ public class PlatformTopologyInfo {
 
     private List<UnconfirmedAppModulePo> unconfirmedAppModuleList; //平台中无法正确处理的应用模块
 
+    private PlatformFunction func; //平台用途
+
+    private PlatformCreateMethod createMethod; //平台创建方式
+
     public PlatformTopologyInfo(PlatformPo platform)
     {
         this.platformId = platform.getPlatformId();
@@ -64,6 +70,8 @@ public class PlatformTopologyInfo {
         this.authToken = platform.getAuthToken();
         this.threePartAppList = new ArrayList<>();
         this.threePartServiceList = new ArrayList<>();
+        this.func = platform.getFunc();
+        this.createMethod = platform.getCreateMethod();
     }
 
     public String getPlatformId() {
@@ -194,5 +202,21 @@ public class PlatformTopologyInfo {
 
     public void setThreePartServiceList(List<PlatformThreePartServicePo> threePartServiceList) {
         this.threePartServiceList = threePartServiceList;
+    }
+
+    public PlatformFunction getFunc() {
+        return func;
+    }
+
+    public void setFunc(PlatformFunction func) {
+        this.func = func;
+    }
+
+    public PlatformCreateMethod getCreateMethod() {
+        return createMethod;
+    }
+
+    public void setCreateMethod(PlatformCreateMethod createMethod) {
+        this.createMethod = createMethod;
     }
 }

@@ -12,6 +12,10 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
@@ -22,7 +26,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -43,6 +51,8 @@ import java.util.stream.Collectors;
 public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private final static Logger logger = LoggerFactory.getLogger(PlatformManagerServiceImpl.class);
+
+    private Gson gson = new Gson();
 
     @Autowired
     IK8sApiService ik8sApiService;
@@ -119,6 +129,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${nexus.host-url}")
     private String nexusHostUrl;
 
+    @Value("${k8s.deployment.defaultCfgMountPath}")
+    private String defaultCfgMountPath;
+
     private final Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
 
     private Map<String, List<BizSetDefine>> appSetRelationMap;
@@ -168,6 +181,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            System.out.println(JSONObject.toJSONString(pod.getMetadata().getName()));
 //            getPlatformTopologyFromK8s("工具组平台", "202005-test", 34, 0, "CCOD4.1", k8sApiUrl, authToken);
 //            someTest();
+//            configMapTest();
         }
         catch (Exception ex)
         {
@@ -302,6 +316,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         ljPaasService.syncClientCollectResultToPaas(bkBizId, platformId, bkCloudId);
         return this.appManagerService.getPlatformTopology(platformId);
+    }
+
+    private K8sPlatformParamVo generateK8sPlatformParam(String platformId, String platformName, String ccodVersion, String k8sApiUrl, String k8sAuthToken) throws IOException, K8sDataException, ApiException, NotSupportAppException, InterfaceCallException, NexusException, ParamException
+    {
+        logger.debug(String.format("generate %s[%s] topology from %s", platformName, platformId, k8sApiUrl));
+        List<V1Deployment> deployments = this.k8sApiService.listNamespacedDeployment(platformId, k8sApiUrl, k8sAuthToken);
+        List<V1Service> services = this.k8sApiService.listNamespacedService(platformId, k8sApiUrl, k8sAuthToken);
+        List<V1ConfigMap> configMaps = this.k8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken);
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(true);
+        K8sPlatformParamVo paramVo = getK8sPlatformParam(platformId, platformName, ccodVersion, deployments, services, configMaps, registerApps);
+        return paramVo;
     }
 
     private PlatformAppDeployDetailVo parsePlatformDeployApp(V1Deployment deployment, V1Container container, List<V1Pod> pods, List<V1Service> services, String deploymentName, String platformId, String platformName, List<AppModuleVo>  registerApps, int bkBizId, int bkCloudId, String ccodVersion, List<LJHostInfo> hostList, String status) throws ParamException, NotSupportAppException
@@ -1472,7 +1497,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException {
         Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(true)
                 .stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        String[] arr = imageUrl.split("\\-");
+        String[] arr = imageUrl.split("/");
         if(arr.length != 3)
             throw new ParamException(String.format("%s is illegal imageUrl", imageUrl));
         String repository = arr[1];
@@ -1480,7 +1505,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(arr.length != 2)
             throw new ParamException(String.format("%s is illegal image tag", arr[2]));
         String appName = arr[0];
-        String version = arr[1];
+        String version = arr[1].replaceAll("\\-", ":");
         Set<String> ccodRepSet = new HashSet<>(imageCfg.getCcodModuleRepository());
         Set<String> threeAppRepSet = new HashSet<>(imageCfg.getThreeAppRepository());
         AppType appType = null;
@@ -1558,21 +1583,42 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         System.out.println(String.format("create %d configMap for %s", mapList.size(), platformId));
     }
 
-    private K8sPlatformParamVo getK8sPlatformParam(String platformId, String platformName, String ccodVersion, List<V1Deployment> deployments, List<V1Service> services, List<V1ConfigMap> configMaps, List<AppModuleVo> registerApps) throws K8sDataException, ParamException, NotSupportAppException
+    private K8sPlatformParamVo getK8sPlatformParam(String platformId, String platformName, String ccodVersion, List<V1Deployment> deployments, List<V1Service> services, List<V1ConfigMap> configMaps, List<AppModuleVo> registerApps) throws IOException, K8sDataException, ParamException, NotSupportAppException, InterfaceCallException, NexusException
     {
         K8sPlatformParamVo paramVo = new K8sPlatformParamVo(platformId, platformName);
-        Map<String, List<V1Service>> serviceMap = new HashMap<>();
+        Map<V1Service, V1Deployment> svcDeployMap = new HashMap<>();
+        List<V1Service> notDeploySvcList = new ArrayList<>();
         for(V1Service service : services)
         {
-            String[] arr = service.getMetadata().getName().split("\\-");
-            String key = arr.length > 1 ? String.format("%s-%s", arr[0], arr[1]) : arr[0];
-            if(!serviceMap.containsKey(key))
-                serviceMap.put(key, new ArrayList<>());
-            serviceMap.get(key).add(service);
+            for(V1Deployment deployment : deployments)
+            {
+                boolean isMatch = isSelected(deployment.getMetadata().getLabels(), service.getSpec().getSelector());
+                if(isMatch && svcDeployMap.containsKey(service))
+                    throw new K8sDataException(String.format("service %s has related to deployment %s and %s",
+                            service.getMetadata().getName(), deployment.getMetadata().getName(), svcDeployMap.get(service).getMetadata().getName()));
+                else if(isMatch)
+                    svcDeployMap.put(service, deployment);
+            }
+            if(!svcDeployMap.containsKey(service))
+                notDeploySvcList.add(service);
+        }
+        Map<V1Deployment, List<V1Service>> deploySvcMap = new HashMap<>();
+        for(V1Deployment deployment : deployments)
+        {
+            deploySvcMap.put(deployment, new ArrayList<>());
+            for(V1Service service : services)
+            {
+                boolean isMatch = isSelected(deployment.getMetadata().getLabels(), service.getSpec().getSelector());
+                if(isMatch)
+                    deploySvcMap.get(deployment).add(service);
+            }
         }
         Map<String, V1ConfigMap> configMapMap = new HashMap<>();
         for(V1ConfigMap configMap : configMaps)
             configMapMap.put(configMap.getMetadata().getName(), configMap);
+        SimpleDateFormat sf = new SimpleDateFormat();
+        Date now = new Date();
+        String tag = sf.format(now);
         for(V1Deployment deployment : deployments)
         {
             String deploymentName = deployment.getMetadata().getName();
@@ -1588,34 +1634,81 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 {
                     case CCOD_KERNEL_MODULE:
                     case CCOD_WEBAPPS_MODULE:
+                    {
                         AppModuleVo moduleVo = getAppModuleFromImageTag(container.getImage(), registerApps);
                         if(paramVo.getDeployAppList().stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppName, Function.identity())).containsKey(moduleVo.getAppName()))
                             throw new K8sDataException(String.format("deployment %s has duplicate module %s", deploymentName, moduleVo.getAppName()));
-                        PlatformAppDeployDetailVo deployApp = getK8sPlatformAppDeployDetail(platformName, ccodVersion, deployment, container, serviceMap.get(container.getName()), moduleVo, configMapMap.get(container.getName()).getData());
+                        PlatformAppDeployDetailVo deployApp = getK8sPlatformAppDeployDetail(platformName, ccodVersion, deployment, container, deploySvcMap.get(deployment), moduleVo, configMapMap.get(container.getName()).getData());
+                        String directory = deployApp.getCfgNexusDirectory(tag);
+                        List<NexusAssetInfo> assets = uploadK8sConfigMapToNexus(configMapMap.get(container.getName()), directory);
+                        List<PlatformAppCfgFilePo> cfgs = new ArrayList<>();
+                        for(NexusAssetInfo assetInfo : assets)
+                        {
+                            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo(0, moduleVo.getAppId(), "/cfg", assetInfo);
+                            cfgs.add(cfgFilePo);
+                        }
+                        deployApp.setCfgs(cfgs);
                         paramVo.getDeployAppList().add(deployApp);
-                        serviceMap.remove(container.getName());
                         break;
+                    }
                     case THREE_PART_APP:
-                        PlatformThreePartAppPo threePartAppPo = getK8sPlatformThreePartApp(deployment, container, serviceMap.get(container.getName()));
+                        PlatformThreePartAppPo threePartAppPo = getK8sPlatformThreePartApp(deployment, container, deploySvcMap.get(deployment));
                         paramVo.getThreeAppList().add(threePartAppPo);
-                        serviceMap.remove(container.getName());
                         break;
                     default:
                         break;
                 }
             }
         }
-        for(List<V1Service> threeSvcs : serviceMap.values())
+        for(V1Service threeSvc : notDeploySvcList)
         {
-            for(V1Service threeSvc : threeSvcs)
+            PlatformThreePartServicePo threePartServicePo = getK8sPlatformThreePartService(threeSvc);
+            paramVo.getThreeSvcList().add(threePartServicePo);
+        }
+        if(configMapMap.containsKey(platformId))
+        {
+            V1ConfigMap configMap = configMapMap.get(platformId);
+            String directory = String.format("%s/%s/publicConfig", platformId, tag);
+            List<NexusAssetInfo> assets = uploadK8sConfigMapToNexus(configMap, directory);
+            for(NexusAssetInfo asset : assets)
             {
-                PlatformThreePartServicePo threePartServicePo = getK8sPlatformThreePartService(threeSvc);
-                paramVo.getThreeSvcList().add(threePartServicePo);
+                PlatformPublicConfigPo cfgPo = new PlatformPublicConfigPo(platformId, "/", asset);
+                paramVo.getPlatformPublicConfigList().add(cfgPo);
+            }
+        }
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = paramVo.getDeployAppList().stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        for(String domainId : domainAppMap.keySet())
+        {
+            if(configMapMap.containsKey(domainId))
+            {
+                V1ConfigMap configMap = configMapMap.get(domainId);
+                String directory = String.format("%s/%s/%s/publicConfig", platformId, tag, domainId);
+                List<NexusAssetInfo> assets = uploadK8sConfigMapToNexus(configMap, directory);
+                for(NexusAssetInfo asset : assets)
+                {
+                    DomainPublicConfigPo cfgPo = new DomainPublicConfigPo(domainId, platformId, "/", asset);
+                    paramVo.getDomainPublicConfigList().add(cfgPo);
+                }
             }
         }
         return paramVo;
     }
 
+    /**
+     * 如果labels包含selector的所有key，并且值也相同返回true, 否则返回false
+     * @param labels
+     * @param selector
+     * @return 比较结果
+     */
+    boolean isSelected(Map<String, String> labels, Map<String, String> selector)
+    {
+        for(String key : selector.keySet())
+        {
+            if(!labels.containsKey(key) || !selector.get(key).equals(labels.get(key)))
+                return false;
+        }
+        return true;
+    }
 
     private PlatformThreePartServicePo getK8sPlatformThreePartService(V1Service service)
     {
@@ -1690,7 +1783,152 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         vo.setInstallPackage(appModuleVo.getInstallPackage());
         vo.setSrcCfgs(appModuleVo.getCfgs());
         vo.setBkSetName(setDefine.getName());
-        vo.setConfigMap(configMap);
         return vo;
+    }
+
+    private List<NexusAssetInfo> uploadK8sConfigMapToNexus(V1ConfigMap configMap, String directory) throws IOException, InterfaceCallException, NexusException
+    {
+        List<DeployFileInfo> fileList = new ArrayList<>();
+        String saveDir = getTempSaveDir(this.platformAppCfgRepository);
+        for(String fileName : configMap.getData().keySet())
+        {
+            String content = configMap.getData().get(fileName);
+            String fileSavePath = String.format("%s/%s", saveDir, fileName);
+            File file = new File(fileSavePath);
+            file.createNewFile();
+            FileWriter writer = new FileWriter(file);
+            BufferedWriter out = new BufferedWriter(writer);
+            out.write(content);
+            out.close();
+            writer.close();
+            DeployFileInfo info = new DeployFileInfo();
+            info.setFileName(fileName);
+            info.setLocalSavePath(fileSavePath);
+            fileList.add(info);
+        }
+        List<NexusAssetInfo> assets = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.platformAppCfgRepository, directory, fileList.toArray(new DeployFileInfo[0]));
+        return assets;
+    }
+
+    private String getTempSaveDir(String directory) {
+        String saveDir = String.format("%s/downloads/%s", System.getProperty("user.dir"), directory);
+        return saveDir;
+    }
+
+    private void addConfigMapToDeployment(V1Deployment deployment, List<V1ConfigMap> configMaps) throws ParamException, NotSupportAppException
+    {
+        Map<String, V1ConfigMap> configMapMap = new HashMap<>();
+        for(V1ConfigMap configMap : configMaps)
+            configMapMap.put(configMap.getMetadata().getName(), configMap);
+        List<V1Container> containers = new ArrayList<>();
+        if(deployment.getSpec().getTemplate().getSpec().getInitContainers() != null)
+            containers.addAll(deployment.getSpec().getTemplate().getSpec().getInitContainers());
+        if(deployment.getSpec().getTemplate().getSpec().getContainers() != null)
+            containers.addAll(deployment.getSpec().getTemplate().getSpec().getContainers());
+        String platformId = deployment.getMetadata().getNamespace();
+        for(V1Container container : containers)
+        {
+            AppType appType = getAppTypeFromImageUrl(container.getImage());
+            switch (appType)
+            {
+                case CCOD_WEBAPPS_MODULE:
+                case CCOD_KERNEL_MODULE:
+                {
+                    String domainId = container.getName().split("\\-")[1];
+//                    V1ConfigMap configMap = configMapMap.get(container.getName());
+                    V1ConfigMap configMap = configMapMap.get(deployment.getMetadata().getName());
+                    V1ConfigMapVolumeSource source = new V1ConfigMapVolumeSource();
+                    source.setItems(new ArrayList<>());
+                    source.setName(configMap.getMetadata().getName());
+                    for(String fileName : configMap.getData().keySet())
+                    {
+                        V1KeyToPath item = new V1KeyToPath();
+                        item.setKey(fileName);
+                        item.setPath(fileName);
+                        source.getItems().add(item);
+                    }
+                    V1Volume volume = new V1Volume();
+                    volume.setName(configMap.getMetadata().getName());
+                    volume.setConfigMap(source);
+                    deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
+                    V1VolumeMount mount = new V1VolumeMount();
+                    mount.setName(configMap.getMetadata().getName());
+                    mount.setMountPath(this.defaultCfgMountPath);
+                    container.getVolumeMounts().add(mount);
+                    if(configMapMap.containsKey(domainId))
+                    {
+                        source = new V1ConfigMapVolumeSource();
+                        source.setName(domainId);
+                        source.setItems(new ArrayList<>());
+                        for(String fileName : configMapMap.get(domainId).getData().keySet())
+                        {
+                            V1KeyToPath item = new V1KeyToPath();
+                            item.setKey(fileName);
+                            item.setPath(fileName);
+                            source.getItems().add(item);
+                        }
+                        deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
+                        mount = new V1VolumeMount();
+                        mount.setName(configMap.getMetadata().getName());
+                        mount.setMountPath(this.defaultCfgMountPath);
+                        container.getVolumeMounts().add(mount);
+                    }
+//                    if(configMapMap.containsKey(platformId))
+//                    {
+//                        source = new V1ConfigMapVolumeSource();
+//                        source.setName(platformId);
+//                        source.setItems(new ArrayList<>());
+//                        for(String fileName : configMapMap.get(platformId).getData().keySet())
+//                        {
+//                            V1KeyToPath item = new V1KeyToPath();
+//                            item.setKey(fileName);
+//                            item.setPath(fileName);
+//                            source.getItems().add(item);
+//                        }
+//                        volume = new V1Volume();
+//                        volume.setName(platformId);
+//                        volume.setConfigMap(source);
+//                        deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
+//                        mount = new V1VolumeMount();
+//                        mount.setName(platformId);
+//                        mount.setMountPath(this.defaultCfgMountPath);
+//                        container.getVolumeMounts().add(mount);
+//                    }
+                }
+
+            }
+        }
+    }
+
+    private void configMapTest() throws Exception
+    {
+        Gson gson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
+            @Override
+            public boolean shouldSkipField(FieldAttributes f) {
+                //过滤掉字段名包含"age"
+                return f.getName().contains("creationTimestamp") || f.getName().contains("status") || f.getName().contains("resourceVersion") || f.getName().contains("selfLink") || f.getName().contains("uid")
+                        || f.getName().contains("generation") || f.getName().contains("annotations") || f.getName().contains("strategy")
+                        || f.getName().contains("terminationMessagePath") ||f.getName().contains("terminationMessagePolicy")
+                        || f.getName().contains("dnsPolicy") || f.getName().contains("securityContext") || f.getName().contains("schedulerName")
+                        || f.getName().contains("restartPolicy");
+            }
+
+            @Override
+            public boolean shouldSkipClass(Class<?> clazz) {
+                //过滤掉 类名包含 Bean的类
+                return clazz.getName().contains("Bean");
+            }
+        }).create();
+        PlatformPo platformPo = getK8sPlatform("202005-test");
+        List<V1Deployment> deployments = this.k8sApiService.listNamespacedDeployment(platformPo.getPlatformId(), platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1ConfigMap> configMaps = this.k8sApiService.listNamespacedConfigMap(platformPo.getPlatformId(), platformPo.getApiUrl(), platformPo.getAuthToken());
+        for(V1Deployment deployment : deployments)
+        {
+//            addConfigMapToDeployment(deployment, configMaps);
+            logger.info(String.format("deployment=%s", gson.toJson(deployment)));
+            deployment = gson.fromJson(gson.toJson(deployment), V1Deployment.class);
+            this.k8sApiService.replaceNamespacedDeployment(deployment.getMetadata().getName(), deployment.getMetadata().getNamespace(), deployment, platformPo.getApiUrl(), platformPo.getAuthToken());
+            break;
+        }
     }
 }

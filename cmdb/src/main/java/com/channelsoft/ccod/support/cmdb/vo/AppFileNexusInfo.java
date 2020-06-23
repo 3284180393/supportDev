@@ -12,21 +12,36 @@ import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
  */
 public class AppFileNexusInfo {
 
-    private String fileName;  //文件名
+    protected String fileName;  //文件名
 
-    private String ext; //文件扩展
+    protected String ext; //文件扩展
 
-    private long fileSize; //文件大小
+    protected long fileSize; //文件大小
 
-    private String md5; //文件md5
+    protected String md5; //文件md5
 
-    private String deployPath; //文件部署路径
+    protected String deployPath; //文件部署路径
 
-    private String nexusRepository; //存放文件的nexus仓库
+    protected String nexusRepository; //存放文件的nexus仓库
 
-    private String nexusPath; //该文件在nexus的存放path
+    protected String nexusPath; //该文件在nexus的存放path
 
-    private String nexusAssetId; //该文件的assetId
+    protected String nexusAssetId; //该文件的assetId
+
+    public AppFileNexusInfo()
+    {}
+
+    public AppFileNexusInfo(NexusAssetInfo assetInfo, String deployPath)
+    {
+        this.fileName = assetInfo.getNexusAssetFileName();
+        String[] arr = fileName.split("\\-");
+        this.ext = arr.length > 1 ? arr[arr.length-1] : "";
+        this.md5 = assetInfo.getMd5();
+        this.nexusRepository = assetInfo.getRepository();
+        this.nexusPath = assetInfo.getPath();
+        this.nexusAssetId = assetInfo.getId();
+        this.deployPath = deployPath;
+    }
 
     public String getFileName() {
         return fileName;

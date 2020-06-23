@@ -303,6 +303,8 @@ image:
 k8s:
   gls_oracle_svc_name: oracle
   gls_oracle_sid: xe
+  deployment:
+    defaultCfgMountPath: /cfg
 
 
 windows: false

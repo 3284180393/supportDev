@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.po.DomainPublicConfigPo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformPublicConfigPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformThreePartAppPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformThreePartServicePo;
 
@@ -25,6 +27,10 @@ public class K8sPlatformParamVo {
 
     List<PlatformThreePartServicePo> threeSvcList;
 
+    List<PlatformPublicConfigPo> platformPublicConfigList;
+
+    List<DomainPublicConfigPo> domainPublicConfigList;
+
     public K8sPlatformParamVo(String platformId, String platformName)
     {
         this.platformId = platformId;
@@ -32,6 +38,8 @@ public class K8sPlatformParamVo {
         this.deployAppList = new ArrayList<>();
         this.threeAppList = new ArrayList<>();
         this.threeSvcList = new ArrayList<>();
+        this.platformPublicConfigList = new ArrayList<>();
+        this.domainPublicConfigList = new ArrayList<>();
     }
 
     public String getPlatformId() {
@@ -72,5 +80,21 @@ public class K8sPlatformParamVo {
 
     public void setThreeSvcList(List<PlatformThreePartServicePo> threeSvcList) {
         this.threeSvcList = threeSvcList;
+    }
+
+    public List<PlatformPublicConfigPo> getPlatformPublicConfigList() {
+        return platformPublicConfigList;
+    }
+
+    public void setPlatformPublicConfigList(List<PlatformPublicConfigPo> platformPublicConfigList) {
+        this.platformPublicConfigList = platformPublicConfigList;
+    }
+
+    public List<DomainPublicConfigPo> getDomainPublicConfigList() {
+        return domainPublicConfigList;
+    }
+
+    public void setDomainPublicConfigList(List<DomainPublicConfigPo> domainPublicConfigList) {
+        this.domainPublicConfigList = domainPublicConfigList;
     }
 }
