@@ -19,6 +19,7 @@ import com.google.gson.GsonBuilder;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -181,7 +182,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            System.out.println(JSONObject.toJSONString(pod.getMetadata().getName()));
 //            getPlatformTopologyFromK8s("工具组平台", "202005-test", 34, 0, "CCOD4.1", k8sApiUrl, authToken);
 //            someTest();
-//            configMapTest();
+            configMapTest();
         }
         catch (Exception ex)
         {
@@ -1515,12 +1516,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             {
                 if(name.toLowerCase().equals(appName))
                 {
-                    for(AppModuleVo moduleVo : registerAppMap.get(name))
-                    {
-                        if(moduleVo.getVersion().replaceAll("\\:", "-").equals(version))
-                            appType = moduleVo.getAppType();
-                        break;
-                    }
+                    List<AppModuleVo> modules = registerAppMap.get(name);
+                    appType = modules.stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version) ? modules.stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version).getAppType() : null;
                     if(appType == null)
                         throw new ParamException(String.format("%s[%s] not register", name, version));
                     break;
@@ -1547,8 +1544,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      */
     private AppModuleVo getAppModuleFromImageTag(String imageTag, List<AppModuleVo> registerAppModules) throws ParamException, NotSupportAppException {
         Map<String, List<AppModuleVo>> registerAppMap = registerAppModules.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        String appName = imageTag.split("\\:")[0];
-        String version = imageTag.split("\\:")[1];
+        String[] arr = imageTag.split("/");
+        String appName = arr[arr.length - 1].split("\\:")[0];
+        String version = arr[arr.length - 1].split("\\:")[1];
         for(String name : registerAppMap.keySet())
         {
             if(name.toLowerCase().equals(appName))
@@ -1642,9 +1640,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         String directory = deployApp.getCfgNexusDirectory(tag);
                         List<NexusAssetInfo> assets = uploadK8sConfigMapToNexus(configMapMap.get(container.getName()), directory);
                         List<PlatformAppCfgFilePo> cfgs = new ArrayList<>();
+                        String deployPath = container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get(String.format("%s-volume", container.getName())).getMountPath();
                         for(NexusAssetInfo assetInfo : assets)
                         {
-                            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo(0, moduleVo.getAppId(), "/cfg", assetInfo);
+                            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo(0, moduleVo.getAppId(), deployPath, assetInfo);
                             cfgs.add(cfgFilePo);
                         }
                         deployApp.setCfgs(cfgs);
@@ -1782,6 +1781,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         vo.setVersionControlUrl(appModuleVo.getVersionControlUrl());
         vo.setInstallPackage(appModuleVo.getInstallPackage());
         vo.setSrcCfgs(appModuleVo.getCfgs());
+        vo.setCfgs(new ArrayList<>());
         vo.setBkSetName(setDefine.getName());
         return vo;
     }
@@ -1815,11 +1815,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return saveDir;
     }
 
-    private void addConfigMapToDeployment(V1Deployment deployment, List<V1ConfigMap> configMaps) throws ParamException, NotSupportAppException
+    private void generateConfigForDeployment(V1Deployment deployment, List<V1ConfigMap> configMaps, List<AppUpdateOperationInfo> optList, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
     {
         Map<String, V1ConfigMap> configMapMap = new HashMap<>();
         for(V1ConfigMap configMap : configMaps)
             configMapMap.put(configMap.getMetadata().getName(), configMap);
+        Map<String, AppUpdateOperationInfo> optMap = optList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity()));
         List<V1Container> containers = new ArrayList<>();
         if(deployment.getSpec().getTemplate().getSpec().getInitContainers() != null)
             containers.addAll(deployment.getSpec().getTemplate().getSpec().getInitContainers());
@@ -1834,71 +1835,94 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 case CCOD_WEBAPPS_MODULE:
                 case CCOD_KERNEL_MODULE:
                 {
-                    String domainId = container.getName().split("\\-")[1];
-//                    V1ConfigMap configMap = configMapMap.get(container.getName());
-                    V1ConfigMap configMap = configMapMap.get(deployment.getMetadata().getName());
-                    V1ConfigMapVolumeSource source = new V1ConfigMapVolumeSource();
-                    source.setItems(new ArrayList<>());
-                    source.setName(configMap.getMetadata().getName());
-                    for(String fileName : configMap.getData().keySet())
-                    {
-                        V1KeyToPath item = new V1KeyToPath();
-                        item.setKey(fileName);
-                        item.setPath(fileName);
-                        source.getItems().add(item);
-                    }
-                    V1Volume volume = new V1Volume();
-                    volume.setName(configMap.getMetadata().getName());
-                    volume.setConfigMap(source);
-                    deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
-                    V1VolumeMount mount = new V1VolumeMount();
-                    mount.setName(configMap.getMetadata().getName());
-                    mount.setMountPath(this.defaultCfgMountPath);
-                    container.getVolumeMounts().add(mount);
+                    AppModuleVo moduleVo = getAppModuleFromImageTag(container.getImage(), registerApps);
+                    String alias = container.getImage().split("\\-")[0];
+                    String basePath = optList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(alias).getBasePath();
+                    String cfgMountPath = optList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(alias).getCfgs().get(0).getDeployPath();
+                    cfgMountPath = getAbsolutePath(basePath, cfgMountPath);
+                    addConfigToContainer(container, deployment, configMapMap.get(deployment.getMetadata().getName()), moduleVo, cfgMountPath);
+//                    String domainId = container.getName().split("\\-")[1];
+                    String pubCfgMountPath = appType.equals(AppType.CCOD_WEBAPPS_MODULE) ? "/opt/WEB-INF" : "/root/Platform/bin";
+                    String domainId = deployment.getMetadata().getName().split("\\-")[1];
                     if(configMapMap.containsKey(domainId))
-                    {
-                        source = new V1ConfigMapVolumeSource();
-                        source.setName(domainId);
-                        source.setItems(new ArrayList<>());
-                        for(String fileName : configMapMap.get(domainId).getData().keySet())
-                        {
-                            V1KeyToPath item = new V1KeyToPath();
-                            item.setKey(fileName);
-                            item.setPath(fileName);
-                            source.getItems().add(item);
-                        }
-                        deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
-                        mount = new V1VolumeMount();
-                        mount.setName(configMap.getMetadata().getName());
-                        mount.setMountPath(this.defaultCfgMountPath);
-                        container.getVolumeMounts().add(mount);
-                    }
-//                    if(configMapMap.containsKey(platformId))
-//                    {
-//                        source = new V1ConfigMapVolumeSource();
-//                        source.setName(platformId);
-//                        source.setItems(new ArrayList<>());
-//                        for(String fileName : configMapMap.get(platformId).getData().keySet())
-//                        {
-//                            V1KeyToPath item = new V1KeyToPath();
-//                            item.setKey(fileName);
-//                            item.setPath(fileName);
-//                            source.getItems().add(item);
-//                        }
-//                        volume = new V1Volume();
-//                        volume.setName(platformId);
-//                        volume.setConfigMap(source);
-//                        deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
-//                        mount = new V1VolumeMount();
-//                        mount.setName(platformId);
-//                        mount.setMountPath(this.defaultCfgMountPath);
-//                        container.getVolumeMounts().add(mount);
-//                    }
+                        addConfigToContainer(container, deployment, configMapMap.get(domainId), moduleVo, pubCfgMountPath);
+                    if(configMapMap.containsKey(platformId))
+                        addConfigToContainer(container, deployment, configMapMap.get(platformId), moduleVo, pubCfgMountPath);
                 }
-
             }
         }
     }
+
+    private String getAbsolutePath(String basePath, String relativePath) throws ParamException
+    {
+        if(relativePath.matches("^/.*"))
+            return relativePath;
+        else if(relativePath.matches("^\\./.*"))
+            return String.format("%s/%s", basePath, relativePath.replaceAll("^\\./", "")).replaceAll("//", "/");
+        else if(relativePath.matches("^\\.\\./.*"))
+        {
+            int count = 1;
+            String str = relativePath.replaceAll("^\\.\\./", "");
+            while (str.matches("^\\.\\./.*"))
+            {
+                count++;
+                str = str.replaceAll("^\\.\\./", "");
+            }
+            String[] arr = basePath.replaceAll("^/", "").replaceAll("/$", "").split("/");
+            String abPath = "/";
+            for(int i = 0; i < arr.length - count; i++)
+                abPath = String.format("%s%s/", abPath, arr[i]);
+            return String.format("%s%s", abPath, str);
+        }
+        else
+            return String.format("%s/%s", basePath, relativePath).replaceAll("//", "/");
+    }
+
+    private void addConfigToContainer(V1Container container, V1Deployment deployment, V1ConfigMap configMap, AppModuleVo moduleVo, String mountPath)
+    {
+        String configName = configMap.getMetadata().getName();
+        String volumeName = String.format("%s-volume", configName);
+        if(!deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).containsKey(volumeName))
+        {
+            V1ConfigMapVolumeSource source = new V1ConfigMapVolumeSource();
+            source.setItems(new ArrayList<>());
+            source.setName(configName);
+            for(String fileName : configMap.getData().keySet())
+            {
+                V1KeyToPath item = new V1KeyToPath();
+                item.setKey(fileName);
+                item.setPath(fileName);
+                source.getItems().add(item);
+            }
+            V1Volume volume = new V1Volume();
+            volume.setName(volumeName);
+            volume.setConfigMap(source);
+            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
+        }
+        V1VolumeMount mount = new V1VolumeMount();
+        mount.setName(volumeName);
+        AppType appType = moduleVo.getAppType();
+        mount.setMountPath(mountPath);
+        container.getVolumeMounts().add(mount);
+        if(appType.equals(AppType.CCOD_WEBAPPS_MODULE))
+        {
+            if(container.getCommand() == null)
+            {
+                container.setCommand(new ArrayList<>());
+                container.getCommand().add("/bin/sh");
+                container.getCommand().add("-c");
+                container.getCommand().add("");
+            }
+            List<String> command = container.getCommand();
+            String execParam = command.get(command.size() - 1);
+            execParam = StringUtils.isBlank(execParam) ? "cd /opt" : String.format("%s;cd /opt", execParam);
+            String cfgRelativePath = mountPath.replaceAll("^/opt", "");
+            for(String fileName : configMap.getData().keySet())
+                execParam = String.format("%s;jar uf %s %s/%s", execParam, moduleVo.getInstallPackage().getFileName(), cfgRelativePath, fileName);
+            command.set(command.size() - 1, execParam);
+        }
+    }
+
 
     private void configMapTest() throws Exception
     {
@@ -1922,13 +1946,29 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         PlatformPo platformPo = getK8sPlatform("202005-test");
         List<V1Deployment> deployments = this.k8sApiService.listNamespacedDeployment(platformPo.getPlatformId(), platformPo.getApiUrl(), platformPo.getAuthToken());
         List<V1ConfigMap> configMaps = this.k8sApiService.listNamespacedConfigMap(platformPo.getPlatformId(), platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(true);
         for(V1Deployment deployment : deployments)
         {
-//            addConfigMapToDeployment(deployment, configMaps);
-            logger.info(String.format("deployment=%s", gson.toJson(deployment)));
-            deployment = gson.fromJson(gson.toJson(deployment), V1Deployment.class);
-            this.k8sApiService.replaceNamespacedDeployment(deployment.getMetadata().getName(), deployment.getMetadata().getNamespace(), deployment, platformPo.getApiUrl(), platformPo.getAuthToken());
-            break;
+//            generateConfigForDeployment(deployment, configMaps, registerApps);
+            logger.info(String.format("DeploymentWithCfg=%s", gson.toJson(deployment)));
         }
+    }
+
+    @Test
+    public void pathTest() throws Exception
+    {
+        String basePath = "/home/onlinemanager/apache-tomcat-7.0.91/webapps/onlinemanager/WEB-INF";
+        String relativePath = "./lib";
+        String abPath = getAbsolutePath(basePath, relativePath);
+        System.out.println(abPath);
+        relativePath = "lib";
+        abPath = getAbsolutePath(basePath, relativePath);
+        System.out.println(abPath);
+        relativePath = "/home/onlinemanager/apache-tomcat-7.0.91/webapps/onlinemanager/WEB-INF/lib";
+        abPath = getAbsolutePath(basePath, relativePath);
+        System.out.println(abPath);
+        relativePath = "../../manager";
+        abPath = getAbsolutePath(basePath, relativePath);
+        System.out.println(abPath);
     }
 }
