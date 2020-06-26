@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
+import io.kubernetes.client.openapi.models.V1Deployment;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -72,6 +73,8 @@ public class PlatformUpdateSchemaInfo {
 
     private String k8sAuthToken; //k8s的认证token
 
+    private List<V1Deployment> k8sDeploymentList; //需要执行的deployment
+
     public PlatformUpdateSchemaInfo()
     {
 
@@ -97,6 +100,7 @@ public class PlatformUpdateSchemaInfo {
         this.platformType = platformType;
         this.platformFunc = platformFunc;
         this.createMethod = createMethod;
+        this.k8sDeploymentList = new ArrayList<>();
     }
 
     public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
@@ -321,5 +325,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setCreateMethod(PlatformCreateMethod createMethod) {
         this.createMethod = createMethod;
+    }
+
+    public List<V1Deployment> getK8sDeploymentList() {
+        return k8sDeploymentList;
+    }
+
+    public void setK8sDeploymentList(List<V1Deployment> k8sDeploymentList) {
+        this.k8sDeploymentList = k8sDeploymentList;
     }
 }
