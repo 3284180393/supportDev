@@ -1703,6 +1703,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.debug("begin check param of schema");
         checkPlatformUpdateSchema(updateSchema, domainList);
         logger.debug("schema param check success");
+        boolean clone = PlatformCreateMethod.CLONE.equals(updateSchema.getCreateMethod()) ? true : false;
         List<PlatformAppDeployDetailVo> platformDeployApps = this.platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null);
         List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
@@ -1713,15 +1714,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             List<DomainUpdatePlanInfo> planList = new ArrayList<>();
             List<DomainUpdatePlanInfo> successList = new ArrayList<>();
+            makeupDomainIdAndAliasForSchema(updateSchema, domainList, platformDeployApps, clone);
             for(DomainUpdatePlanInfo plan : updateSchema.getDomainUpdatePlanList())
             {
                 String domainId = plan.getDomainId();
-                boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
-                DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);
+                DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(updateSchema.getPlatformId());
                 List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
                 logger.debug(String.format("check %s %d apps with isCreate=%b and %d deployed apps",
-                        JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-                checkDomainApps(plan.getAppUpdateOperationList(), domainAppList, domainPo, isCreate, bkHostList);
+                        JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()), domainAppList.size()));
+                checkDomainApps(plan.getAppUpdateOperationList(), domainAppList, domainPo, bkHostList);
                 if(plan.getStatus().equals(UpdateStatus.SUCCESS))
                 {
                     successList.add(plan);
@@ -1739,24 +1740,24 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         updateSchema.getPlatformName(), updateSchema.getPlatformId(), planList.size()));
             }
             logger.debug(String.format("generate domainId for new add with status SUCCESS and id is blank domain"));
-            generateId4AddDomain(updateSchema.getPlatformId(), updateSchema.getDomainUpdatePlanList(), domainList);
             Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
             for(DomainUpdatePlanInfo plan : successList)
             {
                 String domainId = plan.getDomainId();
                 boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
-                DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);
+                DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(updateSchema.getPlatformId());
                 List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
                 logger.debug(String.format("preprocess %s %d apps with isCreate=%b and %d deployed apps",
                         JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-                Map<String, List<NexusAssetInfo>> cfgMap = preprocessDomainApps(updateSchema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, isCreate);
+                Map<String, List<NexusAssetInfo>> cfgMap = preprocessDomainApps(updateSchema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, clone);
                 domainCfgMap.put(domainId, cfgMap);
             }
             for(DomainUpdatePlanInfo plan : successList)
             {
                 String domainId = plan.getDomainId();
                 boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
-                DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);if(isCreate)
+                DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);
+                if(isCreate)
                     this.domainMapper.insert(domainPo);
                 List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
                 List<AssemblePo> assembleList = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
@@ -1797,22 +1798,60 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
-    /**
+//    /**
+//     * 为新加的且id为空的域生成域id
+//     * @param platformId 平台id
+//     * @param planList 所有的域升级任务
+//     * @param existDomainList 已经存在的域
+//     */
+//    private void generateId4AddDomain(String platformId, List<DomainUpdatePlanInfo> planList, List<DomainPo> existDomainList) throws ParamException
+//    {
+//        List<DomainPo> hasIdList = new ArrayList<>();
+//        hasIdList.addAll(existDomainList);
+//        List<DomainUpdatePlanInfo> notIdList = new ArrayList<>();
+//        for(DomainUpdatePlanInfo plan : planList)
+//        {
+//            if(plan.getUpdateType().equals(DomainUpdateType.ADD) && plan.getStatus().equals(UpdateStatus.SUCCESS))
+//            {
+//                if(StringUtils.isBlank(plan.getDomainId()))
+//                    notIdList.add(plan);
+//                else
+//                    hasIdList.add(plan.getDomain(platformId));
+//            }
+//        }
+//        Map<String, List<DomainUpdatePlanInfo>> notIdMap = notIdList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
+//        Map<String, List<DomainPo>> hasIdMap = hasIdList.stream().collect(Collectors.groupingBy(DomainPo::getBizSetName));
+//        for(String bkSetName : notIdMap.keySet())
+//        {
+//            String standardDomainId = this.setDefineMap.get(bkSetName).getFixedDomainId();
+//            List<String> usedId = hasIdMap.containsKey(bkSetName) ? new ArrayList<>(hasIdMap.get(bkSetName).stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity())).keySet()) : new ArrayList<>();
+//            for(DomainUpdatePlanInfo plan : notIdMap.get(bkSetName))
+//            {
+//                String domainId = autoGenerateDomainId(standardDomainId, usedId);
+//                logger.debug(String.format("domain id of %s with bkSetName=%s is %s", plan.getDomainName(), bkSetName, domainId));
+//                plan.setDomainId(domainId);
+//                usedId.add(domainId);
+//            }
+//        }
+//    }
+
+     /**
      * 为新加的且id为空的域生成域id
      * @param platformId 平台id
      * @param planList 所有的域升级任务
      * @param existDomainList 已经存在的域
+     * @param clone 是否为新加的域是否通过clone方式生成
      */
-    private void generateId4AddDomain(String platformId, List<DomainUpdatePlanInfo> planList, List<DomainPo> existDomainList) throws ParamException
+    private void generateId4AddDomain(String platformId, List<DomainUpdatePlanInfo> planList, List<DomainPo> existDomainList, boolean clone) throws ParamException
     {
         List<DomainPo> hasIdList = new ArrayList<>();
         hasIdList.addAll(existDomainList);
         List<DomainUpdatePlanInfo> notIdList = new ArrayList<>();
         for(DomainUpdatePlanInfo plan : planList)
         {
-            if(plan.getUpdateType().equals(DomainUpdateType.ADD) && plan.getStatus().equals(UpdateStatus.SUCCESS))
+            if(plan.getUpdateType().equals(DomainUpdateType.ADD))
             {
-                if(StringUtils.isBlank(plan.getDomainId()))
+                if(StringUtils.isBlank(plan.getDomainId()) || !clone)
                     notIdList.add(plan);
                 else
                     hasIdList.add(plan.getDomain(platformId));
@@ -1833,6 +1872,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
         }
     }
+
     /**
      * 检查平台升级相关参数
      * @param updateSchema 平台升级计划
@@ -2856,197 +2896,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
 
     /**
-     * 为平台创建计划的新建域自动生成域id，为域部署的应用自动生成应用别名
-     * @param schema 原始平台升级计划
-     * @param existDomainList 平台已经存在的域
-     * @param existAppList 平台已经部署的应用
-     * @throws ParamException 输入参数有误
-     * @throws NotSupportAppException
-     * @throws NotSupportSetException
-     */
-    void makeupPlatformUpdateSchema(PlatformUpdateSchemaInfo schema, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> existAppList) throws ParamException, NotSupportAppException, NotSupportSetException
-    {
-        List<DomainUpdatePlanInfo> noDomainIdPlans = new ArrayList<>();
-        Map<String, List<String>> setDomainIdMap = new HashMap<>();
-        for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
-        {
-            if(!this.setDefineMap.containsKey(planInfo.getBkSetName()))
-            {
-                logger.error(String.format("error schema : set %s is not supported", planInfo.getBkSetName()));
-                throw new NotSupportSetException(String.format("set %s is not supported", planInfo.getBkSetName()));
-            }
-            if(StringUtils.isBlank(planInfo.getDomainId()))
-            {
-                noDomainIdPlans.add(planInfo);
-            }
-            else
-            {
-                if(!setDomainIdMap.containsKey(planInfo.getBkSetName()))
-                {
-                    setDomainIdMap.put(planInfo.getBkSetName(), new ArrayList<>());
-                }
-                setDomainIdMap.get(planInfo.getBkSetName()).add(planInfo.getDomainId());
-            }
-        }
-        Map<String, List<DomainPo>> setExistDomains = existDomainList.stream().collect(Collectors.groupingBy(DomainPo::getBizSetName));
-        if(noDomainIdPlans.size() > 0)
-        {
-            Map<String, List<DomainUpdatePlanInfo>> setDomainMap = noDomainIdPlans.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
-            for(String setName : setDomainMap.keySet())
-            {
-                BizSetDefine setDefine = setDefineMap.get(setName);
-                List<String> usedDomainIds = new ArrayList<>();
-                if(setExistDomains.containsKey(setName))
-                {
-                    for(DomainPo po : setExistDomains.get(setName))
-                    {
-                        usedDomainIds.add(po.getDomainId());
-                    }
-                }
-                if(setDomainIdMap.containsKey(setName))
-                {
-                    usedDomainIds.addAll(setDomainIdMap.get(setName));
-                }
-                for(DomainUpdatePlanInfo planInfo : setDomainMap.get(setName))
-                {
-                    String domainId = autoGenerateDomainId(setDefine.getFixedDomainId(), usedDomainIds);
-                    logger.debug(String.format("for domain %s of %s auto generate id %s",
-                            planInfo.getDomainName(), planInfo.getBkSetName(), domainId));
-                    planInfo.setDomainId(domainId);
-                    usedDomainIds.add(domainId);
-                }
-            }
-        }
-        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = existAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
-        for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
-        {
-            Map<String, List<String>> appAliasMap = new HashMap<>();
-            List<AppUpdateOperationInfo> addOptNotAliasList = new ArrayList<>();
-            BizSetDefine setDefine = setDefineMap.get(planInfo.getBkSetName());
-            Map<String, AppDefine> appDefineMap = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
-            for(AppUpdateOperationInfo opt : planInfo.getAppUpdateOperationList())
-            {
-                if(!appDefineMap.containsKey(opt.getAppName()))
-                {
-                    logger.error(String.format("set %s does not support %s", planInfo.getBkSetName(), opt.getAppName()));
-                    throw new ParamException(String.format("set %s does not support %s", planInfo.getBkSetName(), opt.getAppName()));
-                }
-                if(StringUtils.isNotBlank(opt.getAppAlias()))
-                {
-                    String standAlias = appDefineMap.get(opt.getAppName()).getAlias();
-                    String regex = String.format("^%s($|[0-9]\\d*$)", standAlias);
-                    Pattern pattern = Pattern.compile(regex);
-                    Matcher matcher = pattern.matcher(opt.getAppAlias());
-                    if(!matcher.find())
-                    {
-                        logger.error(String.format("%s is not a legal alias for appName=%s and standardAlias=%s",
-                                opt.getAppAlias(), opt.getAppName(), standAlias));
-                        throw new ParamException(String.format("%s is not a legal alias for appName=%s and standardAlias=%s",
-                                opt.getAppAlias(), opt.getAppName(), standAlias));
-                    }
-                }
-                if(AppUpdateOperation.ADD.equals(opt.getOperation()))
-                {
-                    if(StringUtils.isBlank(opt.getAppAlias()))
-                        addOptNotAliasList.add(opt);
-                    else
-                    {
-                        if(!appAliasMap.containsKey(opt.getAppName()))
-                        {
-                            appAliasMap.put(opt.getAppName(), new ArrayList<>());
-                        }
-                        appAliasMap.get(opt.getAppName()).add(opt.getAppAlias());
-                    }
-                }
-                else
-                {
-                    if(StringUtils.isBlank(opt.getAppAlias()))
-                    {
-                        logger.error(String.format("alias of %s %s is blank", opt.getOperation().name, opt.getAppName()));
-                        throw new ParamException(String.format("alias of %s %s is blank", opt.getOperation().name, opt.getAppName()));
-                    }
-                    if(!appAliasMap.containsKey(opt.getAppName()))
-                    {
-                        appAliasMap.put(opt.getAppName(), new ArrayList<>());
-                    }
-                    appAliasMap.get(opt.getAppName()).add(opt.getAppAlias());
-                }
-            }
-            if(addOptNotAliasList.size() == 0)
-                continue;
-            String domainId = planInfo.getDomainId();
-            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-            Map<String, List<PlatformAppDeployDetailVo>> existAppMap = domainAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName));
-            Map<String, List<AppUpdateOperationInfo>> appAddOptMapp = addOptNotAliasList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-
-            for(String appName : appAddOptMapp.keySet())
-            {
-                if(!appDefineMap.containsKey(appName))
-                {
-                    logger.error(String.format("set %s not support app %s", planInfo.getBkSetName(), appName));
-                    throw new NotSupportAppException(String.format("set %s not support app %s", planInfo.getBkSetName(), appName));
-                }
-                String standardAlias = appDefineMap.get(appName).getAlias();
-                List<String> usedAliasList = new ArrayList<>();
-                if(existAppMap.containsKey(appName))
-                {
-                    for(PlatformAppDeployDetailVo deployApp : existAppMap.get(appName))
-                    {
-                        usedAliasList.add(deployApp.getAppAlias());
-                    }
-                }
-                if(appAliasMap.containsKey(appName))
-                {
-                    usedAliasList.addAll(appAliasMap.get(appName));
-                }
-                List<AppUpdateOperationInfo> opts = appAddOptMapp.get(appName);
-                boolean onlyOne = opts.size() > 1 ? false : true;
-                for(AppUpdateOperationInfo opt : opts)
-                {
-                    String alias = autoGenerateAlias(standardAlias, usedAliasList, onlyOne);
-                    logger.debug(String.format("auto generate alias %s for %s/%s/%s",
-                            alias, planInfo.getBkSetName(), domainId, appName));
-                    opt.setAppAlias(alias);
-                    opt.setAppRunner(alias);
-                    usedAliasList.add(alias);
-                }
-            }
-        }
-        //对域下的应用按照别名排序
-        for(DomainUpdatePlanInfo planInfo : schema.getDomainUpdatePlanList())
-        {
-            BizSetDefine setDefine = setDefineMap.get(planInfo.getBkSetName());
-            List<AppUpdateOperationInfo> sortedOptList = sortAppUpdateOperations(planInfo.getAppUpdateOperationList(), setDefine);
-            planInfo.setAppUpdateOperationList(sortedOptList);
-        }
-        //对set以及set下的domain排序
-        List<DomainUpdatePlanInfo> sortedPlanList = new ArrayList<>();
-        Map<String, List<DomainUpdatePlanInfo>> setDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
-        for(BizSetDefine setDefine : this.ccodBiz.getSet())
-        {
-            if(!setDomainMap.containsKey(setDefine.getName()))
-                continue;
-            final String standardDomainId = setDefine.getFixedDomainId();
-            List<DomainUpdatePlanInfo> setPlanList = setDomainMap.get(setDefine.getName());
-            Collections.sort(setPlanList, new Comparator<DomainUpdatePlanInfo>(){
-                @Override
-                public int compare(DomainUpdatePlanInfo o1, DomainUpdatePlanInfo o2) {
-                    int index1 = Integer.parseInt(o1.getDomainId().replaceAll(standardDomainId, ""));
-                    int index2 = Integer.parseInt(o2.getDomainId().replaceAll(standardDomainId, ""));
-                    return index1 - index2;
-                }
-            });
-            sortedPlanList.addAll(setPlanList);
-        }
-        schema.setDomainUpdatePlanList(sortedPlanList);
-    }
-
-    private String generateId4Domain(DomainPo domainPo, List<DomainPo> existDomain)
-    {
-        return null;
-    }
-
-    /**
      * 自动生成域id
      * @param standardDomainId 标准域id
      * @param usedId 已经使用过的id
@@ -3514,7 +3363,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     throw new ParamException(String.format("domain %s not exist", domainId));
                 }
                 List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-                checkDomainApps(domainOptMap.get(domainId), deployAppList, domainMap.get(domainId), false, hostList);
+                checkDomainApps(domainOptMap.get(domainId), deployAppList, domainMap.get(domainId), hostList);
             }
             Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
             for(String domainId : domainOptMap.keySet())
@@ -3537,74 +3386,86 @@ public class AppManagerServiceImpl implements IAppManagerService {
         return new ArrayList<>();
     }
 
-    private void generateAlias4AddApps(List<AppUpdateOperationInfo> addOptList, List<PlatformAppDeployDetailVo> deployApps, List<DomainPo> domainList) throws ParamException
-    {
-        Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
-        Map<String, List<AppUpdateOperationInfo>> domainOptMap = addOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getDomainId));
-        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
-        for(String domainId : domainOptMap.keySet())
-        {
-            Map<String, List<AppUpdateOperationInfo>> addAppMap = domainOptMap.get(domainId).stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-            for(String appName : addAppMap.keySet())
-            {
-                List<String> usedAlias = new ArrayList<>();
-                String standAlias = this.setDefineMap.get(domainMap.get(domainId).getBizSetName()).getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity())).get(appName).getAlias();
-                if(domainAppMap.containsKey(domainId) && domainAppMap.get(domainId).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName)).containsKey(appName))
-                {
-                    usedAlias = new ArrayList<>(domainAppMap.get(domainId).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName)).get(appName).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity())).keySet());
-                }
-                boolean onlyOne = false;
-                if(usedAlias.size() == 0 && addAppMap.get(appName).size() == 1)
-                    onlyOne = true;
-                for(AppUpdateOperationInfo optInfo : addAppMap.get(appName))
-                {
-                    String alias = autoGenerateAlias(standAlias, usedAlias, onlyOne);
-                    optInfo.setAppAlias(alias);
-                    if(StringUtils.isBlank(optInfo.getOriginalAlias()))
-                        optInfo.setOriginalAlias(alias);
-                    usedAlias.add(alias);
-                }
-            }
-        }
-    }
+
+//    /**
+//     * 为域新加的应用自动生成应用别名
+//     * @param domainPo 添加应用的域
+//     * @param addOptList 该域所有被添加的应用
+//     * @param deployAppList 该域已经部署的应用列表
+//     * @param isCreate 该域是否为新建域
+//     */
+//    private void generateAlias4DomainApps(DomainPo domainPo, List<AppUpdateOperationInfo> addOptList, List<PlatformAppDeployDetailVo> deployAppList, boolean isCreate) throws ParamException
+//    {
+//        Map<String, List<AppUpdateOperationInfo>> addAppMap = addOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+//        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName));
+//        String domainId = domainPo.getDomainId();
+//        for(String appName : addAppMap.keySet())
+//        {
+//            List<String> usedAlias = new ArrayList<>();
+//            String standAlias = this.setDefineMap.get(domainPo.getBizSetName()).getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity())).get(appName).getAlias();
+//            if(domainAppMap.containsKey(appName)
+//                    && domainAppMap.get(appName).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName)).containsKey(appName))
+//            {
+//                usedAlias = new ArrayList<>(domainAppMap.get(appName).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity())).keySet());
+//            }
+//            List<AppUpdateOperationInfo> needAliasList = new ArrayList<>();
+//            for(AppUpdateOperationInfo optInfo : addAppMap.get(appName))
+//            {
+//                if(isCreate && StringUtils.isNotBlank(optInfo.getAppAlias()))
+//                    usedAlias.add(optInfo.getAppAlias());
+//                else
+//                {
+//                    needAliasList.add(optInfo);
+//                    if(!isCreate && StringUtils.isBlank(optInfo.getOriginalAlias()))
+//                        optInfo.setOriginalAlias(optInfo.getAppAlias());
+//                }
+//
+//            }
+//            boolean onlyOne = false;
+//            if(usedAlias.size() == 0 && needAliasList.size() == 1)
+//                onlyOne = true;
+//            for(AppUpdateOperationInfo optInfo : needAliasList)
+//            {
+//                String alias = autoGenerateAlias(standAlias, usedAlias, onlyOne);
+//                optInfo.setAppAlias(alias);
+//                usedAlias.add(alias);
+//            }
+//        }
+//        for(AppUpdateOperationInfo optInfo : addOptList)
+//        {
+//            if(StringUtils.isBlank(optInfo.getOriginalAlias()))
+//                optInfo.setOriginalAlias(optInfo.getAppAlias());
+//        }
+//    }
 
     /**
      * 为域新加的应用自动生成应用别名
      * @param domainPo 添加应用的域
      * @param addOptList 该域所有被添加的应用
      * @param deployAppList 该域已经部署的应用列表
-     * @param isCreate 该域是否为新建域
+     * @param clone 该域是否是否是通过clone方式获得
      */
-    private void generateAlias4DomainApps(DomainPo domainPo, List<AppUpdateOperationInfo> addOptList, List<PlatformAppDeployDetailVo> deployAppList, boolean isCreate) throws ParamException
+    private void generateAlias4DomainApps(DomainPo domainPo, List<AppUpdateOperationInfo> addOptList, List<PlatformAppDeployDetailVo> deployAppList, boolean clone) throws ParamException
     {
         Map<String, List<AppUpdateOperationInfo>> addAppMap = addOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName));
-        String domainId = domainPo.getDomainId();
         for(String appName : addAppMap.keySet())
         {
             List<String> usedAlias = new ArrayList<>();
             String standAlias = this.setDefineMap.get(domainPo.getBizSetName()).getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity())).get(appName).getAlias();
-            if(domainAppMap.containsKey(appName)
-                    && domainAppMap.get(appName).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName)).containsKey(appName))
+            if(domainAppMap.containsKey(appName))
             {
                 usedAlias = new ArrayList<>(domainAppMap.get(appName).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity())).keySet());
             }
             List<AppUpdateOperationInfo> needAliasList = new ArrayList<>();
             for(AppUpdateOperationInfo optInfo : addAppMap.get(appName))
             {
-                if(isCreate && StringUtils.isNotBlank(optInfo.getAppAlias()))
-                    usedAlias.add(optInfo.getAppAlias());
-                else
-                {
+                if(StringUtils.isBlank(optInfo.getAppAlias()) || !clone)
                     needAliasList.add(optInfo);
-                    if(!isCreate && StringUtils.isBlank(optInfo.getOriginalAlias()))
-                        optInfo.setOriginalAlias(optInfo.getAppAlias());
-                }
-
+                else
+                    usedAlias.add(optInfo.getAppAlias());
             }
-            boolean onlyOne = false;
-            if(usedAlias.size() == 0 && needAliasList.size() == 1)
-                onlyOne = true;
+            boolean onlyOne = usedAlias.size() == 0 && needAliasList.size() == 1 ? true : false;
             for(AppUpdateOperationInfo optInfo : needAliasList)
             {
                 String alias = autoGenerateAlias(standAlias, usedAlias, onlyOne);
@@ -3624,12 +3485,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param domainOptList 对指定域的所有操作
      * @param domainAppList 指定域已经部署的所有应用
      * @param domainPo 指定的域信息
-     * @param isCreate 指定域是否是新建域
      * @param hostList 该域所属平台的服务器信息
      * @throws ParamException
      * @throws NotSupportAppException
      */
-    private void checkDomainApps(List<AppUpdateOperationInfo> domainOptList, List<PlatformAppDeployDetailVo> domainAppList, DomainPo domainPo, boolean isCreate, List<LJHostInfo> hostList) throws ParamException, NotSupportAppException
+    private void checkDomainApps(List<AppUpdateOperationInfo> domainOptList, List<PlatformAppDeployDetailVo> domainAppList, DomainPo domainPo, List<LJHostInfo> hostList) throws ParamException, NotSupportAppException
     {
         Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
         String domainId = domainPo.getDomainId();
@@ -3707,7 +3567,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         logger.error(String.format("%s FAIL : version %s not register", tag, version));
                         throw new ParamException(String.format("%s FAIL : version %s not register", tag, version));
                     }
-                    if(!isCreate && StringUtils.isBlank(alias))
+                    if(!AppUpdateOperation.ADD.equals(optInfo.getOperation()) && StringUtils.isBlank(alias))
                     {
                         logger.error(String.format("%s FAIL : appAlias is blank", tag));
                         throw new ParamException(String.format("%s FAIL : appAlias is blank", tag));
@@ -3772,6 +3632,28 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //                cfgs.add(cfgFilePo);
 //            }
 //            optInfo.setCfgs(cfgs);
+        }
+    }
+
+    private void makeupDomainIdAndAliasForSchema(PlatformUpdateSchemaInfo schemaInfo, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> deployAppList, boolean clone) throws ParamException
+    {
+        Map<DomainUpdateType, List<DomainUpdatePlanInfo>> planTypeMap = schemaInfo.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getUpdateType));
+        List<DomainUpdatePlanInfo> addDomainList = planTypeMap.containsKey(DomainUpdateType.ADD) ? planTypeMap.get(DomainUpdateType.ADD) : new ArrayList<>();
+        generateId4AddDomain(schemaInfo.getPlatformId(), addDomainList, existDomainList, clone);
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        Map<String, DomainPo> domainMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        for(DomainUpdatePlanInfo planInfo : schemaInfo.getDomainUpdatePlanList())
+        {
+            Map<AppUpdateOperation, List<AppUpdateOperationInfo>> optTypeMap = planInfo.getAppUpdateOperationList().stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getOperation));
+            List<AppUpdateOperationInfo> addOptList = optTypeMap.containsKey(AppUpdateOperation.ADD) ? optTypeMap.get(AppUpdateOperation.ADD) : new ArrayList<>();
+            if(addOptList.size() == 0)
+            {
+                logger.debug(String.format("%s has not new add module", planInfo.getDomainName()));
+                continue;
+            }
+            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(planInfo.getDomainId()) ? domainAppMap.get(planInfo.getDomainId()) : new ArrayList<>();
+            DomainPo domainPo = domainMap.containsKey(planInfo.getDomainId()) ? domainMap.get(planInfo.getDomainId()) : planInfo.getDomain(schemaInfo.getPlatformId());
+            generateAlias4DomainApps(domainPo, addOptList, deployAppList, clone);
         }
     }
 
@@ -3887,14 +3769,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @param domainOptList 指定域的应用的相关操作
      * @param deployAppList 指定域已经部署的所有应用
      * @param domainPo 指定域
-     * @param isCreate 该域是不是新建
+     * @param clone 是否通过clone方式获得
      * @return 添加/更新的应用的配置文件的nexus存放信息
      * @throws ParamException
      * @throws InterfaceCallException
      * @throws NexusException
      * @throws IOException
      */
-    private Map<String, List<NexusAssetInfo>> preprocessDomainApps(String platformId, List<AppUpdateOperationInfo> domainOptList, List<PlatformAppDeployDetailVo> deployAppList, DomainPo domainPo, boolean isCreate) throws ParamException, InterfaceCallException, NexusException, IOException
+    private Map<String, List<NexusAssetInfo>> preprocessDomainApps(String platformId, List<AppUpdateOperationInfo> domainOptList, List<PlatformAppDeployDetailVo> deployAppList, DomainPo domainPo, boolean clone) throws ParamException, InterfaceCallException, NexusException, IOException
     {
         String domainId = domainPo.getDomainId();
         Map<String, List<NexusAssetInfo>> assetMap = new HashMap<>();
@@ -3902,7 +3784,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         List<AppUpdateOperationInfo> updateList = optMap.containsKey(AppUpdateOperation.UPDATE) ? optMap.get(AppUpdateOperation.UPDATE) : new ArrayList<>();
         List<AppUpdateOperationInfo> addList = optMap.containsKey(AppUpdateOperation.ADD) ? optMap.get(AppUpdateOperation.ADD) : new ArrayList<>();
         if(addList.size() > 0)
-            generateAlias4DomainApps(domainPo, addList, deployAppList, isCreate);
+            generateAlias4DomainApps(domainPo, addList, deployAppList, clone);
         for(AppUpdateOperationInfo optInfo : addList)
         {
             if(StringUtils.isBlank(optInfo.getAssembleTag()))

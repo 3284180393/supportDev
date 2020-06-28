@@ -1,3 +1,16 @@
+重新整理了下k8s平台中的一些命名规则，核心是
+1、deployment.name=module.assembleTag
+2、deployment.labels
+a)添加标签type用来标识该deployment是用来运行ccod域模块、第三方应用（oracle,mysql,mongodb等）或是其它
+b)如果该deployment是用来运行ccod域模块则必须在标签中加入domain-id用来标识该deployment上运行的ccod模块归属哪个域
+c)对于deployment上运行每个ccod模块都必须加入appName=alias的标签，例如cmsserver=cms1
+3、deployment.container.name，如果container运行的镜像是ccod模块或是第三方应用则该container.name=appAlias
+4、任意deployment上运行的某类应用至多一个
+5、ccod应用私有配置的configMap名为alias-domainId,alias为ccod应用别名，domainId为该应用归属的域id
+6、域公共配置的configMap名为domainId
+7、平台公共配置的configMap名为platformId
+文档后面的实例是安装新规则对原有升级计划的改造
+
 配置文件:
 平台公共配置:
 name = platformId

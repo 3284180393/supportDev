@@ -1,0 +1,245 @@
+{
+    "schemaId":"12345666778991",
+    "domainUpdatePlanList":[
+        {
+            "domainName":"公共组件01",
+            "domainId":"public01",
+            "bkSetName":"公共组件",
+            "appUpdateOperationList":[
+                {
+                    "platformAppId":0,
+                    "operation":"ADD",
+                    "assembleTag":"glsserver-public01",
+                    "appName":"glsServer",
+                    "appAlias":"glsserver",
+                    "targetVersion":"7b699a4aece10ef28dce83ab36e4d79213ec4f69",
+                    "hostIp":"10.130.41.218",
+                    "basePath":"/home/ccodrunner/Platform",
+                    "appRunner":"glsserver",
+                    "cfgs":[
+                        {
+                            "fileName":"gls_logger.cfg",
+                            "ext":"cfg",
+                            "fileSize":0,
+                            "md5":"7b8e1879eab906cba05dabf3f6e0bc37",
+                            "deployPath":"./cfg/",
+                            "nexusRepository":"platform_app_cfg",
+                            "nexusPath":"pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_logger.cfg",
+                            "nexusAssetId":"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkOTU5MTg0MDdhYTgzNzY0NQ"
+                        },
+                        {
+                            "fileName":"gls_config.cfg",
+                            "ext":"cfg",
+                            "fileSize":0,
+                            "md5":"609e331e9d5052a61de5e6b5addd5ce3",
+                            "deployPath":"./cfg/",
+                            "nexusRepository":"platform_app_cfg",
+                            "nexusPath":"pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_config.cfg",
+                            "nexusAssetId":"cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2NTk3NmY5YWEyNDkzM2M5ZQ"
+                        }],
+                    "addDelay":30
+                }],
+            "updateType":"ADD",
+            "createTime":"May 26, 2020 12:28:39 PM",
+            "updateTime":"May 26, 2020 12:28:39 PM",
+            "executeTime":"May 26, 2020 12:28:39 PM",
+            "comment":"clone from 公共组件01 of pahj",
+            "occurs":600,
+            "maxOccurs":1000,
+            "tags":"入呼叫,外呼"
+        },
+        {
+            "domainName":"公共组件02",
+            "domainId":"public02",
+            "bkSetName":"公共组件",
+            "appUpdateOperationList":[
+                {
+                    "platformAppId":0,
+                    "operation":"ADD",
+                    "assembleTag":"glsserver-public02",
+                    "appName":"glsServer",
+                    "appAlias":"glsserver",
+                    "targetVersion":"7b699a4aece10ef28dce83ab36e4d79213ec4f69",
+                    "hostIp":"10.130.41.218",
+                    "basePath":"/home/ccodrunner/Platform",
+                    "appRunner":"glsserver",
+                    "cfgs":[
+                        {
+                            "fileName":"gls_logger.cfg",
+                            "ext":"cfg",
+                            "fileSize":0,
+                            "md5":"7b8e1879eab906cba05dabf3f6e0bc37",
+                            "deployPath":"./cfg/",
+                            "nexusRepository":"platform_app_cfg",
+                            "nexusPath":"pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_logger.cfg",
+                            "nexusAssetId":"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkOTU5MTg0MDdhYTgzNzY0NQ"
+                        },
+                        {
+                            "fileName":"gls_config.cfg",
+                            "ext":"cfg",
+                            "fileSize":0,
+                            "md5":"609e331e9d5052a61de5e6b5addd5ce3",
+                            "deployPath":"./cfg/",
+                            "nexusRepository":"platform_app_cfg",
+                            "nexusPath":"pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_config.cfg",
+                            "nexusAssetId":"cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2NTk3NmY5YWEyNDkzM2M5ZQ"
+                        }],
+                    "addDelay":30
+                }],
+            "updateType":"ADD",
+            "createTime":"May 26, 2020 12:28:39 PM",
+            "updateTime":"May 26, 2020 12:28:39 PM",
+            "executeTime":"May 26, 2020 12:28:39 PM",
+            "comment":"clone from 公共组件01 of pahj",
+            "occurs":600,
+            "maxOccurs":1000,
+            "tags":"入呼叫,外呼"
+        },
+        {
+            "domainName":"管理门户01",
+            "domainId":"manage01",
+            "bkSetName":"管理门户",
+            "appUpdateOperationList":[
+                {
+                    "platformAppId":0,
+                    "operation":"ADD",
+                    "assembleTag":"cas1-manage01",
+                    "appName":"cas",
+                    "appAlias":"cas1",
+                    "targetVersion":"10973",
+                    "hostIp":"10.130.41.218",
+                    "basePath":"/home/portal/tomcat/webapps/",
+                    "appRunner":"cas",
+                    "cfgs":[
+                        {
+                            "fileName":"web.xml",
+                            "ext":"xml",
+                            "fileSize":0,
+                            "md5":"8ba7dddf4b7be9132e56841a7206ef74",
+                            "deployPath":"./cas/WEB-INF/",
+                            "nexusRepository":"platform_app_cfg",
+                            "nexusPath":"pahj/manage01/10.130.29.111/cas/10973/cas/20200327152226/web.xml",
+                            "nexusAssetId":"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkM2YwNGQ5NDc5MTYwMzFkNg"
+                        },
+                        {
+                            "fileName":"cas.properties",
+                            "ext":"properties",
+                            "fileSize":0,
+                            "md5":"1fe26a2aa7df9ca4d1173ef8bfef2a5c",
+                            "deployPath":"./cas/WEB-INF/",
+                            "nexusRepository":"platform_app_cfg",
+                            "nexusPath":"pahj/manage01/10.130.29.111/cas/10973/cas/20200327152226/cas.properties",
+                            "nexusAssetId":"cGxhdGZvcm1fYXBwX2NmZzpkNDgxMTc1NDFkY2I4OWVjMzA5NDAyMWQxZDRjYTM1Yw"
+                        },
+                        {
+                            "platformAppId":0,
+                            "operation":"ADD",
+                            "assembleTag":"cas2-manage01",
+                            "appName":"cas",
+                            "appAlias":"cas2",
+                            "targetVersion":"10973",
+                            "hostIp":"10.130.41.218",
+                            "basePath":"/home/portal/tomcat/webapps/",
+                            "appRunner":"cas",
+                            "cfgs":[
+                                {
+                                    "fileName":"web.xml",
+                                    "ext":"xml",
+                                    "fileSize":0,
+                                    "md5":"8ba7dddf4b7be9132e56841a7206ef74",
+                                    "deployPath":"./cas/WEB-INF/",
+                                    "nexusRepository":"platform_app_cfg",
+                                    "nexusPath":"pahj/manage01/10.130.29.111/cas/10973/cas/20200327152226/web.xml",
+                                    "nexusAssetId":"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkM2YwNGQ5NDc5MTYwMzFkNg"
+                                },
+                                {
+                                    "fileName":"cas.properties",
+                                    "ext":"properties",
+                                    "fileSize":0,
+                                    "md5":"1fe26a2aa7df9ca4d1173ef8bfef2a5c",
+                                    "deployPath":"./cas/WEB-INF/",
+                                    "nexusRepository":"platform_app_cfg",
+                                    "nexusPath":"pahj/manage01/10.130.29.111/cas/10973/cas/20200327152226/cas.properties",
+                                    "nexusAssetId":"cGxhdGZvcm1fYXBwX2NmZzpkNDgxMTc1NDFkY2I4OWVjMzA5NDAyMWQxZDRjYTM1Yw"
+                                }],
+                            "addDelay":0
+                        }],
+                    "updateType":"ADD",
+                    "createTime":"May 26, 2020 12:28:39 PM",
+                    "updateTime":"May 26, 2020 12:28:39 PM",
+                    "executeTime":"May 26, 2020 12:28:39 PM",
+                    "comment":"clone from 管理门户01 of pahj",
+                    "occurs":600,
+                    "maxOccurs":1000,
+                    "tags":"入呼叫,外呼"
+                }
+                "updateType":"ADD",
+                "createTime":"May 26, 2020 12:28:39 PM",
+                "updateTime":"May 26, 2020 12:28:39 PM",
+                "executeTime":"May 26, 2020 12:28:39 PM",
+                "comment":"clone from 运营门户01 of pahj",
+                "occurs":600,
+                "maxOccurs":1000,
+                "tags":"入呼叫,外呼"
+                }],
+    "platformId":"k8s-api-test",
+    "platformName":"工具组平台",
+    "bkBizId":34,
+    "bkCloudId":10,
+    "ccodVersion":"CCOD4.1",
+    "taskType":"CREATE",
+    "createTime":"May 26, 2020 12:28:39 PM",
+    "updateTime":"May 26, 2020 12:28:39 PM",
+    "title":"新建工具组平台(proto-platform)计划",
+    "comment":"create 工具组平台(proto-platform) by clone pahj(平安环境公司容器化测试)",
+    "deployScriptRepository":"some_test",
+    "deployScriptPath":"proto-platform/20200526123032/platform_deploy.py",
+    "deployScriptMd5":"5843a22c7476403f234069af0af16e57",
+    "k8sHostIp":"10.130.41.218",
+    "glsDBType":"ORACLE",
+    "glsDBUser":"ccod",
+    "glsDBPwd":"ccod",
+    "baseDataNexusRepository":"platform_base_data",
+    "baseDataNexusPath":"ccod/4.1/baseVolume.zip",
+    "publicConfig":[
+        {
+            "fileName":"local_datasource.xml",
+            "fileSize":0,
+            "md5":"e9c26f00f17a7660bfa3f785c4fe34be",
+            "deployPath":"/root/resin-4.0.13/conf",
+            "nexusRepository":"tmp",
+            "nexusPath":"/configText/123456-wuph/publicConfig/local_datasource.xml",
+            "nexusAssetId":"dG1wOjg1MTM1NjUyYTk3OGJlOWFhN2U5NGFhNDVlZTIxN2Nm"
+        },
+        {
+            "fileName":"local_jvm.xml",
+            "fileSize":0,
+            "md5":"d41d8cd98f00b204e9800998ecf8427e",
+            "deployPath":"/root/resin-4.0.13/conf",
+            "nexusRepository":"tmp",
+            "nexusPath":"/configText/123456-wuph/publicConfig/local_jvm.xml",
+            "nexusAssetId":"dG1wOmQ0ODExNzU0MWRjYjg5ZWNkODFhZTYxM2NmNDM3NmQ3"
+        },
+        {
+            "fileName":"tnsnames.ora",
+            "fileSize":0,
+            "md5":"d41d8cd98f00b204e9800998ecf8427e",
+            "deployPath":"/usr/local/lib",
+            "nexusRepository":"tmp",
+            "nexusPath":"/configText/123456-wuph/publicConfig/tnsnames.ora",
+            "nexusAssetId":"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQzMDcyY2Q2ZTEyNzg2NTQ3"
+        }],
+    "k8sApiUrl":"https://10.130.41.218:6443",
+    "k8sAuthToken":"eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA",
+}
+
+搭建目标
+platformName=工具组平台
+platformId=工具组平台
+新建平台共三个域
+公共组件01（public01）,上面部署一个glsServer，对应一个deployment(name=glsserver-public01,label={domain-id=public01,type=CCODDomainModule,glsServer=glsserver})
+公共组件02（public02）,上面部署一个glsServer，对应一个deployment(name=glsserver-public02,label={domain-id=public02,type=CCODDomainModule,glsServer=glsserver})
+管理门户01(manage01),上面部署两个cas1和cas2，由
+deployment(name=cas1-manage01,label={domain-id=manage01,type=CCODDomainModule,cas=cas1})
+deployment（name=cas2-manage01,label={domain-id=manage01,type=CCODDomainModule,cas=cas2})
+分别定义

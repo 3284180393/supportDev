@@ -184,7 +184,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            getPlatformTopologyFromK8s("工具组平台", "202005-test", 34, 0, "CCOD4.1", k8sApiUrl, authToken);
 //            someTest();
 //            configMapTest();
-            generateDemoCreateSchema();
+//            generateDemoCreateSchema();
+            String platformName = "ccod开发测试平台";
+            String platformId = "123456-wuph";
+            int bkBizId = 25;
+            int bkCloudId = 0;
+            String ccodVersion = "4.1";
+            getPlatformTopologyFromK8s(platformName, platformId, bkBizId, bkCloudId, ccodVersion, k8sApiUrl, authToken, PlatformFunction.TEST);
         }
         catch (Exception ex)
         {
@@ -1711,6 +1717,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return true;
     }
 
+    /**
+     * 从k8s服务中获取第三方服务信息
+     * @param service k8s服务
+     * @return 第三方服务信息
+     */
     private PlatformThreePartServicePo getK8sPlatformThreePartService(V1Service service)
     {
         PlatformThreePartServicePo po = new PlatformThreePartServicePo();
@@ -1721,6 +1732,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return po;
     }
 
+    /**
+     * 获取第三方应用相关信息
+     * @param deployment 定义第三方应用的deployment
+     * @param container 用来运行第三方应用的container
+     * @param services 第三方应用关联的服务信息
+     * @return 第三方应用相关信息
+     */
     private PlatformThreePartAppPo getK8sPlatformThreePartApp(V1Deployment deployment, V1Container container, List<V1Service> services)
     {
         PlatformThreePartAppPo po = new PlatformThreePartAppPo();
@@ -1742,6 +1760,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return po;
     }
 
+    /**
+     * 获取k8s平台上部署的ccod域模块明细
+     * @param platformName 平台名
+     * @param ccodVersion 平台的ccod大版本
+     * @param deployment 定义ccod域模块的deployment
+     * @param container 加载ccod域模块的镜像容器
+     * @param services 关联模块的服务
+     * @param appModuleVo ccod域模块定义
+     * @param configMap 该域模块对应的configMap
+     * @return ccod域模块明细
+     * @throws ParamException
+     */
     private PlatformAppDeployDetailVo getK8sPlatformAppDeployDetail(String platformName, String ccodVersion, V1Deployment deployment, V1Container container, List<V1Service> services, AppModuleVo appModuleVo, Map<String, String> configMap) throws ParamException
     {
         String platformId = deployment.getMetadata().getNamespace();
@@ -1788,6 +1818,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return vo;
     }
 
+    /**
+     * 将configMap中的配置文件信息上传到指定的nexus路径下
+     * @param configMap 需要上传配置文件的configMap信息
+     * @param directory 保存配置文件的路径
+     * @return 上传结果
+     * @throws IOException
+     * @throws InterfaceCallException
+     * @throws NexusException
+     */
     private List<NexusAssetInfo> uploadK8sConfigMapToNexus(V1ConfigMap configMap, String directory) throws IOException, InterfaceCallException, NexusException
     {
         List<DeployFileInfo> fileList = new ArrayList<>();
@@ -1812,48 +1851,23 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return assets;
     }
 
+    /**
+     * 获取临时存放路径
+     * @param directory
+     * @return 临时存放路径
+     */
     private String getTempSaveDir(String directory) {
         String saveDir = String.format("%s/downloads/%s", System.getProperty("user.dir"), directory);
         return saveDir;
     }
 
-    private void generateConfigForDeployment(V1Deployment deployment, List<V1ConfigMap> configMaps, List<AppUpdateOperationInfo> optList, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
-    {
-        Map<String, V1ConfigMap> configMapMap = new HashMap<>();
-        for(V1ConfigMap configMap : configMaps)
-            configMapMap.put(configMap.getMetadata().getName(), configMap);
-        List<V1Container> containers = new ArrayList<>();
-        if(deployment.getSpec().getTemplate().getSpec().getInitContainers() != null)
-            containers.addAll(deployment.getSpec().getTemplate().getSpec().getInitContainers());
-        if(deployment.getSpec().getTemplate().getSpec().getContainers() != null)
-            containers.addAll(deployment.getSpec().getTemplate().getSpec().getContainers());
-        String platformId = deployment.getMetadata().getNamespace();
-        for(V1Container container : containers)
-        {
-            AppType appType = getAppTypeFromImageUrl(container.getImage());
-            switch (appType)
-            {
-                case CCOD_WEBAPPS_MODULE:
-                case CCOD_KERNEL_MODULE:
-                {
-                    AppModuleVo moduleVo = getAppModuleFromImageTag(container.getImage(), registerApps);
-                    String alias = container.getImage().split("\\-")[0];
-                    String basePath = optList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(alias).getBasePath();
-                    String cfgMountPath = optList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(alias).getCfgs().get(0).getDeployPath();
-                    cfgMountPath = getAbsolutePath(basePath, cfgMountPath);
-                    addConfigToContainer(container, deployment, configMapMap.get(deployment.getMetadata().getName()), moduleVo, cfgMountPath);
-//                    String domainId = container.getName().split("\\-")[1];
-                    String pubCfgMountPath = appType.equals(AppType.CCOD_WEBAPPS_MODULE) ? "/opt/WEB-INF" : "/root/Platform/bin";
-                    String domainId = deployment.getMetadata().getName().split("\\-")[1];
-                    if(configMapMap.containsKey(domainId))
-                        addConfigToContainer(container, deployment, configMapMap.get(domainId), moduleVo, pubCfgMountPath);
-                    if(configMapMap.containsKey(platformId))
-                        addConfigToContainer(container, deployment, configMapMap.get(platformId), moduleVo, pubCfgMountPath);
-                }
-            }
-        }
-    }
-
+    /**
+     * 根据basePath获得相对路径代表的绝对路径
+     * @param basePath basePath
+     * @param relativePath 需要被转换成绝对路径的相对路径
+     * @return 相对路径对应的绝对路径
+     * @throws ParamException
+     */
     private String getAbsolutePath(String basePath, String relativePath) throws ParamException
     {
         if(relativePath.matches("^/.*"))
@@ -1879,6 +1893,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             return String.format("%s/%s", basePath, relativePath).replaceAll("//", "/");
     }
 
+    /**
+     * 将为容器挂载指定的配置文件信息
+     * @param configMap 需要被挂载的配置文件
+     * @param moduleVo 被挂载配置文件的ccod域模块定义
+     * @param mountPath 挂载路径
+     * @param isPublic 被挂载的配置文件是否是公共配置
+     * @param container 需要挂载configMap的容器
+     * @param deployment 容器所属的deployment
+     */
     public void addModuleCfgToContainer(V1ConfigMap configMap, AppModuleVo moduleVo, String mountPath, boolean isPublic, V1Container container, V1Deployment deployment)
     {
         String configName = configMap.getMetadata().getName();
@@ -1924,81 +1947,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
     }
 
-    private void addConfigToContainer(V1Container container, V1Deployment deployment, V1ConfigMap configMap, AppModuleVo moduleVo, String mountPath)
-    {
-        String configName = configMap.getMetadata().getName();
-        String volumeName = String.format("%s-volume", configName);
-        if(!deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).containsKey(volumeName))
-        {
-            V1ConfigMapVolumeSource source = new V1ConfigMapVolumeSource();
-            source.setItems(new ArrayList<>());
-            source.setName(configName);
-            for(String fileName : configMap.getData().keySet())
-            {
-                V1KeyToPath item = new V1KeyToPath();
-                item.setKey(fileName);
-                item.setPath(fileName);
-                source.getItems().add(item);
-            }
-            V1Volume volume = new V1Volume();
-            volume.setName(volumeName);
-            volume.setConfigMap(source);
-            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
-        }
-        V1VolumeMount mount = new V1VolumeMount();
-        mount.setName(volumeName);
-        AppType appType = moduleVo.getAppType();
-        mount.setMountPath(mountPath);
-        container.getVolumeMounts().add(mount);
-        if(appType.equals(AppType.CCOD_WEBAPPS_MODULE))
-        {
-            if(container.getCommand() == null)
-            {
-                container.setCommand(new ArrayList<>());
-                container.getCommand().add("/bin/sh");
-                container.getCommand().add("-c");
-                container.getCommand().add("");
-            }
-            List<String> command = container.getCommand();
-            String execParam = command.get(command.size() - 1);
-            execParam = StringUtils.isBlank(execParam) ? "cd /opt" : String.format("%s;cd /opt", execParam);
-            String cfgRelativePath = mountPath.replaceAll("^/opt", "");
-            for(String fileName : configMap.getData().keySet())
-                execParam = String.format("%s;jar uf %s %s/%s", execParam, moduleVo.getInstallPackage().getFileName(), cfgRelativePath, fileName);
-            command.set(command.size() - 1, execParam);
-        }
-    }
-
-
-    private void configMapTest() throws Exception
-    {
-        Gson gson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
-            @Override
-            public boolean shouldSkipField(FieldAttributes f) {
-                //过滤掉字段名包含"age"
-                return f.getName().contains("creationTimestamp") || f.getName().contains("status") || f.getName().contains("resourceVersion") || f.getName().contains("selfLink") || f.getName().contains("uid")
-                        || f.getName().contains("generation") || f.getName().contains("annotations") || f.getName().contains("strategy")
-                        || f.getName().contains("terminationMessagePath") ||f.getName().contains("terminationMessagePolicy")
-                        || f.getName().contains("dnsPolicy") || f.getName().contains("securityContext") || f.getName().contains("schedulerName")
-                        || f.getName().contains("restartPolicy");
-            }
-
-            @Override
-            public boolean shouldSkipClass(Class<?> clazz) {
-                //过滤掉 类名包含 Bean的类
-                return clazz.getName().contains("Bean");
-            }
-        }).create();
-        PlatformPo platformPo = getK8sPlatform("202005-test");
-        List<V1Deployment> deployments = this.k8sApiService.listNamespacedDeployment(platformPo.getPlatformId(), platformPo.getApiUrl(), platformPo.getAuthToken());
-        List<V1ConfigMap> configMaps = this.k8sApiService.listNamespacedConfigMap(platformPo.getPlatformId(), platformPo.getApiUrl(), platformPo.getAuthToken());
-        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(true);
-        for(V1Deployment deployment : deployments)
-        {
-//            generateConfigForDeployment(deployment, configMaps, registerApps);
-            logger.info(String.format("DeploymentWithCfg=%s", gson.toJson(deployment)));
-        }
-    }
 
     private PlatformUpdateSchemaInfo generateDemoCreateSchema() throws Exception
     {
@@ -2088,7 +2036,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return schemaInfo;
     }
 
-
+    /**
+     * 为定义ccod域模块的deployment挂载所有配置文件
+     * @param deployment 用来定义ccod域模块的deployment
+     * @param configMapMap 以键值对保存的所有configMap信息
+     * @param optList deployment对应的域模块的具体操作配置(例如需要将配置文件挂载到哪个绝对路径)
+     * @param registerApps 已经向cmdb注册过的所有ccod模块信息
+     * @throws ParamException
+     * @throws NotSupportAppException
+     */
     private void generateConfigForCCODDomainModuleDeployment(V1Deployment deployment, Map<String, V1ConfigMap> configMapMap, List<AppUpdateOperationInfo> optList, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
     {
         String platformId = deployment.getMetadata().getNamespace();
@@ -2114,15 +2070,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 addModuleCfgToContainer(configMapMap.get(domainId), moduleVo, mountPath, true, container, deployment);
             if(configMapMap.containsKey(platformId))
                 addModuleCfgToContainer(configMapMap.get(platformId), moduleVo, mountPath, true, container, deployment);
-        }
-    }
-
-
-    private void generateConfigForCCODDomainModuleDeployment(List<V1Deployment> deployments, Map<String, V1ConfigMap> configMapMap, List<AppUpdateOperationInfo> optList, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
-    {
-        for(V1Deployment deployment : deployments)
-        {
-
         }
     }
 
