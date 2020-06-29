@@ -479,6 +479,16 @@ public interface IK8sApiService {
     V1Status deleteNamespace(String name, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 创建一个缺省的命名空间
+     * @param name 新建命名空间的名字
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 创建后的namespace
+     * @throws ApiException
+     */
+    V1Namespace createDefaultNamespace(String name, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
      * 查询指定命名空间下的所有Ingress
      * @param namespace 指定命名空间
      * @param k8sApiUrl k8s的api的url

@@ -163,7 +163,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         AppsV1Api appsV1Api = new AppsV1Api();
         V1Deployment deployment = appsV1Api.readNamespacedDeployment(name, namespace, null, null, null);
-        logger.debug(String.format("find deployment %s from %s", name, k8sApiUrl));
+        logger.debug(String.format("find deployment %s from %s", gson.toJson(deployment), k8sApiUrl));
         return deployment;
     }
 
@@ -533,6 +533,20 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public V1Namespace createDefaultNamespace(String name, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create default namespace %s at %s", name, k8sApiUrl));
+        V1Namespace ns = new V1Namespace();
+        V1ObjectMeta meta = new V1ObjectMeta();
+        meta.setName(name);
+        ns.setMetadata(meta);
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        ns = apiInstance.createNamespace(ns, null, null, null);
+        logger.debug(String.format("namespace %s created at %s", gson.toJson(ns), k8sApiUrl));
+        return ns;
+    }
+
+    @Override
     public V1Status deleteNamespace(String name, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("delete namespace %s from %s", name, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
@@ -597,7 +611,9 @@ public class K8sApiServiceImpl implements IK8sApiService {
     {
         try
         {
-            deployReplaceTest();
+//            deployReplaceTest();
+//            namespaceCreateTest();
+            createDeploymentTest();
         }
         catch (Exception ex)
         {
@@ -613,4 +629,22 @@ public class K8sApiServiceImpl implements IK8sApiService {
         V1Deployment replace = apiInstance.replaceNamespacedDeployment(deployment.getMetadata().getName(), deployment.getMetadata().getNamespace(), deployment, null, null, null);
         System.out.println(gson.toJson(replace));
     }
+
+    private void namespaceCreateTest() throws Exception
+    {
+        String jsonStr = "{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"name\":\"k8s-platform-test\"},\"spec\":{\"finalizers\":[\"kubernetes\"]}}";
+        V1Namespace ns = gson.fromJson(jsonStr, V1Namespace.class);
+        ns = this.createNamespace(ns, this.testK8sApiUrl, this.testAuthToken);
+        System.out.println(gson.toJson(ns));
+    }
+
+    private void createDeploymentTest() throws Exception
+    {
+        String jsonStr = "{\"metadata\":{\"name\":\"cas-manage01\",\"namespace\":\"k8s-platform-test\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"cas-manage01\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"cas-manage01\"}},\"spec\":{\"containers\":[{\"command\":[\"/bin/sh\",\"-c\",\"keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/lib/security/cacerts;/usr/local/tomcat/bin/startup.sh; tail -F /usr/local/tomcat/logs/catalina.out\"],\"image\":\"nexus.io:5000/ccod-base/tomcat6-jre7:1\",\"imagePullPolicy\":\"IfNotPresent\",\"livenessProbe\":{\"failureThreshold\":3,\"httpGet\":{\"path\":\"/cas\",\"port\":8080,\"scheme\":\"HTTP\"},\"initialDelaySeconds\":30,\"periodSeconds\":30,\"successThreshold\":1,\"timeoutSeconds\":1},\"name\":\"cas-manage01\",\"ports\":[{\"containerPort\":8080,\"protocol\":\"TCP\"}],\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1500Mi\"},\"requests\":{\"cpu\":\"500m\",\"memory\":\"1000Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/ssl\",\"name\":\"ssl\"},{\"mountPath\":\"/usr/local/tomcat/webapps\",\"name\":\"war\"},{\"mountPath\":\"/usr/local/tomcat/logs\",\"name\":\"ccod-runtime\"}]}],\"hostAliases\":[{\"hostnames\":[\"202005-test.ccod.com\"],\"ip\":\"10.130.41.218\"}],\"initContainers\":[{\"command\":[\"/bin/sh\",\"-c\",\"cd /opt;wget http://10.130.41.218:8081/repository/tmp/configText/202005-test/manage01_cas/cas.properties;mkdir -p WEB-INF;mv cas.properties WEB-INF/;jar uf cas.war WEB-INF/cas.properties;wget http://10.130.41.218:8081/repository/tmp/configText/202005-test/manage01_cas/web.xml;mkdir -p WEB-INF;mv web.xml WEB-INF/;jar uf cas.war WEB-INF/web.xml;mv /opt/cas.war /war;cd /opt;jar uf cas.war /home/portal/tomcat/webapps/cas/WEB-INF//cas.properties;jar uf cas.war /home/portal/tomcat/webapps/cas/WEB-INF//web.xml\"],\"image\":\"nexus.io:5000/ccod/cas:10973\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"cas\",\"resources\":{},\"volumeMounts\":[{\"mountPath\":\"/war\",\"name\":\"war\"},{\"mountPath\":\"/home/portal/tomcat/webapps/cas/WEB-INF/\",\"name\":\"cas-manage01-volume\"},{\"mountPath\":\"/opt/WEB-INF\",\"name\":\"202005-test-volume\"}]}],\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"emptyDir\":{},\"name\":\"war\"},{\"name\":\"ssl\",\"secret\":{\"defaultMode\":420,\"secretName\":\"ssl\"}},{\"hostPath\":{\"path\":\"/var/ccod-runtime/202005-test/cas-manage01/cas-manage01/\",\"type\":\"\"},\"name\":\"ccod-runtime\"},{\"configMap\":{\"items\":[{\"key\":\"cas.properties\",\"path\":\"cas.properties\"},{\"key\":\"web.xml\",\"path\":\"web.xml\"}],\"name\":\"cas-manage01\"},\"name\":\"cas-manage01-volume\"},{\"configMap\":{\"items\":[{\"key\":\"local_datasource.xml\",\"path\":\"local_datasource.xml\"},{\"key\":\"local_jvm.xml\",\"path\":\"local_jvm.xml\"},{\"key\":\"tnsnames.ora\",\"path\":\"tnsnames.ora\"}],\"name\":\"202005-test\"},\"name\":\"202005-test-volume\"}]}}}}";
+        V1Deployment deployment = gson.fromJson(jsonStr, V1Deployment.class);
+        String platformId = "k8s-platform-test";
+        deployment = this.createNamespacedDeployment(platformId, deployment, this.testK8sApiUrl, this.testAuthToken);
+        System.out.println(gson.toJson(deployment));
+    }
+
 }

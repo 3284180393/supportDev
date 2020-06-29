@@ -2,7 +2,10 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
+import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
 import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1Endpoints;
+import io.kubernetes.client.openapi.models.V1Service;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -75,6 +78,12 @@ public class PlatformUpdateSchemaInfo {
 
     private List<V1Deployment> k8sDeploymentList; //需要执行的deployment
 
+    private List<V1Service> k8sServiceList; //需要执行的service列表
+
+    private List<V1Endpoints> k8sEndpointsList; //需要执行的endpoints 列表
+
+    private List<ExtensionsV1beta1Ingress> k8sIngressList; //需要执行的ingress列表
+
     public PlatformUpdateSchemaInfo()
     {
 
@@ -101,6 +110,9 @@ public class PlatformUpdateSchemaInfo {
         this.platformFunc = platformFunc;
         this.createMethod = createMethod;
         this.k8sDeploymentList = new ArrayList<>();
+        this.k8sServiceList = new ArrayList<>();
+        this.k8sIngressList = new ArrayList<>();
+        this.k8sEndpointsList = new ArrayList<>();
     }
 
     public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
@@ -333,5 +345,29 @@ public class PlatformUpdateSchemaInfo {
 
     public void setK8sDeploymentList(List<V1Deployment> k8sDeploymentList) {
         this.k8sDeploymentList = k8sDeploymentList;
+    }
+
+    public List<V1Service> getK8sServiceList() {
+        return k8sServiceList;
+    }
+
+    public void setK8sServiceList(List<V1Service> k8sServiceList) {
+        this.k8sServiceList = k8sServiceList;
+    }
+
+    public List<V1Endpoints> getK8sEndpointsList() {
+        return k8sEndpointsList;
+    }
+
+    public void setK8sEndpointsList(List<V1Endpoints> k8sEndpointsList) {
+        this.k8sEndpointsList = k8sEndpointsList;
+    }
+
+    public List<ExtensionsV1beta1Ingress> getK8sIngressList() {
+        return k8sIngressList;
+    }
+
+    public void setK8sIngressList(List<ExtensionsV1beta1Ingress> k8sIngressList) {
+        this.k8sIngressList = k8sIngressList;
     }
 }

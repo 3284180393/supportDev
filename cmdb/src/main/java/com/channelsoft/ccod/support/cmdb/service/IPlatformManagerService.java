@@ -421,5 +421,16 @@ public interface IPlatformManagerService {
      */
     List<V1ConfigMap> createConfigMapForNewPlatform(PlatformUpdateSchemaInfo createSchema) throws InterfaceCallException, IOException, ApiException;
 
+    /**
+     * 根据schema创建新的k8s平台
+     * @param createSchema 用来创建k8s平台的schema
+     * @return 创建后的平台拓扑
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws NexusException
+     * @throws IOException
+     */
+    PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException;
+
 //    List<PlatformAppDeployDetailVo> updatePlatformAppTopologyFromK8s(String platformId) throws ApiException;
 }
