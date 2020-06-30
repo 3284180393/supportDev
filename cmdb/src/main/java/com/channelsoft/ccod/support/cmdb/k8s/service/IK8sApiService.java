@@ -542,4 +542,14 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     ExtensionsV1beta1Ingress replaceNamespacedIngress(String name, String namespace, ExtensionsV1beta1Ingress ingress, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 为指定的namespace创建ssl证书
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 创建的命名空间
+     * @throws ApiException
+     */
+    V1Secret createNamespacedSSLCert(String namespace, String k8sApiUrl, String authToken) throws ApiException;
 }

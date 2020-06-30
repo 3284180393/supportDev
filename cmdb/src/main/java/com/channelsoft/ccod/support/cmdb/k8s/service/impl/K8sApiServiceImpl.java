@@ -606,6 +606,21 @@ public class K8sApiServiceImpl implements IK8sApiService {
         return replace;
     }
 
+    @Override
+    public V1Secret createNamespacedSSLCert(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create ssl cert for %s at %s", namespace, k8sApiUrl));
+        V1Secret srcSecret = readNamespacedSecret("ssl", "kube-system", k8sApiUrl, authToken);
+        srcSecret.getMetadata().setAnnotations(null);
+        srcSecret.getMetadata().setCreationTimestamp(null);
+        srcSecret.getMetadata().setNamespace(namespace);
+        srcSecret.getMetadata().setSelfLink(null);
+        srcSecret.getMetadata().setUid(null);
+        srcSecret.getMetadata().setResourceVersion(null);
+        V1Secret sslCert = createNamespacedSecret(namespace, srcSecret, k8sApiUrl, authToken);
+        logger.info(String.format("ssl cert %s created for %s at %s", gson.toJson(srcSecret), namespace, k8sApiUrl));
+        return sslCert;
+    }
+
     @Test
     public void k8sTest()
     {
@@ -614,6 +629,9 @@ public class K8sApiServiceImpl implements IK8sApiService {
 //            deployReplaceTest();
 //            namespaceCreateTest();
             createDeploymentTest();
+//            createPVTest();
+//            createPVCTest();
+//            createSvcTest();
         }
         catch (Exception ex)
         {
@@ -640,11 +658,36 @@ public class K8sApiServiceImpl implements IK8sApiService {
 
     private void createDeploymentTest() throws Exception
     {
-        String jsonStr = "{\"metadata\":{\"name\":\"cas-manage01\",\"namespace\":\"k8s-platform-test\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"cas-manage01\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"cas-manage01\"}},\"spec\":{\"containers\":[{\"command\":[\"/bin/sh\",\"-c\",\"keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/lib/security/cacerts;/usr/local/tomcat/bin/startup.sh; tail -F /usr/local/tomcat/logs/catalina.out\"],\"image\":\"nexus.io:5000/ccod-base/tomcat6-jre7:1\",\"imagePullPolicy\":\"IfNotPresent\",\"livenessProbe\":{\"failureThreshold\":3,\"httpGet\":{\"path\":\"/cas\",\"port\":8080,\"scheme\":\"HTTP\"},\"initialDelaySeconds\":30,\"periodSeconds\":30,\"successThreshold\":1,\"timeoutSeconds\":1},\"name\":\"cas-manage01\",\"ports\":[{\"containerPort\":8080,\"protocol\":\"TCP\"}],\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1500Mi\"},\"requests\":{\"cpu\":\"500m\",\"memory\":\"1000Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/ssl\",\"name\":\"ssl\"},{\"mountPath\":\"/usr/local/tomcat/webapps\",\"name\":\"war\"},{\"mountPath\":\"/usr/local/tomcat/logs\",\"name\":\"ccod-runtime\"}]}],\"hostAliases\":[{\"hostnames\":[\"202005-test.ccod.com\"],\"ip\":\"10.130.41.218\"}],\"initContainers\":[{\"command\":[\"/bin/sh\",\"-c\",\"cd /opt;wget http://10.130.41.218:8081/repository/tmp/configText/202005-test/manage01_cas/cas.properties;mkdir -p WEB-INF;mv cas.properties WEB-INF/;jar uf cas.war WEB-INF/cas.properties;wget http://10.130.41.218:8081/repository/tmp/configText/202005-test/manage01_cas/web.xml;mkdir -p WEB-INF;mv web.xml WEB-INF/;jar uf cas.war WEB-INF/web.xml;mv /opt/cas.war /war;cd /opt;jar uf cas.war /home/portal/tomcat/webapps/cas/WEB-INF//cas.properties;jar uf cas.war /home/portal/tomcat/webapps/cas/WEB-INF//web.xml\"],\"image\":\"nexus.io:5000/ccod/cas:10973\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"cas\",\"resources\":{},\"volumeMounts\":[{\"mountPath\":\"/war\",\"name\":\"war\"},{\"mountPath\":\"/home/portal/tomcat/webapps/cas/WEB-INF/\",\"name\":\"cas-manage01-volume\"},{\"mountPath\":\"/opt/WEB-INF\",\"name\":\"202005-test-volume\"}]}],\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"emptyDir\":{},\"name\":\"war\"},{\"name\":\"ssl\",\"secret\":{\"defaultMode\":420,\"secretName\":\"ssl\"}},{\"hostPath\":{\"path\":\"/var/ccod-runtime/202005-test/cas-manage01/cas-manage01/\",\"type\":\"\"},\"name\":\"ccod-runtime\"},{\"configMap\":{\"items\":[{\"key\":\"cas.properties\",\"path\":\"cas.properties\"},{\"key\":\"web.xml\",\"path\":\"web.xml\"}],\"name\":\"cas-manage01\"},\"name\":\"cas-manage01-volume\"},{\"configMap\":{\"items\":[{\"key\":\"local_datasource.xml\",\"path\":\"local_datasource.xml\"},{\"key\":\"local_jvm.xml\",\"path\":\"local_jvm.xml\"},{\"key\":\"tnsnames.ora\",\"path\":\"tnsnames.ora\"}],\"name\":\"202005-test\"},\"name\":\"202005-test-volume\"}]}}}}";
+        String jsonStr = "{\"kind\":\"Deployment\",\"spec\":{\"selector\":{\"matchLabels\":{\"glsServer\":\"glsserver2\",\"domain-id\":\"public02\",\"name\":\"glsserver2-public02\"}},\"replicas\":1,\"template\":{\"spec\":{\"terminationGracePeriodSeconds\":600,\"initContainers\":[{\"name\":\"glsserver2\",\"image\":\"nexus.io:5000/ccod/glsserver:7b699a4aece10ef28dce83ab36e4d79213ec4f69\",\"args\":[\"cp /opt/Glsserver /binary-file/;\"],\"volumeMounts\":[{\"mountPath\":\"/binary-file\",\"name\":\"binary-file\"}],\"command\":[\"/bin/sh\",\"-c\"],\"imagePullPolicy\":\"IfNotPresent\",\"resources\":{\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"},\"limits\":{\"cpu\":\"500m\",\"memory\":\"500Mi\"}}}],\"containers\":[{\"livenessProbe\":{\"tcpSocket\":{\"port\":\"17020\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"3\",\"periodSeconds\":\"30\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"name\":\"running\",\"image\":\"nexus.io:5000/ccod-base/centos-backend:0.4\",\"args\":[\"mkdir -p /root/Platform/bin;cd /root/Platform; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/public01_glsserver/gls_config.cfg -P ./cfg -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/public01_glsserver/gls_logger.cfg -P ./cfg -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/publicConfig/tnsnames.ora -P /usr/local/lib -N; cd /root/Platform/bin/;/root/Platform/bin/Glsserver;\"],\"volumeMounts\":[{\"mountPath\":\"/root/Platform/bin\",\"name\":\"binary-file\"},{\"mountPath\":\"/root/Platform/log\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"command\":[\"/bin/sh\",\"-c\"],\"env\":[{\"name\":\"LD_LIBRARY_PATH\",\"value\":\"/usr/local/lib/:/usr/lib/\"}],\"imagePullPolicy\":\"IfNotPresent\",\"readinessProbe\":{\"tcpSocket\":{\"port\":\"17020\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"60\",\"periodSeconds\":\"10\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"ports\":[{\"protocol\":\"TCP\",\"containerPort\":\"17020\"}],\"resources\":{\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"},\"limits\":{\"cpu\":\"500m\",\"memory\":\"500Mi\"}}}],\"volumes\":[{\"emptyDir\":{},\"name\":\"binary-file\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test29/public02/glsserver2\"},\"name\":\"ccod-runtime\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/core\"},\"name\":\"core\"}]},\"metadata\":{\"labels\":{\"glsServer\":\"glsserver2\",\"domain-id\":\"public02\",\"name\":\"glsserver2-public02\"}}},\"strategy\":{\"type\":\"Recreate\"}},\"apiVersion\":\"apps/v1\",\"metadata\":{\"labels\":{\"glsServer\":\"glsserver2\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"public02\",\"type\":\"CCODDomainModule\",\"name\":\"glsserver2-public02\"},\"namespace\":\"test29\",\"name\":\"glsserver2-public02\"}}";
         V1Deployment deployment = gson.fromJson(jsonStr, V1Deployment.class);
-        String platformId = "k8s-platform-test";
+        String platformId = "test29";
         deployment = this.createNamespacedDeployment(platformId, deployment, this.testK8sApiUrl, this.testAuthToken);
         System.out.println(gson.toJson(deployment));
+    }
+
+    private void createPVTest() throws Exception
+    {
+        String jsonStr = "{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolume\",\"metadata\":{\"name\":\"base-volume-k8s-test\"},\"spec\":{\"accessModes\":[\"ReadWriteMany\"],\"capacity\":{\"storage\":\"1Gi\"},\"claimRef\":{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",\"name\":\"base-volume-k8s-test\",\"namespace\":\"k8s-test\"},\"nfs\":{\"path\":\"/home/kubernetes/volume/k8s-test/baseVolume\",\"server\":\"10.130.41.218\"},\"persistentVolumeReclaimPolicy\":\"Retain\",\"storageClassName\":\"base-volume-k8s-test\",\"volumeMode\":\"Filesystem\"}}";
+        V1PersistentVolume pv = gson.fromJson(jsonStr, V1PersistentVolume.class);
+        pv = createPersistentVolume(pv, this.testK8sApiUrl, this.testAuthToken);
+        System.out.println(gson.toJson(pv));
+    }
+
+    private void createPVCTest() throws Exception
+    {
+        String jsonStr = "{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",\"metadata\":{\"name\":\"base-volume-k8s-test\",\"namespace\":\"k8s-test\"},\"spec\":{\"accessModes\":[\"ReadWriteMany\"],\"resources\":{\"requests\":{\"storage\":\"1Gi\"}},\"storageClassName\":\"base-volume-k8s-test\",\"volumeMode\":\"Filesystem\",\"volumeName\":\"base-volume-k8s-test\"}}";
+        V1PersistentVolumeClaim pvc = gson.fromJson(jsonStr, V1PersistentVolumeClaim.class);
+        pvc = createNamespacedPersistentVolumeClaim("k8s-test", pvc, this.testK8sApiUrl, this.testAuthToken);
+        System.out.println(pvc);
+    }
+
+    private void createSvcTest() throws Exception
+    {
+        String jsonStr = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"mysql\",\"namespace\":\"k8s-test\"},\"spec\":{\"ports\":[{\"port\":3306,\"protocol\":\"TCP\",\"targetPort\":3306}],\"selector\":{\"name\":\"mysql-5-7-29\"},\"type\":\"NodePort\"}}";
+        V1Service svc = gson.fromJson(jsonStr, V1Service.class);
+        String platformId = "k8s-test";
+        svc = createNamespacedService(platformId, svc, this.testK8sApiUrl, this.testAuthToken);
+        System.out.println(gson.toJson(svc));
     }
 
 }

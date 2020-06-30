@@ -42,6 +42,8 @@ public class AppUpdateOperationInfo {
 
     private String basePath; //该应用所在的base path
 
+    private String deployPath; //应用部署目录
+
     private String appRunner; //该应用的执行用户
 
     private List<AppFileNexusInfo> cfgs; //如果升级成功,需要返回升级后的应用配置在nexus中的存储信息
@@ -166,6 +168,14 @@ public class AppUpdateOperationInfo {
 
     public void setPort(String port) {
         this.port = port;
+    }
+
+    public String getDeployPath() {
+        return deployPath;
+    }
+
+    public void setDeployPath(String deployPath) {
+        this.deployPath = deployPath;
     }
 
     public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)

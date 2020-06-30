@@ -2,10 +2,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
-import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
-import io.kubernetes.client.openapi.models.V1Deployment;
-import io.kubernetes.client.openapi.models.V1Endpoints;
-import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.*;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -84,6 +81,10 @@ public class PlatformUpdateSchemaInfo {
 
     private List<ExtensionsV1beta1Ingress> k8sIngressList; //需要执行的ingress列表
 
+    private List<V1PersistentVolume> k8sPVList; //需要加载的pv列表
+
+    private List<V1PersistentVolumeClaim> k8sPVCList; //需要加载的pvc列表
+
     public PlatformUpdateSchemaInfo()
     {
 
@@ -113,6 +114,8 @@ public class PlatformUpdateSchemaInfo {
         this.k8sServiceList = new ArrayList<>();
         this.k8sIngressList = new ArrayList<>();
         this.k8sEndpointsList = new ArrayList<>();
+        this.k8sPVList = new ArrayList<>();
+        this.k8sPVCList = new ArrayList<>();
     }
 
     public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
@@ -369,5 +372,21 @@ public class PlatformUpdateSchemaInfo {
 
     public void setK8sIngressList(List<ExtensionsV1beta1Ingress> k8sIngressList) {
         this.k8sIngressList = k8sIngressList;
+    }
+
+    public List<V1PersistentVolume> getK8sPVList() {
+        return k8sPVList;
+    }
+
+    public void setK8sPVList(List<V1PersistentVolume> k8sPVList) {
+        this.k8sPVList = k8sPVList;
+    }
+
+    public List<V1PersistentVolumeClaim> getK8sPVCList() {
+        return k8sPVCList;
+    }
+
+    public void setK8sPVCList(List<V1PersistentVolumeClaim> k8sPVCList) {
+        this.k8sPVCList = k8sPVCList;
     }
 }
