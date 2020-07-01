@@ -1,2 +1,5 @@
  登录到镜像的容器
  kubectl exec -it -n 202005-test cas-manage01-65ccb9b5c5-xlk7h /bin/bash
+
+ 修改deployment配置
+ kubectl edit deployment -n k8s-test glsserver-public01

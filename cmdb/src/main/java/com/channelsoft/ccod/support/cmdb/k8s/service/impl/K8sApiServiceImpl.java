@@ -438,7 +438,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         getConnection(k8sApiUrl, authToken);
         AppsV1Api apiInstance = new AppsV1Api();
         V1Deployment create = apiInstance.createNamespacedDeployment(namespace, deployment, null, null, null);
-        logger.debug(String.format("deployment %s created for %s at %s", gson.toJson(create), namespace, k8sApiUrl));
+        logger.info(String.format("deployment %s created for %s at %s", gson.toJson(create), namespace, k8sApiUrl));
         return create;
     }
 

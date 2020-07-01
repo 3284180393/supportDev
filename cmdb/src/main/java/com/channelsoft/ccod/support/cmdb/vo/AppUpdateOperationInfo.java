@@ -46,6 +46,8 @@ public class AppUpdateOperationInfo {
 
     private String appRunner; //该应用的执行用户
 
+    private String startCmd; //启动命令
+
     private List<AppFileNexusInfo> cfgs; //如果升级成功,需要返回升级后的应用配置在nexus中的存储信息
 
     private int addDelay; //完成这条操作后延迟多少秒后执行下一条操作
@@ -176,6 +178,14 @@ public class AppUpdateOperationInfo {
 
     public void setDeployPath(String deployPath) {
         this.deployPath = deployPath;
+    }
+
+    public String getStartCmd() {
+        return startCmd;
+    }
+
+    public void setStartCmd(String startCmd) {
+        this.startCmd = startCmd;
     }
 
     public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)
