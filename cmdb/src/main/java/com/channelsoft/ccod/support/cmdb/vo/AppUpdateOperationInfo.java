@@ -24,6 +24,8 @@ public class AppUpdateOperationInfo {
 
     private String domainId; //应用所在的域id
 
+    private String domainName; //域名
+
     private String assembleTag; //应用所在assemble的标签
 
     private String appName; //应用名
@@ -186,6 +188,14 @@ public class AppUpdateOperationInfo {
 
     public void setStartCmd(String startCmd) {
         this.startCmd = startCmd;
+    }
+
+    public String getDomainName() {
+        return domainName;
+    }
+
+    public void setDomainName(String domainName) {
+        this.domainName = domainName;
     }
 
     public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)

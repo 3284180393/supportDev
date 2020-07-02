@@ -11,7 +11,7 @@ method: PUT
 		"operation": "UPDATE",
 		"appName": "LicenseServer",
 		"appAlias": "licenseserver",
-		"domainId": "public01",
+		"domainName": "公共组件01",
 		"targetVersion": "5214",
 		"hostIp": "10.130.41.218",
 		"basePath": "/home/ccodrunner/Platform",
@@ -30,7 +30,7 @@ method: PUT
 		"operation": "UPDATE",
 		"appName": "configserver",
 		"appAlias": "configserver",
-		"domainId": "public01",
+		"domainName": "公共组件01",
 		"targetVersion": "aca2af60caa0fb9f4af57f37f869dafc90472525",
 		"hostIp": "10.130.41.218",
 		"basePath": "/home/cfs/Platform/",
@@ -58,7 +58,7 @@ method: PUT
 		"operation": "UPDATE",
 		"appName": "glsServer",
 		"appAlias": "glsserver",
-		"domainId": "public01",
+		"domainName": "公共组件01",
 		"targetVersion": "7b699a4aece10ef28dce83ab36e4d79213ec4f69",
 		"hostIp": "10.130.41.218",
 		"basePath": "/home/ccodrunner/Platform",
@@ -92,7 +92,7 @@ method: PUT
 		"operation": "ADD",
 		"appName": "LicenseServer",
 		"appAlias": "domain1Licenseserver",
-		"domainId": "public01",
+		"domainName": "公共组件01",
 		"targetVersion": "5214",
 		"hostIp": "10.130.41.218",
 		"basePath": "/home/ccodrunner/Platform",
@@ -111,7 +111,7 @@ method: PUT
 		"operation": "ADD",
 		"appName": "configserver",
 		"appAlias": "domain1Configserver",
-		"domainId": "public01",
+		"domainName": "公共组件01",
 		"targetVersion": "aca2af60caa0fb9f4af57f37f869dafc90472525",
 		"hostIp": "10.130.41.218",
 		"basePath": "/home/cfs/Platform/",
@@ -139,7 +139,7 @@ method: PUT
 		"operation": "ADD",
 		"appName": "glsServer",
 		"appAlias": "domain1Glsserver",
-		"domainId": "public01",
+		"domainName": "公共组件01",
 		"targetVersion": "7b699a4aece10ef28dce83ab36e4d79213ec4f69",
 		"hostIp": "10.130.41.218",
 		"basePath": "/home/ccodrunner/Platform",
@@ -172,14 +172,20 @@ method: PUT
 	"updateAppList": [{
 		"operation": "DELETE",
 		"appAlias": "licenseserver2",
-		"domainId": "public01"
+		"domainName": "公共组件01"
 	}, {
 		"operation": "DELETE",
 		"appAlias": "configserver2",
-		"domainId": "public01"
+		"domainName": "公共组件01"
 	}, {
 		"operation": "DELETE",
 		"appAlias": "glsserver2",
-		"domainId": "public01"
+		"domainName": "公共组件01"
 	}]
 }
+
+字段说明:
+domainName:域名，如果指定的域名在指定平台拓扑中不存在将会报错
+appName:应用名称例如glsServer
+appAlias:应用在平台中的原始别名，如果操作是UPDATE或是DELETE，原来平台拓扑中的domainName域不存在原始别名为appAlias的应用将会报错
+targetVersion:应用添加或是升级后的版本

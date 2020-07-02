@@ -3349,34 +3349,35 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new ParamException(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
             }
             List<DomainPo> domainList = this.domainMapper.select(platformId, null);
-            Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
-            Map<String, List<AppUpdateOperationInfo>> domainOptMap = appList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getDomainId));
+            Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
+            Map<String, List<AppUpdateOperationInfo>> domainOptMap = appList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getDomainName));
             List<PlatformAppDeployDetailVo> deployApps = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
-            Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+            Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
             List<LJHostInfo> hostList = this.paasService.queryBKHost(platformPo.getBkBizId(), null, null, null, null);
             Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(platformId, null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
-            for(String domainId : domainOptMap.keySet())
+            for(String domainName : domainOptMap.keySet())
             {
-                if(!domainMap.containsKey(domainId))
+                if(!domainMap.containsKey(domainName))
                 {
-                    logger.error(String.format("domain %s not exist", domainId));
-                    throw new ParamException(String.format("domain %s not exist", domainId));
+                    logger.error(String.format("domain %s not exist", domainName));
+                    throw new ParamException(String.format("domain %s not exist", domainName));
                 }
-                List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-                checkDomainApps(domainOptMap.get(domainId), deployAppList, domainMap.get(domainId), hostList);
+                List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainName) ? domainAppMap.get(domainName) : new ArrayList<>();
+                checkDomainApps(domainOptMap.get(domainName), deployAppList, domainMap.get(domainName), hostList);
             }
             Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
-            for(String domainId : domainOptMap.keySet())
+            for(String domainName : domainOptMap.keySet())
             {
-                List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-                Map<String, List<NexusAssetInfo>> appCfgMap = preprocessDomainApps(platformId, domainOptMap.get(domainId), deployAppList, domainMap.get(domainId), false);
-                domainCfgMap.put(domainId, appCfgMap);
+                List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainName) ? domainAppMap.get(domainName) : new ArrayList<>();
+                Map<String, List<NexusAssetInfo>> appCfgMap = preprocessDomainApps(platformId, domainOptMap.get(domainName), deployAppList, domainMap.get(domainName), false);
+                domainCfgMap.put(domainName, appCfgMap);
             }
-            for(String domainId : domainOptMap.keySet())
+            for(String domainName : domainOptMap.keySet())
             {
-                List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
+                String domainId = domainMap.get(domainName).getDomainId();
+                List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainName) ? domainAppMap.get(domainName) : new ArrayList<>();
                 List<AssemblePo> assembleList = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
-                handleDomainApps(platformId, domainMap.get(domainId), domainOptMap.get(domainId), assembleList, deployAppList, domainCfgMap.get(domainId), false);
+                handleDomainApps(platformId, domainMap.get(domainName), domainOptMap.get(domainName), assembleList, deployAppList, domainCfgMap.get(domainName), false);
             }
             this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformId, platformPo.getBkCloudId());
         }

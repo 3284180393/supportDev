@@ -19,7 +19,7 @@ ccod:
     name: 公共组件
     id: publicModules
     isBasic: 1
-    fixedDomainName: 相关模块
+    fixedDomainName: 公共组件
     fixedDomainId: public
     apps[0]:
       name: LicenseServer

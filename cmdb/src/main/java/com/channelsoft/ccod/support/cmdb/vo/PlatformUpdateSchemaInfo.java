@@ -85,6 +85,18 @@ public class PlatformUpdateSchemaInfo {
 
     private List<V1PersistentVolumeClaim> k8sPVCList; //需要加载的pvc列表
 
+    private K8sCollection oracle;
+
+    private K8sCollection mysql;
+
+    private K8sCollection licenseServer;
+
+    private K8sCollection glsserver;
+
+    private K8sCollection ucds;
+
+    private K8sCollection dcs;
+
     public PlatformUpdateSchemaInfo()
     {
 
@@ -388,5 +400,53 @@ public class PlatformUpdateSchemaInfo {
 
     public void setK8sPVCList(List<V1PersistentVolumeClaim> k8sPVCList) {
         this.k8sPVCList = k8sPVCList;
+    }
+
+    public K8sCollection getOracle() {
+        return oracle;
+    }
+
+    public void setOracle(K8sCollection oracle) {
+        this.oracle = oracle;
+    }
+
+    public K8sCollection getMysql() {
+        return mysql;
+    }
+
+    public void setMysql(K8sCollection mysql) {
+        this.mysql = mysql;
+    }
+
+    public K8sCollection getLicenseServer() {
+        return licenseServer;
+    }
+
+    public void setLicenseServer(K8sCollection licenseServer) {
+        this.licenseServer = licenseServer;
+    }
+
+    public K8sCollection getGlsserver() {
+        return glsserver;
+    }
+
+    public void setGlsserver(K8sCollection glsserver) {
+        this.glsserver = glsserver;
+    }
+
+    public K8sCollection getUcds() {
+        return ucds;
+    }
+
+    public void setUcds(K8sCollection ucds) {
+        this.ucds = ucds;
+    }
+
+    public K8sCollection getDcs() {
+        return dcs;
+    }
+
+    public void setDcs(K8sCollection dcs) {
+        this.dcs = dcs;
     }
 }
