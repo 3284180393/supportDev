@@ -24,6 +24,8 @@ public class K8sCollection {
 
     private List<ExtensionsV1beta1Ingress> ingresses;
 
+    private int nodePort;
+
     private int timeout;
 
     public K8sCollection(V1Deployment deployment)
@@ -80,5 +82,13 @@ public class K8sCollection {
 
     public void setTimeout(int timeout) {
         this.timeout = timeout;
+    }
+
+    public int getNodePort() {
+        return nodePort;
+    }
+
+    public void setNodePort(int nodePort) {
+        this.nodePort = nodePort;
     }
 }

@@ -8,6 +8,7 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -430,7 +431,7 @@ public interface IPlatformManagerService {
      * @throws NexusException
      * @throws IOException
      */
-    PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException;
+    PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException , SQLException, ClassNotFoundException;
 
 //    List<PlatformAppDeployDetailVo> updatePlatformAppTopologyFromK8s(String platformId) throws ApiException;
 }
