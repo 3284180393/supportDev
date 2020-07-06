@@ -209,7 +209,7 @@ public class CMDBController {
     public AjaxResultPo updatePlatformApps(@RequestBody PlatformAppUpdateParamVo paramVo)
     {
         String uri = String.format("PUT %s/platformApps", this.apiBasePath);
-//        logger.debug(String.format("enter %s controller : param=[%s]", uri, JSONObject.toJSONString(paramVo)));
+        logger.debug(String.format("enter %s controller : param=[%s]", uri, JSONObject.toJSONString(paramVo)));
         AjaxResultPo resultPo;
         try
         {

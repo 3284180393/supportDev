@@ -3697,7 +3697,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             String tag = String.format("UPDATE %s(%s) to %s in %s on %s at %s", alias, appName, version, assembleTag, domainId, hostIp);
             logger.debug(String.format("begin to %s", tag));
             AppModuleVo module = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
-            if(assembleMap.containsKey(assembleTag))
+            if(!assembleMap.containsKey(assembleTag))
             {
                 logger.debug(String.format("assemble %s of %s is not exist, add it first", assembleTag, domainId));
                 AssemblePo assemblePo = new AssemblePo();
@@ -3789,7 +3789,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         for(AppUpdateOperationInfo optInfo : addList)
         {
             if(StringUtils.isBlank(optInfo.getAssembleTag()))
-                optInfo.setAssembleTag(optInfo.getTargetVersion());
+                optInfo.setAssembleTag(optInfo.getAppAlias());
             AppModuleVo module = this.registerAppMap.get(optInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion());
             PlatformAppPo platformAppPo = optInfo.getPlatformApp(0, module.getAppId(), platformId, domainId);
             String directory = platformAppPo.getPlatformAppDirectory(module.getAppName(), module.getVersion(), platformAppPo);
@@ -3806,7 +3806,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         for(AppUpdateOperationInfo optInfo : updateList)
         {
             if(StringUtils.isBlank(optInfo.getAssembleTag()))
-                optInfo.setAssembleTag(optInfo.getTargetVersion());
+                optInfo.setAssembleTag(deployAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(optInfo.getAppAlias()).getAppAlias());
             AppModuleVo module = this.registerAppMap.get(optInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion());
             int platformAppId = deployAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(optInfo.getAppAlias()).getPlatformApp().getPlatformAppId();
             PlatformAppPo platformAppPo = optInfo.getPlatformApp(platformAppId, module.getAppId(), platformId, domainId);

@@ -303,6 +303,15 @@ image:
 k8s:
   gls_oracle_svc_name: oracle
   gls_oracle_sid: xe
+  labels:
+    domain-id: domain-id
+    app-name: app-name
+    app-alias: alias
+    app-version: app-version
+    job-id: job-id
+  volume-names:
+    web-app: war
+    binary-file: binary-file
   deployment:
     defaultCfgMountPath: /cfg
 

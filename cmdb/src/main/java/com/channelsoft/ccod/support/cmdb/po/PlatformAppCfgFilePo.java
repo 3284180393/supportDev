@@ -40,6 +40,12 @@ public class PlatformAppCfgFilePo extends AppFilePo {
         this.platformAppId = platformAppId;
     }
 
+    public PlatformAppCfgFilePo(int appId, String deployPath, NexusAssetInfo assetInfo)
+    {
+        super(appId, deployPath, assetInfo);
+        this.platformAppId = 0;
+    }
+
     public int getCfgFileId() {
         return cfgFileId;
     }
