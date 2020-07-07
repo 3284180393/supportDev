@@ -5,84 +5,56 @@ method: PUT
 
 用来测试更新平台已有的应用信息
 {
-	"platformId": "clone-test",
-	"platformName": "ccod开发测试平台",
-	"updateAppList": [{
-		"operation": "UPDATE",
-		"appName": "LicenseServer",
-		"appAlias": "licenseserver",
-		"domainName": "公共组件01",
-		"targetVersion": "5214",
-		"hostIp": "10.130.41.218",
-		"basePath": "/home/ccodrunner/Platform",
-		"appRunner": "licenseserver",
-		"cfgs": [{
-			"fileName": "Config.ini",
-			"ext": "ini",
-			"fileSize": 0,
-			"md5": "1797e46c56de0b00e11255d61d5630e8",
-			"deployPath": "./bin/license/",
-			"nexusRepository": "platform_app_cfg",
-			"nexusPath": "pahj/public01/10.130.29.111/LicenseServer/5214/licenseserver/20200327152017/Config.ini",
-			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2ODNiZTJiNWZhNjNmMjdjMw"
-		}]
-	}, {
-		"operation": "UPDATE",
-		"appName": "configserver",
-		"appAlias": "configserver",
-		"domainName": "公共组件01",
-		"targetVersion": "aca2af60caa0fb9f4af57f37f869dafc90472525",
-		"hostIp": "10.130.41.218",
-		"basePath": "/home/cfs/Platform/",
-		"appRunner": "configserver",
-		"cfgs": [{
-			"fileName": "ccs_config.cfg",
-			"ext": "cfg",
-			"fileSize": 0,
-			"md5": "ef99be6f0295e494bbc496c7174e48ea",
-			"deployPath": "./cfg/",
-			"nexusRepository": "platform_app_cfg",
-			"nexusPath": "pahj/public01/10.130.29.111/configserver/aca2af60caa0fb9f4af57f37f869dafc90472525/configserver/20200327152027/ccs_config.cfg",
-			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzpkNDgxMTc1NDFkY2I4OWVjMzllYTNjY2E0ZWVhNmMzYQ"
-		}, {
-			"fileName": "ccs_logger.cfg",
-			"ext": "cfg",
-			"fileSize": 0,
-			"md5": "197075eb110327da19bfc2a31f24b302",
-			"deployPath": "./cfg/",
-			"nexusRepository": "platform_app_cfg",
-			"nexusPath": "pahj/public01/10.130.29.111/configserver/aca2af60caa0fb9f4af57f37f869dafc90472525/configserver/20200327152027/ccs_logger.cfg",
-			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzo4NTEzNTY1MmE5NzhiZTlhYzMwYjAxODQ0YWNjMzllMQ"
-		}]
-	}, {
-		"operation": "UPDATE",
-		"appName": "glsServer",
-		"appAlias": "glsserver",
-		"domainName": "公共组件01",
-		"targetVersion": "7b699a4aece10ef28dce83ab36e4d79213ec4f69",
-		"hostIp": "10.130.41.218",
-		"basePath": "/home/ccodrunner/Platform",
-		"appRunner": "glsserver",
-		"cfgs": [{
-			"fileName": "gls_config.cfg",
-			"ext": "cfg",
-			"fileSize": 0,
-			"md5": "609e331e9d5052a61de5e6b5addd5ce3",
-			"deployPath": "./cfg/",
-			"nexusRepository": "platform_app_cfg",
-			"nexusPath": "pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_config.cfg",
-			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2NTk3NmY5YWEyNDkzM2M5ZQ"
-		}, {
-			"fileName": "gls_logger.cfg",
-			"ext": "cfg",
-			"fileSize": 0,
-			"md5": "7b8e1879eab906cba05dabf3f6e0bc37",
-			"deployPath": "./cfg/",
-			"nexusRepository": "platform_app_cfg",
-			"nexusPath": "pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_logger.cfg",
-			"nexusAssetId": "cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkOTU5MTg0MDdhYTgzNzY0NQ"
-		}]
-	}]
+    "platformId": "test90",
+    "platformName": "test90",
+    "updateAppList":[
+        {
+            "appAlias":"agentProxy@portal10.130.41.124",
+            "appName":"agentProxy",
+            "appRunner":"portal",
+            "basePath":"/home/portal/resin-4.0.13/webapps/",
+            "cfgs":[
+                {
+                    "deployPath":"./agentProxy/WEB-INF/classes/",
+                    "ext":"properties",
+                    "fileName":"ccod_config.properties",
+                    "fileSize":7080,
+                    "md5":"0169048a12fbf94c704204057db4b173",
+                    "nexusAssetId":"dG1wOjg1MTM1NjUyYTk3OGJlOWFjYjQ3OWExZGJhZjk3YTU0",
+                    "nexusDirectory":"test90/manageerqiguanliyuer/agentProxy@portal10.130.41.124",
+                    "nexusFileSavePath":"/home/onlinemanager/ver/test90/erjiguanliyuer/10.130.41.124/agentProxy@portal10.130.41.124/ccod_config.properties",
+                    "nexusPath":"test90/manageerqiguanliyuer/agentProxy@portal10.130.41.124/ccod_config.properties",
+                    "nexusRepository":"tmp"
+                },
+                {
+                    "deployPath":"./agentProxy/WEB-INF/",
+                    "ext":"xml",
+                    "fileName":"web.xml",
+                    "fileSize":2882,
+                    "md5":"9e3738b3f362eda937cb7ba02249fe2e",
+                    "nexusAssetId":"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ0MDkzY2IzYjYzOTM3ZDMw",
+                    "nexusDirectory":"test90/manageerqiguanliyuer/agentProxy@portal10.130.41.124",
+                    "nexusFileSavePath":"/home/onlinemanager/ver/test90/erjiguanliyuer/10.130.41.124/agentProxy@portal10.130.41.124/web.xml",
+                    "nexusPath":"test90/manageerqiguanliyuer/agentProxy@portal10.130.41.124/web.xml",
+                    "nexusRepository":"tmp"
+                },
+                {
+                    "deployPath":"../vertemp/agentProxy/",
+                    "ext":"txt",
+                    "fileName":"commd5.txt",
+                    "fileSize":7870,
+                    "md5":"06eca73c4d169461b25dab7edf7e4f13",
+                    "nexusAssetId":"dG1wOjBhYjgwYTc0MzkyMWU0MjY1MDZiNmY2ZGY2MmYwMjFk",
+                    "nexusDirectory":"test90/manageerqiguanliyuer/agentProxy@portal10.130.41.124",
+                    "nexusFileSavePath":"/home/onlinemanager/ver/test90/erjiguanliyuer/10.130.41.124/agentProxy@portal10.130.41.124/commd5.txt",
+                    "nexusPath":"test90/manageerqiguanliyuer/agentProxy@portal10.130.41.124/commd5.txt",
+                    "nexusRepository":"tmp"
+                }],
+            "domainName":"manage@二期管理域二",
+            "hostIp":"10.130.41.124",
+            "operation":"UPDATE",
+            "targetVersion":"43c134c"
+        }]
 }
 用来测试添加的数据
 {
@@ -167,21 +139,14 @@ method: PUT
 }
 用来测试删除的数据
 {
-	"platformId": "clone-test",
-	"platformName": "ccod开发测试平台",
-	"updateAppList": [{
-		"operation": "DELETE",
-		"appAlias": "licenseserver2",
-		"domainName": "公共组件01"
-	}, {
-		"operation": "DELETE",
-		"appAlias": "configserver2",
-		"domainName": "公共组件01"
-	}, {
-		"operation": "DELETE",
-		"appAlias": "glsserver2",
-		"domainName": "公共组件01"
-	}]
+    "platformId":"test90",
+    "platformName":"test90",
+    "updateAppList":[
+        {
+            "operation":"DELETE",
+            "appAlias":"agentProxy5@portal10.130.41.124",
+            "domainName":"manage@二期管理域二"
+        }]
 }
 
 字段说明:

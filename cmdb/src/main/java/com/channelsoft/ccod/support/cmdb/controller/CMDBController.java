@@ -213,7 +213,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            this.appManagerService.updatePlatformApps(paramVo.getPlatformId(), paramVo.getPlatformName(), paramVo.getUpdateAppList());
+            this.platformManagerService.updatePlatformApps(paramVo.getPlatformId(), paramVo.getPlatformName(), paramVo.getUpdateAppList());
             resultPo = new AjaxResultPo(true, "update SUCCESS", 1, "good");
             logger.info(String.format("update SUCCESS, quit %s controller", uri));
         }
@@ -646,7 +646,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<PlatformUpdateSchemaInfo> schemaInfos = this.appManagerService.queryPlatformUpdateSchema(null);
+            List<PlatformUpdateSchemaInfo> schemaInfos = this.platformManagerService.queryPlatformUpdateSchema(null);
             resultPo = new AjaxResultPo(true, "query SUCCESS", schemaInfos.size(), schemaInfos);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -666,7 +666,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<PlatformUpdateSchemaInfo> schemaInfos = this.appManagerService.queryPlatformUpdateSchema(platformId);
+            List<PlatformUpdateSchemaInfo> schemaInfos = this.platformManagerService.queryPlatformUpdateSchema(platformId);
             resultPo = new AjaxResultPo(true, "query SUCCESS", schemaInfos.size(), schemaInfos);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -686,7 +686,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            appManagerService.updatePlatformUpdateSchema(schema);
+            platformManagerService.updatePlatformUpdateSchema(schema);
             resultPo = new AjaxResultPo(true, "update schema success", 1, null);
         }
         catch (Exception e)
@@ -739,7 +739,7 @@ public class CMDBController {
                     resultPo = new AjaxResultPo(true, String.format("start platform data collect task success, content=%s", param.getCollectContent().name));
                     break;
                 case APP_UPDATE:
-                    appManagerService.startCollectPlatformAppUpdateData(param.getPlatformId(), param.getPlatformName());
+                    platformManagerService.startCollectPlatformAppUpdateData(param.getPlatformId(), param.getPlatformName());
                     logger.info(String.format("start platform data update task success, content=%s", param.getCollectContent().name));
                     resultPo = new AjaxResultPo(true, String.format("start platform data update task success, content=%s", param.getCollectContent().name));
                     break;
@@ -765,7 +765,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-           PlatformUpdateSchemaInfo schemaInfo = appManagerService.createNewPlatform(param);
+           PlatformUpdateSchemaInfo schemaInfo = platformManagerService.createNewPlatform(param);
             resultPo = new AjaxResultPo(true, "create platform SUCCESS", 1, schemaInfo);
             logger.info(String.format("create platform SUCCESS, quit %s", uri));
         }
@@ -785,7 +785,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<PlatformTopologyInfo> platformList = this.appManagerService.queryAllPlatformTopology();
+            List<PlatformTopologyInfo> platformList = this.platformManagerService.queryAllPlatformTopology();
             resultPo = new AjaxResultPo(true, "query SUCCESS", platformList.size(), platformList);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -825,7 +825,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            PlatformTopologyInfo topology = this.appManagerService.getPlatformTopology(platformId);
+            PlatformTopologyInfo topology = this.platformManagerService.getPlatformTopology(platformId);
             resultPo = new AjaxResultPo(true, "query SUCCESS", 1, topology);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -845,7 +845,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            appManagerService.deletePlatformUpdateSchema(platformId);
+            platformManagerService.deletePlatformUpdateSchema(platformId);
             resultPo = new AjaxResultPo(true, "delete platform update schema success");
         }
         catch (Exception ex)

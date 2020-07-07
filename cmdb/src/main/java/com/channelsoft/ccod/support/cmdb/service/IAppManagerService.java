@@ -68,73 +68,12 @@ public interface IAppManagerService {
     PlatformAppDeployDetailVo[] queryAppDeployDetails(String appName, String platformId, String domainId, String hostIp) throws DataAccessException;
 
     /**
-     * 开始收集平台更新数据
-     * @param platformId
-     * @param platformName
-     * @return 收集结果
-     * @throws Exception
-     */
-    PlatformAppModuleVo[] startCollectPlatformAppUpdateData(String platformId, String platformName) throws Exception;
-
-    /**
-     * 检查指定条件的平台的应用部署情况，不上传对应的安装包和配置文件
-     * @param platformId 平台id，不能为空
-     * @param platformName 平台名,不能为空
-     * @param domainName 域名，可以为空
-     * @param hostIp 主机名，可以为空
-     * @param appName 应用名，可以为空
-     * @param version 版本号，可以为空
-     * @return 所有满足条件的应用配置信息
-     * @throws Exception
-     */
-    PlatformAppModuleVo[] startCheckPlatformAppData(String platformId, String platformName, String domainName, String hostIp, String appName, String version) throws Exception;
-
-    /**
      * 创建一个新的平台应用收集任务
      * @param platformId 平台id，不能为空
      * @param platformName 平台名,不能为空
      * @throws Exception
      */
     void createNewPlatformAppDataCollectTask(String platformId, String platformName, int bkBizId, int bkCloudId) throws Exception;
-
-    /**
-     * 更新平台升级计划
-     * @param updateSchema 需要更新的平台计划
-     * @throws ParamException 计划的参数异常
-     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
-     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
-     * @throws NexusException 调用nexus api返回调用失败或是解析nexus api返回结果失败
-     * @throws IOException 处理文件失败
-     */
-    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
-
-    /**
-     * 查询指定条件的平台升级计划
-     * @param platformId 平台id可以为空
-     * @return 满足条记按的升级计划
-     */
-    List<PlatformUpdateSchemaInfo> queryPlatformUpdateSchema(String platformId);
-
-    /**
-     * 查询指定平台的拓扑接口
-     * @param platformId 平台id
-     * @return 平台的拓扑
-     * @throws ParamException 计划的参数异常
-     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
-     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
-     * @throws NexusException 调用nexus api返回调用失败或是解析nexus api返回结果失败
-     */
-    PlatformTopologyInfo getPlatformTopology(String platformId) throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException;
-
-    /**
-     * 查询所有平台简单拓扑结构
-     * @return 当前所有平台的状态
-     * @throws ParamException
-     * @throws InterfaceCallException
-     * @throws LJPaasException
-     * @throws NotSupportAppException
-     */
-    List<PlatformTopologyInfo> queryAllPlatformTopology() throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException;
 
     /**
      * 向系统注册新的版本的应用
@@ -157,24 +96,6 @@ public interface IAppManagerService {
      * @throws IOException
      */
     void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException;
-
-    /**
-     * 创建新的升级计划
-     * @param paramVo 被创建的平台相关参数
-     * @return 新建的平台创建计划
-     * @throws ParamException
-     * @throws InterfaceCallException
-     * @throws LJPaasException
-     */
-    PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
-
-
-    /**
-     * 删除指定平台的升级计划
-     * @param platformId 指定的平台id
-     * @throws ParamException 指定的平台不存在
-     */
-    void deletePlatformUpdateSchema(String platformId) throws ParamException;
 
     /**
      * 查询指定应用的配置文件并以字符串的形式返回
@@ -201,17 +122,6 @@ public interface IAppManagerService {
      */
     void appDataTransfer(String targetRepository);
 
-    /**
-     * 更新已有的平台应用模块
-     * @param platformId 平台id
-     * @param platformName 平台名
-     * @param appList 需要更新的平台应用列表
-     * @return 更新后的平台应用信息
-     * @throws ParamException 需要更新的平台应用信息错误
-     * @throws InterfaceCallException 调用接口发生异常
-     * @throws NexusException 调用nexus的api返回调用错误或是解析nexus返回结果异常
-     */
-    List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<AppUpdateOperationInfo> appList) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, LJPaasException, IOException;
 
     /**
      * 获得app和set之间的关系
@@ -264,4 +174,41 @@ public interface IAppManagerService {
      */
     AppModuleVo getAppModuleForBizSet(String bizSetName, String appAlias, String version) throws ParamException, NotSupportAppException;
 
+    /**
+     * 从源nexus下载应用相关文件并上传到指定的nexus仓库里
+     * @param srcNexusHostUrl 源nexus的url地址
+     * @param srcNexusUser 源nexus的登录用户
+     * @param srcPwd 源nexus
+     * @param srcFileList 需要下载并上传文件列表
+     * @param dstRepository 上传的目的仓库
+     * @param dstDirectory 上传路径
+     * @return
+     */
+    List<NexusAssetInfo> downloadAndUploadAppFiles(String srcNexusHostUrl, String srcNexusUser, String srcPwd, List<AppFilePo> srcFileList, String dstRepository, String dstDirectory) throws ParamException, InterfaceCallException, NexusException, IOException;
+
+    /**
+     * 更新平台已经注册模块信息
+     */
+    void flushRegisteredApp();
+
+    /**
+     * 添加新的应用模块
+     * @param appPo 应用相关信息
+     * @param installPackage 安装包
+     * @param cfgs 配置文件
+     * @return 添加后的模块信息
+     * @throws InterfaceCallException
+     * @throws NexusException
+     */
+    AppModuleVo addNewAppModule(AppPo appPo, DeployFileInfo installPackage, DeployFileInfo[] cfgs) throws InterfaceCallException, NexusException;
+
+    /**
+     * 预处理平台收集模块
+     * @param module 平台收集模块
+     * @throws DataAccessException
+     * @throws InterfaceCallException
+     * @throws NexusException
+     * @throws ParamException
+     */
+    void preprocessPlatformAppModule(PlatformAppModuleVo module) throws DataAccessException, InterfaceCallException, NexusException, ParamException;
 }

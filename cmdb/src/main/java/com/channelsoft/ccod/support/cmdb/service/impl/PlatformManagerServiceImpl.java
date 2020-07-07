@@ -11,6 +11,7 @@ import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
+import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -25,14 +26,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.PostConstruct;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -42,6 +42,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,6 +79,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     @Autowired
     IK8sApiService k8sApiService;
+
+    @Autowired
+    ILJPaasService paasService;
 
     @Autowired
     PlatformThreePartAppMapper platformThreePartAppMapper;
@@ -160,11 +164,40 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${k8s.volume-names.binary-file}")
     private String binaryFileVolumeName;
 
+    @Value("${ccod.platform-deploy-template}")
+    private String platformDeployScriptFileName;
+
+    @Value("${nexus.image-repository}")
+    private String imageRepository;
+
+    @Value("${nexus.platform-deploy-script-repository}")
+    private String platformDeployScriptRepository;
+
+    @Value("${k8s.gls_oracle_svc_name}")
+    private String glsOracleSvcName;
+
+    @Value("${k8s.gls_oracle_sid}")
+    private String glsOracleSid;
+
+    @Value("${nexus.tmp-platform-app-cfg-repository}")
+    private String platformTmpCfgRepository;
+
+    @Value("${nexus.nexus-docker-url}")
+    private String nexusDockerUrl;
+
+    @Value("${cmdb.url}")
+    private String cmdbUrl;
+
+    @Value("${git.k8s_deploy_git_url}")
+    private String k8sDeployGitUrl;
+
     private final Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
 
     private Map<String, List<BizSetDefine>> appSetRelationMap;
 
     private Map<String, BizSetDefine> setDefineMap;
+
+    protected final ReentrantReadWriteLock appWriteLock = new ReentrantReadWriteLock();
 
     private boolean isPlatformCheckOngoing = false;
 
@@ -242,6 +275,852 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         catch (Exception ex)
         {
             ex.printStackTrace();
+        }
+    }
+
+    @Override
+    public List<PlatformUpdateSchemaInfo> queryPlatformUpdateSchema(String platformId) {
+        logger.debug(String.format("begin to query platformId=%s platform update schema", platformId));
+        List<PlatformUpdateSchemaInfo> schemaList = new ArrayList<>();
+        if(StringUtils.isBlank(platformId))
+        {
+            schemaList = new ArrayList<>(this.platformUpdateSchemaMap.values());
+        }
+        else
+        {
+            if(this.platformUpdateSchemaMap.containsKey(platformId))
+            {
+                schemaList.add(platformUpdateSchemaMap.get(platformId));
+            }
+        }
+        return schemaList;
+    }
+
+    @Override
+    public PlatformTopologyInfo getPlatformTopology(String platformId) throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException
+    {
+        logger.debug(String.format("begin to query %s platform topology", platformId));
+        PlatformPo platform = platformMapper.selectByPrimaryKey(platformId);
+        if(platform == null)
+        {
+            logger.error(String.format("%s platform not exist", platformId));
+            throw new ParamException(String.format("%s platform not exist", platformId));
+        }
+        PlatformTopologyInfo topology = new PlatformTopologyInfo(platform);
+        if(topology.getStatus() == null)
+        {
+            logger.error(String.format("unknown ccod platform status %d", platform.getStatus()));
+            throw new ParamException(String.format("unknown ccod platform status %d", platform.getStatus()));
+        }
+        List<LJHostInfo> idleHostList;
+        PlatformUpdateSchemaInfo schema;
+        List<CCODSetInfo> setList;
+        Map<String, BizSetDefine> bizSetMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
+        List<PlatformAppDeployDetailVo> deployAppList;
+        List<UnconfirmedAppModulePo> unconfirmedAppModuleList = null;
+        List<PlatformThreePartAppPo> threeAppList = this.platformThreePartAppMapper.select(platformId);
+        List<PlatformThreePartServicePo> threeSvcList = this.platformThreePartServiceMapper.select(platformId);
+        switch (topology.getStatus())
+        {
+//            case SCHEMA_CREATE_PLATFORM:
+//                setList = new ArrayList<>();
+//                idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
+//                schema = this.platformUpdateSchemaMap.containsKey(platformId) ? this.platformUpdateSchemaMap.get(platformId) : null;
+//                break;
+            case RUNNING:
+                if(this.platformUpdateSchemaMap.containsKey(platformId))
+                {
+                    logger.error(String.format("%s status is %s, but it has an update schema",
+                            platformId, topology.getStatus().name));
+                    throw new ParamException(String.format("%s status is %s, but it has an update schema",
+                            platformId, topology.getStatus().name));
+                }
+                deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+                setList = generateCCODSetInfo(deployAppList, new ArrayList<>(bizSetMap.keySet()));
+                idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
+                schema = null;
+                unconfirmedAppModuleList = unconfirmedAppModuleMapper.select(platformId);
+                break;
+            case SCHEMA_CREATE_PLATFORM:
+            case SCHEMA_UPDATE_PLATFORM:
+            case PLANING:
+                if(!this.platformUpdateSchemaMap.containsKey(platformId))
+                {
+                    logger.error(String.format("%s status is %s, but can not find its update schema",
+                            platformId, topology.getStatus().name));
+                    throw new ParamException(String.format("%s status is %s, but can not find its update schema",
+                            platformId, topology.getStatus().name));
+                }
+                deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+                setList = generateCCODSetInfo(deployAppList, new ArrayList<>(bizSetMap.keySet()));
+                idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
+                schema = this.platformUpdateSchemaMap.get(platformId);
+                break;
+            case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
+                if(this.platformUpdateSchemaMap.containsKey(platformId))
+                {
+                    logger.error(String.format("%s status is %s, but it has an update schema",
+                            platformId, topology.getStatus().name));
+                    throw new ParamException(String.format("%s status is %s, but it has an update schema",
+                            platformId, topology.getStatus().name));
+                }
+                deployAppList = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+                deployAppList = makeUpBizInfoForDeployApps(platform.getBkBizId(), deployAppList);
+                setList = generateCCODSetInfo(deployAppList, new ArrayList<>(bizSetMap.keySet()));
+                idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
+                schema = null;
+                break;
+            default:
+                idleHostList = new ArrayList<>();
+                setList = new ArrayList<>();
+                schema = null;
+        }
+        topology.setSetList(setList);
+        topology.setSchema(schema);
+        topology.setIdleHosts(idleHostList);
+        topology.setUnconfirmedAppModuleList(unconfirmedAppModuleList);
+        topology.setThreePartAppList(threeAppList);
+        topology.setThreePartServiceList(threeSvcList);
+        return topology;
+    }
+
+    /**
+     * 把通过onlinemanager主动收集上来的ccod应用部署情况同步到paas之前需要给这些应用添加对应的bizId
+     * 确定应用归属的set信息,并根据定义的set-app关系对某些应用归属域重新赋值
+     * @param bizId 蓝鲸paas的biz id
+     * @param deployApps 需要处理的应用详情
+     * @return 处理后的结果
+     * @throws NotSupportAppException 如果应用中存在没有在lj-paas.set-apps节点定义的应用将抛出此异常
+     */
+    private List<PlatformAppDeployDetailVo> makeUpBizInfoForDeployApps(int bizId, List<PlatformAppDeployDetailVo> deployApps) throws NotSupportAppException
+    {
+        for(PlatformAppDeployDetailVo deployApp : deployApps)
+        {
+            if(!this.appSetRelationMap.containsKey(deployApp.getAppName()))
+            {
+                logger.error(String.format("%s没有在配置文件的lj-paas.set-apps节点中定义", deployApp.getAppName()));
+                throw new NotSupportAppException(String.format("%s未定义所属的set信息", deployApp.getAppName()));
+            }
+            deployApp.setBkBizId(bizId);
+            BizSetDefine sd = this.appSetRelationMap.get(deployApp.getAppName()).get(0);
+            deployApp.setBkSetName(sd.getName());
+            if(StringUtils.isNotBlank(sd.getFixedDomainName()))
+            {
+                deployApp.setBkSetName(sd.getName());
+                deployApp.setDomainId(sd.getFixedDomainId());
+                deployApp.setDomainName(sd.getFixedDomainName());
+            }
+        }
+        return deployApps;
+    }
+
+
+    /**
+     * 根据应用部署详情生成平台的set拓扑结构
+     * @param deployAppList 平台的应用部署明细
+     * @return 台的set拓扑结构
+     * @throws DBPAASDataNotConsistentException
+     * @throws NotSupportAppException
+     */
+    private List<CCODSetInfo> generateCCODSetInfo(List<PlatformAppDeployDetailVo> deployAppList, List<String> setNames) throws ParamException, NotSupportAppException
+    {
+        Map<String, List<PlatformAppDeployDetailVo>> setAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getBkSetName));
+        List<CCODSetInfo> setList = new ArrayList<>();
+        for(PlatformAppDeployDetailVo deployApp : deployAppList)
+        {
+            if(!this.appSetRelationMap.containsKey(deployApp.getAppName()))
+            {
+                logger.error(String.format("current version not support %s", deployApp.getAppName()));
+                throw new NotSupportAppException(String.format("current version not support %s", deployApp.getAppName()));
+            }
+            else if(!setDefineMap.containsKey(deployApp.getBkSetName()))
+            {
+                logger.error(String.format("%s is not a legal ccod set name", deployApp.getBkSetName()));
+                throw new ParamException(String.format("%s is not a legal ccod set name", deployApp.getBkSetName()));
+            }
+        }
+        for(String setName : setAppMap.keySet())
+        {
+            Map<String, List<PlatformAppDeployDetailVo>> domainAppMap =  setAppMap.get(setName)
+                    .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
+            List<CCODDomainInfo> domainList = new ArrayList<>();
+            for(String domainName : domainAppMap.keySet())
+            {
+                List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName);
+                CCODDomainInfo domain = new CCODDomainInfo(domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
+                Map<String, List<PlatformAppDeployDetailVo>> assembleAppMap = domAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAssembleTag));
+                for(String assembleTag : assembleAppMap.keySet())
+                {
+                    CCODAssembleInfo assemble = new CCODAssembleInfo(assembleTag);
+                    for(PlatformAppDeployDetailVo deployApp : assembleAppMap.get(assembleTag))
+                    {
+                        CCODModuleInfo bkModule = new CCODModuleInfo(deployApp);
+                        assemble.getModules().add(bkModule);
+                    }
+                    domain.getAssembles().add(assemble);
+                }
+                domainList.add(domain);
+            }
+            CCODSetInfo set = new CCODSetInfo(setName);
+            set.setDomains(domainList);
+            setList.add(set);
+        }
+        for(String setName : setNames)
+        {
+            if(!setAppMap.containsKey(setName))
+            {
+                CCODSetInfo setInfo = new CCODSetInfo(setName);
+                setList.add(setInfo);
+            }
+        }
+        return setList;
+    }
+
+    @Override
+    public List<PlatformTopologyInfo> queryAllPlatformTopology() throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException {
+        List<PlatformTopologyInfo> topoList = new ArrayList<>();
+        List<PlatformPo> platforms = platformMapper.select(null);
+        for(PlatformPo platformPo : platforms)
+        {
+            PlatformTopologyInfo topo = new PlatformTopologyInfo(platformPo);
+            if(topo.getStatus() == null)
+            {
+                logger.error(String.format("%s status %d is unknown", platformPo.getPlatformId(), platformPo.getStatus()));
+                continue;
+            }
+            switch (topo.getStatus())
+            {
+                case RUNNING:
+                case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
+                case SCHEMA_UPDATE_PLATFORM:
+                case SCHEMA_CREATE_PLATFORM:
+                    topoList.add(topo);
+                    break;
+                default:
+            }
+        }
+        return topoList;
+    }
+
+    @Override
+    public List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<AppUpdateOperationInfo> appList) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, LJPaasException, IOException {
+        logger.debug(String.format("begin to update %d apps of %s(%s)", appList.size(), platformName, platformId));
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+        {
+            logger.error(String.format("%s platform not exist", platformId));
+            throw new ParamException(String.format("%s platform not exist", platformId));
+        }
+        if(!platformName.equals(platformPo.getPlatformName()))
+        {
+            logger.error(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
+            throw new ParamException(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
+        }
+        List<DomainPo> domainList = this.domainMapper.select(platformId, null);
+        Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
+        Map<String, List<AppUpdateOperationInfo>> domainOptMap = appList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getDomainName));
+        List<PlatformAppDeployDetailVo> deployApps = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
+        List<LJHostInfo> hostList = this.paasService.queryBKHost(platformPo.getBkBizId(), null, null, null, null);
+        Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(platformId, null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
+        for(String domainName : domainOptMap.keySet())
+        {
+            if(!domainMap.containsKey(domainName))
+            {
+                logger.error(String.format("domain %s not exist", domainName));
+                throw new ParamException(String.format("domain %s not exist", domainName));
+            }
+            List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainName) ? domainAppMap.get(domainName) : new ArrayList<>();
+            checkDomainApps(domainOptMap.get(domainName), deployAppList, domainMap.get(domainName), registerApps, hostList);
+        }
+        Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
+        for(String domainName : domainOptMap.keySet())
+        {
+            List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainName) ? domainAppMap.get(domainName) : new ArrayList<>();
+            Map<String, List<NexusAssetInfo>> appCfgMap = preprocessDomainApps(platformId, domainOptMap.get(domainName), deployAppList, domainMap.get(domainName), registerApps, false);
+            domainCfgMap.put(domainName, appCfgMap);
+        }
+        for(String domainName : domainOptMap.keySet())
+        {
+            String domainId = domainMap.get(domainName).getDomainId();
+            List<PlatformAppDeployDetailVo> deployAppList = domainAppMap.containsKey(domainName) ? domainAppMap.get(domainName) : new ArrayList<>();
+            List<AssemblePo> assembleList = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
+            handleDomainApps(platformId, domainMap.get(domainName), domainOptMap.get(domainName), assembleList, deployAppList, registerApps, domainCfgMap.get(domainName));
+        }
+        this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformId, platformPo.getBkCloudId());
+        return new ArrayList<>();
+    }
+
+    /**
+     * 处理域的应用
+     * @param platformId 平台id
+     * @param domainPo 域相关信息
+     * @param domainOptList 指定需要增、删、修改的应用
+     * @param domainAppList 域已经部署的所有应用
+     * @param domainAssembleList 域已有assemble列表
+     * @param registerApps 已经注册应用列表
+     * @param nexusAssetMap 域模块配置文件nexus存储相关信息
+     */
+    private void handleDomainApps(String platformId, DomainPo domainPo, List<AppUpdateOperationInfo> domainOptList, List<AssemblePo> domainAssembleList, List<PlatformAppDeployDetailVo> domainAppList, List<AppModuleVo> registerApps, Map<String, List<NexusAssetInfo>> nexusAssetMap)
+    {
+        Map<String, List<AppModuleVo>> registerAppMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        String domainId = domainPo.getDomainId();
+        Map<AppUpdateOperation, List<AppUpdateOperationInfo>> optMap = domainOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getOperation));
+        List<AppUpdateOperationInfo> updateList = optMap.containsKey(AppUpdateOperation.UPDATE) ? optMap.get(AppUpdateOperation.UPDATE) : new ArrayList<>();
+        List<AppUpdateOperationInfo> addList = optMap.containsKey(AppUpdateOperation.ADD) ? optMap.get(AppUpdateOperation.ADD) : new ArrayList<>();
+        List<AppUpdateOperationInfo> deleteList = optMap.containsKey(AppUpdateOperation.DELETE) ? optMap.get(AppUpdateOperation.DELETE) : new ArrayList<>();
+        for(AppUpdateOperationInfo optInfo : deleteList)
+        {
+            String alias = optInfo.getAppAlias();
+            String tag = String.format("DELETE %s in %s", alias, domainId);
+            logger.debug(String.format("begin to %s", tag));
+            int platformAppId = domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(alias).getPlatformAppId();
+            logger.debug(String.format("delete platform_app_bk_module with platformAppId=%d", platformAppId));
+            this.platformAppBkModuleMapper.delete(platformAppId, null, null, null);
+            logger.debug(String.format("delete platform_app_cfg_file with platformAppId=%d", platformAppId));
+            this.platformAppCfgFileMapper.delete(null, platformAppId);
+            logger.debug(String.format("delete platform_app with platformAppId=%d", platformAppId));
+            this.platformAppMapper.delete(platformAppId, null, null);
+            logger.info(String.format("%s success", tag));
+        }
+        Map<String, AssemblePo> assembleMap = domainAssembleList.stream().collect(Collectors.toMap(AssemblePo::getTag, Function.identity()));
+        for(AppUpdateOperationInfo optInfo : updateList)
+        {
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String assembleTag = optInfo.getAssembleTag();
+            String tag = String.format("UPDATE %s(%s) to %s in %s on %s at %s", alias, appName, version, assembleTag, domainId, hostIp);
+            logger.debug(String.format("begin to %s", tag));
+            AppModuleVo module = registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+            if(!assembleMap.containsKey(assembleTag))
+            {
+                logger.debug(String.format("assemble %s of %s is not exist, add it first", assembleTag, domainId));
+                AssemblePo assemblePo = new AssemblePo();
+                assemblePo.setDomainId(domainId);
+                assemblePo.setPlatformId(platformId);
+                assemblePo.setStatus("Running");
+                assemblePo.setTag(assembleTag);
+                assembleMapper.insert(assemblePo);
+                assembleMap.put(assembleTag, assemblePo);
+            }
+            AssemblePo assemblePo = assembleMap.get(assembleTag);
+            int platformAppId = domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(alias).getPlatformApp().getPlatformAppId();
+            PlatformAppPo platformAppPo = optInfo.getPlatformApp(platformAppId, module.getAppId(), platformId, domainId);
+            platformAppPo.setAssembleId(assemblePo.getAssembleId());
+            List<NexusAssetInfo> assetList = nexusAssetMap.get(alias);
+            Map<String, AppFileNexusInfo> cfgMap = optInfo.getCfgs().stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
+            logger.debug(String.format("update platform_app to %s", JSONObject.toJSONString(platformAppPo)));
+            this.platformAppMapper.update(platformAppPo);
+            logger.debug(String.format("delete from platform_app_cfg_file where platformAppId=%d", platformAppId));
+            this.platformAppCfgFileMapper.delete(null, platformAppId);
+            for(NexusAssetInfo cfg : assetList)
+            {
+                PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo(platformAppId, module.getAppId(), cfgMap.get(cfg.getNexusAssetFileName()).getDeployPath(), cfg);
+                logger.debug(String.format("insert cfg[%s]", JSONObject.toJSONString(cfgFilePo)));
+                this.platformAppCfgFileMapper.insert(cfgFilePo);
+            }
+            logger.info(String.format("%s success", tag));
+        }
+        for(AppUpdateOperationInfo optInfo : addList)
+        {
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String assembleTag = optInfo.getAssembleTag();
+            String tag = String.format("ADD %s(%s) to %s on %s in %s at %s", alias, appName, version, assembleTag, domainId, hostIp);
+            logger.debug(String.format("begin to %s", tag));
+            if(!assembleMap.containsKey(assembleTag))
+            {
+                logger.debug(String.format("assemble %s of %s is not exist, add it first", assembleTag, domainId));
+                AssemblePo assemblePo = new AssemblePo();
+                assemblePo.setDomainId(domainId);
+                assemblePo.setPlatformId(platformId);
+                assemblePo.setStatus("Running");
+                assemblePo.setTag(assembleTag);
+                assembleMapper.insert(assemblePo);
+                assembleMap.put(assembleTag, assemblePo);
+            }
+            AssemblePo assemblePo = assembleMap.get(assembleTag);
+            AppModuleVo module = registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+            PlatformAppPo platformAppPo = optInfo.getPlatformApp(module.getAppId(), platformId, domainId);
+            platformAppPo.setAssembleId(assemblePo.getAssembleId());
+            this.platformAppMapper.insert(platformAppPo);
+            int platformAppId = platformAppPo.getPlatformAppId();
+            List<NexusAssetInfo> assetList = nexusAssetMap.get(alias);
+            Map<String, AppFileNexusInfo> cfgMap = optInfo.getCfgs().stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
+            for(NexusAssetInfo cfg : assetList)
+            {
+                PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo(platformAppId, module.getAppId(), cfgMap.get(cfg.getNexusAssetFileName()).getDeployPath(), cfg);
+                logger.debug(String.format("insert cfg[%s]", JSONObject.toJSONString(cfgFilePo)));
+                this.platformAppCfgFileMapper.insert(cfgFilePo);
+            }
+            logger.info(String.format("%s success", tag));
+        }
+    }
+
+    /**
+     * 为域新加的应用自动生成应用别名
+     * @param domainPo 添加应用的域
+     * @param addOptList 该域所有被添加的应用
+     * @param deployAppList 该域已经部署的应用列表
+     * @param clone 该域是否是否是通过clone方式获得
+     */
+    private void generateAlias4DomainApps(DomainPo domainPo, List<AppUpdateOperationInfo> addOptList, List<PlatformAppDeployDetailVo> deployAppList, boolean clone) throws ParamException
+    {
+        for(AppUpdateOperationInfo optInfo : addOptList)
+            if(StringUtils.isNotBlank(optInfo.getAppAlias()))
+                optInfo.setOriginalAlias(optInfo.getAppAlias());
+        Map<String, List<AppUpdateOperationInfo>> addAppMap = addOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName));
+        for(String appName : addAppMap.keySet())
+        {
+            List<String> usedAlias = new ArrayList<>();
+            String standAlias = this.setDefineMap.get(domainPo.getBizSetName()).getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity())).get(appName).getAlias();
+            if(domainAppMap.containsKey(appName))
+            {
+                usedAlias = new ArrayList<>(domainAppMap.get(appName).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity())).keySet());
+            }
+            List<AppUpdateOperationInfo> needAliasList = new ArrayList<>();
+            for(AppUpdateOperationInfo optInfo : addAppMap.get(appName))
+            {
+                if(StringUtils.isBlank(optInfo.getAppAlias()) || !clone)
+                    needAliasList.add(optInfo);
+                else
+                    usedAlias.add(optInfo.getAppAlias());
+            }
+            boolean onlyOne = usedAlias.size() == 0 && needAliasList.size() == 1 ? true : false;
+            for(AppUpdateOperationInfo optInfo : needAliasList)
+            {
+                String alias = autoGenerateAlias(standAlias, usedAlias, onlyOne);
+                optInfo.setAppAlias(alias);
+                usedAlias.add(alias);
+            }
+        }
+        for(AppUpdateOperationInfo optInfo : addOptList)
+        {
+            if(StringUtils.isBlank(optInfo.getOriginalAlias()))
+                optInfo.setOriginalAlias(optInfo.getAppAlias());
+        }
+    }
+
+    /**
+     * 为指定域新加的应用生成别名，并且下载添加/更新的应用的配置文件到指定nexus路径
+     * @param platformId 平台id
+     * @param domainOptList 指定域的应用的相关操作
+     * @param deployAppList 指定域已经部署的所有应用
+     * @param domainPo 指定域
+     * @param registerApps 已经注册应用列表
+     * @param clone 是否通过clone方式获得
+     * @return 添加/更新的应用的配置文件的nexus存放信息
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws NexusException
+     * @throws IOException
+     */
+    private Map<String, List<NexusAssetInfo>> preprocessDomainApps(String platformId, List<AppUpdateOperationInfo> domainOptList, List<PlatformAppDeployDetailVo> deployAppList, DomainPo domainPo, List<AppModuleVo> registerApps, boolean clone) throws ParamException, InterfaceCallException, NexusException, IOException
+    {
+        String domainId = domainPo.getDomainId();
+        Map<String, List<NexusAssetInfo>> assetMap = new HashMap<>();
+        Map<AppUpdateOperation, List<AppUpdateOperationInfo>> optMap = domainOptList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getOperation));
+        List<AppUpdateOperationInfo> updateList = optMap.containsKey(AppUpdateOperation.UPDATE) ? optMap.get(AppUpdateOperation.UPDATE) : new ArrayList<>();
+        List<AppUpdateOperationInfo> addList = optMap.containsKey(AppUpdateOperation.ADD) ? optMap.get(AppUpdateOperation.ADD) : new ArrayList<>();
+        Map<String, List<AppModuleVo>> registerAppMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        if(addList.size() > 0)
+            generateAlias4DomainApps(domainPo, addList, deployAppList, clone);
+        for(AppUpdateOperationInfo optInfo : addList)
+        {
+            if(StringUtils.isBlank(optInfo.getAssembleTag()))
+                optInfo.setAssembleTag(optInfo.getAppAlias());
+            AppModuleVo module = registerAppMap.get(optInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion());
+            PlatformAppPo platformAppPo = optInfo.getPlatformApp(0, module.getAppId(), platformId, domainId);
+            String directory = platformAppPo.getPlatformAppDirectory(module.getAppName(), module.getVersion(), platformAppPo);
+            List<AppFilePo> fileList = new ArrayList<>();
+            for(AppFileNexusInfo cfg : optInfo.getCfgs())
+            {
+                AppFilePo filePo = new AppFilePo(module.getAppId(), cfg);
+                fileList.add(filePo);
+            }
+            logger.debug(String.format("download cfg of %s at %s and upload to %s/%s", optInfo.getAppAlias(), domainId, this.platformAppCfgRepository, directory));
+            List<NexusAssetInfo> assetList = appManagerService.downloadAndUploadAppFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.platformAppCfgRepository, directory);
+            assetMap.put(optInfo.getAppAlias(), assetList);
+        }
+        for(AppUpdateOperationInfo optInfo : updateList)
+        {
+            if(StringUtils.isBlank(optInfo.getAssembleTag()))
+                optInfo.setAssembleTag(deployAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(optInfo.getAppAlias()).getAppAlias());
+            AppModuleVo module = registerAppMap.get(optInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion());
+            int platformAppId = deployAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(optInfo.getAppAlias()).getPlatformApp().getPlatformAppId();
+            PlatformAppPo platformAppPo = optInfo.getPlatformApp(platformAppId, module.getAppId(), platformId, domainId);
+            String directory = platformAppPo.getPlatformAppDirectory(module.getAppName(), module.getVersion(), platformAppPo);
+            List<AppFilePo> fileList = new ArrayList<>();
+            for(AppFileNexusInfo cfg : optInfo.getCfgs())
+            {
+                AppFilePo filePo = new AppFilePo(module.getAppId(), cfg);
+                fileList.add(filePo);
+            }
+            logger.debug(String.format("download cfg of %s at %s and upload to %s/%s", optInfo.getAppAlias(), domainId, this.platformAppCfgRepository, directory));
+            List<NexusAssetInfo> assetList = appManagerService.downloadAndUploadAppFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.platformAppCfgRepository, directory);
+            assetMap.put(optInfo.getAppAlias(), assetList);
+        }
+        return assetMap;
+    }
+
+    /**
+     * 检查一个域的操作是否合法
+     * @param domainOptList 对指定域的所有操作
+     * @param domainAppList 指定域已经部署的所有应用
+     * @param domainPo 指定的域信息
+     * @param registerApps 已经注册应用列表
+     * @param hostList 该域所属平台的服务器信息
+     * @throws ParamException
+     * @throws NotSupportAppException
+     */
+    private void checkDomainApps(List<AppUpdateOperationInfo> domainOptList, List<PlatformAppDeployDetailVo> domainAppList, DomainPo domainPo, List<AppModuleVo> registerApps, List<LJHostInfo> hostList) throws ParamException, NotSupportAppException
+    {
+        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        String domainId = domainPo.getDomainId();
+        Map<String, List<AppModuleVo>> registerAppMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        for(AppUpdateOperationInfo optInfo : domainOptList)
+        {
+            String appName = optInfo.getAppName();
+            String alias = optInfo.getAppAlias();
+            String version = optInfo.getTargetVersion();
+            String hostIp = optInfo.getHostIp();
+            String originalAlias = optInfo.getOriginalAlias();
+            String tag = String.format("UPDATE %s(%s) to %s in %s at %s", alias, appName, version, domainId, hostIp);
+            switch (optInfo.getOperation())
+            {
+                case UPDATE:
+                    if(StringUtils.isBlank(appName))
+                    {
+                        logger.error(String.format("%s FAIL : appName is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : appName is blank", tag));
+                    }
+                    else if(StringUtils.isBlank(version))
+                    {
+                        logger.error(String.format("%s FAIL : version is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : version is blank", tag));
+                    }
+                    else if(!registerAppMap.containsKey(appName) || !registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
+                    {
+                        logger.error(String.format("%s FAIL : version %s not register", tag, version));
+                        throw new ParamException(String.format("%s FAIL : version %s not register", tag, version));
+                    }
+                    if(StringUtils.isBlank(alias))
+                    {
+                        logger.error(String.format("%s FAIL : appAlias is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : appAlias is blank", tag));
+                    }
+                    else if(!domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).containsKey(alias))
+                    {
+                        logger.error(String.format("%s FAIL : %s not exist", tag, alias));
+                        throw new ParamException(String.format("%s FAIL : %s not exist", tag, alias));
+                    }
+                    if(StringUtils.isBlank(hostIp))
+                    {
+                        logger.error(String.format("%s FAIL : hostIp is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : hostIp is blank", tag));
+                    }
+                    else if(!hostMap.containsKey(hostIp))
+                    {
+                        logger.error(String.format("%s FAIL : host %s not exist", tag, hostIp));
+                        throw new ParamException(String.format("%s FAIL : host %s not exist", tag, hostIp));
+                    }
+                    if(!this.setDefineMap.get(domainPo.getBizSetName()).getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity())).containsKey(appName))
+                    {
+                        logger.error(String.format("%s not support %s", domainPo.getBizSetName(), appName));
+                        throw new NotSupportAppException(String.format("%s not support %s", domainPo.getBizSetName(), appName));
+                    }
+                    if(optInfo.getCfgs() == null || optInfo.getCfgs().size() == 0)
+                    {
+                        logger.error(String.format("%s FAIL : cfg is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : cfg is blank", tag));
+                    }
+                    if(!domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).containsKey(alias))
+                    {
+                        logger.error(String.format("%s FAIL : %s of %s not exist", tag, alias, domainId));
+                        throw new ParamException(String.format("%s FAIL : %s of %s not exist", tag, alias, domainId));
+                    }
+                    break;
+                case ADD:
+                    tag = String.format("ADD %s[%s(%s)] in %s at %s", alias, appName, version, domainId, hostIp);
+                    if(StringUtils.isBlank(appName))
+                    {
+                        logger.error(String.format("%s FAIL : appName is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : appName is blank", tag));
+                    }
+                    else if(StringUtils.isBlank(version))
+                    {
+                        logger.error(String.format("%s FAIL : version is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : version is blank", tag));
+                    }
+                    else if(!registerAppMap.containsKey(appName) || !registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
+                    {
+                        logger.error(String.format("%s FAIL : version %s not register", tag, version));
+                        throw new ParamException(String.format("%s FAIL : version %s not register", tag, version));
+                    }
+                    if(!AppUpdateOperation.ADD.equals(optInfo.getOperation()) && StringUtils.isBlank(alias))
+                    {
+                        logger.error(String.format("%s FAIL : appAlias is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : appAlias is blank", tag));
+                    }
+                    else if(StringUtils.isNotBlank(originalAlias)
+                            && domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).containsKey(originalAlias))
+                    {
+                        logger.error(String.format("%s FAIL : %s has exist", tag, originalAlias));
+                        throw new ParamException(String.format("%s FAIL : %s has exist", tag, originalAlias));
+                    }
+                    if(StringUtils.isBlank(hostIp))
+                    {
+                        logger.error(String.format("%s FAIL : hostIp is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : hostIp is blank", tag));
+                    }
+                    else if(!hostMap.containsKey(hostIp))
+                    {
+                        logger.error(String.format("%s FAIL : host %s not exist", tag, hostIp));
+                        throw new ParamException(String.format(String.format("%s FAIL : host %s not exist", tag, hostIp)));
+                    }
+                    if(!this.setDefineMap.get(domainPo.getBizSetName()).getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity())).containsKey(appName))
+                    {
+                        logger.error(String.format("%s not support %s", domainPo.getBizSetName(), appName));
+                        throw new NotSupportAppException(String.format("%s not support %s", domainPo.getBizSetName(), appName));
+                    }
+                    if(optInfo.getCfgs() == null || optInfo.getCfgs().size() == 0)
+                    {
+                        logger.error(String.format("%s FAIL : cfg is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : cfg is blank", tag));
+                    }
+                    if(domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).containsKey(alias))
+                    {
+                        logger.error(String.format("%s FAIL : %s of %s exist", tag, alias, domainId));
+                        throw new ParamException(String.format("%s FAIL : a%s of %s exist", tag, alias, domainId));
+                    }
+                    break;
+                case DELETE:
+                    tag = String.format("DELETE %s in %s", alias, domainId);
+                    if(StringUtils.isBlank(alias))
+                    {
+                        logger.error(String.format("%s FAIL : appAlias is blank", tag));
+                        throw new ParamException(String.format("%s FAIL : appAlias is blank", tag));
+                    }
+                    else if(!domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).containsKey(alias))
+                    {
+                        logger.error(String.format("%s FAIL : %s not exist", tag, alias));
+                        throw new ParamException(String.format("%s FAIL : %s not exist", tag, alias));
+                    }
+                    break;
+                default:
+                    logger.error(String.format("%s operation not support", optInfo.getOperation().name));
+                    throw new ParamException(String.format("%s operation not support", optInfo.getOperation().name));
+            }
+            logger.debug(String.format("%s is ok", tag));
+//            List<AppFileNexusInfo> cfgs = new ArrayList<>();
+//            for(AppCfgFilePo cfg : this.registerAppMap.get(optInfo.getAppName()).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion()).getCfgs())
+//            {
+//                AppFileNexusInfo cfgFilePo = new AppFileNexusInfo();
+//                cfgFilePo.setNexusRepository(cfg.getNexusRepository());
+//                cfgFilePo.setNexusPath(String.format("%s/%s", cfg.getNexusDirectory(), cfg.getFileName()));
+//                cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
+//                cfgFilePo.setMd5(cfg.getMd5());
+//                cfgFilePo.setFileSize((long)0);
+//                cfgFilePo.setFileName(cfg.getFileName());
+//                cfgFilePo.setExt(cfg.getExt());
+//                cfgFilePo.setDeployPath(cfg.getDeployPath());
+//                cfgs.add(cfgFilePo);
+//            }
+//            optInfo.setCfgs(cfgs);
+        }
+    }
+
+    @Override
+    public void deletePlatformUpdateSchema(String platformId) throws ParamException {
+        logger.debug(String.format("begin to delete platform update schema of %s", platformId));
+        PlatformPo platformPo = platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+        {
+            logger.error(String.format("%s platform not exist", platformId));
+            throw new ParamException(String.format("%s platform not exist", platformId));
+        }
+        CCODPlatformStatus status = CCODPlatformStatus.getEnumById(platformPo.getStatus());
+        if(status == null)
+        {
+            logger.error(String.format("%s status value %d is unknown", platformId, platformPo.getStatus()));
+            throw new ParamException(String.format("%s status value %d is unknown", platformId, platformPo.getStatus()));
+        }
+        if(this.platformUpdateSchemaMap.containsKey(platformId))
+        {
+            logger.debug(String.format("remove schema of %s from memory", platformId));
+            this.platformUpdateSchemaMap.remove(platformId);
+        }
+        logger.debug(String.format("delete schema of %s from database", platformId));
+        this.platformUpdateSchemaMapper.delete(platformId);
+        switch (status)
+        {
+            case SCHEMA_CREATE_PLATFORM:
+                logger.debug(String.format("%s status is %s, so it should be deleted", platformId, status.name));
+                platformMapper.delete(platformId);
+                break;
+            default:
+                logger.debug(String.format("%s status is %s, so it should be updated to %s",
+                        platformId, status.name, CCODPlatformStatus.RUNNING.name));
+                platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+                platformMapper.update(platformPo);
+                break;
+        }
+    }
+
+    @Override
+    public PlatformAppModuleVo[] startCollectPlatformAppUpdateData(String platformId, String platformName) throws Exception {
+        logger.debug(String.format("begin to collect %s(%s) app update data", platformName, platformId));
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+        {
+            logger.error(String.format("%s platform not exist", platformId));
+            throw new ParamException(String.format("%s platform not exist", platformId));
+        }
+        if(!platformPo.getPlatformName().equals(platformName))
+        {
+            logger.error(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
+            throw new ParamException(String.format("name of %s is %s not %s", platformId, platformPo.getPlatformName(), platformName));
+        }
+        List<UnconfirmedAppModulePo> wantList = this.unconfirmedAppModuleMapper.select(platformId);
+        logger.debug("want update item of %s(%s) is %d", platformName, platformId, wantList.size());
+        if(this.isPlatformCheckOngoing)
+        {
+            logger.error(String.format("start platform=%s app data collect FAIL : some collect task is ongoing", platformId));
+            throw new ClientCollectDataException(String.format("start platform=%s app data collect FAIL : some collect task is ongoing", platformId));
+        }
+        this.isPlatformCheckOngoing = true;
+        try
+        {
+            List<PlatformAppModuleVo> modules = this.platformAppCollectService.updatePlatformAppData(platformId, platformName, wantList);
+            List<PlatformAppModuleVo> failList = new ArrayList<>();
+            List<PlatformAppModuleVo> successList = new ArrayList<>();
+            for(PlatformAppModuleVo collectedModule : modules)
+            {
+                if(!collectedModule.isOk(platformId, platformName, this.appSetRelationMap))
+                {
+                    logger.debug(collectedModule.getComment());
+                    failList.add(collectedModule);
+                }
+                else
+                    successList.add(collectedModule);
+            }
+            List<DomainPo> domainList = this.domainMapper.select(platformId, null);
+            Map<String, DomainPo> existDomainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
+            Map<String, List<PlatformAppModuleVo>> domainAppMap = successList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
+            List<String> domainNameList = new ArrayList<>(domainAppMap.keySet());
+            List<PlatformAppModuleVo> okList = new ArrayList<>();
+            for(String domainName : domainNameList)
+            {
+                if(!existDomainMap.containsKey(domainName))
+                {
+                    logger.error(String.format("domain %s not exist", domainName));
+                    for(PlatformAppModuleVo moduleVo : domainAppMap.get(domainName))
+                    {
+                        moduleVo.setComment(String.format("domain %s not exist", domainName));
+                        failList.add(moduleVo);
+                    }
+                    domainAppMap.remove(domainName);
+                }
+                else
+                    okList.addAll(domainAppMap.get(domainName));
+            }
+            logger.debug(String.format("begin to handle collected %d app", okList.size()));
+            successList = new ArrayList<>();
+            this.appWriteLock.writeLock().lock();
+            try
+            {
+                for(PlatformAppModuleVo moduleVo : okList)
+                {
+                    try
+                    {
+                        this.appManagerService.preprocessPlatformAppModule(moduleVo);
+                        successList.add(moduleVo);
+                    }
+                    catch (ParamException ex)
+                    {
+                        moduleVo.setComment(ex.getMessage());
+                        failList.add(moduleVo);
+                    }
+                }
+            }
+            finally {
+                this.appWriteLock.writeLock().unlock();
+            }
+            domainAppMap = successList.stream().collect(Collectors.groupingBy(PlatformAppModuleVo::getDomainName));
+            Map<String, List<PlatformAppDeployDetailVo>> domainDeployMap = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null).stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+            List<AppUpdateOperationInfo> updateList = new ArrayList<>();
+            for(String domainName : domainAppMap.keySet())
+            {
+                String domainId = existDomainMap.get(domainName).getDomainId();
+                Map<String, PlatformAppDeployDetailVo> origAliasMap = domainDeployMap.get(domainId).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity()));
+                for(PlatformAppModuleVo moduleVo : domainAppMap.get(domainName))
+                {
+                    boolean isAdd = origAliasMap.containsKey(moduleVo.getModuleAliasName()) ? false : true;
+                    AppUpdateOperationInfo optInfo = new AppUpdateOperationInfo();
+                    List<AppFileNexusInfo> cfgs = new ArrayList<>();
+                    if(moduleVo.getCfgs() != null && moduleVo.getCfgs().length > 0)
+                    {
+                        for(DeployFileInfo fileInfo : moduleVo.getCfgs())
+                        {
+                            AppFileNexusInfo cfg = new AppFileNexusInfo();
+                            cfg.setDeployPath(fileInfo.getDeployPath());
+                            cfg.setExt(fileInfo.getExt());
+                            cfg.setFileName(fileInfo.getFileName());
+                            cfg.setFileSize(fileInfo.getFileSize());
+                            cfg.setMd5(fileInfo.getFileMd5());
+                            cfg.setNexusAssetId(fileInfo.getNexusAssetId());
+                            cfg.setNexusPath(String.format("%s/%s", fileInfo.getNexusDirectory(), fileInfo.getFileName()));
+                            cfg.setNexusRepository(fileInfo.getNexusRepository());
+                            cfgs.add(cfg);
+                        }
+                    }
+                    optInfo.setCfgs(cfgs);
+                    optInfo.setAppRunner(moduleVo.getLoginUser());
+                    optInfo.setTargetVersion(moduleVo.getVersion());
+                    optInfo.setAppName(moduleVo.getModuleName());
+                    optInfo.setBasePath(moduleVo.getBasePath());
+                    optInfo.setHostIp(moduleVo.getHostIp());
+                    optInfo.setDomainId(domainId);
+                    if(isAdd)
+                    {
+                        optInfo.setAppAlias(moduleVo.getModuleAliasName());
+                        optInfo.setOperation(AppUpdateOperation.ADD);
+                    }
+                    else
+                    {
+                        optInfo.setOriginalAlias(moduleVo.getModuleAliasName());
+                        optInfo.setOperation(AppUpdateOperation.UPDATE);
+                    }
+                    updateList.add(optInfo);
+                }
+            }
+            this.updatePlatformApps(platformId, platformName, updateList);
+            for(PlatformAppModuleVo moduleVo : failList)
+            {
+                try
+                {
+                    UnconfirmedAppModulePo unconfirmedAppModulePo = handleUnconfirmedPlatformAppModule(moduleVo);
+                    this.unconfirmedAppModuleMapper.insert(unconfirmedAppModulePo);
+                }
+                catch (Exception ex)
+                {
+                    logger.error(String.format("handle unconfirmed app exception"), ex);
+                }
+
+            }
+            this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformId, platformPo.getBkCloudId());
+            platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+            this.platformMapper.update(platformPo);
+            return modules.toArray(new PlatformAppModuleVo[0]);
+        }
+        finally {
+            this.isPlatformCheckOngoing = false;
         }
     }
 
@@ -371,7 +1250,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             this.platformThreePartServiceMapper.insert(threePartServicePo);
         }
         ljPaasService.syncClientCollectResultToPaas(bkBizId, platformId, bkCloudId);
-        return this.appManagerService.getPlatformTopology(platformId);
+        return getPlatformTopology(platformId);
     }
 
     /**
@@ -897,7 +1776,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             public void run() {
                 try
                 {
-                    appManagerService.startCollectPlatformAppUpdateData(platformId, platformName);
+                    startCollectPlatformAppUpdateData(platformId, platformName);
                 }
                 catch (Exception ex)
                 {
@@ -911,40 +1790,699 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public void deletePlatformUpdateSchema(String platformId) throws ParamException {
-        logger.debug(String.format("begin to delete platform update schema of %s", platformId));
-        PlatformPo platformPo = platformMapper.selectByPrimaryKey(platformId);
+    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException {
+        logger.debug(String.format("begin to update platform update schema : %s", JSONObject.toJSONString(updateSchema)));
+        if(StringUtils.isBlank(updateSchema.getPlatformId()))
+        {
+            logger.error("platformId of schema is blank");
+            throw new ParamException("platformId of schema is blank");
+        }
+        if(StringUtils.isBlank(updateSchema.getPlatformName()))
+        {
+            logger.error("platformName of schema is blank");
+            throw new ParamException("platformName of schema is blank");
+        }
+        LJBizInfo bkBiz = paasService.queryBizInfoById(updateSchema.getBkBizId());
+        if(bkBiz == null)
+        {
+            logger.error(String.format("bkBizId=%d biz not exist", updateSchema.getBkBizId()));
+            throw new ParamException(String.format("bkBizId=%d biz not exist", updateSchema.getBkBizId()));
+        }
+        if(!updateSchema.getPlatformName().equals(bkBiz.getBkBizName()))
+        {
+            logger.error(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
+            throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
+        }
+        PlatformPo platformPo = platformMapper.selectByPrimaryKey(updateSchema.getPlatformId());
         if(platformPo == null)
         {
-            logger.error(String.format("%s platform not exist", platformId));
-            throw new ParamException(String.format("%s platform not exist", platformId));
+            if(!updateSchema.getStatus().equals(UpdateStatus.CREATE))
+            {
+                logger.error(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
+                throw new ParamException(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
+            }
+            else
+            {
+                platformPo = new PlatformPo(updateSchema.getPlatformId(), updateSchema.getPlatformName(),
+                        updateSchema.getBkBizId(), updateSchema.getBkCloudId(), CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
+                        updateSchema.getCcodVersion(), "create by platform create schema", updateSchema.getPlatformType(), updateSchema.getPlatformFunc(), updateSchema.getCreateMethod());
+                if(PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType()))
+                {
+                    platformPo.setApiUrl(updateSchema.getK8sApiUrl());
+                    platformPo.setAuthToken(updateSchema.getK8sAuthToken());
+                }
+                if(StringUtils.isNotBlank(updateSchema.getCcodVersion()))
+                {
+                    platformPo.setCcodVersion("CCOD4.1");
+                }
+                this.platformMapper.insert(platformPo);
+            }
         }
-        CCODPlatformStatus status = CCODPlatformStatus.getEnumById(platformPo.getStatus());
-        if(status == null)
+        if(!platformPo.getPlatformName().equals(updateSchema.getPlatformName()))
         {
-            logger.error(String.format("%s status value %d is unknown", platformId, platformPo.getStatus()));
-            throw new ParamException(String.format("%s status value %d is unknown", platformId, platformPo.getStatus()));
+            logger.error(String.format("platformName of %s is %s, not %s",
+                    platformPo.getPlatformId(), platformPo.getPlatformName(), updateSchema.getPlatformName()));
+            throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
         }
-        if(this.platformUpdateSchemaMap.containsKey(platformId))
+        List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
+        logger.debug("begin check param of schema");
+        checkPlatformUpdateSchema(updateSchema, domainList);
+        logger.debug("schema param check success");
+        boolean clone = PlatformCreateMethod.CLONE.equals(updateSchema.getCreateMethod()) ? true : false;
+        List<PlatformAppDeployDetailVo> platformDeployApps = this.platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null);
+        List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
+        Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(updateSchema.getPlatformId(), null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
+        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
+        List<DomainUpdatePlanInfo> successList = new ArrayList<>();
+        makeupDomainIdAndAliasForSchema(updateSchema, domainList, platformDeployApps, clone);
+        for(DomainUpdatePlanInfo plan : updateSchema.getDomainUpdatePlanList())
         {
-            logger.debug(String.format("remove schema of %s from memory", platformId));
-            this.platformUpdateSchemaMap.remove(platformId);
+            String domainId = plan.getDomainId();
+            DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(updateSchema.getPlatformId());
+            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
+            logger.debug(String.format("check %s %d apps with isCreate=%b and %d deployed apps",
+                    JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()), domainAppList.size()));
+            checkDomainApps(plan.getAppUpdateOperationList(), domainAppList, domainPo, registerApps, bkHostList);
+            if(plan.getStatus().equals(UpdateStatus.SUCCESS))
+            {
+                successList.add(plan);
+            }
+            else
+                planList.add(plan);
         }
-        logger.debug(String.format("delete schema of %s from database", platformId));
-        this.platformUpdateSchemaMapper.delete(platformId);
-        switch (status)
+        logger.debug(String.format("generate platform app deploy param and script"));
+        generatePlatformDeployParamAndScript(updateSchema);
+        if(updateSchema.getStatus().equals(UpdateStatus.SUCCESS) && planList.size() > 0)
         {
-            case SCHEMA_CREATE_PLATFORM:
-                logger.debug(String.format("%s status is %s, so it should be deleted", platformId, status.name));
-                platformMapper.delete(platformId);
+            logger.error(String.format("status of %s(%s) update schema is SUCCESS, but there are %d domain update plan not execute",
+                    updateSchema.getPlatformName(), updateSchema.getPlatformId(), planList.size()));
+            throw new ParamException(String.format("status of %s(%s) update schema is SUCCESS, but there are %d domain update plan not execute",
+                    updateSchema.getPlatformName(), updateSchema.getPlatformId(), planList.size()));
+        }
+        logger.debug(String.format("generate domainId for new add with status SUCCESS and id is blank domain"));
+        Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
+        for(DomainUpdatePlanInfo plan : successList)
+        {
+            String domainId = plan.getDomainId();
+            boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
+            DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(updateSchema.getPlatformId());
+            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
+            logger.debug(String.format("preprocess %s %d apps with isCreate=%b and %d deployed apps",
+                    JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
+            Map<String, List<NexusAssetInfo>> cfgMap = preprocessDomainApps(updateSchema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, registerApps, clone);
+            domainCfgMap.put(domainId, cfgMap);
+        }
+        for(DomainUpdatePlanInfo plan : successList)
+        {
+            String domainId = plan.getDomainId();
+            boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
+            DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);
+            if(isCreate)
+                this.domainMapper.insert(domainPo);
+            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
+            List<AssemblePo> assembleList = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
+            logger.debug(String.format("handle %s %d apps with isCreate=%b and %d deployed apps",
+                    JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
+            handleDomainApps(updateSchema.getPlatformId(), domainPo, plan.getAppUpdateOperationList(), assembleList, domainAppList, registerApps, domainCfgMap.get(domainId));
+        }
+        if(updateSchema.getStatus().equals(UpdateStatus.SUCCESS))
+        {
+            logger.debug(String.format("%s(%s) platform complete deployment, so remove schema and set status to RUNNING", updateSchema.getPlatformName(), updateSchema.getPlatformId()));
+            if(this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
+                this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+            this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
+            platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+            this.platformMapper.update(platformPo);
+        }
+        else
+        {
+            logger.debug(String.format("%s(%s) platform not complete deployment, so update schema and set status to PLANING", updateSchema.getPlatformName(), updateSchema.getPlatformId()));
+            updateSchema.setDomainUpdatePlanList(planList);
+            PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+            schemaPo.setContext(JSONObject.toJSONString(updateSchema).getBytes());
+            schemaPo.setPlatformId(updateSchema.getPlatformId());
+            this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
+            this.platformUpdateSchemaMapper.insert(schemaPo);
+            this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
+            platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
+            this.platformMapper.update(platformPo);
+        }
+        if(successList.size() > 0)
+        {
+            logger.debug(String.format("%d domain complete deployment, so sync new platform topo to lj paas", successList.size()));
+            this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
+        }
+    }
+
+    private void makeupDomainIdAndAliasForSchema(PlatformUpdateSchemaInfo schemaInfo, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> deployAppList, boolean clone) throws ParamException
+    {
+        Map<DomainUpdateType, List<DomainUpdatePlanInfo>> planTypeMap = schemaInfo.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getUpdateType));
+        List<DomainUpdatePlanInfo> addDomainList = planTypeMap.containsKey(DomainUpdateType.ADD) ? planTypeMap.get(DomainUpdateType.ADD) : new ArrayList<>();
+        generateId4AddDomain(schemaInfo.getPlatformId(), addDomainList, existDomainList, clone);
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        Map<String, DomainPo> domainMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        for(DomainUpdatePlanInfo planInfo : schemaInfo.getDomainUpdatePlanList())
+        {
+            Map<AppUpdateOperation, List<AppUpdateOperationInfo>> optTypeMap = planInfo.getAppUpdateOperationList().stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getOperation));
+            List<AppUpdateOperationInfo> addOptList = optTypeMap.containsKey(AppUpdateOperation.ADD) ? optTypeMap.get(AppUpdateOperation.ADD) : new ArrayList<>();
+            if(addOptList.size() == 0)
+            {
+                logger.debug(String.format("%s has not new add module", planInfo.getDomainName()));
+                continue;
+            }
+            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(planInfo.getDomainId()) ? domainAppMap.get(planInfo.getDomainId()) : new ArrayList<>();
+            DomainPo domainPo = domainMap.containsKey(planInfo.getDomainId()) ? domainMap.get(planInfo.getDomainId()) : planInfo.getDomain(schemaInfo.getPlatformId());
+            generateAlias4DomainApps(domainPo, addOptList, deployAppList, clone);
+        }
+    }
+
+    /**
+     * 为新加的且id为空的域生成域id
+     * @param platformId 平台id
+     * @param planList 所有的域升级任务
+     * @param existDomainList 已经存在的域
+     * @param clone 是否为新加的域是否通过clone方式生成
+     */
+    private void generateId4AddDomain(String platformId, List<DomainUpdatePlanInfo> planList, List<DomainPo> existDomainList, boolean clone) throws ParamException
+    {
+        List<DomainPo> hasIdList = new ArrayList<>();
+        hasIdList.addAll(existDomainList);
+        List<DomainUpdatePlanInfo> notIdList = new ArrayList<>();
+        for(DomainUpdatePlanInfo plan : planList)
+        {
+            if(plan.getUpdateType().equals(DomainUpdateType.ADD))
+            {
+                if(StringUtils.isBlank(plan.getDomainId()) || !clone)
+                    notIdList.add(plan);
+                else
+                    hasIdList.add(plan.getDomain(platformId));
+            }
+        }
+        Map<String, List<DomainUpdatePlanInfo>> notIdMap = notIdList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
+        Map<String, List<DomainPo>> hasIdMap = hasIdList.stream().collect(Collectors.groupingBy(DomainPo::getBizSetName));
+        for(String bkSetName : notIdMap.keySet())
+        {
+            String standardDomainId = this.setDefineMap.get(bkSetName).getFixedDomainId();
+            List<String> usedId = hasIdMap.containsKey(bkSetName) ? new ArrayList<>(hasIdMap.get(bkSetName).stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity())).keySet()) : new ArrayList<>();
+            for(DomainUpdatePlanInfo plan : notIdMap.get(bkSetName))
+            {
+                String domainId = autoGenerateDomainId(standardDomainId, usedId);
+                logger.debug(String.format("domain id of %s with bkSetName=%s is %s", plan.getDomainName(), bkSetName, domainId));
+                plan.setDomainId(domainId);
+                usedId.add(domainId);
+            }
+        }
+    }
+
+    private void generatePlatformDeployParamAndScript(PlatformUpdateSchemaInfo schemaInfo) throws IOException, InterfaceCallException, NexusException
+    {
+        String platformId = schemaInfo.getPlatformId();
+        Map<String, Object> params = new HashMap<>();
+        params.put("Authorization", HttpRequestTools.getBasicAuthPropValue(this.nexusUserName, this.nexusPassword));
+        params.put("app_repository", this.appRepository);
+        params.put("image_repository", this.imageRepository);
+        params.put("nexus_host_url", this.nexusHostUrl);
+        params.put("nexus_user", this.nexusUserName);
+        params.put("nexus_user_pwd", this.nexusPassword);
+        params.put("cfg_repository", this.platformTmpCfgRepository);
+        params.put("nexus_image_repository_url", this.nexusDockerUrl);
+        params.put("cmdb_host_url", this.cmdbUrl);
+        params.put("k8s_deploy_git_url", this.k8sDeployGitUrl);
+        params.put("k8s_host_ip", schemaInfo.getK8sHostIp());
+        params.put("gls_db_type", schemaInfo.getGlsDBType().name);
+        params.put("gls_db_user", schemaInfo.getGlsDBUser());
+        params.put("gls_db_pwd", schemaInfo.getGlsDBPwd());
+        params.put("gls_db_sid", this.glsOracleSid);
+        if(schemaInfo.getGlsDBType().equals(DatabaseType.ORACLE))
+        {
+            params.put("gls_db_svc_name", this.glsOracleSvcName);
+        }
+        params.put("platform_id", schemaInfo.getPlatformId());
+        params.put("update_schema", schemaInfo);
+        Resource resource = new ClassPathResource(this.platformDeployScriptFileName);
+        InputStreamReader isr = new InputStreamReader(resource.getInputStream(), "UTF-8");
+        BufferedReader br = new BufferedReader(isr);
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String dateStr = sf.format(now);
+        String tmpSaveDir = String.format("%s/temp/deployScript/%s/%s", System.getProperty("user.dir"), platformId, dateStr);
+        File saveDir = new File(tmpSaveDir);
+        if(!saveDir.exists())
+        {
+            saveDir.mkdirs();
+        }
+        String savePath = String.format("%s/%s", tmpSaveDir, platformDeployScriptFileName);
+        savePath = savePath.replaceAll("\\\\", "/");
+        File scriptFile = new File(savePath);
+        scriptFile.createNewFile();
+        BufferedWriter out = new BufferedWriter(new FileWriter(scriptFile));
+        String lineTxt = null;
+        while ((lineTxt = br.readLine()) != null)
+        {
+            if("platform_deploy_params = \"\"\"\"\"\"".equals(lineTxt))
+            {
+                lineTxt = String.format("platform_deploy_params = %s", JSONObject.toJSONString(params));
+            }
+            out.write(lineTxt + "\n");
+        }
+        br.close();
+        out.close();
+        String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePath));
+        DeployFileInfo fileInfo = new DeployFileInfo();
+        fileInfo.setExt(".py");
+        fileInfo.setFileMd5(md5);
+        fileInfo.setLocalSavePath(savePath);
+        fileInfo.setFileName(this.platformDeployScriptFileName);
+        String scriptNexusDirectory = String.format("%s/%s", platformId, dateStr);
+        String scriptPath = String.format("%s/%s/%s", platformId, dateStr, this.platformDeployScriptFileName);
+        nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.platformDeployScriptRepository, scriptNexusDirectory, new DeployFileInfo[]{fileInfo});
+        schemaInfo.setDeployScriptRepository(this.platformDeployScriptRepository);
+        schemaInfo.setDeployScriptPath(scriptPath);
+        schemaInfo.setDeployScriptMd5(md5);
+    }
+
+    /**
+     * 检查平台升级相关参数
+     * @param updateSchema 平台升级计划
+     * @param existDomainList 该平台已经有的域
+     * @throws ParamException 平台升级计划参数异常
+     */
+    private void checkPlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema, List<DomainPo> existDomainList) throws ParamException
+    {
+        StringBuffer sb = new StringBuffer();
+        if(updateSchema.getTaskType() == null)
+            sb.append("platform task type is null;");
+        if(updateSchema.getStatus() == null)
+            sb.append("platform task status is null;");
+        if(updateSchema.getGlsDBType() == null)
+            sb.append("gls database type is null;");
+        else if(!updateSchema.getGlsDBType().equals(DatabaseType.ORACLE))
+            sb.append(String.format("this version cmdb not support glsserver with database %s;", updateSchema.getGlsDBType().name));
+        if(StringUtils.isBlank(updateSchema.getPlatformId()))
+            sb.append("platformId of update schema is blank;");
+        if(StringUtils.isBlank(updateSchema.getPlatformName()))
+            sb.append("platformName of update schema is blank;");
+        if(updateSchema.getBkBizId() <= 0)
+            sb.append("bkBizId of update schema not define;");
+        if(StringUtils.isBlank(updateSchema.getK8sHostIp()))
+            sb.append("k8sHostIp of update schema is blank;");
+        if(updateSchema.getGlsDBType() == null)
+            sb.append("glsDBType of update schema is blank;");
+        if(StringUtils.isBlank(updateSchema.getGlsDBUser()))
+            sb.append("glsDbUser of update schema is blank;");
+        if(StringUtils.isBlank(updateSchema.getGlsDBPwd()))
+            sb.append("glsDBPwd of update schema is blank;");
+        if(StringUtils.isBlank(updateSchema.getBaseDataNexusRepository()))
+            sb.append("baseDataNexusRepository of update schema is blank;");
+        if(StringUtils.isBlank(updateSchema.getBaseDataNexusPath()))
+            sb.append("baseDataNexusPath of update schema is blank;");
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            logger.error(String.format("platform update schema check fail : %s", sb.toString()));
+            throw new ParamException(String.format("platform update schema check fail : %s", sb.toString()));
+        }
+        for(DomainUpdatePlanInfo plan : updateSchema.getDomainUpdatePlanList())
+        {
+            if(plan.getUpdateType() == null)
+                sb.append("domain update type is null;");
+            if(plan.getStatus() == null)
+                sb.append("domain update status is null;");
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            logger.error(String.format("platform update schema check fail : %s", sb.toString()));
+            throw new ParamException(String.format("platform update schema check fail : %s", sb.toString()));
+        }
+        List<DomainUpdatePlanInfo> hasIdList = new ArrayList<>();
+        List<DomainUpdatePlanInfo> hasNameList = new ArrayList<>();
+        Map<String, DomainPo> domainIdMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        Map<String, DomainPo> domainNameMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
+        for(DomainUpdatePlanInfo plan : updateSchema.getDomainUpdatePlanList())
+        {
+            switch (plan.getUpdateType())
+            {
+                case ADD:
+                    if(StringUtils.isBlank(plan.getDomainName()))
+                        sb.append("name of new add domain is blank;");
+                    else if(domainNameMap.containsKey(plan.getDomainName()))
+                        sb.append(String.format("name %s of new add domain has been used;", plan.getDomainName()));
+                    else
+                    {
+                        if(StringUtils.isBlank(plan.getBkSetName()))
+                            sb.append(String.format("bkSetName of new add domain %s is blank;", plan.getBkSetName()));
+                        else if(!this.setDefineMap.containsKey(plan.getBkSetName()))
+                            sb.append(String.format("set %s is of %s not support;", plan.getBkSetName(), plan.getDomainName()));
+                        else if(StringUtils.isNotBlank(plan.getDomainId()))
+                        {
+                            String regex = String.format("^%s(0[1-9]|[1-9]\\d+)", this.setDefineMap.get(plan.getBkSetName()).getFixedDomainId());
+                            if(!plan.getDomainId().matches(regex))
+                                sb.append(String.format("predefine domainId %s of new add domain %s is illegal;", plan.getDomainId(), plan.getBkSetName()));
+                            else if(domainIdMap.containsKey(plan.getDomainId()))
+                                sb.append(String.format("domainId %s has been used;", plan.getDomainId()));
+                        }
+                        if(StringUtils.isBlank(plan.getTags()))
+                            sb.append(String.format("tag of new add domain %s is blank;", plan.getBkSetName()));
+                        if(plan.getAppUpdateOperationList() == null || plan.getAppUpdateOperationList().size() == 0)
+                            sb.append(String.format("app of new add domain %s is 0;", plan.getBkSetName()));
+                        if(plan.getOccurs() == 0)
+                            sb.append(String.format("occurs of new add domain %s is 0;", plan.getBkSetName()));
+                        if(plan.getMaxOccurs() == 0)
+                            sb.append(String.format("maxOccurs of new add domain %s is 0;", plan.getBkSetName()));
+                        hasNameList.add(plan);
+                        if(StringUtils.isNotBlank(plan.getDomainId()))
+                            hasIdList.add(plan);
+                    }
+                    break;
+                case UPDATE:
+                    if(StringUtils.isBlank(plan.getDomainId()))
+                        sb.append(String.format("domainId of update domain is blank;"));
+                    else if(!domainIdMap.containsKey(plan.getDomainId()))
+                        sb.append(String.format("domain %s of update domain not exist;", plan.getDomainId()));
+                    else if(plan.getAppUpdateOperationList() == null || plan.getAppUpdateOperationList().size() == 0)
+                        sb.append(String.format("update app count of %s is 0;", plan.getDomainId()));
+                    hasIdList.add(plan);
+                    break;
+                case DELETE:
+                    if(StringUtils.isBlank(plan.getDomainId()))
+                        sb.append(String.format("domainId of delete domain is blank;"));
+                    else if(!domainIdMap.containsKey(plan.getDomainId()))
+                        sb.append(String.format("domain %s of delete domain not exist;", plan.getDomainId()));
+                    hasIdList.add(plan);
+                    break;
+                default:
+                    sb.append(String.format("domain update type %s is not support now;", plan.getUpdateType().name));
+                    break;
+            }
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            logger.error(String.format("domain update plan of platform schema is checked fail : %s", sb.toString().replaceAll(";$", "")));
+            throw new ParamException(sb.toString().replaceAll(";$", ""));
+        }
+        Map<String, List<DomainUpdatePlanInfo>> idMap = hasIdList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId));
+        for(String domainId : idMap.keySet())
+        {
+            if(idMap.get(domainId).size() > 1)
+                sb.append(String.format("domainId %s update plan  is not unique;", domainId));
+        }
+        Map<String, List<DomainUpdatePlanInfo>> nameMap = hasNameList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainName));
+        for(String domainName : nameMap.keySet())
+        {
+            if(nameMap.get(domainName).size() > 1)
+                sb.append(String.format("domainName %s update plan  is not unique;", domainName));
+        }
+        if(StringUtils.isNotBlank(sb.toString()))
+        {
+            logger.error(String.format("id or name of domain plan of platform schema is checked fail : %s", sb.toString().replaceAll(";$", "")));
+            throw new ParamException(sb.toString().replaceAll(";$", ""));
+        }
+    }
+
+    @Override
+    public PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
+        checkPlatformCreateParam(paramVo);
+        logger.debug(String.format("prepare to create new platform : %s", JSONObject.toJSONString(paramVo)));
+        List<LJHostInfo> hostList = this.paasService.queryBKHost(paramVo.getBkBizId(), null, null, null, null);
+        if(hostList.size() == 0)
+            throw new ParamException(String.format("%s has not any host", paramVo.getPlatformName()));
+        PlatformUpdateSchemaInfo schemaInfo;
+        String platformId = paramVo.getPlatformId();
+        switch (paramVo.getCreateMethod())
+        {
+            case MANUAL:
+                schemaInfo = paramVo.getPlatformCreateSchema(new ArrayList<>());
+                break;
+            case CLONE:
+                if(StringUtils.isBlank(paramVo.getParams()))
+                {
+                    logger.error(String.format("cloned platform id is blank"));
+                    throw new ParamException(String.format("cloned platform id is blank"));
+                }
+                PlatformPo clonedPlatform = this.platformMapper.selectByPrimaryKey(paramVo.getParams());
+                List<DomainPo> clonedDomains = this.domainMapper.select(paramVo.getParams(),null);
+                if(clonedPlatform == null)
+                    throw new ParamException(String.format("cloned platform %s not exist", paramVo.getParams()));
+                List<PlatformAppDeployDetailVo> clonedApps = this.platformAppDeployDetailMapper.selectPlatformApps(paramVo.getParams(), null, null);
+                if(hostList.size() < clonedApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp)).keySet().size())
+                    throw new ParamException(String.format("%s has not enough hosts, want %s but has %d",
+                            paramVo.getPlatformName(), clonedApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp)).size(), hostList.size()));
+                schemaInfo = cloneExistPlatform(paramVo, clonedDomains, clonedApps, hostList);
+                break;
+            case PREDEFINE:
+                if(StringUtils.isBlank(paramVo.getParams()))
+                {
+                    logger.error(String.format("apps of pre define is blank"));
+                    throw new ParamException(String.format("apps of pre define is blank"));
+                }
+                List<String> planAppList = new ArrayList<>();
+                String[] planApps = paramVo.getParams().split("\n");
+                for(String planApp : planApps)
+                {
+                    if(StringUtils.isNotBlank(planApp))
+                        planAppList.add(planApp);
+                }
+                schemaInfo = createDemoNewPlatform(paramVo, planAppList, hostList);
                 break;
             default:
-                logger.debug(String.format("%s status is %s, so it should be updated to %s",
-                        platformId, status.name, CCODPlatformStatus.RUNNING.name));
-                platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
-                platformMapper.update(platformPo);
-                break;
+                throw new ParamException(String.format("current version not support %s create", paramVo.getCreateMethod().name));
         }
+        PlatformPo platform = paramVo.getCreatePlatform();
+        platformMapper.insert(platform);
+        PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+        schemaPo.setPlatformId(platformId);
+        schemaPo.setContext(JSONObject.toJSONString(schemaInfo).getBytes());
+        this.platformUpdateSchemaMapper.delete(platformId);
+        this.platformUpdateSchemaMapper.insert(schemaPo);
+        this.platformUpdateSchemaMap.put(platformId, schemaInfo);
+        return schemaInfo;
+    }
+
+    private void checkPlatformCreateParam(PlatformCreateParamVo param) throws ParamException, InterfaceCallException, LJPaasException
+    {
+        StringBuffer sb = new StringBuffer();
+        if(PlatformType.K8S_CONTAINER.equals(param.getPlatformType()))
+        {
+            if(StringUtils.isBlank(param.getK8sApiUrl()))
+                sb.append("k8sApiUrl is blank;");
+            if(StringUtils.isBlank(param.getK8sAuthToken()))
+                sb.append("ks8AuthToken is blank;");
+            if(StringUtils.isBlank(param.getK8sHostIp()))
+                sb.append("k8sHostIp is blank;");
+        }
+        if(param.getBkBizId() == 0)
+            sb.append("bizId of platform not define;");
+        if(param.getCreateMethod().equals(PlatformCreateMethod.CLONE) || param.getCreateMethod().equals(PlatformCreateMethod.PREDEFINE))
+            if(StringUtils.isBlank(param.getParams()))
+                sb.append("params is blank;");
+        if(StringUtils.isNotBlank(sb.toString()))
+            throw new ParamException(sb.toString().replaceAll(";$", ""));
+        List<PlatformPo> platformList = this.platformMapper.select(null);
+        if(platformList.stream().collect(Collectors.toMap(PlatformPo::getPlatformId, Function.identity())).containsKey(param.getPlatformId()))
+            throw new ParamException(String.format("id=%s platform has exist", param.getPlatformId()));
+        if(platformList.stream().collect(Collectors.toMap(PlatformPo::getPlatformName, Function.identity())).containsKey(param.getPlatformName()))
+            throw new ParamException(String.format("name=%s platform has exist", param.getPlatformName()));
+        LJBizInfo bizInfo = this.paasService.queryBizInfoById(param.getBkBizId());
+        if(bizInfo == null)
+            throw new ParamException(String.format("bizId=%d biz not exist", param.getBkBizId()));
+        if(!bizInfo.getBkBizName().equals(param.getPlatformName()))
+            throw new ParamException(String.format("bizId=%d biz name is %s not %s", param.getBkBizId(), bizInfo.getBkBizName(), param.getPlatformName()));
+        if(!param.getGlsDBType().equals(DatabaseType.ORACLE))
+            throw new ParamException(String.format("this version cmdb not support glsserver with database %s", param.getGlsDBType().name));
+    }
+
+    /**
+     * 创建demo新平台
+     * @param planAppList 新建平台计划部署的应用
+     * @return 创建的平台
+     * @throws ParamException 计划的参数异常
+     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
+     * @throws LJPaasException 调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
+     */
+    public PlatformUpdateSchemaInfo createDemoNewPlatform(PlatformCreateParamVo paramVo, List<String> planAppList, List<LJHostInfo> hostList) throws ParamException, InterfaceCallException, LJPaasException
+    {
+        logger.debug(String.format("begin to create new empty platform : %s", JSONObject.toJSONString(paramVo)));
+        Date now = new Date();
+        Map<String, List<String>> planAppMap = new HashMap<>();
+        for(String planApp : planAppList)
+        {
+            String[] arr = planApp.split("##");
+            if(!planAppMap.containsKey(arr[0]))
+            {
+                planAppMap.put(arr[0], new ArrayList<>());
+            }
+            planAppMap.get(arr[0]).add(planApp);
+        }
+        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
+        Set<String> ipSet = new HashSet<>();
+        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(null).stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        for(BizSetDefine setDefine : this.setDefineMap.values())
+        {
+            if(setDefine.getApps().size() == 0)
+                continue;
+            DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+            planInfo.setUpdateType(DomainUpdateType.ADD);
+            planInfo.setStatus(UpdateStatus.CREATE);
+            planInfo.setComment("由程序自动生成的新建域");
+            String domainId = setDefine.getFixedDomainId();
+            String domainName = setDefine.getFixedDomainName();
+            if(StringUtils.isBlank(domainId))
+            {
+                domainId = "new-create-test-domain";
+                domainName = "新建测试域";
+            }
+            planInfo.setDomainId(domainId);
+            planInfo.setDomainName(domainName);
+            planInfo.setCreateTime(now);
+            planInfo.setUpdateTime(now);
+            planInfo.setExecuteTime(now);
+            planInfo.setAppUpdateOperationList(new ArrayList<>());
+            planInfo.setBkSetName(setDefine.getName());
+            for(AppDefine appDefine : setDefine.getApps())
+            {
+                String appName = appDefine.getName();
+                if(planAppMap.containsKey(appName))
+                {
+                    for(String planApp : planAppMap.get(appName))
+                    {
+                        String[] arr = planApp.split("##");
+                        String appAlias = arr[1];
+                        String version = arr[2];
+                        String hostIp = arr[3].split("@")[1];
+                        ipSet.add(hostIp);
+                        String[] pathArr = arr[3].split("@")[0].replaceAll("^/", "").split("/");
+                        pathArr[1] = appAlias;
+                        String basePath = String.format("/%s", String.join("/", pathArr));
+                        Map<String, AppModuleVo> versionMap = registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+                        if(!versionMap.containsKey(version))
+                        {
+                            logger.error(String.format("create demo platform create schema FAIL : %s has not version=%s",
+                                    appName, version));
+                            throw new ParamException(String.format("create demo platform create schema FAIL : %s has not version=%s",
+                                    appName, version));
+                        }
+                        AppModuleVo appModuleVo = versionMap.get(version);
+                        AppUpdateOperationInfo addOperationInfo = new AppUpdateOperationInfo();
+                        addOperationInfo.setHostIp(hostIp);
+                        addOperationInfo.setOperation(AppUpdateOperation.ADD);
+                        addOperationInfo.setCfgs(new ArrayList<>());
+                        for(AppCfgFilePo appCfgFilePo : appModuleVo.getCfgs())
+                        {
+                            AppFileNexusInfo info = new AppFileNexusInfo();
+                            info.setDeployPath(appCfgFilePo.getDeployPath());
+                            info.setExt(appCfgFilePo.getExt());
+                            info.setFileName(appCfgFilePo.getFileName());
+                            info.setFileSize(0);
+                            info.setMd5(appCfgFilePo.getMd5());
+                            info.setNexusAssetId(appCfgFilePo.getNexusAssetId());
+                            info.setNexusPath(String.format("%s/%s", appCfgFilePo.getNexusDirectory(), appCfgFilePo.getFileName()));
+                            info.setNexusRepository(appCfgFilePo.getNexusRepository());
+                            addOperationInfo.getCfgs().add(info);
+                        }
+                        addOperationInfo.setBasePath(basePath);
+                        addOperationInfo.setAppRunner(appAlias);
+                        addOperationInfo.setAppAlias(appAlias);
+                        addOperationInfo.setAppName(appName);
+                        addOperationInfo.setTargetVersion(version);
+                        planInfo.getAppUpdateOperationList().add(addOperationInfo);
+                    }
+                }
+
+            }
+            planList.add(planInfo);
+        }
+        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        for(String hostIp : ipSet)
+        {
+            if(!hostMap.containsKey(hostIp))
+                throw new LJPaasException(String.format("%s has not %s host", paramVo.getPlatformName(), hostIp));
+        }
+        PlatformUpdateSchemaInfo schema = paramVo.getPlatformCreateSchema(planList);
+        return schema;
+    }
+
+    /**
+     * 从已有的平台创建一个新的平台
+     * @param paramVo 平台创建参数
+     * @param clonedDomains 需要克隆的域
+     * @param clonedApps 需要克隆的应用
+     * @param hostList 给新平台分配的服务器列表
+     * @return 平台创建计划
+     * @throws ParamException
+     * @throws NotSupportSetException
+     * @throws NotSupportAppException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    private PlatformUpdateSchemaInfo cloneExistPlatform(PlatformCreateParamVo paramVo, List<DomainPo> clonedDomains, List<PlatformAppDeployDetailVo> clonedApps, List<LJHostInfo> hostList) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
+        logger.debug(String.format("begin to clone platform : %s", JSONObject.toJSONString(paramVo)));
+        Map<String, DomainUpdatePlanInfo> planMap = new HashMap<>();
+        Map<String, DomainPo> clonedDomainMap = clonedDomains.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        Map<String, List<PlatformAppDeployDetailVo>> hostAppMap = clonedApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp));
+        int i = 0;
+        for(List<PlatformAppDeployDetailVo> hostAppList : hostAppMap.values())
+        {
+            String hostIp = hostList.get(i).getHostInnerIp();
+            for(PlatformAppDeployDetailVo deployApp : hostAppList)
+            {
+                if(!planMap.containsKey(deployApp.getDomainId()))
+                {
+                    DomainUpdatePlanInfo planInfo = generateCloneExistDomain(clonedDomainMap.get(deployApp.getDomainId()));
+                    planMap.put(deployApp.getDomainId(), planInfo);
+                }
+                AppUpdateOperationInfo opt = new AppUpdateOperationInfo();
+                opt.setHostIp(hostIp);
+                opt.setOperation(AppUpdateOperation.ADD);
+                opt.setBasePath(deployApp.getBasePath());
+                opt.setAppRunner(deployApp.getAppRunner());
+                opt.setAppAlias(deployApp.getAppAlias());
+                opt.setAppName(deployApp.getAppName());
+                opt.setTargetVersion(deployApp.getVersion());
+                opt.setAssembleTag(deployApp.getAssembleTag());
+                List<AppFileNexusInfo> cfgs = new ArrayList<>();
+                for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
+                {
+                    AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
+                    nexusInfo.setDeployPath(cfg.getDeployPath());
+                    nexusInfo.setExt(cfg.getExt());
+                    nexusInfo.setFileName(cfg.getFileName());
+                    nexusInfo.setFileSize(0);
+                    nexusInfo.setMd5(cfg.getMd5());
+                    nexusInfo.setNexusAssetId(cfg.getNexusAssetId());
+                    nexusInfo.setNexusPath(cfg.getFileNexusSavePath());
+                    nexusInfo.setNexusRepository(cfg.getNexusRepository());
+                    cfgs.add(nexusInfo);
+                }
+                opt.setCfgs(cfgs);
+                planMap.get(deployApp.getDomainId()).getAppUpdateOperationList().add(opt);
+            }
+            i++;
+        }
+        PlatformUpdateSchemaInfo schema = paramVo.getPlatformCreateSchema(new ArrayList<>(planMap.values()));
+//        makeupPlatformUpdateSchema(schema, new ArrayList<>(), new ArrayList<>());
+        return schema;
+    }
+
+    private DomainUpdatePlanInfo generateCloneExistDomain(DomainPo clonedDomain)
+    {
+        DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
+        planInfo.setUpdateType(DomainUpdateType.ADD);
+        planInfo.setComment(String.format("clone from %s of %s", clonedDomain.getDomainName(), clonedDomain.getPlatformId()));
+        planInfo.setDomainId(clonedDomain.getDomainId());
+        planInfo.setDomainName(clonedDomain.getDomainName());
+        Date now = new Date();
+        planInfo.setCreateTime(now);
+        planInfo.setUpdateTime(now);
+        planInfo.setExecuteTime(now);
+        planInfo.setBkSetName(clonedDomain.getBizSetName());
+        planInfo.setStatus(UpdateStatus.CREATE);
+        planInfo.setAppUpdateOperationList(new ArrayList<>());
+        planInfo.setMaxOccurs(clonedDomain.getMaxOccurs());
+        planInfo.setOccurs(clonedDomain.getOccurs());
+        planInfo.setTags(clonedDomain.getTags());
+        return planInfo;
     }
 
     @Override
@@ -1636,6 +3174,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String platformId = createSchema.getPlatformId();
         String k8sApiUrl = createSchema.getK8sApiUrl();
         String k8sAuthToken = createSchema.getK8sAuthToken();
+        String jobId = createSchema.getSchemaId();
         logger.debug(String.format("create configMap for %s from %s", platformId, createSchema.getK8sApiUrl()));
         if(createSchema.getPublicConfig() != null && createSchema.getPublicConfig().size() > 0)
         {
@@ -1659,7 +3198,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 List<NexusAssetInfo> appCfgs = new ArrayList<>();
                 for(AppFileNexusInfo cfg : optInfo.getCfgs())
                     appCfgs.add(cfg.getNexusAssetInfo(nexusHostUrl));
-                this.k8sApiService.createConfigMapFromNexus(platformId, String.format("%s-%s", optInfo.getAppAlias(), domainId), k8sApiUrl, k8sAuthToken, appCfgs, this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
+                this.k8sApiService.createConfigMapFromNexus(platformId, String.format("%s-%s-%s", optInfo.getAppAlias(), domainId, jobId), k8sApiUrl, k8sAuthToken, appCfgs, this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
             }
         }
         return this.k8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken);
@@ -2216,7 +3755,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-        String jobId = DigestUtils.md5DigestAsHex(sf.format(now).getBytes());
+        String jobId = DigestUtils.md5DigestAsHex(sf.format(now).getBytes()).substring(0, 10);
         Gson gson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
             @Override
             public boolean shouldSkipField(FieldAttributes f) {
@@ -2316,7 +3855,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 Map<String, String> labels = new HashMap<>();
                 labels.put(this.domainIdLabel, domainId);
                 labels.put(moduleVo.getAppName(), alias);
-                labels.put(String.format("%s-version", moduleVo.getAppName()), moduleVo.getVersion());
+                labels.put(String.format("%s-version", moduleVo.getAppName()), moduleVo.getVersion().replaceAll("\\:", "-"));
                 deployment.getSpec().getSelector().setMatchLabels(labels);
                 deployment.getSpec().getTemplate().getMetadata().setLabels(labels);
                 if(!domainAppMap.containsKey(domainId))
@@ -2347,7 +3886,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             if(deployment.getMetadata().getLabels().get("type").equals("CCODDomainModule"))
             {
                 String domainId = deployment.getMetadata().getLabels().get("domain-id");
-                generateConfigForCCODDomainModuleDeployment(deployment, configMapMap, cfgMap, schemaInfo.getDomainUpdatePlanList().stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity())).get(domainId).getAppUpdateOperationList(), registerApps);
+                generateConfigForCCODDomainModuleDeployment(jobId, deployment, configMapMap, cfgMap, schemaInfo.getDomainUpdatePlanList().stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity())).get(domainId).getAppUpdateOperationList(), registerApps);
                 moduleDpList.add(deployment);
             }
             else if(deployment.getMetadata().getName().equals("mysql-5-7-29") || deployment.getMetadata().getName().equals("oracle"))
@@ -2448,12 +3987,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        schemaInfo.setK8sEndpointsList(gson.fromJson(gson.toJson(schemaInfo.getK8sEndpointsList()), new TypeToken<List<V1Endpoints>>(){}.getType()));
 //        schemaInfo.setK8sIngressList(gson.fromJson(gson.toJson(schemaInfo.getK8sIngressList()), new TypeToken<List<ExtensionsV1beta1Ingress>>(){}.getType()));
 //        generateConfigForCCODDomainModuleDeployment(deployments, configMapMap, allOptList, registerApps);
+        schemaInfo.setSchemaId(jobId);
         logger.info(String.format("generateSchema=%s", gson.toJson(schemaInfo)));
         return schemaInfo;
     }
 
     /**
      * 为定义ccod域模块的deployment挂载所有配置文件
+     * @param schemaId 本次平台创建/升级的唯一id
      * @param deployment 用来定义ccod域模块的deployment
      * @param configMapMap 以键值对保存的所有configMap信息
      * @param cfgMap 平台所有配置
@@ -2462,7 +4003,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      * @throws ParamException
      * @throws NotSupportAppException
      */
-    private void generateConfigForCCODDomainModuleDeployment(V1Deployment deployment, Map<String, V1ConfigMap> configMapMap, Map<String, List<AppFileNexusInfo>> cfgMap, List<AppUpdateOperationInfo> optList, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
+    private void generateConfigForCCODDomainModuleDeployment(String schemaId, V1Deployment deployment, Map<String, V1ConfigMap> configMapMap, Map<String, List<AppFileNexusInfo>> cfgMap, List<AppUpdateOperationInfo> optList, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
     {
         String platformId = deployment.getMetadata().getNamespace();
         String domainId = deployment.getMetadata().getLabels().get("domain-id");
@@ -2485,7 +4026,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         String basePath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? "/binary-file" : optInfo.getBasePath();
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
-        addModuleCfgToContainer(String.format("%s-%s-%s", alias, domainId, moduleVo.getVersion()), cfgMap.get(String.format("%s-%s", alias, domainId)), basePath, deployPath, configMap, moduleVo, mountPath, false, initContainer, deployment);
+        addModuleCfgToContainer(String.format("%s-%s-%s", alias, domainId, schemaId), cfgMap.get(String.format("%s-%s", alias, domainId)), basePath, deployPath, configMap, moduleVo, mountPath, false, initContainer, deployment);
         deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
         if(configMapMap.containsKey(domainId))
         {
@@ -2535,67 +4076,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         V1HostPathVolumeSource host = new V1HostPathVolumeSource();
         host.setPath(String.format("/var/ccod-runtime/%s/%s-%s/%s-%s", platformId, alias, domainId, alias, domainId));
         deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("ccod-runtime").setHostPath(host);
-    }
-
-    private void generateConfigForCCODDomainModuleDeployment_ex(V1Deployment deployment, Map<String, V1ConfigMap> configMapMap, Map<String, List<AppFileNexusInfo>> cfgMap, List<AppUpdateOperationInfo> optList, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
-    {
-        String platformId = deployment.getMetadata().getNamespace();
-        String domainId = deployment.getMetadata().getLabels().get("domain-id");
-        List<V1Container> containers = new ArrayList<>();
-        AppType theType = null;
-        if(deployment.getSpec().getTemplate().getSpec().getInitContainers() != null)
-            containers.addAll(deployment.getSpec().getTemplate().getSpec().getInitContainers());
-        if(deployment.getSpec().getTemplate().getSpec().getContainers() != null)
-            containers.addAll(deployment.getSpec().getTemplate().getSpec().getContainers());
-        AppModuleVo moduleVo = null;
-        for(V1Container container : containers)
-        {
-            AppType appType = getAppTypeFromImageUrl(container.getImage());
-            if(!AppType.CCOD_KERNEL_MODULE.equals(appType) && !AppType.CCOD_WEBAPPS_MODULE.equals(appType))
-                continue;
-            container.setCommand(new ArrayList<>());
-            container.getCommand().add("/bin/sh");
-            container.getCommand().add("-c");
-            container.getCommand().add("");
-            theType = appType;
-            moduleVo = getAppModuleFromImageTag(container.getImage(), registerApps);
-            String alias = container.getName();
-            V1ConfigMap configMap = configMapMap.get(String.format("%s-%s", alias, domainId));
-            AppUpdateOperationInfo optInfo = optList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(alias);
-            String deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
-            if(AppType.CCOD_KERNEL_MODULE.equals(appType))
-                deployPath = "/binary-file";
-            String mountPath = String.format("%s/%s-cfg", this.defaultCfgMountPath, alias);
-            addModuleCfgToContainer(String.format("%s-%s-%s", alias, domainId, moduleVo.getVersion()), cfgMap.get(String.format("%s-%s", alias, domainId)), optInfo.getBasePath(), deployPath, configMap, moduleVo, mountPath, false, container, deployment);
-            if(configMapMap.containsKey(domainId))
-            {
-                deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
-                mountPath = String.format("%s/%s", this.defaultCfgMountPath, domainId);
-                addModuleCfgToContainer(configMap.getMetadata().getName(), cfgMap.get(domainId), optInfo.getBasePath(), deployPath, configMapMap.get(domainId), moduleVo, mountPath, true, container, deployment);
-            }
-            if(configMapMap.containsKey(platformId))
-            {
-                deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
-                mountPath = String.format("%s/%s", this.defaultCfgMountPath, platformId);
-                addModuleCfgToContainer(configMap.getMetadata().getName(), cfgMap.get(platformId), optInfo.getBasePath(), deployPath, configMapMap.get(platformId), moduleVo, mountPath, true, container, deployment);
-            }
-        }
-        if(theType.equals(AppType.CCOD_KERNEL_MODULE))
-        {
-            for(V1Container container : containers) {
-                if(!theType.equals(getAppTypeFromImageUrl(container.getImage())))
-                {
-                    List<String> command = new ArrayList<>();
-                    command.add("/bin/sh");
-                    command.add("-c");
-                    container.setCommand(command);
-                    List<String> args = new ArrayList<>();
-                    args.add(String.format("cd /root/Platform/bin;./%s", moduleVo.getInstallPackage().getFileName()));
-                    container.setArgs(args);
-                    container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("binary-file").setMountPath("/root/Platform");
-                }
-            }
-        }
     }
 
     @Override
