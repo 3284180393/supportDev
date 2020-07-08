@@ -30,6 +30,8 @@ import org.springframework.stereotype.Service;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 
@@ -630,10 +632,11 @@ public class K8sApiServiceImpl implements IK8sApiService {
         {
 //            deployReplaceTest();
 //            namespaceCreateTest();
-            createDeploymentTest();
+//            createDeploymentTest();
 //            createPVTest();
 //            createPVCTest();
 //            createSvcTest();
+            streamTest();
         }
         catch (Exception ex)
         {
@@ -665,6 +668,18 @@ public class K8sApiServiceImpl implements IK8sApiService {
         String platformId = "just-test";
         deployment = this.createNamespacedDeployment(platformId, deployment, this.testK8sApiUrl, this.testAuthToken);
         System.out.println(gson.toJson(deployment));
+    }
+
+    private String streamTest() throws Exception
+    {
+        String command = "cp /cfg/dds-cfg/dds_logger.cfg /binary-file/cfg/dds_logger.cfg";
+        String[] arr = command.split("\\s+");
+        System.out.println(arr.length);
+        String platformId = "just-test";
+        List<V1Deployment> deployments = this.listNamespacedDeployment(platformId, this.testK8sApiUrl, this.testAuthToken);
+        String allName = String.join(",", deployments.stream().collect(Collectors.toMap(V1Deployment::getMetadata, Function.identity())).keySet().stream().collect(Collectors.toMap(V1ObjectMeta::getName, Function.identity())).keySet());
+        System.out.println(allName);
+        return allName;
     }
 
     private void createPVTest() throws Exception

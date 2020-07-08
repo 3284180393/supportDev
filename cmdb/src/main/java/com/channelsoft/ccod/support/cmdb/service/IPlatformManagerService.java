@@ -27,6 +27,7 @@ public interface IPlatformManagerService {
      * @param bkBizId 平台在蓝鲸paas的biz id
      * @param bkCloudId 平台服务器在蓝鲸paas的cloud id
      * @param ccodVersion 平台的ccod大版本号
+     * @param hostIp k8s服务器ip
      * @param k8sApiUrl k8s api的url
      * @param k8sAuthToken k8s api的访问token
      * @param func 平台用途
@@ -39,7 +40,7 @@ public interface IPlatformManagerService {
      * @throws InterfaceCallException
      * @throws IOException
      */
-    PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String k8sApiUrl, String k8sAuthToken, PlatformFunction func) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException;
+    PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String hostIp, String k8sApiUrl, String k8sAuthToken, PlatformFunction func) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException, K8sDataException;
 
     /**
      * 删除指定平台的升级计划
@@ -502,7 +503,7 @@ public interface IPlatformManagerService {
      * @throws NexusException
      * @throws IOException
      */
-    PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException , SQLException, ClassNotFoundException;
+    PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException , SQLException, ClassNotFoundException, K8sDataException;
 
 //    List<PlatformAppDeployDetailVo> updatePlatformAppTopologyFromK8s(String platformId) throws ApiException;
 }

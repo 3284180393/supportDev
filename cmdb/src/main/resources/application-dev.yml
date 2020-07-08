@@ -307,8 +307,9 @@ k8s:
     domain-id: domain-id
     app-name: app-name
     app-alias: alias
-    app-version: app-version
+    app-version: version
     job-id: job-id
+    service-type: service-type
   volume-names:
     web-app: war
     binary-file: binary-file

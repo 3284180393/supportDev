@@ -729,7 +729,7 @@ public class CMDBController {
                 case APP_MODULE:
                     if(param.getCollectMethod() == PlatformDataCollectParamVo.K8S_API)
                     {
-                        platformManagerService.getPlatformTopologyFromK8s(param.getPlatformName(), param.getPlatformId(), param.getBkBizId(), param.getBkBizId(), param.getCcodVersion(), param.getK8sApiUrl(), param.getK8sAuthToken(), func);
+                        platformManagerService.getPlatformTopologyFromK8s(param.getPlatformName(), param.getPlatformId(), param.getBkBizId(), param.getBkBizId(), param.getHostIp(), param.getCcodVersion(), param.getK8sApiUrl(), param.getK8sAuthToken(), func);
                     }
                     else
                     {

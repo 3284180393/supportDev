@@ -158,6 +158,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${k8s.labels.job-id}")
     private String jobIdLabel;
 
+    @Value("${k8s.labels.service-type}")
+    private String serviceTypeLabel;
+
     @Value("${k8s.volume-names.web-app}")
     private String webappVolumeName;
 
@@ -268,9 +271,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            String jsonStr = "{\"comment\":\"create by MANUAL\",\"platformFunc\":\"TEST\",\"platformId\":\"test29\",\"schemaId\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"k8sHostIp\":\"10.130.41.218\",\"taskType\":\"CREATE\",\"platformType\":\"K8S_CONTAINER\",\"deployScriptRepository\":\"some_test\",\"baseDataNexusPath\":\"ccod/4.1/baseVolume.zip\",\"title\":\"\\u5f00\\u53d1\\u7ec4\\u6d4b\\u8bd5\\u5e73\\u53f0[test29]\\u65b0\\u5efa\\u8ba1\\u5212\",\"bkCloudId\":8,\"publicConfig\":[],\"domainUpdatePlanList\":[{\"status\":\"CREATE\",\"domainId\":\"public01\",\"domainName\":\"\\u516c\\u5171\\u7ec4\\u4ef601\",\"updateType\":\"ADD\",\"tags\":\"\\u5165\\u547c\\u53eb,\\u5916\\u547c\",\"comment\":\"clone from \\u516c\\u5171\\u7ec4\\u4ef601 of pahj\",\"occurs\":600,\"bkSetName\":\"\\u516c\\u5171\\u7ec4\\u4ef6\",\"maxOccurs\":1000,\"appUpdateOperationList\":[{\"cfgs\":[{\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_config.cfg\",\"fileName\":\"gls_config.cfg\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2NTk3NmY5YWEyNDkzM2M5ZQ\",\"ext\":\"cfg\",\"fileSize\":0,\"deployPath\":\"./cfg/\",\"md5\":\"609e331e9d5052a61de5e6b5addd5ce3\"},{\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_logger.cfg\",\"fileName\":\"gls_logger.cfg\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkOTU5MTg0MDdhYTgzNzY0NQ\",\"ext\":\"cfg\",\"fileSize\":0,\"deployPath\":\"./cfg/\",\"md5\":\"7b8e1879eab906cba05dabf3f6e0bc37\"}],\"appName\":\"glsServer\",\"platformAppId\":0,\"basePath\":\"/home/ccodrunner/Platform\",\"assembleTag\":\"separate01\",\"appRunner\":\"glsserver\",\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"targetVersion\":\"7b699a4aece10ef28dce83ab36e4d79213ec4f69\",\"assembleName\":\"glsserver1-public01\",\"addDelay\":0,\"appAlias\":\"glsserver1\"}]},{\"status\":\"CREATE\",\"domainId\":\"public02\",\"domainName\":\"\\u516c\\u5171\\u7ec4\\u4ef602\",\"updateType\":\"ADD\",\"tags\":\"\\u5165\\u547c\\u53eb,\\u5916\\u547c\",\"comment\":\"clone from \\u516c\\u5171\\u7ec4\\u4ef601 of pahj\",\"occurs\":600,\"bkSetName\":\"\\u516c\\u5171\\u7ec4\\u4ef6\",\"maxOccurs\":1000,\"appUpdateOperationList\":[{\"cfgs\":[{\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_config.cfg\",\"fileName\":\"gls_config.cfg\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2NTk3NmY5YWEyNDkzM2M5ZQ\",\"ext\":\"cfg\",\"fileSize\":0,\"deployPath\":\"./cfg/\",\"md5\":\"609e331e9d5052a61de5e6b5addd5ce3\"},{\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"pahj/public01/10.130.29.111/glsServer/7b699a4aece10ef28dce83ab36e4d79213ec4f69/glsserver/20200327152037/gls_logger.cfg\",\"fileName\":\"gls_logger.cfg\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkOTU5MTg0MDdhYTgzNzY0NQ\",\"ext\":\"cfg\",\"fileSize\":0,\"deployPath\":\"./cfg/\",\"md5\":\"7b8e1879eab906cba05dabf3f6e0bc37\"}],\"appName\":\"glsServer\",\"platformAppId\":0,\"basePath\":\"/home/ccodrunner/Platform\",\"assembleTag\":\"separate01\",\"appRunner\":\"glsserver\",\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"targetVersion\":\"7b699a4aece10ef28dce83ab36e4d79213ec4f69\",\"assembleName\":\"glsserver2-public02\",\"addDelay\":0,\"appAlias\":\"glsserver2\"}]},{\"status\":\"CREATE\",\"domainId\":\"manage01\",\"domainName\":\"\\u7ba1\\u7406\\u95e8\\u623701\",\"updateType\":\"ADD\",\"tags\":\"\\u5165\\u547c\\u53eb,\\u5916\\u547c\",\"comment\":\"clone from \\u7ba1\\u7406\\u95e8\\u623701 of pahj\",\"occurs\":600,\"bkSetName\":\"\\u7ba1\\u7406\\u95e8\\u6237\",\"maxOccurs\":1000,\"appUpdateOperationList\":[{\"cfgs\":[{\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"pahj/manage01/10.130.29.111/cas/10973/cas/20200327152226/cas.properties\",\"fileName\":\"cas.properties\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzpkNDgxMTc1NDFkY2I4OWVjMzA5NDAyMWQxZDRjYTM1Yw\",\"ext\":\"properties\",\"fileSize\":0,\"deployPath\":\"./cas/WEB-INF/\",\"md5\":\"1fe26a2aa7df9ca4d1173ef8bfef2a5c\"},{\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"pahj/manage01/10.130.29.111/cas/10973/cas/20200327152226/web.xml\",\"fileName\":\"web.xml\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkM2YwNGQ5NDc5MTYwMzFkNg\",\"ext\":\"xml\",\"fileSize\":0,\"deployPath\":\"./cas/WEB-INF/\",\"md5\":\"8ba7dddf4b7be9132e56841a7206ef74\"}],\"appName\":\"cas\",\"platformAppId\":0,\"basePath\":\"/home/portal/tomcat/webapps/\",\"assembleTag\":\"base_01\",\"appRunner\":\"cas\",\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"targetVersion\":\"10973\",\"assembleName\":\"cas1-manage01\",\"addDelay\":0,\"appAlias\":\"cas1\"},{\"cfgs\":[{\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"pahj/manage01/10.130.29.111/cas/10973/cas/20200327152226/cas.properties\",\"fileName\":\"cas.properties\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzpkNDgxMTc1NDFkY2I4OWVjMzA5NDAyMWQxZDRjYTM1Yw\",\"ext\":\"properties\",\"fileSize\":0,\"deployPath\":\"./cas/WEB-INF/\",\"md5\":\"1fe26a2aa7df9ca4d1173ef8bfef2a5c\"},{\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"pahj/manage01/10.130.29.111/cas/10973/cas/20200327152226/web.xml\",\"fileName\":\"web.xml\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkM2YwNGQ5NDc5MTYwMzFkNg\",\"ext\":\"xml\",\"fileSize\":0,\"deployPath\":\"./cas/WEB-INF/\",\"md5\":\"8ba7dddf4b7be9132e56841a7206ef74\"}],\"appName\":\"cas\",\"platformAppId\":0,\"basePath\":\"/home/portal/tomcat/webapps/\",\"assembleTag\":\"base_01\",\"appRunner\":\"cas\",\"hostIp\":\"10.130.41.218\",\"operation\":\"ADD\",\"targetVersion\":\"10973\",\"assembleName\":\"cas2-manage01\",\"addDelay\":0,\"appAlias\":\"cas2\"}]}],\"k8sApiUrl\":\"https://10.130.41.218:6443\",\"platformName\":\"\\u5f00\\u53d1\\u7ec4\\u6d4b\\u8bd5\\u5e73\\u53f0\",\"k8sAuthToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA\",\"status\":\"CREATE\",\"k8sIngressList\":[{\"kind\":\"Ingress\",\"spec\":{\"rules\":[{\"host\":\"test29.ccod.com\",\"http\":{\"paths\":[{\"path\":\"/cas1-manage01\",\"backend\":{\"serviceName\":\"cas1-manage01\",\"servicePort\":80}}]}}]},\"apiVersion\":\"extensions/v1beta1\",\"metadata\":{\"labels\":{\"cas\":\"cas1\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"manage01\",\"type\":\"CCODDomainModule\",\"name\":\"cas1-manage01\"},\"namespace\":\"test29\",\"name\":\"cas1-manage01\"}},{\"kind\":\"Ingress\",\"spec\":{\"rules\":[{\"host\":\"test29.ccod.com\",\"http\":{\"paths\":[{\"path\":\"/cas2-manage01\",\"backend\":{\"serviceName\":\"cas2-manage01\",\"servicePort\":80}}]}}]},\"apiVersion\":\"extensions/v1beta1\",\"metadata\":{\"labels\":{\"cas\":\"cas2\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"manage01\",\"type\":\"CCODDomainModule\",\"name\":\"cas2-manage01\"},\"namespace\":\"test29\",\"name\":\"cas2-manage01\"}}],\"k8sServiceList\":[{\"kind\":\"Service\",\"spec\":{\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\",\"ports\":[{\"targetPort\":17020,\"protocol\":\"TCP\",\"name\":\"register\",\"port\":17020}],\"selector\":{\"name\":\"glsserver1-public01\"}},\"apiVersion\":\"v1\",\"metadata\":{\"labels\":{\"glsServer\":\"glsserver1\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"public01\",\"type\":\"CCODDomainModule\",\"name\":\"glsserver1-public01\"},\"namespace\":\"test29\",\"name\":\"glsserver1-public01\"}},{\"kind\":\"Service\",\"spec\":{\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\",\"ports\":[{\"targetPort\":17020,\"protocol\":\"TCP\",\"name\":\"register\",\"port\":17020}],\"selector\":{\"name\":\"glsserver2-public02\"}},\"apiVersion\":\"v1\",\"metadata\":{\"labels\":{\"glsServer\":\"glsserver2\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"public02\",\"type\":\"CCODDomainModule\",\"name\":\"glsserver2-public02\"},\"namespace\":\"test29\",\"name\":\"glsserver2-public02\"}},{\"kind\":\"Service\",\"spec\":{\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\",\"ports\":[{\"targetPort\":8080,\"protocol\":\"TCP\",\"name\":\"Null\",\"port\":80}],\"selector\":{\"name\":\"cas1-manage01\"}},\"apiVersion\":\"v1\",\"metadata\":{\"labels\":{\"cas\":\"cas1\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"manage01\",\"type\":\"CCODDomainModule\",\"name\":\"cas1-manage01\"},\"namespace\":\"test29\",\"name\":\"cas1-manage01\"}},{\"kind\":\"Service\",\"spec\":{\"sessionAffinity\":\"None\",\"type\":\"ClusterIP\",\"ports\":[{\"targetPort\":8080,\"protocol\":\"TCP\",\"name\":\"Null\",\"port\":80}],\"selector\":{\"name\":\"cas2-manage01\"}},\"apiVersion\":\"v1\",\"metadata\":{\"labels\":{\"cas\":\"cas2\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"manage01\",\"type\":\"CCODDomainModule\",\"name\":\"cas2-manage01\"},\"namespace\":\"test29\",\"name\":\"cas2-manage01\"}}],\"k8sDeploymentList\":[{\"kind\":\"Deployment\",\"spec\":{\"selector\":{\"matchLabels\":{\"glsServer\":\"glsserver1\",\"domain-id\":\"public01\",\"name\":\"glsserver1-public01\"}},\"replicas\":1,\"template\":{\"spec\":{\"terminationGracePeriodSeconds\":600,\"initContainers\":[{\"name\":\"glsserver1\",\"image\":\"nexus.io:5000/ccod/glsserver:7b699a4aece10ef28dce83ab36e4d79213ec4f69\",\"args\":[\"cp /opt/Glsserver /binary-file/;\"],\"volumeMounts\":[{\"mountPath\":\"/binary-file\",\"name\":\"binary-file\"}],\"command\":[\"/bin/sh\",\"-c\"],\"imagePullPolicy\":\"IfNotPresent\",\"resources\":{\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"},\"limits\":{\"cpu\":\"500m\",\"memory\":\"500Mi\"}}}],\"containers\":[{\"livenessProbe\":{\"tcpSocket\":{\"port\":\"17020\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"3\",\"periodSeconds\":\"30\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"name\":\"running\",\"image\":\"nexus.io:5000/ccod-base/centos-backend:0.4\",\"args\":[\"mkdir -p /root/Platform/bin;cd /root/Platform; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/public01_glsserver/gls_config.cfg -P ./cfg -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/public01_glsserver/gls_logger.cfg -P ./cfg -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/publicConfig/tnsnames.ora -P /usr/local/lib -N; cd /root/Platform/bin/;/root/Platform/bin/Glsserver;\"],\"volumeMounts\":[{\"mountPath\":\"/root/Platform/bin\",\"name\":\"binary-file\"},{\"mountPath\":\"/root/Platform/log\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"command\":[\"/bin/sh\",\"-c\"],\"env\":[{\"name\":\"LD_LIBRARY_PATH\",\"value\":\"/usr/local/lib/:/usr/lib/\"}],\"imagePullPolicy\":\"IfNotPresent\",\"readinessProbe\":{\"tcpSocket\":{\"port\":\"17020\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"60\",\"periodSeconds\":\"10\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"ports\":[{\"protocol\":\"TCP\",\"containerPort\":\"17020\"}],\"resources\":{\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"},\"limits\":{\"cpu\":\"500m\",\"memory\":\"500Mi\"}}}],\"volumes\":[{\"emptyDir\":{},\"name\":\"binary-file\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test29/public01/glsserver1\"},\"name\":\"ccod-runtime\"},{\"hostPath\":{\"path\":\"\"},\"name\":\"core\"}]},\"metadata\":{\"labels\":{\"glsServer\":\"glsserver1\",\"domain-id\":\"public01\",\"name\":\"glsserver1-public01\"}}},\"strategy\":{\"type\":\"Recreate\"}},\"apiVersion\":\"apps/v1\",\"metadata\":{\"labels\":{\"glsServer\":\"glsserver1\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"public01\",\"type\":\"CCODDomainModule\",\"name\":\"glsserver1-public01\"},\"namespace\":\"test29\",\"name\":\"glsserver1-public01\"}},{\"kind\":\"Deployment\",\"spec\":{\"selector\":{\"matchLabels\":{\"glsServer\":\"glsserver2\",\"domain-id\":\"public02\",\"name\":\"glsserver2-public02\"}},\"replicas\":1,\"template\":{\"spec\":{\"terminationGracePeriodSeconds\":600,\"initContainers\":[{\"name\":\"glsserver2\",\"image\":\"nexus.io:5000/ccod/glsserver:7b699a4aece10ef28dce83ab36e4d79213ec4f69\",\"args\":[\"cp /opt/Glsserver /binary-file/;\"],\"volumeMounts\":[{\"mountPath\":\"/binary-file\",\"name\":\"binary-file\"}],\"command\":[\"/bin/sh\",\"-c\"],\"imagePullPolicy\":\"IfNotPresent\",\"resources\":{\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"},\"limits\":{\"cpu\":\"500m\",\"memory\":\"500Mi\"}}}],\"containers\":[{\"livenessProbe\":{\"tcpSocket\":{\"port\":\"17020\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"3\",\"periodSeconds\":\"30\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"name\":\"running\",\"image\":\"nexus.io:5000/ccod-base/centos-backend:0.4\",\"args\":[\"mkdir -p /root/Platform/bin;cd /root/Platform; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/public01_glsserver/gls_config.cfg -P ./cfg -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/public01_glsserver/gls_logger.cfg -P ./cfg -N; wget -t 3 http://10.130.41.218:8081/repository/tmp/configText/202005-test/publicConfig/tnsnames.ora -P /usr/local/lib -N; cd /root/Platform/bin/;/root/Platform/bin/Glsserver;\"],\"volumeMounts\":[{\"mountPath\":\"/root/Platform/bin\",\"name\":\"binary-file\"},{\"mountPath\":\"/root/Platform/log\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"command\":[\"/bin/sh\",\"-c\"],\"env\":[{\"name\":\"LD_LIBRARY_PATH\",\"value\":\"/usr/local/lib/:/usr/lib/\"}],\"imagePullPolicy\":\"IfNotPresent\",\"readinessProbe\":{\"tcpSocket\":{\"port\":\"17020\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"60\",\"periodSeconds\":\"10\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"ports\":[{\"protocol\":\"TCP\",\"containerPort\":\"17020\"}],\"resources\":{\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"},\"limits\":{\"cpu\":\"500m\",\"memory\":\"500Mi\"}}}],\"volumes\":[{\"emptyDir\":{},\"name\":\"binary-file\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test29/public02/glsserver2\"},\"name\":\"ccod-runtime\"},{\"hostPath\":{\"path\":\"\"},\"name\":\"core\"}]},\"metadata\":{\"labels\":{\"glsServer\":\"glsserver2\",\"domain-id\":\"public02\",\"name\":\"glsserver2-public02\"}}},\"strategy\":{\"type\":\"Recreate\"}},\"apiVersion\":\"apps/v1\",\"metadata\":{\"labels\":{\"glsServer\":\"glsserver2\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"public02\",\"type\":\"CCODDomainModule\",\"name\":\"glsserver2-public02\"},\"namespace\":\"test29\",\"name\":\"glsserver2-public02\"}},{\"kind\":\"Deployment\",\"spec\":{\"selector\":{\"matchLabels\":{\"cas\":\"cas1\",\"domain-id\":\"manage01\",\"name\":\"cas1-manage01\"}},\"replicas\":1,\"template\":{\"spec\":{\"terminationGracePeriodSeconds\":600,\"initContainers\":[{\"name\":\"cas1\",\"image\":\"nexus.io:5000/ccod/cas:10973\",\"args\":[],\"volumeMounts\":[{\"mountPath\":\"/war\",\"name\":\"war\"}],\"command\":[\"/bin/sh\",\"-c\"],\"imagePullPolicy\":\"IfNotPresent\",\"resources\":{\"requests\":{\"cpu\":\"100m\",\"memory\":\"512Mi\"},\"limits\":{\"cpu\":\"200m\",\"memory\":\"1024Mi\"}}}],\"containers\":[{\"livenessProbe\":{\"httpGet\":{\"path\":\"/cas\",\"scheme\":\"HTTP\",\"port\":\"8080\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"3\",\"periodSeconds\":\"30\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"name\":\"cas-manage01\",\"image\":\"\",\"args\":[\"keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/lib/security/cacerts;/usr/local/tomcat/bin/startup.sh;tail -F /usr/local/tomcat/logs/catalina.out;\"],\"volumeMounts\":[{\"mountPath\":\"/ssl\",\"name\":\"ssl\"},{\"mountPath\":\"/usr/local/tomcat/webapps\",\"name\":\"war\"},{\"mountPath\":\"/usr/local/tomcat/logs\",\"name\":\"ccod-runtime\"}],\"command\":[\"/bin/sh\",\"-c\"],\"imagePullPolicy\":\"IfNotPresent\",\"readinessProbe\":{\"httpGet\":{\"path\":\"/\",\"scheme\":\"HTTP\",\"port\":\"8080\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"60\",\"periodSeconds\":\"10\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"ports\":[{\"protocol\":\"TCP\",\"containerPort\":\"8080\"}],\"resources\":{\"requests\":{\"cpu\":\"200m\",\"memory\":\"512Mi\"},\"limits\":{\"cpu\":\"500m\",\"memory\":\"1024Mi\"}}}],\"volumes\":[{\"emptyDir\":{},\"name\":\"war\"},{\"secret\":{\"secretName\":\"\"},\"name\":\"ssl\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test29/manage01/cas1\"},\"name\":\"ccod-runtime\"}],\"hostAliases\":[{\"ip\":\"10.130.41.218\",\"hostnames\":[\"test29.ccod.com\"]}]},\"metadata\":{\"labels\":{\"cas\":\"cas1\",\"domain-id\":\"manage01\",\"name\":\"cas1-manage01\"}}},\"strategy\":{\"type\":\"Recreate\"}},\"apiVersion\":\"apps/v1\",\"metadata\":{\"labels\":{\"cas\":\"cas1\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"manage01\",\"type\":\"CCODDomainModule\",\"name\":\"cas1-manage01\"},\"namespace\":\"test29\",\"name\":\"cas1-manage01\"}},{\"kind\":\"Deployment\",\"spec\":{\"selector\":{\"matchLabels\":{\"cas\":\"cas2\",\"domain-id\":\"manage01\",\"name\":\"cas2-manage01\"}},\"replicas\":1,\"template\":{\"spec\":{\"terminationGracePeriodSeconds\":600,\"initContainers\":[{\"name\":\"cas2\",\"image\":\"nexus.io:5000/ccod/cas:10973\",\"args\":[],\"volumeMounts\":[{\"mountPath\":\"/war\",\"name\":\"war\"}],\"command\":[\"/bin/sh\",\"-c\"],\"imagePullPolicy\":\"IfNotPresent\",\"resources\":{\"requests\":{\"cpu\":\"100m\",\"memory\":\"512Mi\"},\"limits\":{\"cpu\":\"200m\",\"memory\":\"1024Mi\"}}}],\"containers\":[{\"livenessProbe\":{\"httpGet\":{\"path\":\"/cas\",\"scheme\":\"HTTP\",\"port\":\"8080\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"3\",\"periodSeconds\":\"30\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"name\":\"cas-manage01\",\"image\":\"\",\"args\":[\"keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/lib/security/cacerts;/usr/local/tomcat/bin/startup.sh;tail -F /usr/local/tomcat/logs/catalina.out;\"],\"volumeMounts\":[{\"mountPath\":\"/ssl\",\"name\":\"ssl\"},{\"mountPath\":\"/usr/local/tomcat/webapps\",\"name\":\"war\"},{\"mountPath\":\"/usr/local/tomcat/logs\",\"name\":\"ccod-runtime\"}],\"command\":[\"/bin/sh\",\"-c\"],\"imagePullPolicy\":\"IfNotPresent\",\"readinessProbe\":{\"httpGet\":{\"path\":\"/\",\"scheme\":\"HTTP\",\"port\":\"8080\"},\"timeoutSeconds\":\"1\",\"initialDelaySeconds\":\"60\",\"periodSeconds\":\"10\",\"successThreshold\":\"1\",\"failureThreshold\":\"3\"},\"ports\":[{\"protocol\":\"TCP\",\"containerPort\":\"8080\"}],\"resources\":{\"requests\":{\"cpu\":\"200m\",\"memory\":\"512Mi\"},\"limits\":{\"cpu\":\"500m\",\"memory\":\"1024Mi\"}}}],\"volumes\":[{\"emptyDir\":{},\"name\":\"war\"},{\"secret\":{\"secretName\":\"\"},\"name\":\"ssl\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test29/manage01/cas2\"},\"name\":\"ccod-runtime\"}],\"hostAliases\":[{\"ip\":\"10.130.41.218\",\"hostnames\":[\"test29.ccod.com\"]}]},\"metadata\":{\"labels\":{\"cas\":\"cas2\",\"domain-id\":\"manage01\",\"name\":\"cas2-manage01\"}}},\"strategy\":{\"type\":\"Recreate\"}},\"apiVersion\":\"apps/v1\",\"metadata\":{\"labels\":{\"cas\":\"cas2\",\"job-id\":\"88117b15-11bf-4d08-baab-8a14a874334d\",\"domain-id\":\"manage01\",\"type\":\"CCODDomainModule\",\"name\":\"cas2-manage01\"},\"namespace\":\"test29\",\"name\":\"cas2-manage01\"}}],\"k8sPVList\":[{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolume\",\"metadata\":{\"name\":\"base-volume-test29\"},\"spec\":{\"accessModes\":[\"ReadWriteMany\"],\"capacity\":{\"storage\":\"1Gi\"},\"claimRef\":{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",\"name\":\"base-volume-test29\",\"namespace\":\"test29\"},\"nfs\":{\"path\":\"/home/kubernetes/volume/k8s-test/baseVolume\",\"server\":\"10.130.41.218\"},\"persistentVolumeReclaimPolicy\":\"Retain\",\"storageClassName\":\"base-volume-test29\",\"volumeMode\":\"Filesystem\"}}],\"k8sPVCList\":[{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",\"metadata\":{\"name\":\"base-volume-test29\",\"namespace\":\"test29\"},\"spec\":{\"accessModes\":[\"ReadWriteMany\"],\"resources\":{\"requests\":{\"storage\":\"1Gi\"}},\"storageClassName\":\"base-volume-test29\",\"volumeMode\":\"Filesystem\",\"volumeName\":\"base-volume-test29\"}}],\"createMethod\":\"MANUAL\",\"baseDataNexusRepository\":\"platform_base_data\",\"deployScriptMd5\":\"351688fcd178c23ea7ee4788bae70d32\",\"bkBizId\":26,\"deployScriptPath\":\"test29/20200630152420/platform_deploy.py\",\"ccodVersion\":\"4.1\",\"glsDBPwd\":\"ccod\",\"glsDBUser\":\"ccod\",\"glsDBType\":\"ORACLE\"}";
 //            logger.debug(String.format("demoSchema=%s", jsonStr));
 //            PlatformUpdateSchemaInfo schema = gson.fromJson(jsonStr, PlatformUpdateSchemaInfo.class);
-            PlatformTopologyInfo topologyInfo = createK8sPlatform(schema);
-//            PlatformTopologyInfo topologyInfo = getPlatformTopologyFromK8s(schema.getPlatformName(), schema.getPlatformId(), schema.getBkBizId(), schema.getBkCloudId(), schema.getCcodVersion(), schema.getK8sApiUrl(), schema.getK8sAuthToken(), PlatformFunction.TEST);
-//            System.out.println(JSONObject.toJSONString(topologyInfo));
+//            PlatformTopologyInfo topologyInfo = createK8sPlatform(schema);
+            PlatformTopologyInfo topologyInfo = getPlatformTopologyFromK8s(schema.getPlatformName(), schema.getPlatformId(), schema.getBkBizId(), schema.getBkCloudId(), schema.getCcodVersion(), schema.getK8sHostIp(), schema.getK8sApiUrl(), schema.getK8sAuthToken(), PlatformFunction.TEST);
+            System.out.println(JSONObject.toJSONString(topologyInfo));
         }
         catch (Exception ex)
         {
@@ -1125,7 +1128,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String k8sApiUrl, String k8sAuthToken, PlatformFunction func) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException {
+    public PlatformTopologyInfo getPlatformTopologyFromK8s(String platformName, String platformId, int bkBizId, int bkCloudId, String ccodVersion, String hostIp, String k8sApiUrl, String k8sAuthToken, PlatformFunction func) throws ApiException, ParamException, NotSupportAppException, NexusException, LJPaasException, InterfaceCallException, IOException, K8sDataException {
         logger.debug(String.format("begin to get %s(%s) topology from %s with authToke=%s", platformId, platformName, k8sApiUrl, k8sAuthToken));
         Date now = new Date();
         V1Namespace ns = ik8sApiService.readNamespace(platformId, k8sApiUrl, k8sAuthToken);
@@ -1134,71 +1137,107 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.error(String.format("status of %s is %s", platformId, ns.getStatus().getPhase()));
             throw new ParamException(String.format("status of %s is %s", platformId, ns.getStatus().getPhase()));
         }
-        List<V1Pod> podList = ik8sApiService.listNamespacedPod(platformId, k8sApiUrl, k8sAuthToken);
+        List<V1Deployment> deploymentList = ik8sApiService.listNamespacedDeployment(platformId, k8sApiUrl, k8sAuthToken);
+
         List<V1Service> serviceList = ik8sApiService.listNamespacedService(platformId, k8sApiUrl, k8sAuthToken);
-        Map<String, List<V1Pod>> srvPodMap = new HashMap<>();
-        Map<K8sServiceType, List<V1Service>> typeSrvMap = new HashMap<>();
-        for(V1Service k8sSvr : serviceList)
-        {
-            K8sServiceType svrType = getServiceType(k8sSvr.getMetadata().getName());
-            List<V1Pod> srvPods = getServicePod(k8sSvr, podList);
-            if(!typeSrvMap.containsKey(svrType))
-                typeSrvMap.put(svrType, new ArrayList<>());
-            typeSrvMap.get(svrType).add(k8sSvr);
-            srvPodMap.put(k8sSvr.getMetadata().getName(), srvPods);
-        }
-        List<PlatformAppModuleParam> deployAppParamList = new ArrayList<>();
-        Map<String, List<NexusAssetInfo>> srcCfgMap = new HashMap<>();
-        List<AppModuleVo> registerAppList = appManagerService.queryAllRegisterAppModule(true);
-        Map<String, String> outSvcAppMap = new HashMap<>();
-        List<V1Service> outSvcList = typeSrvMap.containsKey(K8sServiceType.DOMAIN_OUT_SERVICE) ? typeSrvMap.get(K8sServiceType.DOMAIN_OUT_SERVICE) : new ArrayList<>();
-        logger.debug(String.format("%s has %d domain out service", platformId, outSvcList.size()));
-        List<DomainPo> allDomains = new ArrayList<>();
-        List<AssemblePo> allAssembles = new ArrayList<>();
-        for(V1Service outSvc : outSvcList)
-        {
-            PlatformAppModuleParam param = getPlatformAppParam4FromK8s(platformId, outSvc, srvPodMap.get(outSvc.getMetadata().getName()), allDomains, allAssembles, registerAppList);
-            String[] arr = outSvc.getMetadata().getName().split("\\-");
-            logger.debug(String.format("%s is domain out service, so service %s-%s will been passed", outSvc.getMetadata().getName(), arr[0], arr[1]));
-            outSvcAppMap.put(String.format("%s-%s", arr[0], arr[1]), outSvc.getMetadata().getName());
-            deployAppParamList.add(param);
-        }
-        List<V1Service> domainSvcList = typeSrvMap.containsKey(K8sServiceType.DOMAIN_SERVICE) ? typeSrvMap.get(K8sServiceType.DOMAIN_SERVICE) : new ArrayList<>();
-        logger.debug(String.format("%s has %d domain service", platformId, domainSvcList.size()));
-        for(V1Service domainSvc : domainSvcList)
-        {
-            String svcName = domainSvc.getMetadata().getName();
-            if(outSvcAppMap.containsKey(svcName))
-            {
-                logger.debug(String.format("%s has been handle as domain out service %s, so pass", svcName, outSvcAppMap.get(svcName)));
-                continue;
-            }
-            PlatformAppModuleParam param = getPlatformAppParam4FromK8s(platformId, domainSvc, srvPodMap.get(svcName), allDomains, allAssembles, registerAppList);
-            deployAppParamList.add(param);
-        }
-        logger.debug(String.format("%s(%s) has deployed %d apps", platformName, platformId, deployAppParamList.size()));
-        List<V1Service> threeAppSvcList = typeSrvMap.containsKey(K8sServiceType.THREE_PART_APP) ? typeSrvMap.get(K8sServiceType.THREE_PART_APP) : new ArrayList<>();
-        logger.debug(String.format("%s has %d three part apps", platformId, threeAppSvcList.size()));
+        List<V1ConfigMap> configs = ik8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken);
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(true);
+        Map<String, V1ConfigMap> configMapMap = new HashMap<>();
+        for(V1ConfigMap configMap : configs)
+            configMapMap.put(configMap.getMetadata().getName(), configMap);
+
+        List<PlatformAppDeployDetailVo> deployAppList = new ArrayList<>();
+        Map<String, List<V1Service>> serviceMap = new HashMap<>();
+        Map<String, V1Deployment> serviceDeploymentMap = new HashMap<>();
         List<PlatformThreePartAppPo> threeAppList = new ArrayList<>();
-        for(V1Service threeAppSvc : threeAppSvcList)
-        {
-            PlatformThreePartAppPo po = getPlatformThreePartApp4FromK8s(platformId, threeAppSvc, srvPodMap.get(threeAppSvc.getMetadata().getName()));
-            threeAppList.add(po);
-        }
-        List<V1Service> threeSvcList = typeSrvMap.containsKey(K8sServiceType.THREE_PART_SERVICE) ? typeSrvMap.get(K8sServiceType.THREE_PART_SERVICE) : new ArrayList<>();
-        logger.debug(String.format("%s has %d three part service", platformId, threeSvcList.size()));
         List<PlatformThreePartServicePo> threePartSvcList = new ArrayList<>();
-        for(V1Service threeSvcSvc : threeSvcList)
+        for(V1Service service : serviceList)
         {
-            PlatformThreePartServicePo po = getPlatformThreePartService4FromK8s(platformId, threeSvcSvc, srvPodMap.get(threeSvcSvc.getMetadata().getName()));
-            threePartSvcList.add(po);
+            String serviceName = service.getMetadata().getName();
+            if(!service.getMetadata().getLabels().containsKey(this.serviceTypeLabel))
+                throw new K8sDataException(String.format("service %s with labels %s is unknown", service.getMetadata().getName(), JSONObject.toJSONString(service.getMetadata().getLabels())));
+            List<V1Deployment> relativeDeployments = getServiceDeployment(service, deploymentList);
+            if(relativeDeployments.size() > 1)
+                throw new K8sDataException(String.format("service %s relative to multi deployment %s",
+                        serviceName, String.join(",", relativeDeployments.stream().collect(Collectors.toMap(V1Deployment::getMetadata, Function.identity())).keySet().stream().collect(Collectors.toMap(V1ObjectMeta::getName, Function.identity())).keySet())));
+            String serviceType = service.getMetadata().getLabels().get(this.serviceTypeLabel);
+            if(serviceType.equals(K8sServiceType.THREE_PART_APP.name))
+            {
+                if(relativeDeployments.size() == 0)
+                    throw new K8sDataException(String.format("%s %s not relative to any deployment", serviceType, serviceName));
+                PlatformThreePartAppPo po = getPlatformThreePartApp4FromK8s(platformId, service, relativeDeployments.get(0), hostIp);
+                threeAppList.add(po);
+            }
+            else if(serviceType.equals(K8sServiceType.THREE_PART_SERVICE.name))
+            {
+                if(relativeDeployments.size() != 0)
+                    throw new K8sDataException(String.format("%s %s is relative to deployment %s", serviceType, serviceName, relativeDeployments.get(0).getMetadata().getName()));
+                PlatformThreePartServicePo po = getPlatformThreePartService4FromK8s(platformId, service);
+                threePartSvcList.add(po);
+            }
+            else if(serviceType.equals(K8sServiceType.DOMAIN_SERVICE.name))
+            {
+                if(relativeDeployments.size() == 0)
+                    throw new K8sDataException(String.format("%s %s not relative to any deployment", serviceType, serviceName));
+                if(!serviceMap.containsKey(serviceName))
+                    serviceMap.put(serviceName, new ArrayList<>());
+                serviceMap.get(serviceName).add(service);
+                serviceDeploymentMap.put(serviceName, relativeDeployments.get(0));
+            }
+            else if(serviceType.equals(K8sServiceType.DOMAIN_OUT_SERVICE.name))
+            {
+                if(relativeDeployments.size() == 0)
+                    throw new K8sDataException(String.format("%s %s not relative to any deployment", serviceType, serviceName));
+                String[] arr = serviceName.split("-");
+                if(arr.length <= 2)
+                    throw new K8sDataException(String.format("%s %s is illegal service name", serviceType, serviceName));
+                String domainServiceName = String.format("%s-%s", arr[0], arr[1]);
+                if(!serviceMap.containsKey(domainServiceName))
+                    serviceMap.put(domainServiceName, new ArrayList<>());
+                serviceMap.get(domainServiceName).add(service);
+                if(!serviceDeploymentMap.containsKey(domainServiceName))
+                    serviceDeploymentMap.put(domainServiceName, relativeDeployments.get(0));
+            }
         }
-        Map<String, List<NexusAssetInfo>> cfgMap = new HashMap<>();
-        for(PlatformAppModuleParam param : deployAppParamList)
+        for(String serviceName : serviceMap.keySet())
         {
-            String serviceName = String.format("%s-%s", param.getAlias(), param.getDomainPo().getDomainId());
-            List<NexusAssetInfo> assetList = this.nexusService.downloadAndUploadFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, param.getCfgs(), this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.platformAppCfgRepository, param.getPlatformAppPo().getPlatformAppDirectory(param.getModuleVo().getAppName(), param.getModuleVo().getVersion(), param.getPlatformAppPo()), true);
-            cfgMap.put(serviceName, assetList);
+            PlatformAppDeployDetailVo deployApp = getAppDeployDetail(serviceMap.get(serviceName), serviceDeploymentMap.get(serviceName), configMapMap, registerApps, now);
+            deployAppList.add(deployApp);
+        }
+        logger.debug(String.format("%s(%s) has deployed %d apps", platformName, platformId, deployAppList.size()));
+        logger.debug(String.format("%s has %d three part apps", platformId, threeAppList.size()));
+        logger.debug(String.format("%s has %d three part service", platformId, threePartSvcList.size()));
+        List<DomainPo> allDomains = new ArrayList<>();
+        Map<String, List<AssemblePo>> domainAssembleMap = new HashMap<>();
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        for(String domainId : domainAppMap.keySet())
+        {
+            List<PlatformAppDeployDetailVo> domainApps = domainAppMap.get(domainId);
+            DomainPo domainPo = new DomainPo();
+            domainPo.setType(DomainType.K8S_CONTAINER);
+            domainPo.setBizSetName(domainApps.get(0).getBkSetName());
+            domainPo.setUpdateTime(now);
+            domainPo.setTags("create by k8s api");
+            domainPo.setDomainId(domainId);
+            domainPo.setOccurs(400);
+            domainPo.setMaxOccurs(800);
+            domainPo.setComment("create by k8s api");
+            domainPo.setPlatformId(platformId);
+            domainPo.setStatus(DomainStatus.RUNNING.id);
+            domainPo.setCreateTime(now);
+            domainPo.setDomainName(domainApps.get(0).getDomainName());
+            allDomains.add(domainPo);
+            domainAssembleMap.put(domainId, new ArrayList<>());
+            Map<String, List<PlatformAppDeployDetailVo>> assembleAppMap = domainApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAssembleTag));
+            for(String assembleTag : assembleAppMap.keySet())
+            {
+                AssemblePo assemblePo = new AssemblePo();
+                assemblePo.setDomainId(domainId);
+                assemblePo.setPlatformId(platformId);
+                assemblePo.setTag(assembleAppMap.get(assembleTag).get(0).getAssembleTag());
+                assemblePo.setStatus(assembleAppMap.get(assembleTag).get(0).getStatus());
+                domainAssembleMap.get(domainId).add(assemblePo);
+            }
         }
         PlatformPo platform = new PlatformPo();
         platform.setStatus(CCODPlatformStatus.RUNNING.id);
@@ -1220,23 +1259,22 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.debug(String.format("insert new domain : %s", JSONObject.toJSONString(domainPo)));
             this.domainMapper.insert(domainPo);
         }
-        for(AssemblePo assemblePo : allAssembles)
+        for(AssemblePo assemblePo : domainAssembleMap.values().stream().flatMap(listContainer->listContainer.stream()).collect(Collectors.toList()))
         {
             logger.debug(String.format("insert new assemble : %s", JSONObject.toJSONString(assemblePo)));
             this.assembleMapper.insert(assemblePo);
         }
-        for(PlatformAppModuleParam param : deployAppParamList)
+        for(PlatformAppDeployDetailVo deployApp : deployAppList)
         {
-            PlatformAppPo platformAppPo = param.getPlatformAppPo();
-            platformAppPo.setAssembleId(param.getAssemblePo().getAssembleId());
+            PlatformAppPo platformAppPo = deployApp.getPlatformApp();
+            platformAppPo.setAssembleId(domainAssembleMap.get(deployApp.getDomainId()).stream().collect(Collectors.toMap(AssemblePo::getTag, Function.identity())).get(deployApp.getAssembleTag()).getAssembleId());
             logger.debug(String.format("insert new platform app : %s", JSONObject.toJSONString(platformAppPo)));
             this.platformAppMapper.insert(platformAppPo);
-            List<NexusAssetInfo> cfgs = cfgMap.get(String.format("%s-%s", platformAppPo.getAppAlias(), platformAppPo.getDomainId()));
-            for(NexusAssetInfo cfg : cfgs)
+            for(PlatformAppCfgFilePo cfg : deployApp.getCfgs())
             {
-                PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo(platformAppPo.getPlatformAppId(), platformAppPo.getAppId(), "/", cfg);
-                logger.debug(String.format("insert new cfg : %s", JSONObject.toJSONString(cfgFilePo)));
-                this.platformAppCfgFileMapper.insert(cfgFilePo);
+                cfg.setPlatformAppId(platformAppPo.getPlatformAppId());
+                logger.debug(String.format("insert new cfg : %s", JSONObject.toJSONString(cfg)));
+                this.platformAppCfgFileMapper.insert(cfg);
             }
         }
         for(PlatformThreePartAppPo threePartAppPo : threeAppList)
@@ -1251,6 +1289,24 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         ljPaasService.syncClientCollectResultToPaas(bkBizId, platformId, bkCloudId);
         return getPlatformTopology(platformId);
+    }
+
+    /**
+     * 比较两个选择器是否相同
+     * @param selector1 选择器1
+     * @param selector2 选择器2
+     * @return 比较结果
+     */
+    private boolean isSelectorEqual(Map<String, String> selector1, Map<String, String> selector2)
+    {
+        if(selector1.size() != selector2.size())
+            return false;
+        for(String key : selector1.keySet())
+        {
+            if(!selector2.containsKey(key) || !selector2.get(key).equals(selector1.get(key)))
+                return false;
+        }
+        return true;
     }
 
     /**
@@ -1275,14 +1331,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return retList;
     }
 
-    private PlatformAppDeployDetailVo getAppDeployDetail(V1Service service, V1Deployment deployment, Map<String, V1ConfigMap> configMapMap, List<AppModuleVo> registerApps, Date date) throws ParamException, InterfaceCallException, NexusException, IOException
+    private PlatformAppDeployDetailVo getAppDeployDetail(List<V1Service> services, V1Deployment deployment, Map<String, V1ConfigMap> configMapMap, List<AppModuleVo> registerApps, Date date) throws ParamException, InterfaceCallException, NexusException, IOException
     {
-        String domainId = service.getMetadata().getLabels().get(this.domainIdLabel);
-        String appName = service.getMetadata().getLabels().get(this.appNameLabel);
-        String alias = service.getMetadata().getLabels().get(this.appAliasLabel);
-        String version = service.getMetadata().getLabels().get(this.appVersionLabel);
+        String domainId = services.get(0).getMetadata().getLabels().get(this.domainIdLabel);
+        String appName = services.get(0).getMetadata().getLabels().get(this.appNameLabel);
+        String alias = services.get(0).getMetadata().getLabels().get(this.appAliasLabel);
+        String version = services.get(0).getMetadata().getLabels().get(this.appVersionLabel);
+        String jobId = deployment.getMetadata().getLabels().get(this.jobIdLabel);
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
-        AppModuleVo appModule = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+        Map<String, AppModuleVo> versionMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName))
+                .get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+        AppModuleVo appModule = versionMap.containsKey(version) ? versionMap.get(version) : versionMap.get(version.replaceAll("-", ":"));
         PlatformAppDeployDetailVo deployApp = new PlatformAppDeployDetailVo();
         deployApp.setBkSetName(setDefine.getName());
         deployApp.setDomainName(String.format("%s%s", setDefine.getFixedDomainName(), domainId.replaceAll(setDefine.getFixedDomainId(), "")));
@@ -1292,7 +1351,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         deployApp.setAppName(appModule.getAppName());
         deployApp.setAppRunner(deployApp.getAppAlias());
         deployApp.setAppType(appModule.getAppType());
-        deployApp.setAssembleTag(deployment.getMetadata().getName());
+        deployApp.setAssembleTag(deployment.getMetadata().getLabels().get("tag"));
         deployApp.setAssembleId(0);
         if(AppType.CCOD_KERNEL_MODULE.equals(deployApp.getAppType()))
             deployApp.setBasePath("/binary-file");
@@ -1307,7 +1366,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         deployApp.setInstallPackage(appModule.getInstallPackage());
         deployApp.setOriginalAlias(deployApp.getAppAlias());
         deployApp.setPlatformAppId(0);
-        String port = getPortFromK8sService(Arrays.asList(service));
+        String port = getPortFromK8sService(services);
         deployApp.setPort(port);
         deployApp.setSrcCfgs(appModule.getCfgs());
         int replicas = deployment.getStatus().getReplicas() != null ? deployment.getStatus().getReplicas() : 0;
@@ -1322,10 +1381,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             status = "Updating";
         deployApp.setStatus(status);
         deployApp.setVersion(appModule.getVersion());
-        deployApp.setVersionControl(appModule.getVersionControl().name);
+        if(appModule.getVersionControl() != null)
+            deployApp.setVersionControl(appModule.getVersionControl().name);
         deployApp.setVersionControlUrl(appModule.getVersionControlUrl());
-        deployApp.setPlatformId(service.getMetadata().getNamespace());
-        V1ConfigMap configMap = configMapMap.get(String.format("%s-%s-%s", alias, domainId, version.replaceAll("\\:", "-")));
+        deployApp.setPlatformId(services.get(0).getMetadata().getNamespace());
+        V1ConfigMap configMap = configMapMap.get(String.format("%s-%s-%s", alias, domainId, jobId.replaceAll("\\:", "-")));
         V1Container runtimeContainer = null;
         V1Container initContainer = null;
         for(V1Container container : deployment.getSpec().getTemplate().getSpec().getContainers())
@@ -1342,8 +1402,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String volumeName = AppType.CCOD_KERNEL_MODULE.equals(appType) ? this.binaryFileVolumeName : this.webappVolumeName;
         String basePath = initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get(volumeName).getMountPath();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-        String directory = String.format("%s/%s/%s/%s/%s/%s", service.getMetadata().getNamespace(), sf.format(date),
-                domainId, appName, alias, version);
+        String directory = String.format("%s/%s/%s/%s/%s/%s", services.get(0).getMetadata().getNamespace(), sf.format(date),
+                domainId, appName, alias, version.replaceAll("\\:", "-"));
+        System.out.println(directory);
         List<NexusAssetInfo> assets = uploadK8sConfigMapToNexus(configMap, directory);
         List<PlatformAppCfgFilePo> cfgs = new ArrayList<>();
         String[] commands = initContainer.getCommand().get(2).split(";");
@@ -1355,7 +1416,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             {
                 if(appType.equals(AppType.CCOD_KERNEL_MODULE))
                 {
-                    String targetPath = command.split("\\\\s+")[2];
+                    String targetPath = command.split("\\s+")[2];
                     String[] arr = targetPath.split("/");
                     String fileName = arr[arr.length - 1];
                     String deployPath = targetPath.replaceAll(String.format("^%s", basePath), "").replaceAll(String.format("/%s$", fileName), "");
@@ -1364,7 +1425,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 }
                 else
                 {
-                    String targetPath = command.split("\\\\s+")[1];
+                    String targetPath = command.split("\\s+")[1];
                     String[] arr = targetPath.split("/");
                     String fileName = arr[arr.length -1];
                     String deployPath = targetPath.replaceAll(String.format("/%s$", fileName), "");
@@ -1380,6 +1441,23 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         deployApp.setCfgs(cfgs);
         basePath = runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get(volumeName).getMountPath();
         deployApp.setBasePath(basePath);
+        String pkgDeployPath = null;
+        String runCmdRegex = appType.equals(AppType.CCOD_KERNEL_MODULE) ? ".+/startup.sh$" : String.format("[^\\s]*%s($|\\s.+)", appModule.getInstallPackage().getFileName());
+        for(String command : commands)
+        {
+            if(command.matches(runCmdRegex))
+            {
+                String[] arr = command.split("\\s+");
+                pkgDeployPath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? arr[0].replaceAll(String.format("%s$", appModule.getInstallPackage().getFileName()), "") : arr[0].replaceAll("startup.sh$", "");
+                pkgDeployPath = pkgDeployPath.replaceAll("/$", "");
+                if(pkgDeployPath.matches(String.format("^%s.*", basePath)))
+                {
+                    pkgDeployPath = pkgDeployPath.replaceAll(String.format("^%s.*", basePath), "");
+                    pkgDeployPath = StringUtils.isBlank(pkgDeployPath) ? "./" : String.format(".%s", pkgDeployPath);
+                }
+                deployApp.getInstallPackage().setDeployPath(pkgDeployPath);
+            }
+        }
         return deployApp;
     }
 
@@ -1479,11 +1557,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      * 从k8s服务以及服务选择的pod中获取第三方应用的状态
      * @param namespace 命名空间及平台id
      * @param service 服务信息
-     * @param svrPodList 服务选择的pod列表
      * @return 第三方应用状态
      * @throws ParamException
      */
-    private PlatformThreePartServicePo getPlatformThreePartService4FromK8s(String namespace, V1Service service, List<V1Pod> svrPodList) throws ParamException
+    private PlatformThreePartServicePo getPlatformThreePartService4FromK8s(String namespace, V1Service service) throws ParamException
     {
         PlatformThreePartServicePo po = new PlatformThreePartServicePo();
         po.setHostIp(null);
@@ -1496,24 +1573,31 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      * 从k8s服务以及服务选择的pod中获取第三方应用的状态
      * @param namespace 命名空间及平台id
      * @param service 服务信息
-     * @param svrPodList 服务选择的pod列表
+     * @param deployment 服务选择的deployment
      * @return 第三方应用状态
      * @throws ParamException
      */
-    private PlatformThreePartAppPo getPlatformThreePartApp4FromK8s(String namespace, V1Service service, List<V1Pod> svrPodList) throws ParamException
+    private PlatformThreePartAppPo getPlatformThreePartApp4FromK8s(String namespace, V1Service service, V1Deployment deployment, String hostIp) throws ParamException
     {
-        String appName = service.getMetadata().getName().split("\\-")[0];
+        String appName = service.getMetadata().getLabels().get(this.appNameLabel);
         logger.debug(String.format("begin to get three part app %s info", appName));
-        if(svrPodList.size() != 1)
-            throw new ParamException(String.format("%s has select %d pods, which is not support this version", appName, svrPodList.size()));
-        V1Pod pod = svrPodList.get(0);
         String port = getPortFromK8sService(Arrays.asList(service));
         PlatformThreePartAppPo po = new PlatformThreePartAppPo();
         po.setAppName(appName);
-        po.setHostIp(pod.getStatus().getHostIP());
+        po.setHostIp(hostIp);
         po.setPlatformId(namespace);
         po.setPort(port);
-        po.setStatus(pod.getStatus().getPhase());
+        int replicas = deployment.getStatus().getReplicas() != null ? deployment.getStatus().getReplicas() : 0;
+        int availableReplicas = deployment.getStatus().getAvailableReplicas() != null ? deployment.getStatus().getAvailableReplicas() : 0;
+        int unavailableReplicas = deployment.getStatus().getUnavailableReplicas() != null ? deployment.getStatus().getUnavailableReplicas() : 0;
+        po.setReplicas(replicas);
+        po.setAvailableReplicas(availableReplicas);
+        String status = "Running";
+        if(unavailableReplicas == replicas)
+            status = "Error";
+        else if(availableReplicas < replicas)
+            status = "Updating";
+        po.setStatus(status);
         logger.debug(String.format("three part app %s : %s", appName, JSONObject.toJSONString(po)));
         return po;
     }
@@ -3215,8 +3299,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         BizSetDefine setDefine = null;
         for(BizSetDefine set : this.ccodBiz.getSet())
         {
-            String regex = String.format("^%s(0[1-9]|[1-9]\\d+)", set.getFixedDomainId());
-            if(domainId.contains(regex))
+            String regex = String.format("^%s(0[1-9]|[1-9]\\d+$)", set.getFixedDomainId());
+            if(domainId.matches(regex))
             {
                 setDefine = set;
                 break;
@@ -3596,7 +3680,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         for(String fileName : configMap.getData().keySet())
         {
             String content = configMap.getData().get(fileName);
-            String fileSavePath = String.format("%s/%s", saveDir, fileName);
+            String fileSavePath = String.format("%s/%s", saveDir, fileName).replaceAll("\\\\", "/");
             File file = new File(fileSavePath);
             file.createNewFile();
             FileWriter writer = new FileWriter(file);
@@ -3836,16 +3920,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, Map<String, AppModuleVo>> domainAppMap = new HashMap<>();
         for(V1Deployment deployment : deployments)
         {
+            String deploymentName = deployment.getMetadata().getName();
             deployment.getMetadata().setNamespace(createdPlatformId);
-            deployment.getMetadata().getLabels().put(this.jobIdLabel, jobId);
             V1Container runtimeContainer = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
             V1Container initContainer = deployment.getSpec().getTemplate().getSpec().getInitContainers() != null ? deployment.getSpec().getTemplate().getSpec().getInitContainers().get(0) : null;
             if(initContainer != null)
             {
-                String deploymentName = deployment.getMetadata().getName();
                 String domainId = deploymentName.split("\\-")[1];
                 deployment.getMetadata().getLabels().clear();
-                deployment.getMetadata().getLabels().put("domain-id", domainId);
+                deployment.getMetadata().getLabels().put(this.domainIdLabel, domainId);
                 deployment.getMetadata().getLabels().put("type", "CCODDomainModule");
                 String alias = deploymentName.split("\\-")[0];
                 initContainer.setName(alias);
@@ -3862,7 +3945,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     domainAppMap.put(domainId, new HashMap<>());
                 domainAppMap.get(domainId).put(alias, moduleVo);
                 if(deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).containsKey("data"))
-                    deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("data").getPersistentVolumeClaim().setClaimName("base-volume-k8s-test");
+                    deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("data").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", dstPlatformId));
             }
             else
             {
@@ -3893,6 +3976,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             {
                 threeSvcDpList.add(deployment);
             }
+            deployment.getMetadata().getLabels().put(this.jobIdLabel, jobId);
+            deployment.getMetadata().getLabels().put("tag", deployment.getMetadata().getName());
         }
         schemaInfo.getK8sDeploymentList().addAll(threeSvcDpList);
         schemaInfo.getK8sDeploymentList().addAll(moduleDpList);
@@ -3902,15 +3987,47 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, V1Service> serviceMap = new HashMap<>();
         for(V1Service service : services)
         {
+            if(service.getMetadata().getLabels() == null)
+                service.getMetadata().setLabels(new HashMap<>());
             serviceMap.put(service.getMetadata().getName(), service);
             service.getMetadata().setNamespace(createdPlatformId);
             String[] arr = service.getMetadata().getName().split("\\-");
-            if(arr.length != 2)
+            String serviceName = service.getMetadata().getName();
+            if(arr.length == 1)
+            {
+                if(serviceName.equals("oracle"))
+                {
+                    service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.THREE_PART_APP.name);
+                    service.getMetadata().getLabels().put(this.appNameLabel, serviceName);
+                    service.getMetadata().getLabels().put(this.appAliasLabel, "oracle");
+                    service.getMetadata().getLabels().put(this.appVersionLabel, "10.1.0");
+                }
+                else if(serviceName.equals("mysql"))
+                {
+                    service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.THREE_PART_APP.name);
+                    service.getMetadata().getLabels().put(this.appNameLabel, serviceName);
+                    service.getMetadata().getLabels().put(this.appAliasLabel, "mysql");
+                    service.getMetadata().getLabels().put(this.appVersionLabel, "5.7.29");
+                }
+                else
+                {
+                    service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.THREE_PART_SERVICE.name);
+                    service.getMetadata().getLabels().put("service", "umg");
+                }
                 continue;
+            }
             String alias = arr[0];
             String domainId = arr[1];
             AppModuleVo moduleVo = domainAppMap.get(domainId).get(alias);
             String appName = moduleVo.getAppName();
+            service.getMetadata().getLabels().put(this.domainIdLabel, domainId);
+            service.getMetadata().getLabels().put(this.appNameLabel, appName);
+            service.getMetadata().getLabels().put(this.appAliasLabel, alias);
+            service.getMetadata().getLabels().put(this.appVersionLabel, moduleVo.getVersion().replaceAll("\\:", "-"));
+            if(arr.length == 2)
+                service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.DOMAIN_SERVICE.name);
+            else
+                service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.DOMAIN_OUT_SERVICE.name);
             Map<String, String> selector = new HashMap<>();
             selector.put(this.domainIdLabel, domainId);
             selector.put(appName, alias);
@@ -4031,12 +4148,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(configMapMap.containsKey(domainId))
         {
             mountPath = String.format("%s/%s", this.defaultCfgMountPath, domainId);
-            addModuleCfgToContainer(configMap.getMetadata().getName(), cfgMap.get(domainId), optInfo.getBasePath(), deployPath, configMapMap.get(domainId), moduleVo, mountPath, true, container, deployment);
+            addModuleCfgToContainer(domainId, cfgMap.get(domainId), optInfo.getBasePath(), deployPath, configMapMap.get(domainId), moduleVo, mountPath, true, container, deployment);
         }
         if(configMapMap.containsKey(platformId))
         {
             mountPath = String.format("%s/%s", this.defaultCfgMountPath, platformId);
-            addModuleCfgToContainer(configMap.getMetadata().getName(), cfgMap.get(platformId), optInfo.getBasePath(), deployPath, configMapMap.get(platformId), moduleVo, mountPath, true, container, deployment);
+            addModuleCfgToContainer(platformId, cfgMap.get(platformId), optInfo.getBasePath(), deployPath, configMapMap.get(platformId), moduleVo, mountPath, true, container, deployment);
         }
         if(appType.equals(AppType.CCOD_KERNEL_MODULE))
         {
@@ -4073,16 +4190,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 container.getCommand().add("-c");
             }
         }
+        container.setName(String.format("%s-runtime", alias));
         V1HostPathVolumeSource host = new V1HostPathVolumeSource();
         host.setPath(String.format("/var/ccod-runtime/%s/%s-%s/%s-%s", platformId, alias, domainId, alias, domainId));
         deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("ccod-runtime").setHostPath(host);
     }
 
     @Override
-    public PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException, SQLException, ClassNotFoundException {
+    public PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException, SQLException, ClassNotFoundException, K8sDataException {
         String k8sApiUrl = createSchema.getK8sApiUrl();
         String k8sAuthToken = createSchema.getK8sAuthToken();
         String platformId = createSchema.getPlatformId();
+        String hostIp = createSchema.getK8sHostIp();
 //        V1Namespace ns = this.k8sApiService.readNamespace(platformId, k8sApiUrl, k8sAuthToken);
 //        if(ns != null)
 //            this.k8sApiService.deleteNamespace(platformId, k8sApiUrl, k8sAuthToken);
@@ -4131,7 +4250,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         for(ExtensionsV1beta1Ingress ingress : createSchema.getK8sIngressList())
             this.k8sApiService.createNamespacedIngress(platformId, ingress, k8sApiUrl, k8sAuthToken);
         this.k8sApiService.replaceNamespacedDeployment(createSchema.getDcs().getDeployment().getMetadata().getName(), platformId, createSchema.getDcs().getDeployment(), k8sApiUrl, k8sAuthToken);
-        return this.getPlatformTopologyFromK8s(createSchema.getPlatformName(), platformId, createSchema.getBkBizId(), createSchema.getBkCloudId(), createSchema.getCcodVersion(), k8sApiUrl, k8sAuthToken, createSchema.getPlatformFunc());
+        return this.getPlatformTopologyFromK8s(createSchema.getPlatformName(), platformId, createSchema.getBkBizId(), createSchema.getBkCloudId(), createSchema.getCcodVersion(), hostIp, k8sApiUrl, k8sAuthToken, createSchema.getPlatformFunc());
     }
 
     private void deploySpecialApp(PlatformUpdateSchemaInfo schemaInfo, K8sCollection specialApp, String k8sApiUrl, String k8sAuthToken) throws ApiException, SQLException
