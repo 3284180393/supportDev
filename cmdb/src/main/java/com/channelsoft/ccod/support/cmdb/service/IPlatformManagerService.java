@@ -50,6 +50,13 @@ public interface IPlatformManagerService {
     void deletePlatformUpdateSchema(String platformId) throws ParamException;
 
     /**
+     * 创建一个demo k8s平台
+     * @return 创建后的k8s平台
+     * @throws Exception
+     */
+    PlatformTopologyInfo createDemoK8sPlatform() throws Exception;
+
+    /**
      * 创建平台应用更新任务
      * @param platformId 平台id
      * @param platformName 平台名

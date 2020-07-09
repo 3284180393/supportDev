@@ -729,7 +729,7 @@ public class CMDBController {
                 case APP_MODULE:
                     if(param.getCollectMethod() == PlatformDataCollectParamVo.K8S_API)
                     {
-                        platformManagerService.getPlatformTopologyFromK8s(param.getPlatformName(), param.getPlatformId(), param.getBkBizId(), param.getBkBizId(), param.getHostIp(), param.getCcodVersion(), param.getK8sApiUrl(), param.getK8sAuthToken(), func);
+                        platformManagerService.getPlatformTopologyFromK8s(param.getPlatformName(), param.getPlatformId(), param.getBkBizId(), param.getBkBizId(), param.getCcodVersion(), param.getHostIp(), param.getK8sApiUrl(), param.getK8sAuthToken(), func);
                     }
                     else
                     {
@@ -962,6 +962,26 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("query namespace exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sPlatforms", method = RequestMethod.POST)
+    public AjaxResultPo createDemoK8sPlatform()
+    {
+        String uri = String.format("POST %s/k8sPlatforms", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformTopologyInfo topologyInfo = this.platformManagerService.createDemoK8sPlatform();
+            resultPo = new AjaxResultPo(true, "create demo k8s platform SUCCESS", 1, topologyInfo);
+            logger.info(String.format("create demo k8s platform SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create demo k8s platform exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;

@@ -17,7 +17,9 @@ public enum PlatformCreateMethod {
 
     ONLINE_MANAGER_COLLECT(4, "ONLINE_MANAGER_COLLECT", "从onlinemanager收集的数据中创建"),
 
-    K8S_API(5, "K8S_API", "从k8s api接口中获取"),;
+    K8S_API(5, "K8S_API", "从k8s api接口中获取"),
+
+    K8S_API_CLONE(6, "K8S_API_CLONE", "通过k8s api克隆"),;
 
     public int id;
 
