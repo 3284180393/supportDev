@@ -968,14 +968,14 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/k8sPlatforms", method = RequestMethod.POST)
-    public AjaxResultPo createDemoK8sPlatform()
+    public AjaxResultPo createDemoK8sPlatform(@RequestBody PlatformUpdateSchemaInfo schema)
     {
         String uri = String.format("POST %s/k8sPlatforms", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            PlatformTopologyInfo topologyInfo = this.platformManagerService.createDemoK8sPlatform();
+            PlatformTopologyInfo topologyInfo = this.platformManagerService.createK8sPlatform(schema);
             resultPo = new AjaxResultPo(true, "create demo k8s platform SUCCESS", 1, topologyInfo);
             logger.info(String.format("create demo k8s platform SUCCESS, quit %s", uri));
         }
