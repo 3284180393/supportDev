@@ -30,6 +30,14 @@ public class K8sAppAssembleInfo {
 
     private List<ExtensionsV1beta1Ingress> ingresses;
 
+    private int howTo;  //如何处理deployment，0 create，1 replace，2 delete
+
+    private List<V1Service> addServices;
+
+    private List<V1Service> replaceServices;
+
+    private List<V1Service> deleteServices;
+
     public String getAssembleTag() {
         return assembleTag;
     }

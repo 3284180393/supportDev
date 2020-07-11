@@ -8,19 +8,12 @@ package com.channelsoft.ccod.support.cmdb.constant;
  * @Version: 1.0
  */
 public enum AppUpdateOperation {
+
     ADD(1, "ADD", "添加新应用"),
 
     DELETE(2, "DELETE", "移除已有应用"),
 
-    UPDATE(3, "UPDATE", "升级已有应用"),
-
-    VERSION_UPDATE(4, "VERSION_UPDATE", "应用版本更新"),
-
-    CFG_UPDATE(5, "CFG_UPDATE", "配置文件更新"),
-
-    STOP(6, "STOP", "暂停使用"),
-
-    START(7, "STOP", "暂停使用"),;
+    UPDATE(3, "UPDATE", "升级已有应用"),;
 
     public int id;
 
