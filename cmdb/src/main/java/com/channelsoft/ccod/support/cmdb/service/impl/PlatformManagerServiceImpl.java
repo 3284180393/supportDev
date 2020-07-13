@@ -161,6 +161,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${k8s.labels.service-type}")
     private String serviceTypeLabel;
 
+    @Value("${k8s.labels.deployment-tag}")
+    private String deploymentTagLabel;
+
     @Value("${k8s.volume-names.web-app}")
     private String webappVolumeName;
 
@@ -3820,7 +3823,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return schemaInfo;
     }
 
-    private List<K8sOperationPo> proprocessDomainPlan(K8sDomainPlanInfo planInfo, List<V1Deployment> existDomainDeployments, List<V1Service> existDomainServices, List<ExtensionsV1beta1Ingress> existDomainIngresses, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
+    private List<K8sOperationPo> proprocessDomainPlan(List<PlatformAppDeployDetailVo> deployApps, K8sDomainPlanInfo planInfo, List<V1Deployment> existDomainDeployments, List<V1Service> existDomainServices, List<ExtensionsV1beta1Ingress> existDomainIngresses, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException
     {
         List<K8sOperationPo> k8sOptList = new ArrayList<>();
         for(K8sAppAssembleInfo assembleInfo : planInfo.getAppAssembleList())
@@ -3855,6 +3858,231 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         return k8sOptList;
+    }
+
+
+
+
+    private List<K8sOperationPo> getAssembleK8sOperation(String jobId, String platformId, String domainId,
+                                     K8sAppAssembleInfo assembleInfo,
+                                     List<AppFileNexusInfo> platformPublicConfig, List<AppFileNexusInfo> domainPublicConfig, List<PlatformAppDeployDetailVo> assembleApps, List<V1Deployment> existDeployments, List<V1Service> existServices, List<ExtensionsV1beta1Ingress> existIngresses, List<AppModuleVo> registerApps)
+            throws ParamException
+    {
+        V1Deployment deployment = assembleInfo.getDeployment();
+        deployment.getMetadata().getLabels().put(this.jobIdLabel, jobId);
+        deployment.getMetadata().getLabels().put(this.domainIdLabel, domainId);
+        deployment.getMetadata().getLabels().put("type", K8sDeploymentType.CCOD_DOMAIN_APP.name);
+        if(!deployment.getMetadata().getLabels().containsKey(this.deploymentTagLabel))
+            throw new ParamException(String.format("deployment %s must has tag %s",
+                    deployment.getMetadata().getName(), this.deploymentTagLabel));
+        if(deployment.getSpec().getTemplate().getMetadata().getLabels() == null)
+            deployment.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
+        Map<String, String> labels = deployment.getSpec().getTemplate().getMetadata().getLabels();
+        labels.put(this.jobIdLabel, jobId);
+        labels.put(this.domainIdLabel, domainId);
+        deployment.getMetadata().setNamespace(platformId);
+        String deploymentTag = deployment.getMetadata().getLabels().get(this.deploymentTagLabel);
+        V1Deployment cpDeployment = null;
+        for(V1Deployment existDeployment : existDeployments)
+        {
+            if(existDeployment.getMetadata().getLabels().get(deploymentTag)
+            {
+                cpDeployment = existDeployment;
+                break;
+            }
+        }
+        Set<String> existApps = cpDeployment == null ? cpDeployment.getSpec().getTemplate().getSpec().getInitContainers().stream().collect(Collectors.toMap(V1Container::getName, Function.identity())).keySet() : new HashSet<>();
+        Set<String> existService = existServices.stream().collect(Collectors.toMap(V1Service::getMetadata, Function.identity()))
+                .keySet().stream().collect(Collectors.toMap(V1ObjectMeta::getName, Function.identity())).keySet();
+        Set<String> newService = assembleInfo.getServices().stream().collect(Collectors.toMap(V1Service::getMetadata, Function.identity()))
+                .keySet().stream().collect(Collectors.toMap(V1ObjectMeta::getName, Function.identity())).keySet();
+        Set<String> existIngress = existIngresses.stream().collect(Collectors.toMap(ExtensionsV1beta1Ingress::getMetadata, Function.identity()))
+                .keySet().stream().collect(Collectors.toMap(V1ObjectMeta::getName, Function.identity())).keySet();
+        Set<String> newIngress = assembleInfo.getIngresses().stream().collect(Collectors.toMap(ExtensionsV1beta1Ingress::getMetadata, Function.identity()))
+                .keySet().stream().collect(Collectors.toMap(V1ObjectMeta::getName, Function.identity())).keySet();
+        Map<String, ExtensionsV1beta1Ingress> ingressMap = new HashMap<>();
+        for(ExtensionsV1beta1Ingress ingress : assembleInfo.getIngresses())
+            ingressMap.put(ingress.getMetadata().getName(), ingress);
+        List<K8sOperationPo> k8sOptList = new ArrayList<>();
+        for(AppUpdateOperationInfo optInfo : assembleInfo.getAppOptList())
+        {
+            String serviceName = String.format("%s-%s", optInfo.getAppAlias(), domainId);
+            switch (optInfo.getOperation())
+            {
+                case UPDATE:
+                    if(!existApps.contains(optInfo.getAppAlias()))
+                        throw new ParamException(String.format("%s %s not exist at deployment with %s=%s",
+                                optInfo.getOperation().name, optInfo.getAppAlias(), this.deploymentTagLabel, deploymentTag));
+                    if(assembleInfo.getServices().stream().collect(Collectors.toMap(V1Service::)))
+                    break;
+                case DELETE:
+                    if(!existApps.contains(optInfo.getAppAlias()))
+                        throw new ParamException(String.format("%s %s not exist at deployment with %s=%s",
+                                optInfo.getOperation().name, optInfo.getAppAlias(), this.deploymentTagLabel, deploymentTag));
+                    existApps.remove(optInfo.getAppAlias());
+                    break;
+                case ADD:
+                    if(existApps.contains(optInfo.getAppAlias()))
+                        throw new ParamException(String.format("%s %s exist at deployment with %s=%s",
+                                optInfo.getOperation().name, optInfo.getAppAlias(), this.deploymentTagLabel, deploymentTag));
+                    existApps.add(optInfo.getAppAlias());
+                    break;
+            }
+        }
+        Map<String, AppModuleVo> appMap = new HashMap<>();
+        for(AppUpdateOperationInfo optInfo : assembleInfo.getAppOptList())
+        {
+            String alias = optInfo.getAppAlias();
+            String appName = optInfo.getAppName();
+            Map<String, V1Service> newSvcMap = getRelativeService(domainId, alias, assembleInfo.getServices());
+            Map<String, V1Service> oldSvcMap = getRelativeService(domainId, alias, existServices);
+            if(optInfo.getOperation().equals(AppUpdateOperation.DELETE))
+            {
+                if(newSvcMap.size() > 0)
+                    throw new ParamException(String.format("%s of %s will be deleted, so service %s can not be added",
+                            alias, domainId, String.join(",", newSvcMap.keySet())));
+                else if(oldSvcMap.size() == 0)
+                    throw new ParamException(String.format("can not find service relate to %s of %s",
+                            alias, domainId));
+                for(String svcName : oldSvcMap.keySet())
+                {
+                    K8sOperationPo deleteOpt = new K8sOperationPo(jobId, platformId, domainId, K8sKind.SERVICE, svcName,
+                            K8sOperation.DELETE, gson.toJson(oldSvcMap.get(svcName)), null);
+                    k8sOptList.add(deleteOpt);
+
+                }
+            }
+                continue;
+
+
+
+            AppModuleVo appModule = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName)
+                    .stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion());
+            appMap.put(alias, appModule);
+            labels.put(appName, alias);
+            deployment.getMetadata().getLabels().put(String.format("%s-alias", appName), alias);
+            String version = optInfo.getTargetVersion().replaceAll("\\:", "-");
+            deployment.getMetadata().getLabels().put(String.format("%s-version", appName), version);
+            labels.put(String.format("%s-version", appName), version);
+            deployment.getSpec().getSelector().setMatchLabels(labels);
+            V1Container initContainer = deployment.getSpec().getTemplate().getSpec().getInitContainers().stream()
+                    .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(alias);
+            V1Container runtimeContainer = deployment.getSpec().getTemplate().getSpec().getContainers().stream()
+                    .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(String.format("%s-runtime", alias));
+            AppType appType = appModule.getAppType();
+            initContainer.setCommand(new ArrayList<>());
+            initContainer.getCommand().add("/bin/sh");
+            initContainer.getCommand().add("-c");
+            initContainer.getCommand().add("");
+            String mountPath = String.format("%s/%s-cfg", this.defaultCfgMountPath, alias);
+            if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+                runtimeContainer.setArgs(new ArrayList<>());
+                runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("binary-file").setMountPath(optInfo.getBasePath());
+            }
+            String basePath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? "/binary-file" : optInfo.getBasePath();
+            String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
+            addModuleCfgToContainer(String.format("%s-%s", alias, domainId), optInfo.getCfgs(), basePath, deployPath, appModule, mountPath, false, initContainer, deployment);
+            deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
+            if (domainPublicConfig != null && domainPublicConfig.size() > 0) {
+                mountPath = String.format("%s/%s", this.defaultCfgMountPath, domainId);
+                addModuleCfgToContainer(domainId, domainPublicConfig, optInfo.getBasePath(),
+                        deployPath, appModule, mountPath, true, runtimeContainer, deployment);
+            }
+            if (platformPublicConfig != null && platformPublicConfig.size() > 0) {
+                mountPath = String.format("%s/%s", this.defaultCfgMountPath, platformId, jobId);
+                addModuleCfgToContainer(platformId, domainPublicConfig, optInfo.getBasePath(),
+                        deployPath, appModule, mountPath, true, runtimeContainer, deployment);
+            }
+            if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+                String startCmd = StringUtils.isNotBlank(optInfo.getStartCmd()) ? optInfo.getStartCmd() : String.format("./%s", appModule.getInstallPackage().getFileName());
+                String args = String.format("cd %s;%s;sleep 5;tailf /root/Platform/log/*/*.log;", deployPath, startCmd);
+                if (runtimeContainer.getArgs() == null) {
+                    runtimeContainer.setArgs(new ArrayList<>());
+                    runtimeContainer.getArgs().add(args);
+                } else {
+                    args = String.format("%s;%s", runtimeContainer.getArgs().get(0), args);
+                    runtimeContainer.getArgs().set(0, args);
+                }
+                if ("ucxserver".equals(optInfo.getAppName())) {
+                    String cmd = initContainer.getCommand().get(2);
+                    cmd = String.format("%s;mv /opt/FlowMap.full /binary-file/cfg", cmd, basePath);
+                    initContainer.getCommand().set(2, cmd);
+                }
+            } else if (appType.equals(AppType.CCOD_WEBAPPS_MODULE)) {
+                initContainer.setArgs(new ArrayList<>());
+                String cmd = initContainer.getCommand().get(2);
+                cmd = String.format("%s;mv /opt/%s /war/%s-%s.war", cmd, appModule.getInstallPackage().getFileName(), alias, domainId);
+                initContainer.getCommand().set(2, cmd);
+                if (runtimeContainer.getCommand() != null && runtimeContainer.getCommand().size() > 2) {
+                    cmd = runtimeContainer.getCommand().get(2);
+                    cmd = String.format("%s;%s", runtimeContainer.getArgs().get(0), cmd).replaceAll("^;", "").replaceAll("//", "/");
+                    runtimeContainer.getArgs().set(0, cmd);
+                    runtimeContainer.setCommand(new ArrayList<>());
+                    runtimeContainer.getCommand().add("/bin/sh");
+                    runtimeContainer.getCommand().add("-c");
+                }
+            }
+            V1HostPathVolumeSource host = new V1HostPathVolumeSource();
+            host.setPath(String.format("/var/ccod-runtime/%s/%s", platformId, domainId));
+            deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("ccod-runtime").setHostPath(host);
+            if (initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).containsKey("ccod-runtime"))
+                initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("ccod-runtime").setSubPath(alias);
+            if (runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).containsKey("ccod-runtime"))
+                runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("ccod-runtime").setSubPath(alias);
+        }
+        for(V1Service service : assembleInfo.getServices())
+        {
+            String alias = service.getMetadata().getName().split("\\-")[0];
+            AppModuleVo appModule = appMap.get(alias);
+            Map<String, String> selector = new HashMap<>();
+            selector.put(this.domainIdLabel, domainId);
+            selector.put(appModule.getAppName(), alias);
+            service.getSpec().setSelector(selector);
+            service.getMetadata().getLabels().put(this.domainIdLabel, domainId);
+            service.getMetadata().getLabels().put(this.appNameLabel, appModule.getAppName());
+            service.getMetadata().getLabels().put(this.appAliasLabel, alias);
+        }
+        K8sOperationPo k8sOpt = new K8sOperationPo();
+        k8sOpt.setDomainId(domainId);
+        k8sOpt.setJobId(jobId);
+        k8sOpt.setKind(K8sKind.DEPLOYMENT);
+        k8sOpt.setName(deployment.getMetadata().getName());
+        if(cpDeployment != null)
+            k8sOpt.setOperation(K8sOperation.REPLACE);
+        else
+            k8sOpt.setOperation(K8sOperation.CREATE);
+        k8sOpt.setPlatformId(platformId);
+        if(cpDeployment != null)
+            k8sOpt.setSrcJson(gson.toJson(cpDeployment));
+        k8sOpt.setDstJson(gson.toJson(deployment));
+        for(V1Service service : assembleInfo.getServices())
+        {
+            k8sOpt = new K8sOperationPo();
+            k8sOpt.setDomainId(domainId);
+            k8sOpt.setJobId(jobId);
+            k8sOpt.setKind(K8sKind.SERVICE);
+            k8sOpt.setName(service.getMetadata().getName());
+            if(existService.contains(service.getMetadata().getName())) {
+                k8sOpt.setOperation(K8sOperation.REPLACE);
+                k8sOpt.setSrcJson(existServices.get(service.getMetadata().getName()));
+            }
+            else
+                k8sOpt.setOperation(K8sOperation.CREATE);
+            k8sOpt.setPlatformId(platformId);
+        }
+        return k8sOptList;
+    }
+
+    private Map<String, V1Service> getRelativeService(String domainId, String alias, List<V1Service> services)
+    {
+        Map<String, V1Service> serviceMap = new HashMap<>();
+        String regex = String.format("^%s-%s($|(-[0-9a-z]+)+$)");
+        for(V1Service service : services)
+        {
+            if(service.getMetadata().getName().matches(regex))
+                serviceMap.put(service.getMetadata().getName(), service);
+        }
+        return serviceMap;
     }
 
     private void proprocessDeployApp(String jobId, String platformId, String domainId, AppUpdateOperationInfo optInfo,

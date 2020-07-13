@@ -9,13 +9,15 @@ package com.channelsoft.ccod.support.cmdb.constant;
  */
 public enum K8sKind {
 
-    Pod(1, "Pod", "pod of k8s"),
+    POD(1, "POD", "pod of k8s"),
 
-    Service(2, "Service", "service of k8s"),
+    SERVICE(2, "SERVICE", "service of k8s"),
 
-    Namespace(3, "Namespace", "namespace of k8s"),
+    NAMESPACE(3, "NAMESPACE", "namespace of k8s"),
 
-    ReplicaSet(4, "ReplicaSet", "replicaSet of k8s"),;
+    DEPLOYMENT(5, "Deployment", "deployment of k8s"),
+
+    INGRESS(6, "INGRESS", "ingress of k8s"),;
 
     public int id;
 

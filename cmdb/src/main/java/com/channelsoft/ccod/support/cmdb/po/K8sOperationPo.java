@@ -30,6 +30,19 @@ public class K8sOperationPo {
 
     private String dstJson; //该对象操作后的json
 
+    public K8sOperationPo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation,
+                          String srcJson, String dstJson)
+    {
+        this.jobId = jobId;
+        this.platformId = platformId;
+        this.domainId = domainId;
+        this.kind = kind;
+        this.name = name;
+        this.operation = operation;
+        this.srcJson = srcJson;
+        this.dstJson = dstJson;
+    }
+
     public int getOperationId() {
         return operationId;
     }

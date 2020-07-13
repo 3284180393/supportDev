@@ -310,6 +310,7 @@ k8s:
     app-version: version
     job-id: job-id
     service-type: service-type
+    deployment-tag: assemble-tag
   volume-names:
     web-app: war
     binary-file: binary-file
