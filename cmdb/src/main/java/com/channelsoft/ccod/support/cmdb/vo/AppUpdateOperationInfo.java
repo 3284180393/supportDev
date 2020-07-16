@@ -6,6 +6,7 @@ import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 
+import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class AppUpdateOperationInfo {
 
     private int platformAppId; //平台应用id,如果操作是ADD为0,否则是被操作的平台应用id
 
+    @NotNull(message = "operation can not be null")
     private AppUpdateOperation operation; //应用升级类型,由AppUpdateType枚举定义
 
     private String domainId; //应用所在的域id
@@ -28,8 +30,10 @@ public class AppUpdateOperationInfo {
 
     private String assembleTag; //应用所在assemble的标签
 
+    @NotNull(message = "appName can not be null")
     private String appName; //应用名
 
+    @NotNull(message = "appAlias can not be null")
     private String appAlias; //应用别名
 
     private String originalAlias; //应用原始别名(用来被用户而不是被系统识别的别名)
@@ -234,12 +238,6 @@ public class AppUpdateOperationInfo {
                 break;
             case DELETE:
                 desc = String.format("from %s", hostIp);
-                break;
-            case VERSION_UPDATE:
-                desc = String.format("from %s to %s at %s", originalVersion, targetVersion, hostIp);
-                break;
-            case CFG_UPDATE:
-                desc = String.format("cfg at %s", hostIp);
                 break;
             default:
                 desc = String.format("at %s", hostIp);

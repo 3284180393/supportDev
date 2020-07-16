@@ -30,6 +30,10 @@ public class K8sOperationPo {
 
     private String dstJson; //该对象操作后的json
 
+    private boolean updateGlsServer; //是否需要更新glsserver
+
+    private String updateSql; //更新glsserver的sql
+
     public K8sOperationPo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation,
                           String srcJson, String dstJson)
     {
@@ -113,5 +117,21 @@ public class K8sOperationPo {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public boolean isUpdateGlsServer() {
+        return updateGlsServer;
+    }
+
+    public void setUpdateGlsServer(boolean updateGlsServer) {
+        this.updateGlsServer = updateGlsServer;
+    }
+
+    public String getUpdateSql() {
+        return updateSql;
+    }
+
+    public void setUpdateSql(String updateSql) {
+        this.updateSql = updateSql;
     }
 }

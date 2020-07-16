@@ -1,10 +1,13 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
+import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
 import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Service;
 
+import javax.validation.constraints.NotNull;
 import java.util.List;
 
 /**
@@ -16,27 +19,19 @@ import java.util.List;
  */
 public class K8sAppAssembleInfo {
 
+    @NotNull(message = "assembleTag can not be null")
     private String assembleTag;
 
+    @NotNull(message = "assembleName can not be null")
     private String assembleName;
 
     private boolean isThreePartApp;
 
+    @NotNull(message = "appOptList can not be null")
     private List<AppUpdateOperationInfo> appOptList;
 
-    private V1Deployment deployment;
-
-    private List<V1Service> services;
-
-    private List<ExtensionsV1beta1Ingress> ingresses;
-
-    private int howTo;  //如何处理deployment，0 create，1 replace，2 delete
-
-    private List<V1Service> addServices;
-
-    private List<V1Service> replaceServices;
-
-    private List<V1Service> deleteServices;
+    @NotNull(message = "k8sOperationList can not be null")
+    private List<K8sOperationPo> k8sOperationList;
 
     public String getAssembleTag() {
         return assembleTag;
@@ -62,35 +57,19 @@ public class K8sAppAssembleInfo {
         isThreePartApp = threePartApp;
     }
 
-    public V1Deployment getDeployment() {
-        return deployment;
-    }
-
-    public void setDeployment(V1Deployment deployment) {
-        this.deployment = deployment;
-    }
-
-    public List<V1Service> getServices() {
-        return services;
-    }
-
-    public void setServices(List<V1Service> services) {
-        this.services = services;
-    }
-
-    public List<ExtensionsV1beta1Ingress> getIngresses() {
-        return ingresses;
-    }
-
-    public void setIngresses(List<ExtensionsV1beta1Ingress> ingresses) {
-        this.ingresses = ingresses;
-    }
-
     public List<AppUpdateOperationInfo> getAppOptList() {
         return appOptList;
     }
 
     public void setAppOptList(List<AppUpdateOperationInfo> appOptList) {
         this.appOptList = appOptList;
+    }
+
+    public List<K8sOperationPo> getK8sOperationList() {
+        return k8sOperationList;
+    }
+
+    public void setK8sOperationList(List<K8sOperationPo> k8sOperationList) {
+        this.k8sOperationList = k8sOperationList;
     }
 }

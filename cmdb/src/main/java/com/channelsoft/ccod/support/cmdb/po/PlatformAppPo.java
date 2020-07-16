@@ -40,6 +40,10 @@ public class PlatformAppPo {
 
     private String basePath; //该应用的basePath
 
+    private String deployPath; //部署路径
+
+    private String startCmd; //启动命令
+
     private Date deployTime; //该应用的部署路径
 
     public int getPlatformAppId() {

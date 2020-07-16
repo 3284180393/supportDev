@@ -14,6 +14,7 @@ import java.util.List;
  * @Version: 1.0
  */
 public class K8sSetCollection {
+
     private String tag;
 
     private V1Deployment deployment;

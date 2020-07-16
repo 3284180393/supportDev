@@ -5,7 +5,11 @@ import com.channelsoft.ccod.support.cmdb.constant.DomainType;
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 import com.channelsoft.ccod.support.cmdb.po.DomainPo;
+import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
+import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1Service;
 
+import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.List;
 
@@ -22,21 +26,17 @@ public class DomainUpdatePlanInfo {
 
     private String domainId; //对应的域标识
 
-    private DomainType domainType; //域类型
+    private DomainType domainType = DomainType.K8S_CONTAINER; //域类型
 
     private String bkSetName; //域归属的set名
 
     private List<AppUpdateOperationInfo> appUpdateOperationList; //应用升级操作列表
 
+    @NotNull(message = "domain updateType can not be null")
     private DomainUpdateType updateType; //该域升级方案类型,由DomainUpdateType枚举定义
 
+    @NotNull(message = "status of domain plan can not be null")
     private UpdateStatus status; //该升级方案当前状态,由DomainUpdateStatus枚举定义
-
-    private Date createTime; //该方案创建时间
-
-    private Date updateTime; //方案最后一次修改时间
-
-    private Date executeTime; //计划执行时间
 
     private String comment; //备注
 
@@ -46,7 +46,11 @@ public class DomainUpdatePlanInfo {
 
     private String tags; //域的标签,例如:入呼叫、外呼、
 
+    @NotNull(message = "publicConfig can not be null")
     private List<AppFileNexusInfo> publicConfig; //用来存放域公共配置
+
+    @NotNull(message = "collections of domain plan can not be null")
+    private List<K8sSetCollection> collections;
 
     public List<AppUpdateOperationInfo> getAppUpdateOperationList() {
         return appUpdateOperationList;
@@ -70,30 +74,6 @@ public class DomainUpdatePlanInfo {
 
     public void setStatus(UpdateStatus status) {
         this.status = status;
-    }
-
-    public Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
-    }
-
-    public Date getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(Date updateTime) {
-        this.updateTime = updateTime;
-    }
-
-    public Date getExecuteTime() {
-        return executeTime;
-    }
-
-    public void setExecuteTime(Date executeTime) {
-        this.executeTime = executeTime;
     }
 
     public String getComment() {
@@ -166,6 +146,14 @@ public class DomainUpdatePlanInfo {
 
     public void setDomainType(DomainType domainType) {
         this.domainType = domainType;
+    }
+
+    public List<K8sSetCollection> getCollections() {
+        return collections;
+    }
+
+    public void setCollections(List<K8sSetCollection> collections) {
+        this.collections = collections;
     }
 
     public DomainPo getDomain(String platformId)

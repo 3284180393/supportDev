@@ -65,6 +65,10 @@ public class PlatformAppDeployDetailVo {
 
     private String basePath; //该应用的basePath
 
+    private String deployPath; //应用程序/安装包部署路径
+
+    private String startCmd; //启动命令
+
     private Date deployTime; //该应用的部署路径
 
     private String version; //应用版本
@@ -366,6 +370,22 @@ public class PlatformAppDeployDetailVo {
         this.availableReplicas = availableReplicas;
     }
 
+    public String getDeployPath() {
+        return deployPath;
+    }
+
+    public void setDeployPath(String deployPath) {
+        this.deployPath = deployPath;
+    }
+
+    public String getStartCmd() {
+        return startCmd;
+    }
+
+    public void setStartCmd(String startCmd) {
+        this.startCmd = startCmd;
+    }
+
     public PlatformAppPo getPlatformApp()
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -382,6 +402,7 @@ public class PlatformAppDeployDetailVo {
         po.setAssembleId(this.assembleId);
         po.setReplicas(this.replicas);
         po.setAvailableReplicas(this.availableReplicas);
+
         return po;
     }
 

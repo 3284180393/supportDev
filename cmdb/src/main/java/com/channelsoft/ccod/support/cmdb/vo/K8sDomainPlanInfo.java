@@ -3,7 +3,11 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.channelsoft.ccod.support.cmdb.constant.DomainType;
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
+import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
+import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1Service;
 
+import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.List;
 
@@ -26,8 +30,10 @@ public class K8sDomainPlanInfo {
 
     private List<K8sAppAssembleInfo> appAssembleList; //应用升级操作列表
 
+    @NotNull(message = "domain updateType can not be null")
     private DomainUpdateType updateType; //该域升级方案类型,由DomainUpdateType枚举定义
 
+    @NotNull(message = "status of domain plan can not be null")
     private UpdateStatus status; //该升级方案当前状态,由DomainUpdateStatus枚举定义
 
     private String comment; //备注
@@ -38,7 +44,17 @@ public class K8sDomainPlanInfo {
 
     private String tags; //域的标签,例如:入呼叫、外呼、
 
+    @NotNull(message = "public config of domain plan can not be null")
     private List<AppFileNexusInfo> publicConfig; //用来存放域公共配置
+
+    @NotNull(message = "public deployments of domain plan can not be null")
+    private List<V1Deployment> deployments;
+
+    @NotNull(message = "public services of domain plan can not be null")
+    private List<V1Service> services;
+
+    @NotNull(message = "public ingresses of domain plan can not be null")
+    private List<ExtensionsV1beta1Ingress> ingresses;
 
     public String getDomainName() {
         return domainName;

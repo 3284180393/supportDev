@@ -26,27 +26,21 @@ public class K8sPlatformSchemaInfo {
     @NotNull(message = "platform id can not be null")
     private String platformId; //平台id
 
-    @NotNull(message = "platform name can not be null")
     private String platformName; //该平台的平台名,需要同蓝鲸的对应的bizName一致
 
     private PlatformType platformType = PlatformType.K8S_CONTAINER; //平台类型
 
-    @NotNull(message = "platform function can not be null")
     private PlatformFunction platformFunc; //平台用途
 
-    @NotNull(message = "platform create method can not be null")
     private PlatformCreateMethod createMethod; //平台创建方式
 
-    @DecimalMin(value = "1", message = "biz id should be positive integer")
     private int bkBizId; //该平台对应蓝鲸的bizId
 
-    @NotNull(message = "bkCloud id of platform can not be null")
     private int bkCloudId; //该平台所有服务器所在云
 
-    @NotNull(message = "ccod version of platform can not be null")
     private String ccodVersion; //该平台的ccod大版本
 
-    @NotNull(message = "schema type of platform schema can not be null")
+    @NotNull(message = "type of platform schema can not be null")
     private PlatformUpdateTaskType taskType; //升级计划的任务类型,由PlatformUpdateTaskType枚举定义
 
     @NotNull(message = "status of platform schema can not be null")

@@ -18,6 +18,14 @@ public class K8sCollection {
 
     private String tag;
 
+    private String domainId;
+
+    private String appName;
+
+    private String alias;
+
+    private String version;
+
     private V1Deployment deployment;
 
     private List<V1Service> services;
@@ -27,6 +35,17 @@ public class K8sCollection {
     private int nodePort;
 
     private int timeout;
+
+    public K8sCollection(String domainId, String appName, String alias, String version, V1Deployment deployment, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses)
+    {
+        this.domainId = domainId;
+        this.appName = appName;
+        this.alias = alias;
+        this.version = version;
+        this.deployment = deployment;
+        this.services = services;
+        this.ingresses = ingresses;
+    }
 
     public K8sCollection(V1Deployment deployment)
     {
@@ -90,5 +109,37 @@ public class K8sCollection {
 
     public void setNodePort(int nodePort) {
         this.nodePort = nodePort;
+    }
+
+    public String getAlias() {
+        return alias;
+    }
+
+    public void setAlias(String alias) {
+        this.alias = alias;
+    }
+
+    public String getDomainId() {
+        return domainId;
+    }
+
+    public void setDomainId(String domainId) {
+        this.domainId = domainId;
+    }
+
+    public String getAppName() {
+        return appName;
+    }
+
+    public void setAppName(String appName) {
+        this.appName = appName;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
     }
 }

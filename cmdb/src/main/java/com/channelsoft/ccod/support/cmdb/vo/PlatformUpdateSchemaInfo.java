@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import io.kubernetes.client.openapi.models.*;
 
+import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -17,14 +18,18 @@ import java.util.List;
  */
 public class PlatformUpdateSchemaInfo {
 
+    @NotNull(message = "schemaId can not be null")
     private String schemaId; //id由发起升级计划的生成的用来标识计划的唯一标识
 
+    @NotNull(message = "domainUpdatePlanList can not be null")
     private List<DomainUpdatePlanInfo> domainUpdatePlanList; //域升级方案列表
 
+    @NotNull(message = "platformId can not be null")
     private String platformId; //平台id
 
     private String platformName; //该平台的平台名,需要同蓝鲸的对应的bizName一致
 
+    @NotNull(message = "platformType can not be null")
     private PlatformType platformType; //平台类型
 
     private PlatformFunction platformFunc; //平台用途
@@ -37,16 +42,20 @@ public class PlatformUpdateSchemaInfo {
 
     private String ccodVersion; //该平台的ccod大版本
 
+    @NotNull(message = "taskType can not be null")
     private PlatformUpdateTaskType taskType; //升级计划的任务类型,由PlatformUpdateTaskType枚举定义
 
+    @NotNull(message = "status can not be null")
     private UpdateStatus status; //任务当前状态,由PlatformUpdateTaskStatus枚举定义
 
     private Date createTime; //计划创建时间
 
     private Date updateTime; //计划最后一次修改时间
 
+    @NotNull(message = "title can not be null")
     private String title; //升级任务标题
 
+    @NotNull(message = "comment can not be null")
     private String comment; //备注
 
     private String deployScriptRepository; //平台升级计划部署脚本在nexus的存储仓库
@@ -57,16 +66,20 @@ public class PlatformUpdateSchemaInfo {
 
     private String k8sHostIp; //运行平台的k8s主机ip
 
+    @NotNull(message = "glsDBType can not be null")
     private DatabaseType glsDBType; //ccod平台glsserver的数据库类型
 
+    @NotNull(message = "glsDBUser can not be null")
     private String glsDBUser; //gls数据库的db用户
 
+    @NotNull(message = "glsDBPwd can not be null")
     private String glsDBPwd; //gls数据库的登录密码
 
     private String baseDataNexusRepository; //基础数据在nexus的存放仓库
 
     private String baseDataNexusPath; //基础数据在nexus的存放path
 
+    @NotNull(message = "publicConfig can not be null")
     private List<AppFileNexusInfo> publicConfig; //用来存放平台公共配置
 
     private String k8sApiUrl; //k8s api的url地址

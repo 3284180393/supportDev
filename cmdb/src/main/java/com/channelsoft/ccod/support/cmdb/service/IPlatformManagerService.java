@@ -142,6 +142,8 @@ public interface IPlatformManagerService {
      */
     void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
 
+    K8sPlatformSchemaInfo createK8sPlatformSchema(K8sPlatformSchemaInfo schemaInfo) throws Exception;
+
     /**
      * 创建新的升级计划
      * @param paramVo 被创建的平台相关参数
