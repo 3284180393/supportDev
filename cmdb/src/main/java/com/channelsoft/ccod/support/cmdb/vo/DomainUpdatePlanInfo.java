@@ -49,8 +49,14 @@ public class DomainUpdatePlanInfo {
     @NotNull(message = "publicConfig can not be null")
     private List<AppFileNexusInfo> publicConfig; //用来存放域公共配置
 
-    @NotNull(message = "collections of domain plan can not be null")
-    private List<K8sSetCollection> collections;
+    @NotNull(message = "deployments can not be null")
+    private List<V1Deployment> deployments;
+
+    @NotNull(message = "services can not be null")
+    private List<V1Service> services;
+
+    @NotNull(message = "ingresses can not be null")
+    private List<ExtensionsV1beta1Ingress> ingresses;
 
     public List<AppUpdateOperationInfo> getAppUpdateOperationList() {
         return appUpdateOperationList;
@@ -148,12 +154,28 @@ public class DomainUpdatePlanInfo {
         this.domainType = domainType;
     }
 
-    public List<K8sSetCollection> getCollections() {
-        return collections;
+    public List<V1Deployment> getDeployments() {
+        return deployments;
     }
 
-    public void setCollections(List<K8sSetCollection> collections) {
-        this.collections = collections;
+    public void setDeployments(List<V1Deployment> deployments) {
+        this.deployments = deployments;
+    }
+
+    public List<V1Service> getServices() {
+        return services;
+    }
+
+    public void setServices(List<V1Service> services) {
+        this.services = services;
+    }
+
+    public List<ExtensionsV1beta1Ingress> getIngresses() {
+        return ingresses;
+    }
+
+    public void setIngresses(List<ExtensionsV1beta1Ingress> ingresses) {
+        this.ingresses = ingresses;
     }
 
     public DomainPo getDomain(String platformId)

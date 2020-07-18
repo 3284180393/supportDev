@@ -18,7 +18,9 @@ public enum UpdateStatus {
 
     FAIL(5, "FAIL", "升级失败"),
 
-    CANCEL(6, "CANCEL", "升级取消"),;
+    CANCEL(6, "CANCEL", "升级取消"),
+
+    EXEC(7, "EXEC", "执行部署"),;
 
     public int id;
 

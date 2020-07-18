@@ -1,9 +1,11 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Service;
 
+import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,28 +22,41 @@ public class K8sCollection {
 
     private String domainId;
 
+    private AppModuleVo appModule;
+
+    @NotNull(message = "appType of domain plan can not be null")
+    private AppType appType;
+
+    @NotNull(message = "appName of domain plan can not be null")
     private String appName;
 
+    @NotNull(message = "alias of domain plan can not be null")
     private String alias;
 
+    @NotNull(message = "version of domain plan can not be null")
     private String version;
 
+    @NotNull(message = "deployment of domain plan can not be null")
     private V1Deployment deployment;
 
+    @NotNull(message = "services of domain plan can not be null")
     private List<V1Service> services;
 
+    @NotNull(message = "ingresses of domain plan can not be null")
     private List<ExtensionsV1beta1Ingress> ingresses;
 
     private int nodePort;
 
     private int timeout;
 
-    public K8sCollection(String domainId, String appName, String alias, String version, V1Deployment deployment, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses)
+    public K8sCollection(String domainId, AppModuleVo appModule, String alias, V1Deployment deployment, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses)
     {
         this.domainId = domainId;
-        this.appName = appName;
+        this.appModule = appModule;
+        this.appName = appModule.getAppName();
         this.alias = alias;
-        this.version = version;
+        this.version = appModule.getVersion();
+        this.appType = appModule.getAppType();
         this.deployment = deployment;
         this.services = services;
         this.ingresses = ingresses;
@@ -141,5 +156,21 @@ public class K8sCollection {
 
     public void setVersion(String version) {
         this.version = version;
+    }
+
+    public AppType getAppType() {
+        return appType;
+    }
+
+    public void setAppType(AppType appType) {
+        this.appType = appType;
+    }
+
+    public AppModuleVo getAppModule() {
+        return appModule;
+    }
+
+    public void setAppModule(AppModuleVo appModule) {
+        this.appModule = appModule;
     }
 }

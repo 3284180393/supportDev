@@ -86,6 +86,14 @@ public class PlatformUpdateSchemaInfo {
 
     private String k8sAuthToken; //k8s的认证token
 
+    private V1Namespace namespace; //命名空间
+
+    private V1Secret ssl; //用来创建ssl的secret
+
+    private List<V1PersistentVolume> k8sPVList; //需要加载的pv列表
+
+    private List<V1PersistentVolumeClaim> k8sPVCList; //需要加载的pvc列表
+
     private List<V1Deployment> k8sDeploymentList; //需要执行的deployment
 
     private List<V1Service> k8sServiceList; //需要执行的service列表
@@ -94,9 +102,7 @@ public class PlatformUpdateSchemaInfo {
 
     private List<ExtensionsV1beta1Ingress> k8sIngressList; //需要执行的ingress列表
 
-    private List<V1PersistentVolume> k8sPVList; //需要加载的pv列表
-
-    private List<V1PersistentVolumeClaim> k8sPVCList; //需要加载的pvc列表
+    private List<K8sCollection> threePartApps;
 
     private K8sCollection oracle;
 
@@ -110,10 +116,7 @@ public class PlatformUpdateSchemaInfo {
 
     private K8sCollection dcs;
 
-    public PlatformUpdateSchemaInfo()
-    {
-
-    }
+    public PlatformUpdateSchemaInfo() {}
 
     public PlatformUpdateSchemaInfo(String platformId, String platformName, PlatformType platformType, PlatformFunction platformFunc,
                                     PlatformCreateMethod createMethod, int bkBizId, int bkCloudId, String ccodVersion,
@@ -141,6 +144,7 @@ public class PlatformUpdateSchemaInfo {
         this.k8sEndpointsList = new ArrayList<>();
         this.k8sPVList = new ArrayList<>();
         this.k8sPVCList = new ArrayList<>();
+        this.threePartApps = new ArrayList<>();
     }
 
     public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
@@ -461,5 +465,29 @@ public class PlatformUpdateSchemaInfo {
 
     public void setDcs(K8sCollection dcs) {
         this.dcs = dcs;
+    }
+
+    public V1Namespace getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(V1Namespace namespace) {
+        this.namespace = namespace;
+    }
+
+    public V1Secret getSsl() {
+        return ssl;
+    }
+
+    public void setSsl(V1Secret ssl) {
+        this.ssl = ssl;
+    }
+
+    public List<K8sCollection> getThreePartApps() {
+        return threePartApps;
+    }
+
+    public void setThreePartApps(List<K8sCollection> threePartApps) {
+        this.threePartApps = threePartApps;
     }
 }

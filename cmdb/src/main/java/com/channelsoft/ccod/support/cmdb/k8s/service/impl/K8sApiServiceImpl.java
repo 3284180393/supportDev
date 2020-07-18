@@ -561,6 +561,23 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public boolean isNamespaceExist(String name, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("check namespace %s exist at %s", name, k8sApiUrl));
+        List<V1Namespace> namespaces = listNamespace(k8sApiUrl, authToken);
+        boolean exist = false;
+        for(V1Namespace namespace : namespaces)
+        {
+            if(namespace.getMetadata().getName().equals(name))
+            {
+                exist = true;
+                break;
+            }
+        }
+        logger.info(String.format("%s is exist : %b", name, exist));
+        return exist;
+    }
+
+    @Override
     public List<ExtensionsV1beta1Ingress> listNamespacedIngress(String namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("list all Ingress at %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
