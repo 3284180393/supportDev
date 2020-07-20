@@ -48,10 +48,6 @@ public class PlatformUpdateSchemaInfo {
     @NotNull(message = "status can not be null")
     private UpdateStatus status; //任务当前状态,由PlatformUpdateTaskStatus枚举定义
 
-    private Date createTime; //计划创建时间
-
-    private Date updateTime; //计划最后一次修改时间
-
     @NotNull(message = "title can not be null")
     private String title; //升级任务标题
 
@@ -90,8 +86,10 @@ public class PlatformUpdateSchemaInfo {
 
     private V1Secret ssl; //用来创建ssl的secret
 
+    @NotNull(message = "k8sPVList can not be null")
     private List<V1PersistentVolume> k8sPVList; //需要加载的pv列表
 
+    @NotNull(message = "k8sPVCList can not be null")
     private List<V1PersistentVolumeClaim> k8sPVCList; //需要加载的pvc列表
 
     private List<V1Deployment> k8sDeploymentList; //需要执行的deployment
@@ -102,6 +100,7 @@ public class PlatformUpdateSchemaInfo {
 
     private List<ExtensionsV1beta1Ingress> k8sIngressList; //需要执行的ingress列表
 
+    @NotNull(message = "threePartApps can not be null")
     private List<K8sCollection> threePartApps;
 
     private K8sCollection oracle;
@@ -115,6 +114,8 @@ public class PlatformUpdateSchemaInfo {
     private K8sCollection ucds;
 
     private K8sCollection dcs;
+
+    private List<V1Service> threePartServices;
 
     public PlatformUpdateSchemaInfo() {}
 
@@ -130,8 +131,6 @@ public class PlatformUpdateSchemaInfo {
         this.taskType = taskType;
         this.status = UpdateStatus.CREATE;
         Date now = new Date();
-        this.createTime = now;
-        this.updateTime = now;
         this.title = title;
         this.comment = comment;
         this.domainUpdatePlanList = new ArrayList<>();
@@ -169,22 +168,6 @@ public class PlatformUpdateSchemaInfo {
 
     public void setStatus(UpdateStatus status) {
         this.status = status;
-    }
-
-    public Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
-    }
-
-    public Date getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(Date updateTime) {
-        this.updateTime = updateTime;
     }
 
     public String getTitle() {
@@ -489,5 +472,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setThreePartApps(List<K8sCollection> threePartApps) {
         this.threePartApps = threePartApps;
+    }
+
+    public List<V1Service> getThreePartServices() {
+        return threePartServices;
+    }
+
+    public void setThreePartServices(List<V1Service> threePartServices) {
+        this.threePartServices = threePartServices;
     }
 }

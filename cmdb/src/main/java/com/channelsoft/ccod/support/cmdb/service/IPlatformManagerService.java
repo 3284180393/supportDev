@@ -140,7 +140,7 @@ public interface IPlatformManagerService {
      * @throws NexusException 调用nexus api返回调用失败或是解析nexus api返回结果失败
      * @throws IOException 处理文件失败
      */
-    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException;
+    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException;
 
     K8sPlatformSchemaInfo createK8sPlatformSchema(K8sPlatformSchemaInfo schemaInfo) throws Exception;
 

@@ -309,6 +309,19 @@ public interface IK8sApiService {
     V1ConfigMap createConfigMapFromNexus(String namespace, String configMapName, String k8sApiUrl, String authToken, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws ApiException, InterfaceCallException, IOException;
 
     /**
+     * 从nexus获取configMap的内容
+     * @param namespace 命名空间
+     * @param configMapName configMap的名字
+     * @param cfgs 存在nexus上的配置文件
+     * @param nexusHostUrl nexus的url
+     * @param nexusUser nexus的登录用户
+     * @param nexusPwd nexus的登录密码
+     * @return 可以在k8s上部署的configMap
+     * @throws IOException
+     */
+    V1ConfigMap getConfigMapFromNexus(String namespace, String configMapName, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws InterfaceCallException, IOException;
+
+    /**
      * 删除已经存在的configMap
      * @param namespace 命名空间
      * @param configMapName configMap名称

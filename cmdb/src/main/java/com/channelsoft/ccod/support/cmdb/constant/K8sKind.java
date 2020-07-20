@@ -23,7 +23,9 @@ public enum K8sKind {
 
     PV(7, "PV", "pv of k8s"),
 
-    PVC(8, "PVC", "pvc of k8s"),;
+    PVC(8, "PVC", "pvc of k8s"),
+
+    CONFIGMAP(9, "CONFIGMAP", "configMap of k8s"),;
 
     public int id;
 

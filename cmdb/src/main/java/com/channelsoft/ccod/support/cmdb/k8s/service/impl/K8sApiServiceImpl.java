@@ -391,6 +391,17 @@ public class K8sApiServiceImpl implements IK8sApiService {
 
     @Override
     public V1ConfigMap createConfigMapFromNexus(String namespace, String configMapName, String k8sApiUrl, String authToken, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws ApiException, InterfaceCallException, IOException {
+        V1ConfigMap body = getConfigMapFromNexus(namespace, configMapName, cfgs, nexusHostUrl, nexusUser, nexusPwd);
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ConfigMap configMap = apiInstance.createNamespacedConfigMap(namespace, body, null, null,null);
+        logger.info(String.format("configMap %s create SUCCESS : %s", configMapName, gson.toJson(configMap)));
+        return configMap;
+    }
+
+    @Override
+    public V1ConfigMap getConfigMapFromNexus(String namespace, String configMapName, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws InterfaceCallException, IOException {
+        logger.debug(String.format("get configMap %s at %s from nexus %s", configMapName, namespace, gson.toJson(cfgs)));
         Map<String, String> dataMap = new HashMap<>();
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
@@ -420,11 +431,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
         V1ConfigMap body = new V1ConfigMap();
         body.setMetadata(meta);
         body.setData(dataMap);
-        getConnection(k8sApiUrl, authToken);
-        CoreV1Api apiInstance = new CoreV1Api();
-        logger.error(JSONObject.toJSONString(body));
-        V1ConfigMap configMap = apiInstance.createNamespacedConfigMap(namespace, body, null, null,null);
-        return configMap;
+        logger.info(String.format("get configMap %s at %s from nexus SUCCESS", configMapName, namespace));
+        return body;
     }
 
     @Override

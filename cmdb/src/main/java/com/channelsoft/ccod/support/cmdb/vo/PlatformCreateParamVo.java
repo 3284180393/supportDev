@@ -253,13 +253,11 @@ public class PlatformCreateParamVo implements Serializable {
         schema.setCcodVersion(ccodVersion);
         schema.setTitle(title);
         schema.setBkBizId(bkBizId);
-        schema.setUpdateTime(now);
         schema.setPlatformId(platformId);
         schema.setTaskType(PlatformUpdateTaskType.CREATE);
         schema.setTitle(title);
         schema.setDomainUpdatePlanList(domainPlanList);
         schema.setStatus(UpdateStatus.CREATE);
-        schema.setCreateTime(now);
         schema.setComment(comment);
         schema.setPlatformName(platformName);
         schema.setGlsDBType(glsDBType);

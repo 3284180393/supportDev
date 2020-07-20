@@ -18,8 +18,6 @@ public class PlatformSchemaParamVo {
 
     private PlatformUpdateSchemaInfo schemaInfo;
 
-    private K8sPlatformSchemaInfo k8sSchemaInfo;
-
     public PlatformType getPlatformType() {
         return platformType;
     }
@@ -36,11 +34,4 @@ public class PlatformSchemaParamVo {
         this.schemaInfo = schemaInfo;
     }
 
-    public K8sPlatformSchemaInfo getK8sSchemaInfo() {
-        return k8sSchemaInfo;
-    }
-
-    public void setK8sSchemaInfo(K8sPlatformSchemaInfo k8sSchemaInfo) {
-        this.k8sSchemaInfo = k8sSchemaInfo;
-    }
 }

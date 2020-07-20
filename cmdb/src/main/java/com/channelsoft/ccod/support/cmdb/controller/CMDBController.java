@@ -679,26 +679,21 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/platformUpdateSchema", method = RequestMethod.POST)
-    public AjaxResultPo updatePlatformUpdateSchema(@RequestBody @Valid PlatformSchemaParamVo paramVo)
+    public AjaxResultPo updatePlatformUpdateSchema(@RequestBody @Valid PlatformUpdateSchemaInfo schema)
     {
-        String uri = String.format("POST %s/platformUpdateSchema, para=[%s]", this.apiBasePath, JSONObject.toJSONString(paramVo));
+        String uri = String.format("POST %s/platformUpdateSchema, para=[%s]", this.apiBasePath, gson.toJson(schema));
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            switch (paramVo.getPlatformType())
+            switch (schema.getPlatformType())
             {
                 case K8S_CONTAINER:
-                    if(paramVo.getK8sSchemaInfo() == null)
-                        throw new Exception("k8sSchemaInfo can not be null");
-                    break;
                 case PHYSICAL_MACHINE:
-                    if(paramVo.getSchemaInfo() == null)
-                        throw new Exception("schemaInfo can not null");
-                    platformManagerService.updatePlatformUpdateSchema(paramVo.getSchemaInfo());
+                    platformManagerService.updatePlatformUpdateSchema(schema);
                     break;
                 default:
-                    throw new Exception(String.format("%s type platform not support", paramVo.getPlatformType()));
+                    throw new Exception(String.format("%s type platform not support", schema.getPlatformType()));
             }
 
             resultPo = new AjaxResultPo(true, "update schema success", 1, null);

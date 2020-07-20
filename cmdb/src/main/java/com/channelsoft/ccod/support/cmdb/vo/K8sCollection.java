@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
+import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Service;
 
@@ -44,6 +45,8 @@ public class K8sCollection {
 
     @NotNull(message = "ingresses of domain plan can not be null")
     private List<ExtensionsV1beta1Ingress> ingresses;
+
+    private V1ConfigMap configMap;
 
     private int nodePort;
 
@@ -172,5 +175,13 @@ public class K8sCollection {
 
     public void setAppModule(AppModuleVo appModule) {
         this.appModule = appModule;
+    }
+
+    public V1ConfigMap getConfigMap() {
+        return configMap;
+    }
+
+    public void setConfigMap(V1ConfigMap configMap) {
+        this.configMap = configMap;
     }
 }
