@@ -20,7 +20,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
-import io.kubernetes.client.proto.V1beta1Extensions;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -62,6 +61,25 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private final static Logger logger = LoggerFactory.getLogger(PlatformManagerServiceImpl.class);
 
     private Gson gson = new Gson();
+
+    private Gson templateParseGson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
+        @Override
+        public boolean shouldSkipField(FieldAttributes f) {
+            //过滤掉字段名包含"age"
+            return f.getName().contains("creationTimestamp") || f.getName().contains("status") || f.getName().contains("resourceVersion") || f.getName().contains("selfLink") || f.getName().contains("uid")
+                    || f.getName().contains("generation") || f.getName().contains("annotations") || f.getName().contains("strategy")
+                    || f.getName().contains("terminationMessagePath") || f.getName().contains("terminationMessagePolicy")
+                    || f.getName().contains("dnsPolicy") || f.getName().contains("securityContext") || f.getName().contains("schedulerName")
+                    || f.getName().contains("restartPolicy") || f.getName().contains("clusterIP")
+                    || f.getName().contains("sessionAffinity") || f.getName().contains("nodePort");
+        }
+
+        @Override
+        public boolean shouldSkipClass(Class<?> clazz) {
+            //过滤掉 类名包含 Bean的类
+            return clazz.getName().contains("Bean");
+        }
+    }).create();
 
     @Autowired
     IK8sApiService ik8sApiService;
@@ -156,6 +174,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${k8s.labels.app-version}")
     private String appVersionLabel;
 
+    @Value("${k8s.labels.app-type}")
+    private String appTypeLabel;
+
     @Value("${k8s.labels.job-id}")
     private String jobIdLabel;
 
@@ -164,6 +185,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     @Value("${k8s.labels.deployment-tag}")
     private String deploymentTagLabel;
+
+    @Value("${k8s.labels.deployment-type}")
+    private String deploymentTypeLabel;
 
     @Value("${k8s.volume-names.web-app}")
     private String webappVolumeName;
@@ -1824,7 +1848,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException {
+    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException {
         logger.debug(String.format("begin to update platform update schema : %s", gson.toJson(updateSchema)));
         if (StringUtils.isBlank(updateSchema.getPlatformId())) {
             logger.error("platformId of schema is blank");
@@ -1903,6 +1927,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             List<K8sOperationInfo> tryOptList = generateSchemaK8sExecStep(updateSchema, UpdateStatus.WAIT_EXEC, registerApps);
             logger.debug(String.format("prepare to exis steps I %s", gson.toJson(tryOptList)));
+            execPlatformUpdateSteps(tryOptList, updateSchema);
         }
         List<DomainUpdatePlanInfo> execPlans = statusPlanMap.containsKey(UpdateStatus.EXEC) ? statusPlanMap.get(UpdateStatus.EXEC) : new ArrayList<>();
         if(execPlans.size() > 0)
@@ -1987,23 +2012,41 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException("three part apps of new create platform can not be empty");
             else if(schema.getPublicConfig() == null || schema.getPublicConfig().size() == 0)
                 throw new ParamException("public config of new create platform is empty");
-            K8sOperationInfo optInfo = new K8sOperationInfo(K8sKind.NAMESPACE, schema.getNamespace().getMetadata().getName(), K8sOperation.CREATE, schema.getNamespace());
+            K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, schema.getNamespace().getMetadata().getName(), K8sOperation.CREATE, schema.getNamespace());
             execSteps.add(optInfo);
-            optInfo = new K8sOperationInfo(K8sKind.SECRET, schema.getSsl().getMetadata().getName(), K8sOperation.CREATE, schema.getSsl());
+            optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.SECRET, schema.getSsl().getMetadata().getName(), K8sOperation.CREATE, schema.getSsl());
             execSteps.add(optInfo);
             for(V1PersistentVolume pv : schema.getK8sPVList())
             {
-                optInfo = new K8sOperationInfo(K8sKind.PV, pv.getMetadata().getName(), K8sOperation.CREATE, pv);
+                optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.PV, pv.getMetadata().getName(), K8sOperation.CREATE, pv);
                 execSteps.add(optInfo);
             }
             for(V1PersistentVolumeClaim pvc : schema.getK8sPVCList())
             {
-                optInfo = new K8sOperationInfo(K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pvc);
+                optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pvc);
                 execSteps.add(optInfo);
             }
+            List<NexusAssetInfo> cfgs = new ArrayList<>();
+            for(AppFileNexusInfo cfgFile : schema.getPublicConfig())
+            {
+                NexusAssetInfo cfg = cfgFile.getNexusAssetInfo(this.nexusHostUrl);
+                cfgs.add(cfg);
+            }
+            V1ConfigMap configMap = this.k8sApiService.getConfigMapFromNexus(platformId, platformId,
+                    cfgs, this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
+            K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP,
+                    platformId, K8sOperation.CREATE, configMap);
+            execSteps.add(k8sOpt);
             for(K8sCollection threeApp : schema.getThreePartApps())
             {
-                optInfo = new K8sOperationInfo(K8sKind.DEPLOYMENT, threeApp.getDeployment().getMetadata().getName(), K8sOperation.CREATE, threeApp.getDeployment());;
+                if(threeApp.getDeployment().getMetadata().getLabels() == null)
+                    threeApp.getDeployment().getMetadata().setLabels(new HashMap<>());
+                threeApp.getDeployment().getMetadata().getLabels().put(this.deploymentTypeLabel, K8sDeploymentType.THREE_PART_APP.name);
+                threeApp.getDeployment().getMetadata().getLabels().put(this.jobIdLabel, jobId);
+                threeApp.getDeployment().getMetadata().getLabels().put(this.appNameLabel, threeApp.getAppName());
+                threeApp.getDeployment().getMetadata().getLabels().put(this.appAliasLabel, threeApp.getAlias());
+                threeApp.getDeployment().getMetadata().getLabels().put(this.appVersionLabel, threeApp.getVersion().replaceAll("\\:", "-"));
+                optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.DEPLOYMENT, threeApp.getDeployment().getMetadata().getName(), K8sOperation.CREATE, threeApp.getDeployment());;
                 execSteps.add(optInfo);
                 if(threeApp.getServices() == null || threeApp.getServices().size() == 0)
                     throw new ParamException(String.format("service of new create three part app %s can not be null", threeApp.getAppName()));
@@ -2014,9 +2057,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     svc.getMetadata().getLabels().put(this.jobIdLabel, jobId);
                     svc.getMetadata().getLabels().put(this.appNameLabel, threeApp.getAppName());
                     svc.getMetadata().getLabels().put(this.appAliasLabel, threeApp.getAlias());
-                    svc.getMetadata().getLabels().put(this.appVersionLabel, threeApp.getVersion());
+                    svc.getMetadata().getLabels().put(this.appVersionLabel, threeApp.getVersion().replaceAll("\\:", "-"));
                     svc.getMetadata().setNamespace(platformId);
-                    optInfo = new K8sOperationInfo(K8sKind.SERVICE, svc.getMetadata().getName(), K8sOperation.CREATE, svc);
+                    optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.SERVICE, svc.getMetadata().getName(), K8sOperation.CREATE, svc);
                     execSteps.add(optInfo);
                 }
                 for(ExtensionsV1beta1Ingress ingress : threeApp.getIngresses())
@@ -2029,7 +2072,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     ingress.getMetadata().getLabels().put(this.appAliasLabel, threeApp.getAlias());
                     ingress.getMetadata().getLabels().put(this.appVersionLabel, threeApp.getVersion());
                     ingress.getMetadata().setNamespace(platformId);
-                    optInfo = new K8sOperationInfo(K8sKind.INGRESS, ingress.getMetadata().getName(), K8sOperation.CREATE, ingress);
+                    optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.INGRESS, ingress.getMetadata().getName(), K8sOperation.CREATE, ingress);
                     execSteps.add(optInfo);
                 }
             }
@@ -2043,8 +2086,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 String id1 = o1.getDomainId().replaceAll("\\d*", "");
                 String id2 = o2.getDomainId().replaceAll("\\d*", "");
                 if(!id1.equals(id2))
-                    return setMap.get(id2) - setMap.get(id1);
-                return Integer.parseInt(o2.getDomainId().replaceAll(id2, "")) - Integer.parseInt(o1.getDomainId().replaceAll(id1, "")) ;
+                    return setMap.get(id1) - setMap.get(id2);
+                return Integer.parseInt(o1.getDomainId().replaceAll(id2, "")) - Integer.parseInt(o2.getDomainId().replaceAll(id1, "")) ;
             }
         };
         Collections.sort(plans, sort);
@@ -2455,6 +2498,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<LJHostInfo> hostList = this.paasService.queryBKHost(paramVo.getBkBizId(), null, null, null, null);
         if (hostList.size() == 0)
             throw new ParamException(String.format("%s has not any host", paramVo.getPlatformName()));
+        if(paramVo.getPlatformType().equals(PlatformType.K8S_CONTAINER))
+        {
+            if(StringUtils.isBlank(paramVo.getK8sApiUrl()))
+                throw new ParamException(String.format("k8sApiUrl of new create platform is blank"));
+            if(StringUtils.isBlank(paramVo.getK8sAuthToken()))
+                throw new ParamException(String.format("k8s auth token of new create platform is blank"));
+        }
         PlatformUpdateSchemaInfo schemaInfo;
         String platformId = paramVo.getPlatformId();
         switch (paramVo.getCreateMethod()) {
@@ -3491,7 +3541,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String k8sAuthToken = createSchema.getK8sAuthToken();
         List<V1ConfigMap> mapList = this.k8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken);
         for (V1ConfigMap configMap : mapList) {
-            this.k8sApiService.deleteConfigMapByName(platformId, configMap.getMetadata().getName(), k8sApiUrl, k8sAuthToken);
+            this.k8sApiService.deleteNamespacedConfigMap(platformId, configMap.getMetadata().getName(), k8sApiUrl, k8sAuthToken);
         }
         mapList = this.createConfigMapForNewPlatform(createSchema);
         System.out.println(String.format("create %d configMap for %s", mapList.size(), platformId));
@@ -3950,24 +4000,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String jobId = DigestUtils.md5DigestAsHex(sf.format(now).getBytes()).substring(0, 10);
-        Gson gson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
-            @Override
-            public boolean shouldSkipField(FieldAttributes f) {
-                //过滤掉字段名包含"age"
-                return f.getName().contains("creationTimestamp") || f.getName().contains("status") || f.getName().contains("resourceVersion") || f.getName().contains("selfLink") || f.getName().contains("uid")
-                        || f.getName().contains("generation") || f.getName().contains("annotations") || f.getName().contains("strategy")
-                        || f.getName().contains("terminationMessagePath") || f.getName().contains("terminationMessagePolicy")
-                        || f.getName().contains("dnsPolicy") || f.getName().contains("securityContext") || f.getName().contains("schedulerName")
-                        || f.getName().contains("restartPolicy") || f.getName().contains("clusterIP")
-                        || f.getName().contains("sessionAffinity") || f.getName().contains("nodePort");
-            }
-
-            @Override
-            public boolean shouldSkipClass(Class<?> clazz) {
-                //过滤掉 类名包含 Bean的类
-                return clazz.getName().contains("Bean");
-            }
-        }).create();
         String jsonStr = "{\"schemaId\":\"e2b849bd-0ac4-4591-97f3-eee6e7084a58\",\"domainUpdatePlanList\":[{\"domainName\":\"公共组件01\",\"domainId\":\"public01\",\"bkSetName\":\"公共组件\",\"appUpdateOperationList\":[{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"LicenseServer\",\"appAlias\":\"licenseserver\",\"targetVersion\":\"5214\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"licenseserver\",\"cfgs\":[{\"fileName\":\"Config.ini\",\"ext\":\"ini\",\"fileSize\":0,\"md5\":\"6c513269c4e2bc10f4a6cf0eb05e5bfc\",\"deployPath\":\"./bin/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/public01_licenseserver/Config.ini\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNlZGYyZTBkYjgyNWQ0OTRi\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"configserver\",\"appAlias\":\"configserver\",\"targetVersion\":\"aca2af60caa0fb9f4af57f37f869dafc90472525\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"configserver\",\"cfgs\":[{\"fileName\":\"ccs_config.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"1095494274dc98445b79ec1d32900a6f\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/public01_configserver/ccs_config.cfg\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY5NWYyNTlkYWY3ZWEzZWNl\"},{\"fileName\":\"ccs_logger.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"197075eb110327da19bfc2a31f24b302\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/public01_configserver/ccs_logger.cfg\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ1NGYyYWEyOGE2ZGNhYjlh\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"glsServer\",\"appAlias\":\"glsserver\",\"targetVersion\":\"7b699a4aece10ef28dce83ab36e4d79213ec4f69\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"glsserver\",\"cfgs\":[{\"fileName\":\"gls_config.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"f23a83a2d871d59c89d12b0281e10e90\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/public01_glsserver/gls_config.cfg\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNmMmRiNjc0YzQ5YmE4Nzdj\"},{\"fileName\":\"gls_logger.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"7b8e1879eab906cba05dabf3f6e0bc37\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/public01_glsserver/gls_logger.cfg\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFhYTlmZWY0MTJkMDY2ZTM3\"}],\"addDelay\":30}],\"updateType\":\"ADD\",\"createTime\":\"Jun 2, 2020 9:32:59 AM\",\"updateTime\":\"Jun 2, 2020 9:32:59 AM\",\"executeTime\":\"Jun 2, 2020 9:32:59 AM\",\"comment\":\"clone from 公共组件01 of 123456-wuph\",\"occurs\":600,\"maxOccurs\":1000,\"tags\":\"入呼叫,外呼\"},{\"domainName\":\"域服务01\",\"domainId\":\"cloud01\",\"bkSetName\":\"域服务\",\"appUpdateOperationList\":[{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"DDSServer\",\"appAlias\":\"dds\",\"targetVersion\":\"150:18722\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"dds\",\"cfgs\":[{\"fileName\":\"dds_logger.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"7f783a4ea73510c73ac830f135f4c762\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_dds/dds_logger.cfg\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ5MDNhNjZiNDlmZDMxNzYx\"},{\"fileName\":\"dds_config.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"d89e98072e96a06efa41c69855f4a3cc\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_dds/dds_config.cfg\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjZjOTYzMzczYzhmZjFjMTRm\"}],\"addDelay\":20},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"UCDServer\",\"appAlias\":\"ucds\",\"targetVersion\":\"deb3c3c4bf62c5ae5b3f8a467029a03ed95fb39e\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"ucds\",\"cfgs\":[{\"fileName\":\"ucds_config.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"f4445f10c75c9ef2f6d4de739c634498\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_ucds/ucds_config.cfg\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWMxMzRlYzQyOWIwNzZlMDU0\"},{\"fileName\":\"ucds_logger.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"ec57329ddcec302e0cc90bdbb8232a3c\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_ucds/ucds_logger.cfg\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFjYWUzYjQxZWU5NTMxOTg4\"},{\"fileName\":\"DRWRClient.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"8b901d87855de082318314d868664c03\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_ucds/DRWRClient.cfg\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ2NWYyYzE5NTAwNDY4YzQ1\"}],\"addDelay\":20},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcs\",\"appAlias\":\"dcs\",\"targetVersion\":\"155:21974\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"dcs\",\"cfgs\":[{\"fileName\":\"dc_log4cpp.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"5784d6983f5e6722622b727d0987a15e\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_dcs/dc_log4cpp.cfg\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE0ODU4YTJmMGM3M2FlNTE5\"},{\"fileName\":\"DCServer.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"ce208427723a0ebc0fff405fd7c382dc\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_dcs/DCServer.cfg\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjYwNGZjN2U3YWFlN2YwYWYy\"}],\"addDelay\":20},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"cmsserver\",\"appAlias\":\"cms1\",\"targetVersion\":\"4c303e2a4b97a047f63eb01b247303c9306fbda5\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"cms1\",\"startCmd\":\"./cmsserver --config.main=../etc/config.cms2\",\"cfgs\":[{\"fileName\":\"beijing.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"4074321f266b42fe7d7266b6fa9d7ca2\",\"deployPath\":\"./etc/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_cms1/beijing.xml\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ5NmMwMTdkNWU4ZjE3NGRi\"},{\"fileName\":\"config.cms2\",\"ext\":\"cms2\",\"fileSize\":0,\"md5\":\"cf032451250db89948f775e4d7799e40\",\"deployPath\":\"./etc/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_cms1/config.cms2\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjZlYmViNGRkNzM3YjM5MzE5\"},{\"fileName\":\"cms_log4cpp.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"b16210d40a7ef123eef0296393df37b8\",\"deployPath\":\"./etc/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_cms1/cms_log4cpp.cfg\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNmMDEzYTFjMTFkNzBlNDkz\"}],\"addDelay\":20},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"cmsserver\",\"appAlias\":\"cms2\",\"targetVersion\":\"4c303e2a4b97a047f63eb01b247303c9306fbda5\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"cms2\",\"startCmd\":\"./cmsserver --config.main=../etc/config.cms2\",\"cfgs\":[{\"fileName\":\"beijing.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"4074321f266b42fe7d7266b6fa9d7ca2\",\"deployPath\":\"./etc/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_cms2/beijing.xml\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWM0OTk5N2I3NjRhZWIzNDg5\"},{\"fileName\":\"cms_log4cpp.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"b16210d40a7ef123eef0296393df37b8\",\"deployPath\":\"./etc/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_cms2/cms_log4cpp.cfg\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQxN2NjMTNmZmJhYjRlMWZh\"},{\"fileName\":\"config.cms2\",\"ext\":\"cms2\",\"fileSize\":0,\"md5\":\"5f5e2e498e5705b84297b2721fdbb603\",\"deployPath\":\"./etc/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_cms2/config.cms2\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFiODMyZmE4OTU2MmM3NmNh\"}],\"addDelay\":20},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"ucxserver\",\"appAlias\":\"ucx\",\"targetVersion\":\"1fef2157ea07c483979b424c758192bd709e6c2a\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"ucx\",\"startCmd\":\"./ucxserver --config.main=../cfg/config.ucx\",\"cfgs\":[{\"fileName\":\"config.ucx\",\"ext\":\"ucx\",\"fileSize\":0,\"md5\":\"0c7c8b38115a9d0cabb2d1505f195821\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_ucx/config.ucx\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjZlNTVjMGQzNzkxMjA3MzYw\"}],\"addDelay\":20},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"daengine\",\"appAlias\":\"daengine\",\"targetVersion\":\"179:20744\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"daengine\",\"cfgs\":[{\"fileName\":\"dae.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"431128629db6c93804b86cc1f9428a87\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_daengine/dae.cfg\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE1ODQyOGRjYjc2YzRjODdj\"},{\"fileName\":\"dae_logger.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"ac2fde58b18a5ab1ee66d911982a326c\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_daengine/dae_logger.cfg\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY3Mzc5Y2E3NzU2ZjczMDEy\"},{\"fileName\":\"dae_config.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"04544c8572c42b176d501461168dacf4\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_daengine/dae_config.cfg\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWMxM2UzYmZmYzhmOGY2NWMw\"},{\"fileName\":\"dae_log4cpp.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"ece32d86439201eefa186fbe8ad6db06\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_daengine/dae_log4cpp.cfg\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ2OWMwMGQ4YTFlZjRhZDQ4\"}],\"addDelay\":20},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcproxy\",\"appAlias\":\"dcproxy\",\"targetVersion\":\"195:21857\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"dcproxy\",\"cfgs\":[{\"fileName\":\"dcp_config.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"087cb6d8e6263dc6f1e8079fac197983\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_dcproxy/dcp_config.cfg\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWM5YThlM2QxMjI2NDc3NzZh\"},{\"fileName\":\"dcp_logger.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"8d3d4de160751677d6a568c9d661d7c0\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_dcproxy/dcp_logger.cfg\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWEyZmRkNzJmMWJjZDMwYWNj\"}],\"addDelay\":20},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"StatSchedule\",\"appAlias\":\"ss\",\"targetVersion\":\"154:21104\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/root/Platform\",\"deployPath\":\"/root/Platform/bin\",\"appRunner\":\"ss\",\"cfgs\":[{\"fileName\":\"ss_config.cfg\",\"ext\":\"cfg\",\"fileSize\":0,\"md5\":\"825e14101d79c733b2ea8becb8ea4e3b\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/cloud01_ss/ss_config.cfg\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ5YTgxMTU1YjhmNDMyZjU4\"}],\"addDelay\":0}],\"updateType\":\"ADD\",\"createTime\":\"Jun 2, 2020 9:32:59 AM\",\"updateTime\":\"Jun 2, 2020 9:32:59 AM\",\"executeTime\":\"Jun 2, 2020 9:32:59 AM\",\"comment\":\"clone from 域服务01 of 123456-wuph\",\"occurs\":600,\"maxOccurs\":1000,\"tags\":\"入呼叫,外呼\"},{\"domainName\":\"管理门户01\",\"domainId\":\"manage01\",\"bkSetName\":\"管理门户\",\"appUpdateOperationList\":[{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"cas\",\"appAlias\":\"cas\",\"targetVersion\":\"10973\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"cas\",\"cfgs\":[{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"8ba7dddf4b7be9132e56841a7206ef74\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_cas/web.xml\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE2MDA0MWExZjQ1ODc4Njhh\"},{\"fileName\":\"cas.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"6622e01a4df917d747e078e89c774a52\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_cas/cas.properties\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY3N2E3NDBhYmM0NzU2NDg5\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"customWebservice\",\"appAlias\":\"customwebservice\",\"targetVersion\":\"19553\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"customwebservice\",\"cfgs\":[{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"96e5bc553847dab185d32c260310bb77\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_customwebservice/web.xml\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGRiNGZjNzM0NjU4MDMyNTZl\"},{\"fileName\":\"config.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"24eebd53ad6d6d2585f8164d189b4592\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_customwebservice/config.properties\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWM3ZDgwMWZlMjNlNjU1MWNk\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcms\",\"appAlias\":\"dcms\",\"targetVersion\":\"11110\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"dcms\",\"cfgs\":[{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"52ba707ab07e7fcd50d3732268dd9b9d\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcms/web.xml\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjZiMDVmY2FhMjFmZmNhN2Iz\"},{\"fileName\":\"config.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"98a8781d1808c69448c9666642d7b8ed\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcms/config.properties\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWM5NTA4MmY4ODU2NmJhZmJj\"},{\"fileName\":\"Param-Config.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"9a977ea04c6e936307bec2683cadd379\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcms/Param-Config.xml\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFlODhlMDRiZWM1NTBkZTc0\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcmsRecord\",\"appAlias\":\"dcmsrecord\",\"targetVersion\":\"21763\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"dcmsrecord\",\"cfgs\":[{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"a4500823701a6b430a98b25eeee6fea3\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsrecord/web.xml\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY4YjgyMjllYTBmNzcwYzI4\"},{\"fileName\":\"applicationContext.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"5a355d87e0574ffa7bc120f61d8bf61e\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsrecord/applicationContext.xml\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWEwODE2YjIwM2VjNmEzYjA0\"},{\"fileName\":\"config.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"830bf1a0205f407eba5f3a449b749cba\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsrecord/config.properties\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGRlOGM3ZWI3YmIwMGI5ZDJk\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcmssg\",\"appAlias\":\"dcmssg\",\"targetVersion\":\"20070\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"dcmssg\",\"cfgs\":[{\"fileName\":\"config.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"e76da17fe273dc7f563a9c7c86183d20\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmssg/config.properties\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ0Y2ZlOWIxNTkzOWVhZTYz\"},{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"52a87ceaeebd7b9bb290ee863abe98c9\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmssg/web.xml\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWMyYWJhYzhlZWNiYjdmNTAw\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcmsStatics\",\"appAlias\":\"dcmsstatics\",\"targetVersion\":\"20537\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"dcmsstaticsreport2\",\"cfgs\":[{\"fileName\":\"applicationContext.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"2a7ef2d3a9fc97e8e59db7f21b7d4d45\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstatics/applicationContext.xml\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNkZmI4MWI4ODk5NjNkZDZk\"},{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"7212df6a667e72ecb604b03fee20f639\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstatics/web.xml\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY0ZDc1YmFiZTlkMDUxYTRi\"},{\"fileName\":\"config.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"973ba4d65b93a47bb5ead294b9415e68\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstatics/config.properties\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE4ODkyNWYwNTA1ZTk1NWJi\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcmsStaticsReport\",\"appAlias\":\"dcmsstaticsreport\",\"targetVersion\":\"20528\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"dcmsstaticsreport1\",\"cfgs\":[{\"fileName\":\"applicationContext.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"1e2f67f773110caf7a91a1113564ce4c\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstaticsreport/applicationContext.xml\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY3MzVkODMwZTVlMTFkZTRk\"},{\"fileName\":\"config.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"f02bb5a99546b80a3a82f55154be143d\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstaticsreport/config.properties\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWEyYzVkMWFhMDExOTUwODQz\"},{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"5a32768163ade7c4bce70270d79b6c66\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsstaticsreport/web.xml\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGRlOGM5MTIwOTY2ZWRkMjZk\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcmsWebservice\",\"appAlias\":\"dcmswebservice\",\"targetVersion\":\"20503\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"dcmswebservice\",\"cfgs\":[{\"fileName\":\"config.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"9a9671156ab2454951b9561fbefeed42\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmswebservice/config.properties\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWMxYjBmNjYxYzFmNDljYTkx\"},{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"d93dd1fe127f46a13f27d6f8d4a7def3\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmswebservice/web.xml\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ3YzI3NWZhZTNlMjFkMmVm\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"dcmsx\",\"appAlias\":\"dcmsx\",\"targetVersion\":\"master_8efabf4\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"dcmsx\",\"cfgs\":[{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"5d6550ab653769a49006b4957f9a0a65\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsx/web.xml\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY3OWVmMzQyNGYzODg0ODBi\"},{\"fileName\":\"application.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"675edca3ccfa6443d8dfc9b34b1eee0b\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_dcmsx/application.properties\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE4MmE0YzY0YjQxNDc1ODU4\"}],\"addDelay\":0},{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"safetyMonitor\",\"appAlias\":\"safetymonitor\",\"targetVersion\":\"20383\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"safetymonitor\",\"cfgs\":[{\"fileName\":\"applicationContext.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"4543cb1aba46640edc3e815750fd3a94\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_safetymonitor/applicationContext.xml\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY5ZDNkNTQ5NTk5Yjg0Mjc2\"},{\"fileName\":\"config.properties\",\"ext\":\"properties\",\"fileSize\":0,\"md5\":\"752b9c6cc870d294fa413d64c090e49e\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_safetymonitor/config.properties\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNmYjk0NDEwZTVlN2NkMjIw\"},{\"fileName\":\"web.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"4d952d3e6d356156dd461144416f4816\",\"deployPath\":\"./WEB-INF/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/manage01_safetymonitor/web.xml\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQ1MjYyN2JlYzdjMGI0ZmRl\"}],\"addDelay\":0}],\"updateType\":\"ADD\",\"createTime\":\"Jun 2, 2020 9:32:59 AM\",\"updateTime\":\"Jun 2, 2020 9:32:59 AM\",\"executeTime\":\"Jun 2, 2020 9:32:59 AM\",\"comment\":\"clone from 管理门户01 of 123456-wuph\",\"occurs\":600,\"maxOccurs\":1000,\"tags\":\"入呼叫,外呼\"},{\"domainName\":\"运营门户01\",\"domainId\":\"ops01\",\"bkSetName\":\"运营门户\",\"appUpdateOperationList\":[{\"platformAppId\":0,\"operation\":\"ADD\",\"appName\":\"gls\",\"appAlias\":\"gls\",\"targetVersion\":\"10309\",\"hostIp\":\"10.130.41.218\",\"basePath\":\"/opt\",\"deployPath\":\"/opt\",\"appRunner\":\"gls\",\"cfgs\":[{\"fileName\":\"Param-Config.xml\",\"ext\":\"xml\",\"fileSize\":0,\"md5\":\"1da62c81dacf6d7ee21fca3384f134c5\",\"deployPath\":\"./WEB-INF/classes/\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/ops01_gls/Param-Config.xml\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWE4M2U3MDJjNjViN2E5MjQw\"}],\"addDelay\":0}],\"updateType\":\"ADD\",\"createTime\":\"Jun 2, 2020 9:32:59 AM\",\"updateTime\":\"Jun 2, 2020 9:32:59 AM\",\"executeTime\":\"Jun 2, 2020 9:32:59 AM\",\"comment\":\"clone from 运营门户01 of 123456-wuph\",\"occurs\":600,\"maxOccurs\":1000,\"tags\":\"入呼叫,外呼\"}],\"platformId\":\"k8s-test\",\"platformName\":\"ccod开发测试平台\",\"bkBizId\":25,\"bkCloudId\":0,\"ccodVersion\":\"CCOD4.1\",\"taskType\":\"CREATE\",\"createTime\":\"Jun 2, 2020 9:32:59 AM\",\"updateTime\":\"Jun 2, 2020 9:32:59 AM\",\"title\":\"新建工具组平台(202005-test)计划\",\"comment\":\"create 工具组平台(202005-test) by clone 123456-wuph(ccod开发测试平台)\",\"k8sHostIp\":\"10.130.41.218\",\"glsDBType\":\"ORACLE\",\"glsDBUser\":\"ccod\",\"glsDBPwd\":\"ccod\",\"baseDataNexusRepository\":\"platform_base_data\",\"baseDataNexusPath\":\"ccod/4.1/baseVolume.zip\",\"publicConfig\":[{\"fileName\":\"local_datasource.xml\",\"fileSize\":0,\"md5\":\"112940181aeb983baa9d7fd2733f194f\",\"deployPath\":\"/root/resin-4.0.13/conf\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/publicConfig/local_datasource.xml\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNmNmE4MWY3MWI3MmJlY2Ji\"},{\"fileName\":\"local_jvm.xml\",\"fileSize\":0,\"md5\":\"d172a5321944aba5bc19c35d00950afc\",\"deployPath\":\"/root/resin-4.0.13/conf\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/publicConfig/local_jvm.xml\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGRjMWQyMTIwNWRmYmY1MDM0\"},{\"fileName\":\"tnsnames.ora\",\"fileSize\":0,\"md5\":\"811f7f9472d5f6e733d732619a17ac77\",\"deployPath\":\"/usr/local/lib\",\"nexusRepository\":\"tmp\",\"nexusPath\":\"/configText/202005-test/publicConfig/tnsnames.ora\",\"nexusAssetId\":\"dG1wOjBhYjgwYTc0MzkyMWU0MjY0NzFkOTU3MGMyODRjMGJm\"}],\"k8sApiUrl\":\"https://10.130.41.218:6443\",\"k8sAuthToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA\"}";
         PlatformUpdateSchemaInfo schemaInfo = gson.fromJson(jsonStr, PlatformUpdateSchemaInfo.class);
         schemaInfo.setThreePartServices(new ArrayList<>());
@@ -4007,8 +4039,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String k8sApiUrl = platformPo.getApiUrl();
         String k8sAuthToken = platformPo.getAuthToken();
         List<V1Deployment> deployments = this.k8sApiService.listNamespacedDeployment(platformId, k8sApiUrl, k8sAuthToken);
-        jsonStr = gson.toJson(deployments);
-        deployments = gson.fromJson(jsonStr, new TypeToken<List<V1Deployment>>() {
+        jsonStr = this.templateParseGson.toJson(deployments);
+        deployments = this.templateParseGson.fromJson(jsonStr, new TypeToken<List<V1Deployment>>() {
         }.getType());
         List<V1ConfigMap> configMaps = this.k8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken);
         Map<String, V1ConfigMap> configMapMap = new HashMap<>();
@@ -4044,7 +4076,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 String domainId = deploymentName.split("\\-")[1];
                 deployment.getMetadata().getLabels().clear();
                 deployment.getMetadata().getLabels().put(this.domainIdLabel, domainId);
-                deployment.getMetadata().getLabels().put("type", "CCODDomainModule");
+                deployment.getMetadata().getLabels().put("type", K8sDeploymentType.CCOD_DOMAIN_APP.name);
                 String alias = deploymentName.split("\\-")[0];
                 initContainer.setName(alias);
                 List<AppUpdateOperationInfo> optList = schemaInfo.getDomainUpdatePlanList().stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity())).get(domainId).getAppUpdateOperationList();
@@ -4075,9 +4107,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<V1Deployment> threeSvcDpList = new ArrayList<>();
         List<V1Deployment> moduleDpList = new ArrayList<>();
         for (V1Deployment deployment : deployments) {
+            String deployName = deployment.getMetadata().getName();
+            if(deployment.equals("oracle"))
 //            if(!"gls-ops01".equals(deployment.getMetadata().getName()))
 //                continue;
-            if (deployment.getMetadata().getLabels().get("type").equals("CCODDomainModule")) {
+            if (deployment.getMetadata().getLabels().get("type").equals(K8sDeploymentType.CCOD_DOMAIN_APP.name)) {
                 String domainId = deployment.getMetadata().getLabels().get("domain-id");
 //                generateConfigForCCODDomainModuleDeployment(jobId, deployment, configMapMap, cfgMap, schemaInfo.getDomainUpdatePlanList().stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity())).get(domainId).getAppUpdateOperationList(), registerApps);
                 String alias = deployment.getSpec().getTemplate().getSpec().getInitContainers().get(0).getName();
@@ -4092,7 +4126,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         schemaInfo.getK8sDeploymentList().addAll(threeSvcDpList);
         schemaInfo.getK8sDeploymentList().addAll(moduleDpList);
         List<V1Service> services = this.k8sApiService.listNamespacedService(srcPlatformId, k8sApiUrl, k8sAuthToken);
-        services = gson.fromJson(gson.toJson(services), new TypeToken<List<V1Service>>() {
+        services = this.templateParseGson.fromJson(this.templateParseGson.toJson(services), new TypeToken<List<V1Service>>() {
         }.getType());
         schemaInfo.setK8sServiceList(new ArrayList<>());
         Map<String, V1Service> serviceMap = new HashMap<>();
@@ -4141,7 +4175,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         schemaInfo.getK8sServiceList().addAll(services);
         schemaInfo.setK8sEndpointsList(new ArrayList<>());
         List<V1Endpoints> endList = this.k8sApiService.listNamespacedEndpoints(srcPlatformId, k8sApiUrl, k8sAuthToken);
-        endList = gson.fromJson(gson.toJson(endList), new TypeToken<List<V1Endpoints>>() {
+        endList = this.templateParseGson.fromJson(this.templateParseGson.toJson(endList), new TypeToken<List<V1Endpoints>>() {
         }.getType());
         for (V1Endpoints ends : endList) {
             ends.getMetadata().setNamespace(createdPlatformId);
@@ -4150,7 +4184,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, ExtensionsV1beta1Ingress> ingressMap = new HashMap<>();
         schemaInfo.setK8sIngressList(new ArrayList<>());
         List<ExtensionsV1beta1Ingress> ingressList = this.k8sApiService.listNamespacedIngress(srcPlatformId, k8sApiUrl, k8sAuthToken);
-        ingressList = gson.fromJson(gson.toJson(ingressList), new TypeToken<List<ExtensionsV1beta1Ingress>>() {
+        ingressList = this.templateParseGson.fromJson(this.templateParseGson.toJson(ingressList), new TypeToken<List<ExtensionsV1beta1Ingress>>() {
         }.getType());
         for (ExtensionsV1beta1Ingress ingress : ingressList) {
             ingress.getMetadata().setNamespace(createdPlatformId);
@@ -4167,6 +4201,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         oracle.setAppType(AppType.THREE_PART_APP);
 //        schemaInfo.setOracle(oracle);
         schemaInfo.getThreePartApps().add(oracle);
+        oracle.getDeployment().getMetadata().setNamespace(dstPlatformId);
+        oracle.getDeployment().getSpec().getTemplate().getSpec().getVolumes().stream()
+                .collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("sql").getPersistentVolumeClaim()
+                .setClaimName(String.format("base-volume-%s", dstPlatformId));
+        for(V1Service service : oracle.getServices())
+            service.getMetadata().setNamespace(dstPlatformId);
         deploymentMap.remove("oracle");
         serviceMap.remove("oracle");
 
@@ -4177,6 +4217,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         mysql.setVersion("5-7-29");
         mysql.setAppType(AppType.THREE_PART_APP);
 //        schemaInfo.setMysql(mysql);
+        mysql.getDeployment().getMetadata().setNamespace(dstPlatformId);
+        mysql.getDeployment().getSpec().getTemplate().getSpec().getVolumes().stream()
+                .collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("sql").getPersistentVolumeClaim()
+                .setClaimName(String.format("base-volume-%s", dstPlatformId));
+        for(V1Service service : mysql.getServices())
+            service.getMetadata().setNamespace(dstPlatformId);
         schemaInfo.getThreePartApps().add(mysql);
         deploymentMap.remove("mysql-5-7-29");
         serviceMap.remove("mysql");
@@ -4212,10 +4258,27 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String pvJsonStr = "[{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolume\",\"metadata\":{\"name\":\"base-volume-just-test\"},\"spec\":{\"accessModes\":[\"ReadWriteMany\"],\"capacity\":{\"storage\":\"1Gi\"},\"claimRef\":{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",\"name\":\"base-volume-just-test\",\"namespace\":\"just-test\"},\"nfs\":{\"path\":\"/home/kubernetes/volume/just-test/baseVolume\",\"server\":\"10.130.41.218\"},\"persistentVolumeReclaimPolicy\":\"Retain\",\"storageClassName\":\"base-volume-just-test\",\"volumeMode\":\"Filesystem\"}}]";
         List<V1PersistentVolume> pvList = gson.fromJson(pvJsonStr, new TypeToken<List<V1PersistentVolume>>() {
         }.getType());
+        for(V1PersistentVolume pv : pvList) {
+            String pvName = String.format("base-volume-%s", dstPlatformId);
+            pv.getMetadata().setName(pvName);
+            pv.getSpec().getClaimRef().setName(pvName);
+            pv.getSpec().getClaimRef().setName(pvName);
+            pv.getSpec().getClaimRef().setNamespace(dstPlatformId);
+            pv.getSpec().setStorageClassName(pvName);
+            pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s/baseVolume", dstPlatformId));
+        }
         schemaInfo.setK8sPVList(pvList);
         String pvcJsonStr = "[{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",\"metadata\":{\"name\":\"base-volume-just-test\",\"namespace\":\"just-test\"},\"spec\":{\"accessModes\":[\"ReadWriteMany\"],\"resources\":{\"requests\":{\"storage\":\"1Gi\"}},\"storageClassName\":\"base-volume-just-test\",\"volumeMode\":\"Filesystem\",\"volumeName\":\"base-volume-just-test\"}}]";
         List<V1PersistentVolumeClaim> pvcList = gson.fromJson(pvcJsonStr, new TypeToken<List<V1PersistentVolumeClaim>>() {
         }.getType());
+        for(V1PersistentVolumeClaim pvc : pvcList)
+        {
+            String pvcName = String.format("base-volume-%s", dstPlatformId);
+            pvc.getMetadata().setNamespace(dstPlatformId);
+            pvc.getMetadata().setName(pvcName);
+            pvc.getSpec().setStorageClassName(pvcName);
+            pvc.getSpec().setVolumeName(pvcName);
+        }
         schemaInfo.setK8sPVCList(pvcList);
         for(String name : deploymentMap.keySet())
         {
@@ -4246,11 +4309,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         V1Namespace ns = this.k8sApiService.readNamespace(srcPlatformId, k8sApiUrl, k8sAuthToken);
         ns.getMetadata().setNamespace(dstPlatformId);
         ns.getMetadata().setName(dstPlatformId);
-        ns = gson.fromJson(gson.toJson(ns), V1Namespace.class);
+        ns = this.templateParseGson.fromJson(this.templateParseGson.toJson(ns), V1Namespace.class);
         schemaInfo.setNamespace(ns);
         V1Secret ssl = this.k8sApiService.readNamespacedSecret("ssl", platformId, k8sApiUrl, k8sAuthToken);
         ssl.getMetadata().setNamespace(dstPlatformId);
-        ssl = gson.fromJson(gson.toJson(ssl), V1Secret.class);
+        ssl = this.templateParseGson.fromJson(this.templateParseGson.toJson(ssl), V1Secret.class);
         schemaInfo.setSsl(ssl);
         schemaInfo.setK8sDeploymentList(null);
         schemaInfo.setK8sServiceList(null);
@@ -4296,6 +4359,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
         String startCmd = optInfo.getStartCmd();
         addModuleCfgToContainer(String.format("%s-%s", alias, domainId), optInfo.getCfgs(), basePath, deployPath, appModule, mountPath, false, initContainer, deployment);
+        basePath = optInfo.getBasePath();
         deployPath = getAbsolutePath(basePath, deployPath);
         if (domainCfg != null && domainCfg.size() > 0) {
             mountPath = String.format("%s/%s", this.defaultCfgMountPath, domainId);
@@ -4335,6 +4399,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         V1HostPathVolumeSource host = new V1HostPathVolumeSource();
         host.setPath(String.format("/var/ccod-runtime/%s/%s", platformId, domainId));
+        host.setType("DirectoryOrCreate");
         deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("ccod-runtime").setHostPath(host);
         if (initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).containsKey("ccod-runtime"))
             initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("ccod-runtime").setSubPath(alias);
@@ -4622,6 +4687,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String basePath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? "/binary-file" : optInfo.getBasePath();
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
         addModuleCfgToContainer(String.format("%s-%s", alias, domainId), cfgMap.get(String.format("%s-%s", alias, domainId)), basePath, deployPath, configMap, moduleVo, mountPath, false, initContainer, deployment);
+        basePath = optInfo.getBasePath();
         deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
         if (configMapMap.containsKey(domainId)) {
             mountPath = String.format("%s/%s", this.defaultCfgMountPath, domainId);
@@ -4745,7 +4811,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Comparator<AppUpdateOperationInfo> sort = new Comparator<AppUpdateOperationInfo>() {
             @Override
             public int compare(AppUpdateOperationInfo o1, AppUpdateOperationInfo o2) {
-                return appSortMap.get(o2.getAppName()) - appSortMap.get(o1.getAppName());
+                return appSortMap.get(o1.getAppName()) - appSortMap.get(o2.getAppName());
             }
         };
         List<AppUpdateOperationInfo> deleteList = optMap.containsKey(AppUpdateOperation.DELETE) ? optMap.get(AppUpdateOperation.DELETE) : new ArrayList<>();
@@ -4775,12 +4841,26 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             k8sOptList.add(k8sOpt);
             configMapMap.remove(configName);
         }
+        List<NexusAssetInfo> cfgs = new ArrayList<>();
+        if(planInfo.getUpdateType().equals(DomainUpdateType.ADD) && planInfo.getPublicConfig() != null && planInfo.getPublicConfig().size() > 0)
+        {
+            for(AppFileNexusInfo cfgFile : domainCfg)
+            {
+                NexusAssetInfo cfg = cfgFile.getNexusAssetInfo(this.nexusHostUrl);
+                cfgs.add(cfg);
+            }
+            V1ConfigMap configMap = this.k8sApiService.getConfigMapFromNexus(platformId, domainId,
+                    cfgs, this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
+            K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.CONFIGMAP,
+                    domainId, K8sOperation.CREATE, configMap);
+            k8sOptList.add(k8sOpt);
+        }
         for(K8sCollection collection : addCollections)
         {
             String alias = collection.getAlias();
             String configName = String.format("%s-%s", collection.getAlias(), domainId);
             List<AppFileNexusInfo> cfgFiles = planInfo.getAppUpdateOperationList().stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(alias).getCfgs();
-            List<NexusAssetInfo> cfgs = new ArrayList<>();
+            cfgs = new ArrayList<>();
             for(AppFileNexusInfo cfgFile : cfgFiles)
             {
                 NexusAssetInfo cfg = cfgFile.getNexusAssetInfo(this.nexusHostUrl);
@@ -4819,16 +4899,26 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<V1Deployment, List<K8sCollection>> addMap = addCollections.stream().collect(Collectors.groupingBy(K8sCollection::getDeployment));
         for(V1Deployment deployment : addMap.keySet())
         {
+            List<K8sCollection> collections = addMap.get(deployment);
+            if(deployment.getMetadata().getLabels() == null)
+                deployment.getMetadata().setLabels(new HashMap<>());
+            deployment.getMetadata().getLabels().put(this.deploymentTypeLabel, K8sDeploymentType.CCOD_DOMAIN_APP.name);
+            deployment.getMetadata().getLabels().put(this.domainIdLabel, domainId);
+            deployment.getMetadata().getLabels().put(this.jobIdLabel, jobId);
             K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.DEPLOYMENT,
                     deployment.getMetadata().getName(), K8sOperation.CREATE, deployment);
             k8sOptList.add(k8sOpt);
-            for(K8sCollection collection : addMap.get(deployment)) {
+            for(K8sCollection collection : collections) {
                 if(!addList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).containsKey(collection.getAlias()))
                     throw new ParamException(String.format("%s not in %s ADD list", collection.getAlias(), domainId));
                 AppUpdateOperationInfo optInfo = addList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(collection.getAlias());
                 generateParamForCollection(jobId, platformId, domainId, optInfo, domainCfg, platformCfg, collection);
+                deployment.getMetadata().getLabels().put(String.format("%s-alias", optInfo.getAppName()), optInfo.getAppAlias());
+                deployment.getMetadata().getLabels().put(String.format("%s-version", optInfo.getAppName()), optInfo.getTargetVersion().replaceAll("\\:", "-"));
                 for(V1Service service : collection.getServices())
                 {
+                    if(!service.getMetadata().getName().equals("ucds-cloud01-out"))
+                        continue;
                     service.getMetadata().setNamespace(platformId);
                     Map<String, String> selector = new HashMap<>();
                     selector.put(collection.getAppName(), collection.getAlias());
@@ -4837,11 +4927,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     if(service.getMetadata().getLabels() == null)
                         service.getMetadata().setLabels(new HashMap<>());
                     service.getMetadata().getLabels().put(this.domainIdLabel, domainId);
-                    service.getMetadata().getLabels().put("app-name", collection.getAppName());
-                    service.getMetadata().getLabels().put("app-alias", collection.getAlias());
-                    service.getMetadata().getLabels().put("version", collection.getVersion());
-                    service.getMetadata().getLabels().put("app-type", collection.getAppType().name);
-                    service.getMetadata().getLabels().put("job-id", jobId);
+                    service.getMetadata().getLabels().put(this.appNameLabel, collection.getAppName());
+                    service.getMetadata().getLabels().put(this.appAliasLabel, collection.getAlias());
+                    service.getMetadata().getLabels().put(this.appVersionLabel, collection.getVersion().replaceAll("\\:", "-"));
+                    service.getMetadata().getLabels().put(this.appTypeLabel, collection.getAppType().name);
+                    service.getMetadata().getLabels().put(this.jobIdLabel, jobId);
+                    if(service.getMetadata().getName().split("\\-").length > 2)
+                        service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.DOMAIN_OUT_SERVICE.name);
+                    else
+                        service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.DOMAIN_SERVICE.name);
                     k8sOpt = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
                             service.getMetadata().getName(), K8sOperation.CREATE, service);
                     k8sOptList.add(k8sOpt);
@@ -4856,6 +4950,166 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         return k8sOptList;
     }
+
+    private Object execK8sOpt(K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException
+    {
+        if(optInfo.getOperation().equals(K8sOperation.CREATE) && optInfo.getOperation().equals(K8sOperation.DELETE))
+            throw new ParamException(String.format("current version not support %s %s %s",
+                    optInfo.getOperation().name, optInfo.getKind().name, optInfo.getName()));
+        Object retVal = null;
+        switch (optInfo.getKind())
+        {
+            case NAMESPACE: {
+                switch (optInfo.getOperation())
+                {
+                    case CREATE:
+                        retVal = this.k8sApiService.createNamespace((V1Namespace)optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                        break;
+                    case DELETE:
+                        this.k8sApiService.deleteNamespace(optInfo.getName(), k8sApiUrl, k8sAuthToken);
+                        break;
+                }
+                break;
+            }
+            case SECRET:
+                switch (optInfo.getOperation())
+                {
+                    case CREATE:
+                        retVal = this.k8sApiService.createNamespacedSecret(platformId, (V1Secret) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                        break;
+                    case DELETE:
+                        this.k8sApiService.deleteNamespacedSecret(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        break;
+                }
+                break;
+            case PV:
+                switch (optInfo.getOperation())
+                {
+                    case CREATE:
+                        retVal = this.k8sApiService.createPersistentVolume((V1PersistentVolume) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                        break;
+                    case DELETE:
+                        this.k8sApiService.deletePersistentVolume(optInfo.getName(), k8sApiUrl, k8sAuthToken);
+                        break;
+                }
+                break;
+            case PVC:
+                switch (optInfo.getOperation())
+                {
+                    case CREATE:
+                        retVal = this.k8sApiService.createNamespacedPersistentVolumeClaim(platformId, (V1PersistentVolumeClaim) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                        break;
+                    case DELETE:
+                        this.k8sApiService.deleteNamespacedPersistentVolumeClaim(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        break;
+                }
+                break;
+            case CONFIGMAP:
+                switch (optInfo.getOperation())
+                {
+                    case CREATE:
+                        retVal = this.k8sApiService.createNamespacedConfigMap(platformId, (V1ConfigMap) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                        break;
+                    case DELETE:
+                        this.k8sApiService.deleteNamespacedConfigMap(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        break;
+                }
+                break;
+            case DEPLOYMENT:
+                switch (optInfo.getOperation())
+                {
+                    case CREATE:
+                        retVal = this.k8sApiService.createNamespacedDeployment(platformId, (V1Deployment) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                        break;
+                    case DELETE:
+                        this.k8sApiService.deleteNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        break;
+                }
+                break;
+            case SERVICE:
+                switch (optInfo.getOperation())
+                {
+                    case CREATE:
+                        retVal = this.k8sApiService.createNamespacedService(platformId, (V1Service) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                        break;
+                    case DELETE:
+                        this.k8sApiService.deleteNamespacedService(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        break;
+                }
+                break;
+            case INGRESS:
+                switch (optInfo.getOperation())
+                {
+                    case CREATE:
+                        retVal = this.k8sApiService.createNamespacedIngress(platformId, (ExtensionsV1beta1Ingress) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                        break;
+                    case DELETE:
+                        this.k8sApiService.deleteNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        break;
+                }
+                break;
+            default:
+                throw new ParamException(String.format("current version not support %s %s %s",
+                        optInfo.getOperation().name, optInfo.getKind().name, optInfo.getName()));
+
+        }
+        return retVal;
+    }
+
+    private void execPlatformUpdateSteps(List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema) throws ApiException, ParamException, SQLException, ClassNotFoundException, K8sDataException
+    {
+        String platformId = schema.getPlatformId();
+        String k8sApiUrl = schema.getK8sApiUrl();
+        String k8sAuthToken = schema.getK8sAuthToken();
+        V1Deployment glsserver = null;
+        int oraclePort = 0;
+        for(K8sOperationInfo k8sOpt : k8sOptList)
+        {
+            Object ret = execK8sOpt(k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
+            if(k8sOpt.getKind().equals(K8sKind.SERVICE) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
+            {
+                V1Service service = (V1Service)ret;
+                Map<String, String> labels = service.getMetadata().getLabels();
+                if(labels == null || labels.size() == 0 || !labels.containsKey(this.serviceTypeLabel) || !labels.containsKey(this.appNameLabel))
+                    continue;
+                if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name)
+                        && labels.get(this.appNameLabel).equals("oracle"))
+                {
+                    oraclePort = getNodePortFromK8sService(service);
+                    boolean isConn = oracleConnectTest(schema.getGlsDBUser(), schema.getGlsDBPwd(), schema.getK8sHostIp(), oraclePort, "xe", 240);
+                    if(!isConn)
+                        throw new ApiException("create service for oracle fail");
+                }
+                else if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.DOMAIN_OUT_SERVICE.name) && labels.get(this.appNameLabel).equals("UCDServer"))
+                {
+                    if(oraclePort == 0)
+                    {
+                        V1Service oracleService = k8sApiService.readNamespacedService("oracle", platformId, k8sApiUrl, k8sAuthToken);
+                        oraclePort = getNodePortFromK8sService(oracleService);
+                    }
+                    Connection connect = createOracleConnection(schema.getGlsDBUser(), schema.getGlsDBPwd(), schema.getK8sHostIp(), oraclePort, "xe");
+                    int ucdsPort = getNodePortFromK8sService(service);
+                    String updateSql = String.format("update \"CCOD\".\"GLS_SERVICE_UNIT\" set PARAM_UCDS_PORT=%d where NAME='ucds-cloud01'", ucdsPort);
+                    PreparedStatement ps = connect.prepareStatement(updateSql);
+                    logger.debug(String.format("begin to update ucds port : %s", updateSql));
+                    ps.executeUpdate();
+                    if(glsserver == null) {
+                        glsserver = this.k8sApiService.readNamespacedDeployment("glsserver-public01", platformId, k8sApiUrl, k8sAuthToken);
+                        glsserver = templateParseGson.fromJson(templateParseGson.toJson(glsserver), V1Deployment.class);
+                    }
+                    this.k8sApiService.replaceNamespacedDeployment(glsserver.getMetadata().getName(), platformId, glsserver, k8sApiUrl, k8sAuthToken);
+                }
+            }
+            else if(k8sOpt.getKind().equals(K8sKind.DEPLOYMENT) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
+            {
+                V1Deployment deployment = (V1Deployment)ret;
+                Map<String, String> labels = deployment.getMetadata().getLabels();
+                if(labels.containsKey(this.deploymentTypeLabel) && labels.get(this.deploymentTypeLabel).equals(K8sDeploymentType.CCOD_DOMAIN_APP.name) && labels.containsKey("glsServer"))
+                    glsserver = deployment;
+            }
+        }
+    }
+
 
     @Override
     public PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException, SQLException, ClassNotFoundException, K8sDataException {

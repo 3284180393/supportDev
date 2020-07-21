@@ -295,6 +295,16 @@ public interface IK8sApiService {
     V1ConfigMap readNamespacedConfigMap(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 创建指定的configMap
+     * @param namespace 命名空间
+     * @param configMap 需要被创建的configMap
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 创建的ConfigMap信息
+     * @throws ApiException
+     */
+    V1ConfigMap createNamespacedConfigMap(String namespace, V1ConfigMap configMap, String k8sApiUrl, String authToken) throws ApiException;
+    /**
      *
      * @param namespace
      * @param configMapName
@@ -323,13 +333,13 @@ public interface IK8sApiService {
 
     /**
      * 删除已经存在的configMap
+     * @param name configMap的名称
      * @param namespace 命名空间
-     * @param configMapName configMap名称
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
      * @throws ApiException
      */
-    void deleteConfigMapByName(String namespace, String configMapName, String k8sApiUrl, String authToken) throws ApiException;
+    void deleteNamespacedConfigMap(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 查询命名空间下的所有Deployment

@@ -151,6 +151,16 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public V1ConfigMap createNamespacedConfigMap(String namespace, V1ConfigMap configMap, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to create configMap %s at %s from %s", gson.toJson(configMap), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ConfigMap create = apiInstance.createNamespacedConfigMap(namespace, configMap, null, null, null);
+        logger.info(String.format("configMap created success : %s", gson.toJson(create)));
+        return create;
+    }
+
+    @Override
     public List<V1Deployment> listNamespacedDeployment(String namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("list deployment at %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
@@ -436,11 +446,11 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public void deleteConfigMapByName(String namespace, String configMapName, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("delete configMap %s at %s from %s", configMapName, namespace,k8sApiUrl));
+    public void deleteNamespacedConfigMap(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete configMap %s at %s from %s", name, namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        apiInstance.deleteNamespacedConfigMap(configMapName, namespace, null, null, null, null, null, null);
+        apiInstance.deleteNamespacedConfigMap(name, namespace, null, null, null, null, null, null);
         logger.debug(String.format("delete success"));
     }
 

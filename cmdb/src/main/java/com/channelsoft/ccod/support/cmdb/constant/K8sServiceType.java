@@ -11,7 +11,7 @@ public enum K8sServiceType {
 
     DOMAIN_SERVICE(1, "DOMAIN_SERVICE", "ccod域内部使用服务"),
 
-    DOMAIN_OUT_SERVICE(2, "DOMAIN_SERVICE", "ccod域对外提供的服务"),
+    DOMAIN_OUT_SERVICE(2, "DOMAIN_OUT_SERVICE", "ccod域对外提供的服务"),
 
     THREE_PART_APP(3, "THREE_PART_APP", "依赖的第三方应用，例如oracle、mysql"),
 

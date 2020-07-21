@@ -309,9 +309,11 @@ k8s:
     app-name: app-name
     app-alias: alias
     app-version: version
+    app-type: app-type
     job-id: job-id
     service-type: service-type
     deployment-tag: assemble-tag
+    deployment-type: type
   volume-names:
     web-app: war
     binary-file: binary-file

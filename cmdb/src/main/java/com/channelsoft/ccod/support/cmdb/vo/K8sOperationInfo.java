@@ -43,16 +43,6 @@ public class K8sOperationInfo {
         this.updateSql = null;
     }
 
-    public K8sOperationInfo(K8sKind kind, String name, K8sOperation operation, Object obj)
-    {
-        this.kind = kind;
-        this.name = name;
-        this.operation = operation;
-        this.obj = obj;
-        this.updateGlsServer = false;
-        this.updateSql = null;
-    }
-
     public String getPlatformId() {
         return platformId;
     }
