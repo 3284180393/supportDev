@@ -8,7 +8,9 @@ import com.channelsoft.ccod.support.cmdb.po.DomainPo;
 import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Service;
+import org.springframework.validation.annotation.Validated;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.List;
  * @Date: 2019/12/11 17:44
  * @Version: 1.0
  */
+@Validated
 public class DomainUpdatePlanInfo {
 
     private String domainName; //对应的域名
@@ -30,6 +33,8 @@ public class DomainUpdatePlanInfo {
 
     private String bkSetName; //域归属的set名
 
+    @NotNull(message = "appUpdateOperationList can not be null")
+    @Valid
     private List<AppUpdateOperationInfo> appUpdateOperationList; //应用升级操作列表
 
     @NotNull(message = "domain updateType can not be null")
@@ -46,7 +51,6 @@ public class DomainUpdatePlanInfo {
 
     private String tags; //域的标签,例如:入呼叫、外呼、
 
-    @NotNull(message = "publicConfig can not be null")
     private List<AppFileNexusInfo> publicConfig; //用来存放域公共配置
 
     @NotNull(message = "deployments can not be null")

@@ -3,7 +3,9 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import io.kubernetes.client.openapi.models.*;
+import org.springframework.validation.annotation.Validated;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Date;
@@ -16,12 +18,14 @@ import java.util.List;
  * @Date: 2019/12/11 17:47
  * @Version: 1.0
  */
+@Validated
 public class PlatformUpdateSchemaInfo {
 
     @NotNull(message = "schemaId can not be null")
     private String schemaId; //id由发起升级计划的生成的用来标识计划的唯一标识
 
     @NotNull(message = "domainUpdatePlanList can not be null")
+    @Valid
     private List<DomainUpdatePlanInfo> domainUpdatePlanList; //域升级方案列表
 
     @NotNull(message = "platformId can not be null")

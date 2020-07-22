@@ -5,6 +5,7 @@ import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
+import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.NotNull;
 import java.util.Date;
@@ -17,6 +18,7 @@ import java.util.List;
  * @Date: 2019/12/11 17:27
  * @Version: 1.0
  */
+@Validated
 public class AppUpdateOperationInfo {
 
     private int platformAppId; //平台应用id,如果操作是ADD为0,否则是被操作的平台应用id

@@ -209,7 +209,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
         if(bkBizList != null && bkBizList.size() > 0)
         {
             bkBiz = bkBizList.get(0);
-            logger.info("query bkBizId=%d biz SUCCESS : %s", bkBizId, JSONObject.toJSONString(bkBiz));
+            logger.info(String.format("query bkBizId=%d biz SUCCESS : %s", bkBizId, JSONObject.toJSONString(bkBiz)));
         }
         else
         {

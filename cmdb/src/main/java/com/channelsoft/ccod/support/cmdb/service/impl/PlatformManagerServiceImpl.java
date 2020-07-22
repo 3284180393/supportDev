@@ -4842,6 +4842,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, K8sCollection> existMap = existDomainCollections.stream().collect(Collectors.toMap(K8sCollection::getAlias, Function.identity()));
         Map<String, K8sCollection> targetMap = parseAppK8sCollection(domainId, planInfo.getDeployments(), planInfo.getServices(), planInfo.getIngresses(), registerApps)
                 .stream().collect(Collectors.toMap(K8sCollection::getAlias, Function.identity()));
+        Set<String> notRelativeApps = new HashSet<>();
+        for(AppUpdateOperationInfo info : planInfo.getAppUpdateOperationList())
+        {
+            if(!info.getOperation().equals(AppUpdateOperation.DELETE) && !targetMap.containsKey(info.getAppAlias()))
+                notRelativeApps.add(info.getAppAlias());
+        }
+        if(notRelativeApps.size() > 0)
+            throw new ParamException(String.format("app %s of %s has not relative to any deployment", String.join(",", notRelativeApps), domainId));
         Map<AppUpdateOperation, List<AppUpdateOperationInfo>> optMap = planInfo.getAppUpdateOperationList().stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getOperation));
         Map<String, V1ConfigMap> configMapMap = new HashMap<>();
         for(V1ConfigMap configMap : existDomainConfigMaps)
