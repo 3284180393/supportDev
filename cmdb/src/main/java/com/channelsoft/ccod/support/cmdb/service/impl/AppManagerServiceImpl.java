@@ -184,8 +184,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     private final static Logger logger = LoggerFactory.getLogger(AppManagerServiceImpl.class);
 
-    private Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
-
     protected final ReentrantReadWriteLock appReadLock = new ReentrantReadWriteLock();
 
     protected final ReentrantReadWriteLock appWriteLock = new ReentrantReadWriteLock();
@@ -207,19 +205,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         this.notCheckCfgAppSet = new HashSet<>(ccodBiz.getNotCheckCfgApps());
         this.setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
-        List<PlatformUpdateSchemaPo> schemaPoList = this.platformUpdateSchemaMapper.select();
-        for(PlatformUpdateSchemaPo po : schemaPoList)
-        {
-            try
-            {
-                PlatformUpdateSchemaInfo schemaInfo = JSONObject.parseObject(po.getContext(), PlatformUpdateSchemaInfo.class);
-                this.platformUpdateSchemaMap.put(po.getPlatformId(), schemaInfo);
-            }
-            catch (Exception ex)
-            {
-                logger.error(String.format("parse %s platform update schema exception", po.getPlatformId()), ex);
-            }
-        }
         flushRegisteredApp();
 //        updateAssetId4AppModule();
 //        rectifyAppModule();

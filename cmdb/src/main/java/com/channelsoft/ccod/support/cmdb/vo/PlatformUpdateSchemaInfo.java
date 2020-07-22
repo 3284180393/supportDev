@@ -84,7 +84,8 @@ public class PlatformUpdateSchemaInfo {
 
     private V1Namespace namespace; //命名空间
 
-    private V1Secret ssl; //用来创建ssl的secret
+    @NotNull(message = "threePartApps can not be null")
+    private List<V1Secret> k8sSecrets;
 
     @NotNull(message = "k8sPVList can not be null")
     private List<V1PersistentVolume> k8sPVList; //需要加载的pv列表
@@ -458,14 +459,6 @@ public class PlatformUpdateSchemaInfo {
         this.namespace = namespace;
     }
 
-    public V1Secret getSsl() {
-        return ssl;
-    }
-
-    public void setSsl(V1Secret ssl) {
-        this.ssl = ssl;
-    }
-
     public List<K8sCollection> getThreePartApps() {
         return threePartApps;
     }
@@ -480,5 +473,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setThreePartServices(List<V1Service> threePartServices) {
         this.threePartServices = threePartServices;
+    }
+
+    public List<V1Secret> getK8sSecrets() {
+        return k8sSecrets;
+    }
+
+    public void setK8sSecrets(List<V1Secret> k8sSecrets) {
+        this.k8sSecrets = k8sSecrets;
     }
 }

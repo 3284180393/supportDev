@@ -158,6 +158,22 @@ public class PlatformAppPo {
         this.availableReplicas = availableReplicas;
     }
 
+    public String getDeployPath() {
+        return deployPath;
+    }
+
+    public void setDeployPath(String deployPath) {
+        this.deployPath = deployPath;
+    }
+
+    public String getStartCmd() {
+        return startCmd;
+    }
+
+    public void setStartCmd(String startCmd) {
+        this.startCmd = startCmd;
+    }
+
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
