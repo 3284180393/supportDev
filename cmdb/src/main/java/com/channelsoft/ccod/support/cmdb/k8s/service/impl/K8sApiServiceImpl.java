@@ -700,8 +700,17 @@ public class K8sApiServiceImpl implements IK8sApiService {
     {
         String jsonStr = "{\"metadata\":{\"labels\":{\"name\":\"ucds-cloud01\",\"tag\":\"separate01\",\"UCDServer\":\"ucds\",\"domain-id\":\"cloud01\",\"job-id\":\"935d52c9a4\",\"type\":\"CCODDomainModule\"},\"name\":\"ucds-cloud01\",\"namespace\":\"test91\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"UCDServer\":\"ucds\",\"domain-id\":\"cloud01\",\"name\":\"ucds-cloud01\"}},\"template\":{\"metadata\":{\"labels\":{\"UCDServer\":\"ucds\",\"domain-id\":\"cloud01\",\"name\":\"ucds-cloud01\"}},\"spec\":{\"containers\":[{\"args\":[],\"command\":[\"/bin/sh\",\"-c\"],\"env\":[{\"name\":\"LD_LIBRARY_PATH\",\"value\":\"/usr/local/lib/:/usr/lib/\"}],\"image\":\"nexus.io:5000/ccod-base/centos-backend:0.4\",\"imagePullPolicy\":\"IfNotPresent\",\"livenessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":30,\"periodSeconds\":30,\"successThreshold\":1,\"tcpSocket\":{\"port\":12003},\"timeoutSeconds\":1},\"name\":\"runtime\",\"ports\":[{\"containerPort\":12003,\"protocol\":\"TCP\"},{\"containerPort\":60001,\"protocol\":\"TCP\"},{\"containerPort\":17002,\"protocol\":\"TCP\"},{\"containerPort\":17004,\"protocol\":\"TCP\"},{\"containerPort\":17009,\"protocol\":\"TCP\"}],\"resources\":{\"limits\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"},\"requests\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/root/Platform/log\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"workingDir\":\"/root/Platform\"}],\"initContainers\":[{\"args\":[],\"command\":[\"/bin/sh\",\"-c\"],\"image\":\"nexus.io:5000/ccod/ucdserver:deb3c3c4bf62c5ae5b3f8a467029a03ed95fb39e\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"ucds\",\"resources\":{},\"volumeMounts\":[{\"mountPath\":\"/cfg/ucds-cfg\",\"name\":\"ucds-cloud01-volume\"}],\"workingDir\":\"/opt\"}],\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"emptyDir\":{},\"name\":\"binary-file\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test91/cloud01/ucds\"},\"name\":\"ccod-runtime\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test91/core\",\"type\":\"\"},\"name\":\"core\"}]}}}}";
         V1Deployment deployment = gson.fromJson(jsonStr, V1Deployment.class);
+        List<V1Deployment> deployments = new ArrayList<>();
+        for(int i = 0; i < 20; i++)
+            deployments.add(deployment);
+        Map<String, List<V1ObjectMeta>> metaMap = deployments.stream().map(dep -> dep.getMetadata()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+        for(String name : metaMap.keySet())
+        {
+            System.out.println(String.format("%s has %d", name, metaMap.get(name).size()));
+        }
         String platformId = "test91";
-        deployment = this.createNamespacedDeployment(platformId, deployment, this.testK8sApiUrl, this.testAuthToken);
+//        deployment = this.createNamespacedDeployment(platformId, deployment, this.testK8sApiUrl, this.testAuthToken);
         System.out.println(gson.toJson(deployment));
     }
 

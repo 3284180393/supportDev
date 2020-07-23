@@ -13,6 +13,8 @@
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
+        <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
+        <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
         <result column="comment" property="comment" jdbcType="VARCHAR" />
         <result column="has_image" property="hasImage" jdbcType="VARCHAR" />
         <association property="installPackage"
@@ -38,6 +40,8 @@
         a.version_control,
         a.version_control_url,
         a.base_path,
+        a.deploy_path,
+        a.start_cmd,
         a.`comment`,
         a.has_image,
         aip.app_id AS aip_app_id,

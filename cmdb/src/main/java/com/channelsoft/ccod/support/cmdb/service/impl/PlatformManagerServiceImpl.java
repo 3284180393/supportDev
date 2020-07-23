@@ -2001,11 +2001,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             else if(!schema.getNamespace().getMetadata().getName().equals(platformId))
                 throw new ParamException(String.format("namespace name %s is not equal platformId %s", schema.getNamespace().getMetadata().getName(), platformId));
             else if(this.k8sApiService.isNamespaceExist(platformId, apiUrl, authToken))
-                throw new ParamException(String.format("namespace %s exist at %s", platformId, authToken));
+                throw new ParamException(String.format("namespace %s exist at %s", platformId, apiUrl));
             if(schema.getK8sSecrets() == null || schema.getK8sSecrets().size() == 0)
                 throw new ParamException(String.format("secret of new create platform can not be empty"));
-            Map<String, List<V1ObjectMeta>> metaMap = schema.getK8sSecrets().stream().collect(Collectors.toMap(V1Secret::getMetadata, Function.identity()))
-                    .keySet().stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+            Map<String, List<V1ObjectMeta>> metaMap = schema.getK8sSecrets().stream().map(svc -> svc.getMetadata())
+                    .collect(Collectors.toList()).stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
             if(!metaMap.containsKey("ssl"))
                 throw new ParamException("new create platform must has ssl secret");
             for(String name : metaMap.keySet())
@@ -2017,8 +2017,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
             if(schema.getK8sPVList() == null || schema.getK8sPVList().size() == 0)
                 throw new ParamException("k8sPVList of new create platform can not be empty");
-            metaMap = schema.getK8sPVList().stream().collect(Collectors.toMap(V1PersistentVolume::getMetadata, Function.identity()))
-                    .keySet().stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+            metaMap = schema.getK8sPVList().stream().map(pv -> pv.getMetadata()).collect(Collectors.toList()).stream()
+                    .collect(Collectors.groupingBy(V1ObjectMeta::getName));
             for(String name : metaMap.keySet())
             {
                 if(metaMap.get(name).size() > 1)
@@ -2026,8 +2026,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
             if(schema.getK8sPVCList() == null || schema.getK8sPVCList().size() == 0)
                 throw new ParamException("k8sPVCList of new create platform can not be empty");
-            metaMap = schema.getK8sPVCList().stream().collect(Collectors.toMap(V1PersistentVolumeClaim::getMetadata, Function.identity()))
-                    .keySet().stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+            metaMap = schema.getK8sPVCList().stream().map(pvc -> pvc.getMetadata()).collect(Collectors.toList())
+                    .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
             for(String name : metaMap.keySet())
             {
                 if(metaMap.get(name).size() > 1)
@@ -2037,16 +2037,26 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
             if(schema.getThreePartApps() == null || schema.getThreePartApps().size() == 0)
                 throw new ParamException("three part apps of new create platform can not be empty");
-//            metaMap = schema.getThreePartApps().stream().collect(Collectors.groupingBy(K8sCollection::getAppName)).values()
-//                    .stream().flatMap(contr -> contr.stream()).collect(Collectors.toList()).stream().collect(Collectors.toMap(V1PersistentVolumeClaim::getMetadata, Function.identity()))
-//                    .keySet().stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
-//            for(String name : metaMap.keySet())
-//            {
-//                if(metaMap.get(name).size() > 1)
-//                    throw new ParamException(String.format("pvc %s multi define", name));
-//                if(!metaMap.get(name).get(0).getNamespace().equals(platformId))
-//                    throw new ParamException(String.format("namespace of pvc %s is %s not %s", name, metaMap.get(name).get(0).getNamespace(), platformId));
-//            }
+            metaMap = schema.getThreePartApps().stream().map(app -> app.getDeployment()).collect(Collectors.toList())
+                    .stream().map(dep -> dep.getMetadata()).collect(Collectors.toList())
+                    .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+            for(String name : metaMap.keySet())
+            {
+                if(metaMap.get(name).size() > 1)
+                    throw new ParamException(String.format("deployment %s of three app multi define", name));
+                if(!metaMap.get(name).get(0).getNamespace().equals(platformId))
+                    throw new ParamException(String.format("namespace of deployment %s of three app is %s not %s", name, metaMap.get(name).get(0).getNamespace(), platformId));
+            }
+            metaMap = schema.getThreePartApps().stream().flatMap(app -> app.getServices().stream()).collect(Collectors.toList())
+                    .stream().map(svc -> svc.getMetadata()).collect(Collectors.toList())
+                    .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+            for(String name : metaMap.keySet())
+            {
+                if(metaMap.get(name).size() > 1)
+                    throw new ParamException(String.format("service %s of three app multi define", name));
+                if(!metaMap.get(name).get(0).getNamespace().equals(platformId))
+                    throw new ParamException(String.format("namespace of service %s of three app is %s not %s", name, metaMap.get(name).get(0).getNamespace(), platformId));
+            }
             if(schema.getPublicConfig() == null || schema.getPublicConfig().size() == 0)
                 throw new ParamException("public config of new create platform is empty");
             K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, schema.getNamespace().getMetadata().getName(), K8sOperation.CREATE, schema.getNamespace());
@@ -4395,6 +4405,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException(String.format("%s container of %s has not binary-file mount volume",
                         runtimeContainer.getName(), deployment.getMetadata().getName()));
             runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("binary-file").setMountPath(optInfo.getBasePath());
+            if(!runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).containsKey("ccod-runtime"))
+                throw new ParamException(String.format("%s container of %s has not ccod-runtime mount volume",
+                        runtimeContainer.getName(), deployment.getMetadata().getName()));
+            runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("ccod-runtime")
+                    .setMountPath(String.format("%s/log", optInfo.getBasePath()).replaceAll("//", "/"));
+        }
+        else
+        {
+            runtimeContainer.setArgs(new ArrayList<>());
+            runtimeContainer.setCommand(new ArrayList<>());
+            runtimeContainer.getCommand().add("/bin/sh");
+            runtimeContainer.getCommand().add("-c");
         }
         String basePath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? "/binary-file" : optInfo.getBasePath();
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
@@ -4411,7 +4433,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             addModuleCfgToContainer(platformId, platformCfg, basePath, deployPath, appModule, mountPath, true, runtimeContainer, deployment);
         }
         if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
-            String args = String.format("cd %s;%s;sleep 5;tailf /root/Platform/log/*/*.log;", deployPath, startCmd);
+            String args = String.format("cd %s;%s;sleep 5;tailf ../log/*/*.log;", deployPath, startCmd);
             if (runtimeContainer.getArgs() == null) {
                 runtimeContainer.setArgs(new ArrayList<>());
                 runtimeContainer.getArgs().add(args);
@@ -4429,14 +4451,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             String cmd = initContainer.getCommand().get(2);
             cmd = String.format("%s;mv /opt/%s /war/%s-%s.war", cmd, appModule.getInstallPackage().getFileName(), alias, domainId);
             initContainer.getCommand().set(2, cmd);
-            if (runtimeContainer.getCommand() != null && runtimeContainer.getCommand().size() > 2) {
-                cmd = runtimeContainer.getCommand().get(2);
-                cmd = String.format("%s;%s", runtimeContainer.getArgs().get(0), cmd).replaceAll("^;", "").replaceAll("//", "/");
-                runtimeContainer.getArgs().set(0, cmd);
-                runtimeContainer.setCommand(new ArrayList<>());
-                runtimeContainer.getCommand().add("/bin/sh");
-                runtimeContainer.getCommand().add("-c");
-            }
+            runtimeContainer.getArgs().set(0, String.format("%s;%s", runtimeContainer.getArgs().get(0), startCmd));
         }
         V1HostPathVolumeSource host = new V1HostPathVolumeSource();
         host.setPath(String.format("/var/ccod-runtime/%s/%s", platformId, domainId));
@@ -4557,20 +4572,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             K8sOperationPo k8sOpt = new K8sOperationPo(jobId, platformId, domainId, K8sKind.INGRESS, ingName, k8sOperation, srcJson, gson.toJson(newIngMap.get(ingName)));
             k8sOptList.add(k8sOpt);
         }
-    }
-
-    private V1Deployment getDeploymentByTag(String domainId, String tag, List<V1Deployment> deployments)
-    {
-        for(V1Deployment deployment : deployments)
-        {
-            if(deployment.getMetadata().getLabels().containsKey(this.domainIdLabel) && deployment.getMetadata().getLabels().containsKey(this.deploymentTagLabel))
-            {
-                if(deployment.getMetadata().getLabels().get(this.domainIdLabel).equals(domainId)
-                        && deployment.getMetadata().getLabels().get(this.deploymentTagLabel).equals(tag))
-                    return deployment;
-            }
-        }
-        return null;
     }
 
     private Map<String, V1Service> getRelativeService(String domainId, String alias, List<V1Service> services)
@@ -4966,6 +4967,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             deployment.getMetadata().getLabels().put(this.deploymentTypeLabel, K8sDeploymentType.CCOD_DOMAIN_APP.name);
             deployment.getMetadata().getLabels().put(this.domainIdLabel, domainId);
             deployment.getMetadata().getLabels().put(this.jobIdLabel, jobId);
+            deployment.getSpec().getSelector().getMatchLabels().put(this.domainIdLabel, domainId);
+            deployment.getSpec().getTemplate().getMetadata().getLabels().put(this.domainIdLabel, domainId);
             K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.DEPLOYMENT,
                     deployment.getMetadata().getName(), K8sOperation.CREATE, deployment);
             k8sOptList.add(k8sOpt);
@@ -5285,60 +5288,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         logger.error("conn timeout");
         return false;
-    }
-
-    private void deployDomainAppToK8s(String jobId, String platformId, String domainId, String tag, List<AppUpdateOperationInfo> deployApps, V1Deployment deployment, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses, Map<String, V1Service> existService, Map<String, ExtensionsV1beta1Ingress> existIngress, String k8sApiUrl, String k8sAuthToken) throws ApiException {
-        if (deployment.getSpec().getTemplate().getMetadata().getLabels() == null || deployment.getSpec().getSelector().getMatchLabels() == null) {
-            deployment.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
-            deployment.getSpec().getSelector().setMatchLabels(new HashMap<>());
-        }
-        for (AppUpdateOperationInfo deployApp : deployApps) {
-            deployment.getSpec().getTemplate().getMetadata().getLabels().put(this.jobIdLabel, jobId);
-            deployment.getSpec().getSelector().getMatchLabels().put(this.jobIdLabel, jobId);
-            deployment.getSpec().getTemplate().getMetadata().getLabels().put(this.domainIdLabel, domainId);
-            deployment.getSpec().getSelector().getMatchLabels().put(this.domainIdLabel, domainId);
-            deployment.getSpec().getTemplate().getMetadata().getLabels().put(deployApp.getAppName(), deployApp.getAppAlias());
-            deployment.getSpec().getSelector().getMatchLabels().put(deployApp.getAppName(), deployApp.getAppAlias());
-            deployment.getSpec().getTemplate().getMetadata().getLabels().put(String.format("%s-version", deployApp.getAppName()), deployApp.getTargetVersion().replaceAll("\\:", "-"));
-            deployment.getSpec().getSelector().getMatchLabels().put(String.format("%s-version", deployApp.getAppName()), deployApp.getTargetVersion().replaceAll("\\:", "-"));
-            for (V1Service service : services) {
-                if (service.getMetadata().getLabels() == null)
-                    service.getMetadata().setLabels(new HashMap<>());
-                if (service.getMetadata().getName().split("\\-").length > 2)
-                    service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.DOMAIN_OUT_SERVICE.name);
-                else
-                    service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.DOMAIN_SERVICE.name);
-                service.getMetadata().getLabels().put(this.domainIdLabel, domainId);
-                service.getMetadata().getLabels().put(this.appNameLabel, deployApp.getAppName());
-                service.getMetadata().getLabels().put(this.appAliasLabel, deployApp.getAppName());
-                service.getMetadata().getLabels().put(this.appVersionLabel, deployApp.getTargetVersion().replaceAll("\\:", "-"));
-                Map<String, String> selector = new HashMap<>();
-                selector.put(this.jobIdLabel, jobId);
-                selector.put(this.domainIdLabel, domainId);
-                selector.put(deployApp.getAppName(), deployApp.getAppAlias());
-                selector.put(String.format("%s-version", deployApp.getAppName()), deployApp.getTargetVersion().replaceAll("\\:", "-"));
-                service.getSpec().setSelector(selector);
-            }
-        }
-        this.k8sApiService.createNamespacedDeployment(platformId, deployment, k8sApiUrl, k8sAuthToken);
-        for (V1Service service : services) {
-            if (!existService.containsKey(service.getMetadata().getName()))
-                this.k8sApiService.createNamespacedService(platformId, service, k8sApiUrl, k8sAuthToken);
-            else
-                this.k8sApiService.replaceNamespacedService(service.getMetadata().getName(), platformId, service, k8sApiUrl, k8sAuthToken);
-            existService.put(service.getMetadata().getName(), service);
-        }
-        for (ExtensionsV1beta1Ingress ingress : ingresses) {
-            if (!existIngress.containsKey(ingress.getMetadata().getName()))
-                this.k8sApiService.createNamespacedIngress(platformId, ingress, k8sApiUrl, k8sAuthToken);
-            else
-                this.k8sApiService.replaceNamespacedIngress(ingress.getMetadata().getName(), platformId, ingress, k8sApiUrl, k8sAuthToken);
-        }
-    }
-
-
-    private void updateK8sPlatformDomainApp(String jobId, String domainId, List<AppUpdateOperationInfo> optList, List<V1Deployment> deployments) {
-
     }
 
     public K8sPlatformSchemaInfo getSchemaFromOldSchema(PlatformUpdateSchemaInfo oldSchema) {

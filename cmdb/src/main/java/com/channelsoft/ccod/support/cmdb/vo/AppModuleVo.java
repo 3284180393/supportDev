@@ -38,6 +38,10 @@ public class AppModuleVo {
 
     private String basePath; //应用的base path
 
+    private String deployPath; //应用程序/包相对basePath的路径
+
+    private String startCmd; //启动命令
+
     private String comment; //备注
 
     private AppInstallPackagePo installPackage; //应用部署包
@@ -64,6 +68,8 @@ public class AppModuleVo {
         this.versionControl = VersionControl.getEnum(app.getVersionControl());
         this.versionControlUrl = app.getVersionControlUrl();
         this.basePath = app.getBasePath();
+        this.deployPath = app.getDeployPath();
+        this.startCmd = app.getStartCmd();
         this.comment = app.getComment();
         this.installPackage = installPackage;
         this.cfgs = cfgs;
@@ -204,6 +210,22 @@ public class AppModuleVo {
 
     public void setHasImage(boolean hasImage) {
         this.hasImage = hasImage;
+    }
+
+    public String getDeployPath() {
+        return deployPath;
+    }
+
+    public void setDeployPath(String deployPath) {
+        this.deployPath = deployPath;
+    }
+
+    public String getStartCmd() {
+        return startCmd;
+    }
+
+    public void setStartCmd(String startCmd) {
+        this.startCmd = startCmd;
     }
 
     @Override

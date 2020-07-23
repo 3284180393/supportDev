@@ -26,6 +26,8 @@
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
+        <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
+        <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
 
         <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
         <result column="bk_set_id" property="bkSetId" jdbcType="INTEGER" />
@@ -70,6 +72,8 @@
 	    a.ccod_version,
 	    pa.base_path,
 	    pa.deploy_time,
+	    pa.deploy_path,
+	    pa.start_cmd,
 	    a.create_time,
 	    a.version_control,
 	    a.version_control_url,

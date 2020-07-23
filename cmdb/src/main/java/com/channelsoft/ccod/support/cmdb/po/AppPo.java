@@ -25,6 +25,10 @@ public class AppPo {
 
     private String basePath; //缺省的base path
 
+    private String deployPath; //应用程序/包相对basePath的路径
+
+    private String startCmd; //启动命令
+
     private Date createTime; //应用创建时间
 
     private Date updateTime; //应用最后一次修改时间
@@ -52,6 +56,8 @@ public class AppPo {
         this.version = moduleVo.getVersion();
         this.ccodVersion = moduleVo.getCcodVersion();
         this.basePath = moduleVo.getBasePath();
+        this.deployPath = moduleVo.getDeployPath();
+        this.startCmd = moduleVo.getStartCmd();
         this.createTime = moduleVo.getCreateTime();
         this.updateTime = moduleVo.getUpdateTime();
         this.createReason = moduleVo.getCreateReason();
@@ -179,5 +185,21 @@ public class AppPo {
 
     public void setHasImage(boolean hasImage) {
         this.hasImage = hasImage;
+    }
+
+    public String getDeployPath() {
+        return deployPath;
+    }
+
+    public void setDeployPath(String deployPath) {
+        this.deployPath = deployPath;
+    }
+
+    public String getStartCmd() {
+        return startCmd;
+    }
+
+    public void setStartCmd(String startCmd) {
+        this.startCmd = startCmd;
     }
 }
