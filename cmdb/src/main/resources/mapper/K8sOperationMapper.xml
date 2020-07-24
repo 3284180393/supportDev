@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.K8sOperationMapper" >
+    <resultMap id="K8sOperationMap" type="com.channelsoft.ccod.support.cmdb.po.K8sOperationPo" >
+        <id column="operation_id" property="operationId" jdbcType="INTEGER" />
+        <result column="job_id" property="jobId" jdbcType="VARCHAR" />
+        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
+        <result column="kind" property="kind" jdbcType="VARCHAR" />
+        <result column="name" property="name" jdbcType="VARCHAR" />
+        <result column="operation" property="operation" jdbcType="VARCHAR" />
+        <result column="json" property="json" jdbcType="VARCHAR" />
+        <result column="start_time" property="startTime" jdbcType="TIMESTAMP" />
+        <result column="end_time" property="endTime" jdbcType="TIMESTAMP" />
+        <result column="time_usage" property="timeUsage" jdbcType="INTEGER" />
+        <result column="is_success" property="isSuccess" jdbcType="BOOLEAN" />
+        <result column="comment" property="comment" jdbcType="VARCHAR" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+        ko.operation_id,
+	    ko.job_id,
+	    ko.platform_id,
+	    ko.domain_id,
+	    ko.kind,
+	    ko.`name`,
+	    ko.operation,
+	    ko.json,
+	    ko.start_time,
+	    ko.end_time,
+	    ko.time_usage,
+	    ko.is_success,
+	    ko.`comment`
+    </sql>
+    <select id="select" resultMap="K8sOperationMap" parameterType="java.lang.String">
+        select
+        <include refid="Base_Column_List" />
+        from k8s_operation ko
+        WHERE
+        1 = 1
+        <if test="jobId!=null">
+            And ko.job_id=#{jobId,jdbcType=VARCHAR}
+        </if>
+        <if test="platformId!=null">
+            And ko.platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="domainId!=null">
+            And ko.domain_id=#{domainId,jdbcType=VARCHAR}
+        </if>
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.K8sOperationPo"
+            useGeneratedKeys="true" keyProperty="operationId">>
+        insert into k8s_operation(job_id, platform_id, domain_id, kind, name, operation, json, start_time, end_time, time_usage, is_success, comment)
+        values (#{jobId,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{kind,jdbcType=VARCHAR}, #{name,jdbcType=VARCHAR}, #{operation,jdbcType=VARCHAR}, #{json,jdbcType=VARCHAR}, #{startTime,jdbcType=TIMESTAMP}, #{endTime,jdbcType=TIMESTAMP}, #{timeUsage,jdbcType=INTEGER}, #{isSuccess,jdbcType=BOOLEAN}, #{comment,jdbcType=VARCHAR})
+    </insert>
+    <delete id="delete" parameterType="java.lang.String">
+        delete
+        from k8s_operation
+        where
+        1 = 1
+        <if test="jobId!=null">
+            And ko.job_id=#{jobId,jdbcType=VARCHAR}
+        </if>
+        <if test="platformId!=null">
+            And ko.platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="domainId!=null">
+            And ko.domain_id=#{domainId,jdbcType=VARCHAR}
+        </if>
+    </delete>
+</mapper>

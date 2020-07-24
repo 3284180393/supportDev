@@ -3,6 +3,8 @@ package com.channelsoft.ccod.support.cmdb.po;
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
 
+import java.util.Date;
+
 /**
  * @ClassName: K8sOperationPo
  * @Author: lanhb
@@ -14,11 +16,11 @@ public class K8sOperationPo {
 
     private int operationId; //id，数据库唯一主键
 
+    private String jobId; //执行此次操作的job id
+
     private String platformId; //平台id
 
     private String domainId; //域id
-
-    private String jobId; //执行此次操作的job id
 
     private K8sKind kind; //操作的k8s对象类型
 
@@ -26,16 +28,19 @@ public class K8sOperationPo {
 
     private K8sOperation operation; //操作类型
 
-    private String srcJson; //该对象操作之前的json
+    private String json; //操作对象的json内容
 
-    private String dstJson; //该对象操作后的json
+    private Date startTime; //开始执行时间
 
-    private boolean updateGlsServer; //是否需要更新glsserver
+    private Date endTime; //结束执行时间
 
-    private String updateSql; //更新glsserver的sql
+    private long timeUsage; //用时
 
-    public K8sOperationPo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation,
-                          String srcJson, String dstJson)
+    private boolean isSuccess; //是否执行成功
+
+    private String comment; //如果执行失败了，失败说明
+
+    public K8sOperationPo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation, String json)
     {
         this.jobId = jobId;
         this.platformId = platformId;
@@ -43,8 +48,8 @@ public class K8sOperationPo {
         this.kind = kind;
         this.name = name;
         this.operation = operation;
-        this.srcJson = srcJson;
-        this.dstJson = dstJson;
+        this.json = json;
+        this.startTime = new Date();
     }
 
     public int getOperationId() {
@@ -95,20 +100,12 @@ public class K8sOperationPo {
         this.operation = operation;
     }
 
-    public String getSrcJson() {
-        return srcJson;
+    public String getJson() {
+        return json;
     }
 
-    public void setSrcJson(String srcJson) {
-        this.srcJson = srcJson;
-    }
-
-    public String getDstJson() {
-        return dstJson;
-    }
-
-    public void setDstJson(String dstJson) {
-        this.dstJson = dstJson;
+    public void setJson(String json) {
+        this.json = json;
     }
 
     public String getName() {
@@ -119,19 +116,45 @@ public class K8sOperationPo {
         this.name = name;
     }
 
-    public boolean isUpdateGlsServer() {
-        return updateGlsServer;
+    public Date getStartTime() {
+        return startTime;
     }
 
-    public void setUpdateGlsServer(boolean updateGlsServer) {
-        this.updateGlsServer = updateGlsServer;
+    public void setStartTime(Date startTime) {
+        this.startTime = startTime;
     }
 
-    public String getUpdateSql() {
-        return updateSql;
+    public Date getEndTime() {
+        return endTime;
     }
 
-    public void setUpdateSql(String updateSql) {
-        this.updateSql = updateSql;
+    public void setEndTime(Date endTime) {
+        this.endTime = endTime;
+    }
+
+    public boolean isSuccess() {
+        return isSuccess;
+    }
+
+    public void setSuccess(boolean success) {
+        isSuccess = success;
+        endTime = new Date();
+        timeUsage = endTime.getTime() - startTime.getTime();
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
+    }
+
+    public long getTimeUsage() {
+        return timeUsage;
+    }
+
+    public void setTimeUsage(long timeUsage) {
+        this.timeUsage = timeUsage;
     }
 }

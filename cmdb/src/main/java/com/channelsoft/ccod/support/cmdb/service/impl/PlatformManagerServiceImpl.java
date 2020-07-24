@@ -136,6 +136,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     PlatformAppDeployDetailMapper platformAppDeployDetailMapper;
 
     @Autowired
+    AppMapper appMapper;
+
+    @Autowired
     CCODBiz ccodBiz;
 
     @Autowired
@@ -692,6 +695,41 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         for (AppUpdateOperationInfo optInfo : addOptList) {
             if (StringUtils.isBlank(optInfo.getOriginalAlias()))
                 optInfo.setOriginalAlias(optInfo.getAppAlias());
+        }
+    }
+
+    private void updateRegisterApp(List<AppUpdateOperationInfo> optList)
+    {
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
+        Map<String, List<AppUpdateOperationInfo>> optMap = optList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+        for(AppModuleVo moduleVo : registerApps)
+        {
+            AppPo app = moduleVo.getApp();
+            if(AppType.BINARY_FILE.equals(moduleVo.getAppType()))
+            {
+                app.setBasePath(String.format("/home/%s", app.getAppName().toLowerCase()));
+                app.setDeployPath("./bin");
+                app.setStartCmd(String.format("./%s", moduleVo.getInstallPackage().getFileName()));
+            }
+            else if(AppType.RESIN_WEB_APP.equals(moduleVo.getAppType()))
+            {
+                app.setBasePath("/root/resin-4.0.13");
+                app.setDeployPath("./webapps");
+                app.setStartCmd("keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/jre/lib/security/cacerts;./bin/resin.sh start;tail -F ./log/jvm-default.log");
+            }
+            else
+            {
+                app.setBasePath("/usr/local/tomcat");
+                app.setDeployPath("./webapps");
+                app.setStartCmd("keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/lib/security/cacerts;./bin/startup.sh;tail -F ./logs/catalina.out");
+            }
+            if(optMap.containsKey(app.getAppName()))
+            {
+                app.setBasePath(optMap.get(app.getAppName()).get(0).getBasePath());
+                app.setDeployPath(optMap.get(app.getAppName()).get(0).getDeployPath());
+                app.setStartCmd(optMap.get(app.getAppName()).get(0).getStartCmd());
+            }
+            this.appMapper.update(app);
         }
     }
 
@@ -1373,7 +1411,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         deployApp.setAppType(appModule.getAppType());
         deployApp.setAssembleTag(deployment.getMetadata().getLabels().get("tag"));
         deployApp.setAssembleId(0);
-        if (AppType.CCOD_KERNEL_MODULE.equals(deployApp.getAppType()))
+        if (AppType.BINARY_FILE.equals(deployApp.getAppType()))
             deployApp.setBasePath("/binary-file");
         else
             deployApp.setBasePath("/war");
@@ -1417,7 +1455,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 initContainer = container;
         }
         AppType appType = appModule.getAppType();
-        String volumeName = AppType.CCOD_KERNEL_MODULE.equals(appType) ? this.binaryFileVolumeName : this.webappVolumeName;
+        String volumeName = AppType.BINARY_FILE.equals(appType) ? this.binaryFileVolumeName : this.webappVolumeName;
         String basePath = initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get(volumeName).getMountPath();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String directory = String.format("%s/%s/%s/%s/%s/%s", services.get(0).getMetadata().getNamespace(), sf.format(date),
@@ -1426,10 +1464,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<NexusAssetInfo> assets = uploadK8sConfigMapToNexus(configMap, directory);
         String[] commands = initContainer.getCommand().get(2).split(";");
         Map<String, String> cfgComandMap = new HashMap<>();
-        String cfgCmdRegex = AppType.CCOD_KERNEL_MODULE.equals(appModule.getAppType()) ? "^cp .*" : "^jar uf .*";
+        String cfgCmdRegex = AppType.BINARY_FILE.equals(appModule.getAppType()) ? "^cp .*" : "^jar uf .*";
         for (String command : commands) {
             if (command.matches(cfgCmdRegex)) {
-                if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+                if (appType.equals(AppType.BINARY_FILE)) {
                     String targetPath = command.split("\\s+")[2];
                     String[] arr = targetPath.split("/");
                     String fileName = arr[arr.length - 1];
@@ -1454,11 +1492,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         basePath = runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get(volumeName).getMountPath();
         deployApp.setBasePath(basePath);
         String pkgDeployPath = null;
-        String runCmdRegex = appType.equals(AppType.CCOD_KERNEL_MODULE) ? ".+/startup.sh$" : String.format("[^\\s]*%s($|\\s.+)", appModule.getInstallPackage().getFileName());
+        String runCmdRegex = appType.equals(AppType.BINARY_FILE) ? ".+/startup.sh$" : String.format("[^\\s]*%s($|\\s.+)", appModule.getInstallPackage().getFileName());
         for (String command : commands) {
             if (command.matches(runCmdRegex)) {
                 String[] arr = command.split("\\s+");
-                pkgDeployPath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? arr[0].replaceAll(String.format("%s$", appModule.getInstallPackage().getFileName()), "") : arr[0].replaceAll("startup.sh$", "");
+                pkgDeployPath = appType.equals(AppType.BINARY_FILE) ? arr[0].replaceAll(String.format("%s$", appModule.getInstallPackage().getFileName()), "") : arr[0].replaceAll("startup.sh$", "");
                 pkgDeployPath = pkgDeployPath.replaceAll("/$", "");
                 if (pkgDeployPath.matches(String.format("^%s.*", basePath))) {
                     pkgDeployPath = pkgDeployPath.replaceAll(String.format("^%s.*", basePath), "");
@@ -1496,7 +1534,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         deployApp.setAppType(moduleVo.getAppType());
         deployApp.setAssembleTag(deployment.getSpec().getSelector().getMatchLabels().get("name"));
         deployApp.setAssembleId(0);
-        if (AppType.CCOD_KERNEL_MODULE.equals(deployApp.getAppType()))
+        if (AppType.BINARY_FILE.equals(deployApp.getAppType()))
             deployApp.setBasePath("/binary-file");
         else
             deployApp.setBasePath("/war");
@@ -1926,17 +1964,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(preparePlans.size() > 0)
         {
             List<K8sOperationInfo> tryOptList = generateSchemaK8sExecStep(updateSchema, UpdateStatus.WAIT_EXEC, registerApps);
-            logger.debug(String.format("prepare to exis steps I %s", gson.toJson(tryOptList)));
-            execPlatformUpdateSteps(tryOptList, updateSchema);
+            logger.debug(String.format("schema need exec steps : %s", gson.toJson(tryOptList)));
+//            execPlatformUpdateSteps(tryOptList, updateSchema);
         }
         List<DomainUpdatePlanInfo> execPlans = statusPlanMap.containsKey(UpdateStatus.EXEC) ? statusPlanMap.get(UpdateStatus.EXEC) : new ArrayList<>();
         if(execPlans.size() > 0)
         {
             List<K8sOperationInfo> execSteps = generateSchemaK8sExecStep(updateSchema, UpdateStatus.EXEC, registerApps);
             logger.debug(String.format("exec step is %s", gson.toJson(execSteps)));
+            execPlatformUpdateSteps(execSteps, updateSchema);
         }
         Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
-        for (DomainUpdatePlanInfo plan : successList) {
+        for (DomainUpdatePlanInfo plan : execPlans) {
             String domainId = plan.getDomainId();
             boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
             DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(updateSchema.getPlatformId());
@@ -1946,7 +1985,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             Map<String, List<NexusAssetInfo>> cfgMap = preprocessDomainApps(updateSchema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, registerApps, clone);
             domainCfgMap.put(domainId, cfgMap);
         }
-        for (DomainUpdatePlanInfo plan : successList) {
+        for (DomainUpdatePlanInfo plan : execPlans) {
             String domainId = plan.getDomainId();
             boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
             DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);
@@ -2170,10 +2209,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         for(V1Deployment deployment : allDeployments)
         {
             Map<String, String> labels = deployment.getSpec().getTemplate().getMetadata().getLabels();
-            if(labels.containsKey(this.serviceTypeLabel)
-                    && labels.get(this.serviceTypeLabel).equals(K8sDeploymentType.CCOD_DOMAIN_APP.name)
-                    && labels.containsKey(this.domainIdLabel)
-                    && labels.get(this.domainIdLabel).equals(domainId))
+            if(labels.containsKey(this.domainIdLabel) && labels.get(this.domainIdLabel).equals(domainId))
                 deployments.add(deployment);
         }
         return deployments;
@@ -2401,12 +2437,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, List<DomainUpdatePlanInfo>> updateMap = updateList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId));
         for(String domainId : updateMap.keySet())
         {
-            if(deleteMap.get(domainId).size() > 1)
-                sb.append(String.format("DELETE Domain %S duplicate;", domainId));
+            if(updateMap.get(domainId).size() > 1)
+                sb.append(String.format("UPDATE Domain %S duplicate;", domainId));
         }
         for(String domainId : deleteMap.keySet())
         {
-            if(updateMap.containsKey(domainId))
+            if(deleteMap.containsKey(domainId))
                 sb.append(String.format(" domain %s has been DELETED and UPDATE at the same time;", domainId));
         }
         if(StringUtils.isNotBlank(sb.toString()))
@@ -3635,8 +3671,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             for (V1Container container : containers) {
                 AppType appType = getAppTypeFromImageUrl(container.getImage());
                 switch (appType) {
-                    case CCOD_KERNEL_MODULE:
-                    case CCOD_WEBAPPS_MODULE: {
+                    case BINARY_FILE:
+                    case RESIN_WEB_APP: {
                         AppModuleVo moduleVo = getAppModuleFromImageTag(container.getImage(), registerApps);
                         if (paramVo.getDeployAppList().stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppName, Function.identity())).containsKey(moduleVo.getAppName()))
                             throw new K8sDataException(String.format("deployment %s has duplicate module %s", deploymentName, moduleVo.getAppName()));
@@ -3913,9 +3949,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         mount.setMountPath(mountPath);
         container.getVolumeMounts().add(mount);
         String execParam = "";
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE) && !isPublic)
+        if (appType.equals(AppType.BINARY_FILE) && !isPublic)
             execParam = String.format("%s;mkdir %s -p;mkdir %s/log -p;mv /opt/%s %s/%s", execParam, deployPath, basePath, moduleVo.getInstallPackage().getFileName(), deployPath, moduleVo.getInstallPackage().getFileName());
-        else if (appType.equals(AppType.CCOD_WEBAPPS_MODULE) && !isPublic)
+        else if (appType.equals(AppType.RESIN_WEB_APP) && !isPublic)
             execParam = String.format("%s;cd %s", execParam, deployPath);
         Map<String, List<AppFileNexusInfo>> deployPathCfgMap = cfgs.stream().collect(Collectors.groupingBy(AppFileNexusInfo::getDeployPath));
         for (String cfgDeployPath : deployPathCfgMap.keySet()) {
@@ -3923,7 +3959,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             execParam = String.format("%s;mkdir %s -p", execParam, absolutePath);
             for (AppFileNexusInfo cfg : deployPathCfgMap.get(cfgDeployPath)) {
                 execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
-                if (appType.equals(AppType.CCOD_WEBAPPS_MODULE) && !isPublic)
+                if (appType.equals(AppType.RESIN_WEB_APP) && !isPublic)
                     execParam = String.format("%s;jar uf %s %s/%s", execParam, moduleVo.getInstallPackage().getFileName(), absolutePath.replaceAll(String.format("^%s", deployPath), "").replaceAll("^/", ""), cfg.getFileName());
             }
         }
@@ -3996,16 +4032,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         container.getVolumeMounts().add(mount);
         String execParam = "";
         Map<String, List<AppFileNexusInfo>> deployPathCfgMap = cfgs.stream().collect(Collectors.groupingBy(AppFileNexusInfo::getDeployPath));
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE) && !isPublic)
+        if (appType.equals(AppType.BINARY_FILE) && !isPublic)
             execParam = String.format("%s;mkdir %s -p;mkdir %s/log -p;mv /opt/%s %s/%s", execParam, deployPath, basePath, moduleVo.getInstallPackage().getFileName(), deployPath, moduleVo.getInstallPackage().getFileName());
-        else if (appType.equals(AppType.CCOD_WEBAPPS_MODULE) && !isPublic)
+        else if (appType.equals(AppType.RESIN_WEB_APP) && !isPublic)
             execParam = String.format("%s;cd %s", execParam, deployPath);
         for (String cfgDeployPath : deployPathCfgMap.keySet()) {
             String absolutePath = getAbsolutePath(basePath, cfgDeployPath);
             execParam = String.format("%s;mkdir %s -p", execParam, absolutePath);
             for (AppFileNexusInfo cfg : deployPathCfgMap.get(cfgDeployPath)) {
                 execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
-                if (appType.equals(AppType.CCOD_WEBAPPS_MODULE) && !isPublic)
+                if (appType.equals(AppType.RESIN_WEB_APP) && !isPublic)
                     execParam = String.format("%s;jar uf %s %s/%s", execParam, moduleVo.getInstallPackage().getFileName(), absolutePath.replaceAll(String.format("^%s", deployPath), "").replaceAll("^/", ""), cfg.getFileName());
             }
         }
@@ -4061,7 +4097,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             planInfo.setStatus(UpdateStatus.WAIT_EXEC);
             for (AppUpdateOperationInfo optInfo : planInfo.getAppUpdateOperationList()) {
                 AppModuleVo moduleVo = this.appManagerService.queryAppByVersion(optInfo.getAppName(), optInfo.getTargetVersion());
-                if (AppType.CCOD_WEBAPPS_MODULE.equals(moduleVo.getAppType())) {
+                if (AppType.RESIN_WEB_APP.equals(moduleVo.getAppType())) {
                     optInfo.setDeployPath("/opt");
                     optInfo.setBasePath("/opt");
                     if(StringUtils.isBlank(optInfo.getStartCmd()))
@@ -4399,7 +4435,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         initContainer.getCommand().add("-c");
         initContainer.getCommand().add("");
         String mountPath = String.format("%s/%s-cfg", this.defaultCfgMountPath, alias);
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+        if (appType.equals(AppType.BINARY_FILE)) {
             runtimeContainer.setArgs(new ArrayList<>());
             if(!runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).containsKey("binary-file"))
                 throw new ParamException(String.format("%s container of %s has not binary-file mount volume",
@@ -4418,7 +4454,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             runtimeContainer.getCommand().add("/bin/sh");
             runtimeContainer.getCommand().add("-c");
         }
-        String basePath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? "/binary-file" : optInfo.getBasePath();
+        String basePath = appType.equals(AppType.BINARY_FILE) ? "/binary-file" : "/opt";
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
         String startCmd = optInfo.getStartCmd();
         addModuleCfgToContainer(String.format("%s-%s", alias, domainId), optInfo.getCfgs(), basePath, deployPath, appModule, mountPath, false, initContainer, deployment);
@@ -4432,7 +4468,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             mountPath = String.format("%s/%s", this.defaultCfgMountPath, platformId);
             addModuleCfgToContainer(platformId, platformCfg, basePath, deployPath, appModule, mountPath, true, runtimeContainer, deployment);
         }
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+        if (appType.equals(AppType.BINARY_FILE)) {
             String args = String.format("cd %s;%s;sleep 5;tailf ../log/*/*.log;", deployPath, startCmd);
             if (runtimeContainer.getArgs() == null) {
                 runtimeContainer.setArgs(new ArrayList<>());
@@ -4446,12 +4482,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 cmd = String.format("%s;mv /opt/FlowMap.full /binary-file/cfg", cmd, basePath);
                 initContainer.getCommand().set(2, cmd);
             }
-        } else if (appType.equals(AppType.CCOD_WEBAPPS_MODULE)) {
+        } else if (appType.equals(AppType.RESIN_WEB_APP)) {
             initContainer.setArgs(new ArrayList<>());
             String cmd = initContainer.getCommand().get(2);
             cmd = String.format("%s;mv /opt/%s /war/%s-%s.war", cmd, appModule.getInstallPackage().getFileName(), alias, domainId);
             initContainer.getCommand().set(2, cmd);
-            runtimeContainer.getArgs().set(0, String.format("%s;%s", runtimeContainer.getArgs().get(0), startCmd));
+            runtimeContainer.getArgs().set(0, String.format("%s;cd %s;%s", runtimeContainer.getArgs().get(0), basePath, startCmd));
         }
         V1HostPathVolumeSource host = new V1HostPathVolumeSource();
         host.setPath(String.format("/var/ccod-runtime/%s/%s", platformId, domainId));
@@ -4461,6 +4497,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("ccod-runtime").setSubPath(alias);
         if (runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).containsKey("ccod-runtime"))
             runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("ccod-runtime").setSubPath(alias);
+        if(appType.equals(AppType.RESIN_WEB_APP)) {
+            runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                    .get("war").setMountPath(String.format("%s/webapps", optInfo.getBasePath()).replaceAll("//", "/"));
+            runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                    .get("ccod-runtime").setMountPath(String.format("%s/log", optInfo.getBasePath()).replaceAll("//", "/"));
+        }
+        else if(appType.equals(AppType.TOMCAT_WEB_APP)){
+            runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                    .get("war").setMountPath(String.format("%s/webapps", optInfo.getBasePath()).replaceAll("//", "/"));
+            runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                    .get("ccod-runtime").setMountPath(String.format("%s/logs", optInfo.getBasePath()).replaceAll("//", "/"));
+        }
         for(V1Service service : k8sCollection.getServices())
         {
             Map<String, String> selector = new HashMap<>();
@@ -4471,106 +4519,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             service.getMetadata().getLabels().put(this.appNameLabel, appModule.getAppName());
             service.getMetadata().getLabels().put(this.appAliasLabel, alias);
             service.getMetadata().getLabels().put(this.jobIdLabel, jobId);
-        }
-    }
-
-    private void generateK8sOperation(AppModuleVo appModule, String alias, String jobId, String platformId, String domainId,
-                                      String basePath, String deployPath, String startCmd, List<AppFileNexusInfo> cfgs,
-                                      List<AppFileNexusInfo> domainCfg, List<AppFileNexusInfo> platformCfg,
-                                      V1Deployment deployment, Map<String, V1Service> newSvcMap,
-                                      Map<String, V1Service> oldSvcMap, Map<String, ExtensionsV1beta1Ingress> newIngMap,
-                                      Map<String, ExtensionsV1beta1Ingress> oldIngMap, List<K8sOperationPo> k8sOptList) throws ParamException
-    {
-        String appName = appModule.getAppName();
-        deployment.getMetadata().getLabels().put(String.format("%s-alias", appName), alias);
-        String version = appModule.getVersion().replaceAll("\\:", "-");
-        deployment.getMetadata().getLabels().put(appName, alias);
-        deployment.getMetadata().getLabels().put(String.format("%s-version", appName), version);
-        deployment.getSpec().getSelector().getMatchLabels().put(appName, alias);
-        deployment.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
-        V1Container initContainer = deployment.getSpec().getTemplate().getSpec().getInitContainers().stream()
-                .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(alias);
-        V1Container runtimeContainer = deployment.getSpec().getTemplate().getSpec().getContainers().stream()
-                .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(String.format("%s-runtime", alias));
-        AppType appType = appModule.getAppType();
-        initContainer.setCommand(new ArrayList<>());
-        initContainer.getCommand().add("/bin/sh");
-        initContainer.getCommand().add("-c");
-        initContainer.getCommand().add("");
-        String mountPath = String.format("%s/%s-cfg", this.defaultCfgMountPath, alias);
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
-            runtimeContainer.setArgs(new ArrayList<>());
-            runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("binary-file").setMountPath(basePath);
-        }
-        basePath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? "/binary-file" : basePath;
-        deployPath = getAbsolutePath(basePath, deployPath);
-        addModuleCfgToContainer(String.format("%s-%s", alias, domainId), cfgs, basePath, deployPath, appModule, mountPath, false, initContainer, deployment);
-        deployPath = getAbsolutePath(basePath, deployPath);
-        if (domainCfg != null && domainCfg.size() > 0) {
-            mountPath = String.format("%s/%s", this.defaultCfgMountPath, domainId);
-            addModuleCfgToContainer(domainId, domainCfg, basePath, deployPath, appModule, mountPath, true, runtimeContainer, deployment);
-        }
-        if (platformCfg != null && platformCfg.size() > 0) {
-            mountPath = String.format("%s/%s", this.defaultCfgMountPath, platformId);
-            addModuleCfgToContainer(platformId, platformCfg, basePath, deployPath, appModule, mountPath, true, runtimeContainer, deployment);
-        }
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
-            String args = String.format("cd %s;%s;sleep 5;tailf /root/Platform/log/*/*.log;", deployPath, startCmd);
-            if (runtimeContainer.getArgs() == null) {
-                runtimeContainer.setArgs(new ArrayList<>());
-                runtimeContainer.getArgs().add(args);
-            } else {
-                args = String.format("%s;%s", runtimeContainer.getArgs().get(0), args);
-                runtimeContainer.getArgs().set(0, args);
-            }
-            if ("ucxserver".equals(appName)) {
-                String cmd = initContainer.getCommand().get(2);
-                cmd = String.format("%s;mv /opt/FlowMap.full /binary-file/cfg", cmd, basePath);
-                initContainer.getCommand().set(2, cmd);
-            }
-        } else if (appType.equals(AppType.CCOD_WEBAPPS_MODULE)) {
-            initContainer.setArgs(new ArrayList<>());
-            String cmd = initContainer.getCommand().get(2);
-            cmd = String.format("%s;mv /opt/%s /war/%s-%s.war", cmd, appModule.getInstallPackage().getFileName(), alias, domainId);
-            initContainer.getCommand().set(2, cmd);
-            if (runtimeContainer.getCommand() != null && runtimeContainer.getCommand().size() > 2) {
-                cmd = runtimeContainer.getCommand().get(2);
-                cmd = String.format("%s;%s", runtimeContainer.getArgs().get(0), cmd).replaceAll("^;", "").replaceAll("//", "/");
-                runtimeContainer.getArgs().set(0, cmd);
-                runtimeContainer.setCommand(new ArrayList<>());
-                runtimeContainer.getCommand().add("/bin/sh");
-                runtimeContainer.getCommand().add("-c");
-            }
-        }
-        V1HostPathVolumeSource host = new V1HostPathVolumeSource();
-        host.setPath(String.format("/var/ccod-runtime/%s/%s", platformId, domainId));
-        deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("ccod-runtime").setHostPath(host);
-        if (initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).containsKey("ccod-runtime"))
-            initContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("ccod-runtime").setSubPath(alias);
-        if (runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).containsKey("ccod-runtime"))
-            runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("ccod-runtime").setSubPath(alias);
-        for(String svcName : newSvcMap.keySet())
-        {
-            V1Service service = newSvcMap.get(svcName);
-            Map<String, String> selector = new HashMap<>();
-            selector.put(this.domainIdLabel, domainId);
-            selector.put(appModule.getAppName(), alias);
-            service.getSpec().setSelector(selector);
-            service.getMetadata().getLabels().put(this.domainIdLabel, domainId);
-            service.getMetadata().getLabels().put(this.appNameLabel, appModule.getAppName());
-            service.getMetadata().getLabels().put(this.appAliasLabel, alias);
-            service.getMetadata().getLabels().put(this.jobIdLabel, jobId);
-            K8sOperation k8sOperation = oldSvcMap.containsKey(svcName) ? K8sOperation.REPLACE : K8sOperation.CREATE;
-            String srcJson = oldSvcMap.containsKey(svcName) ? gson.toJson(oldSvcMap.get(svcName)) : null;
-            K8sOperationPo k8sOpt = new K8sOperationPo(jobId, platformId, domainId, K8sKind.SERVICE, svcName, k8sOperation, srcJson, gson.toJson(service));
-            k8sOptList.add(k8sOpt);
-        }
-        for(String ingName : newIngMap.keySet())
-        {
-            K8sOperation k8sOperation = oldSvcMap.containsKey(ingName) ? K8sOperation.REPLACE : K8sOperation.CREATE;
-            String srcJson = oldIngMap.containsKey(ingName) ? gson.toJson(oldIngMap.get(ingName)) : null;
-            K8sOperationPo k8sOpt = new K8sOperationPo(jobId, platformId, domainId, K8sKind.INGRESS, ingName, k8sOperation, srcJson, gson.toJson(newIngMap.get(ingName)));
-            k8sOptList.add(k8sOpt);
         }
     }
 
@@ -4630,11 +4578,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         initContainer.getCommand().add("-c");
         initContainer.getCommand().add("");
         String mountPath = String.format("%s/%s-cfg", this.defaultCfgMountPath, alias);
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+        if (appType.equals(AppType.BINARY_FILE)) {
             runtimeContainer.setArgs(new ArrayList<>());
             runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("binary-file").setMountPath(optInfo.getBasePath());
         }
-        String basePath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? "/binary-file" : optInfo.getBasePath();
+        String basePath = appType.equals(AppType.BINARY_FILE) ? "/binary-file" : optInfo.getBasePath();
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
         addModuleCfgToContainer(String.format("%s-%s", alias, domainId), optInfo.getCfgs(), basePath, deployPath, appModule, mountPath, false, initContainer, deployment);
         deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
@@ -4648,7 +4596,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             addModuleCfgToContainer(String.format("%s-%s", platformId, jobId), domainPublicConfig, optInfo.getBasePath(),
                     deployPath, appModule, mountPath, true, runtimeContainer, deployment);
         }
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+        if (appType.equals(AppType.BINARY_FILE)) {
             String startCmd = StringUtils.isNotBlank(optInfo.getStartCmd()) ? optInfo.getStartCmd() : String.format("./%s", appModule.getInstallPackage().getFileName());
             String args = String.format("cd %s;%s;sleep 5;tailf /root/Platform/log/*/*.log;", deployPath, startCmd);
             if (runtimeContainer.getArgs() == null) {
@@ -4663,7 +4611,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 cmd = String.format("%s;mv /opt/FlowMap.full /binary-file/cfg", cmd, basePath);
                 initContainer.getCommand().set(2, cmd);
             }
-        } else if (appType.equals(AppType.CCOD_WEBAPPS_MODULE)) {
+        } else if (appType.equals(AppType.RESIN_WEB_APP)) {
             initContainer.setArgs(new ArrayList<>());
             String cmd = initContainer.getCommand().get(2);
             cmd = String.format("%s;mv /opt/%s /war/%s-%s.war", cmd, appModule.getInstallPackage().getFileName(), alias, domainId);
@@ -4722,11 +4670,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         V1ConfigMap configMap = configMapMap.get(String.format("%s-%s", alias, domainId));
         AppUpdateOperationInfo optInfo = optList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(alias);
         String mountPath = String.format("%s/%s-cfg", this.defaultCfgMountPath, alias);
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+        if (appType.equals(AppType.BINARY_FILE)) {
             container.setArgs(new ArrayList<>());
             container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("binary-file").setMountPath(optInfo.getBasePath());
         }
-        String basePath = appType.equals(AppType.CCOD_KERNEL_MODULE) ? "/binary-file" : optInfo.getBasePath();
+        String basePath = appType.equals(AppType.BINARY_FILE) ? "/binary-file" : "/opt";
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
         addModuleCfgToContainer(String.format("%s-%s", alias, domainId), cfgMap.get(String.format("%s-%s", alias, domainId)), basePath, deployPath, configMap, moduleVo, mountPath, false, initContainer, deployment);
         basePath = optInfo.getBasePath();
@@ -4739,7 +4687,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             mountPath = String.format("%s/%s", this.defaultCfgMountPath, platformId);
             addModuleCfgToContainer(platformId, cfgMap.get(platformId), optInfo.getBasePath(), deployPath, configMapMap.get(platformId), moduleVo, mountPath, true, container, deployment);
         }
-        if (appType.equals(AppType.CCOD_KERNEL_MODULE)) {
+        if (appType.equals(AppType.BINARY_FILE)) {
             String startCmd = StringUtils.isNotBlank(optInfo.getStartCmd()) ? optInfo.getStartCmd() : String.format("./%s", moduleVo.getInstallPackage().getFileName());
             String args = String.format("cd %s;%s;sleep 5;tailf /root/Platform/log/*/*.log;", deployPath, startCmd);
             if (container.getArgs() == null) {
@@ -4754,7 +4702,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 cmd = String.format("%s;mv /opt/FlowMap.full /binary-file/cfg", cmd, basePath);
                 initContainer.getCommand().set(2, cmd);
             }
-        } else if (appType.equals(AppType.CCOD_WEBAPPS_MODULE)) {
+        } else if (appType.equals(AppType.RESIN_WEB_APP)) {
             initContainer.setArgs(new ArrayList<>());
             String cmd = initContainer.getCommand().get(2);
             cmd = String.format("%s;mv /opt/%s /war/%s-%s.war", cmd, moduleVo.getInstallPackage().getFileName(), alias, domainId);
@@ -4772,6 +4720,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         V1HostPathVolumeSource host = new V1HostPathVolumeSource();
         host.setPath(String.format("/var/ccod-runtime/%s/%s-%s/%s-%s", platformId, alias, domainId, alias, domainId));
         deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("ccod-runtime").setHostPath(host);
+        if(appType.equals(AppType.RESIN_WEB_APP)) {
+            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                    .get("war").setMountPath(String.format("%s/webapps", optInfo.getBasePath()).replaceAll("//", "/"));
+            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                    .get("ccod-runtime").setMountPath(String.format("%s/log", optInfo.getBasePath()).replaceAll("//", "/"));
+        }
+        else if(appType.equals(AppType.TOMCAT_WEB_APP)){
+            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                    .get("war").setMountPath(String.format("%s/webapps", optInfo.getBasePath()).replaceAll("//", "/"));
+            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                    .get("ccod-runtime").setMountPath(String.format("%s/logs", optInfo.getBasePath()).replaceAll("//", "/"));
+        }
     }
 
     private List<K8sCollection> parseAppK8sCollection(String domainId, List<V1Deployment> deployments, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses, List<AppModuleVo> registerApps) throws ParamException, K8sDataException, NotSupportAppException
@@ -4880,6 +4840,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             deleteCollections.add(existMap.get(optInfo.getAppAlias()));
             addCollections.add(targetMap.get(optInfo.getAppAlias()));
         }
+        deleteList.addAll(updateList);
+        addList.addAll(updateList);
         List<K8sOperationInfo> k8sOptList = new ArrayList<>();
         for(K8sCollection collection : deleteCollections)
         {

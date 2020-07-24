@@ -9,11 +9,13 @@ package com.channelsoft.ccod.support.cmdb.constant;
  */
 public enum AppType
 {
-    CCOD_KERNEL_MODULE(1, "CCOD_KERNEL_MODULE", "ccod核心模块"),
+    BINARY_FILE(1, "BINARY_FILE", "二进制文件"),
 
     THREE_PART_APP(2, "THREE_PART_APP", "第三方应用,例如oracle、mysql等"),
 
-    CCOD_WEBAPPS_MODULE(3, "CCOD_WEBAPPS_MODULE", "ccod门户web应用"),
+    RESIN_WEB_APP(3, "RESIN_WEB_APP", "基于resin的web应用"),
+
+    TOMCAT_WEB_APP(4, "TOMCAT_WEB_APP", "基于tomcat的web应用"),
 
     OTHER(99, "OTHER", "其它"),;
 

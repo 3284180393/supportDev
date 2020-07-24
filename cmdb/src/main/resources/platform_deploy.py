@@ -365,12 +365,12 @@ class ImageRepository(object):
         save_file_path = '%s/%s' % (save_dir, 'Dockerfile')
         print(save_file_path)
         with open(save_file_path, 'w') as out_f:
-            if package_type == 'CCOD_KERNEL_MODULE':
+            if package_type == 'BINARY_FILE':
                 out_f.write("FROM harbor.io:1180/ccod-base/centos-backend:0.4\n")
             else:
                 out_f.write("FROM nexus.io:5000/ccod-base/alpine-java:jdk8-slim\n")
             out_f.write("ADD %s /opt/%s\n" % (package_file_name, package_file_name))
-            if package_type == 'CCOD_KERNEL_MODULE':
+            if package_type == 'BINARY_FILE':
                 out_f.write('RUN chmod a+x /opt/%s\n' % package_file_name)
                 out_f.write('CMD ["/bin/bash", "-c", "ldd /opt/%s;/opt/%s"]"]\n'
                             % (package_file_name, package_file_name))
@@ -587,7 +587,7 @@ class AppInstance(object):
                 '%s fail : %s exist at %s with pod_name %s' % (opt_tag, self.alias, self.domain_id, self.pod_name))
         start = datetime.datetime.now()
         print(self.exec_command)
-        if self.app_type == 'CCOD_WEBAPPS_MODULE':
+        if self.app_type == 'RESIN_WEB_APP':
             if self.app_name == 'cas':
                 cwd = '%s/payaml/tomcat6-jre7/' % work_dir
             else:
@@ -615,7 +615,7 @@ class AppInstance(object):
                 '%s fail : %s at %s not exist' % (opt_tag, self.alias, self.domain_id))
         start = datetime.datetime.now()
         print(self.exec_command)
-        if self.app_type == 'CCOD_WEBAPPS_MODULE':
+        if self.app_type == 'RESIN_WEB_APP':
             if self.app_name == 'cas':
                 cwd = '%s/payaml/tomcat6-jre7/' % work_dir
             else:
@@ -677,13 +677,13 @@ class AppInstance(object):
         cfg_uri = '%s/repository/%s/%s' % (
             nexus_host_url, pb_repository, pb_directory)
         cfg_params = "--set runtime.publicConfigPath=%s" % cfg_uri
-        if self.app_type == 'CCOD_WEBAPPS_MODULE' and self.app_name != 'cas':
+        if self.app_type == 'RESIN_WEB_APP' and self.app_name != 'cas':
             if platform_public_config and len(platform_public_config) > 0:
                 cfg_params = "%s --set isPublicConfig=False" % cfg_params
                 for pb_cfg in platform_public_config:
                     file_name = re.sub('\\.', '\\\\\\.', pb_cfg['fileName'])
                     cfg_params = "%s %s" % (cfg_params, "--set publicConfig.%s=%s" % (file_name, pb_cfg['deployPath']))
-        elif self.app_type != 'CCOD_WEBAPPS_MODULE':
+        elif self.app_type != 'RESIN_WEB_APP':
             cfg_params = "%s --set isPublicConfig=False --set publicConfig.tnsnames\\\\.ora=/usr/local/lib" % cfg_params
             if (self.app_name == 'UCGateway' or self.app_name == 'AppGateWay' or self.app_name == 'DialEngine') and self.public_config and len(self.public_config) > 0:
                 for pb_cfg in self.public_config:

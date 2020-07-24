@@ -228,6 +228,30 @@ public class AppModuleVo {
         this.startCmd = startCmd;
     }
 
+    public AppPo getApp()
+    {
+        AppPo po = new AppPo();
+        po.setHasImage(this.hasImage);
+        po.setBasePath(this.basePath);
+        po.setVersion(this.version);
+        po.setAppName(this.appName);
+        po.setUpdateTime(this.updateTime);
+        po.setCreateTime(this.createTime);
+        po.setCreateReason(this.createReason);
+        po.setComment(this.comment);
+        po.setAppType(this.appType.name);
+        po.setCcodVersion(this.ccodVersion);
+        if(this.versionControl != null)
+            po.setVersionControl(this.versionControl.name);
+        else
+            po.setVersionControl(null);
+        po.setAppId(this.appId);
+        po.setDeployPath(this.deployPath);
+        po.setStartCmd(this.startCmd);
+        po.setVersionControlUrl(this.versionControlUrl);
+        return po;
+    }
+
     @Override
     public String toString()
     {

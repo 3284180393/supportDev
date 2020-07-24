@@ -26,10 +26,6 @@ public class K8sOperationInfo {
 
     private Object obj; //该操作对象
 
-    private boolean updateGlsServer; //是否需要更新glsserver
-
-    private String updateSql; //更新glsserver的sql
-
     public K8sOperationInfo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation, Object obj)
     {
         this.jobId = jobId;
@@ -39,8 +35,6 @@ public class K8sOperationInfo {
         this.name = name;
         this.operation = operation;
         this.obj = obj;
-        this.updateGlsServer = false;
-        this.updateSql = null;
     }
 
     public String getPlatformId() {
@@ -99,19 +93,4 @@ public class K8sOperationInfo {
         this.obj = obj;
     }
 
-    public boolean isUpdateGlsServer() {
-        return updateGlsServer;
-    }
-
-    public void setUpdateGlsServer(boolean updateGlsServer) {
-        this.updateGlsServer = updateGlsServer;
-    }
-
-    public String getUpdateSql() {
-        return updateSql;
-    }
-
-    public void setUpdateSql(String updateSql) {
-        this.updateSql = updateSql;
-    }
 }

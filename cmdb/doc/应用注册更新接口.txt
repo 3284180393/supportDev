@@ -5,7 +5,7 @@ http调用方式: POST
 创建实例:
 body=
 {
-	"appType": "CCOD_KERNEL_MODULE",
+	"appType": "BINARY_FILE",
 	"appName": "psr",
 	"appAlias": "psr",
 	"version": "23799:11111",
@@ -57,7 +57,7 @@ http调用方式： POST
 更新实例:
 body=
 {
-	"appType": "CCOD_KERNEL_MODULE",
+	"appType": "BINARY_FILE",
 	"appName": "psr",
 	"appAlias": "psr",
 	"version": "23799:11111",
@@ -118,7 +118,7 @@ body=
 	"total": 1,
 	"rows": {
 		"appId": 219,
-		"appType": "CCOD_KERNEL_MODULE",
+		"appType": "BINARY_FILE",
 		"appName": "psr",
 		"appAlias": "psr",
 		"version": "23799:11111",

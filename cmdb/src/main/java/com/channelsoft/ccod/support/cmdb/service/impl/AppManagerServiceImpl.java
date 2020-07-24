@@ -590,14 +590,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
             throw new ParamException(String.format("%s[%s] install package file name is %s not %s",
                     appName, appVersion, moduleVo.getInstallPackage().getFileName(), installPackage.getFileName()));
         }
-        else if(!installPackage.getFileMd5().equals(moduleVo.getInstallPackage().getMd5()) && !AppType.CCOD_WEBAPPS_MODULE.equals(appType))
+        else if(!installPackage.getFileMd5().equals(moduleVo.getInstallPackage().getMd5()) && !AppType.RESIN_WEB_APP.equals(appType))
         {
             logger.error(String.format("%s[%s] install package file md5 is %s not %s",
                     appName, appVersion, moduleVo.getInstallPackage().getMd5(), installPackage.getFileMd5()));
             throw new ParamException(String.format("%s[%s] install package file md5 is %s not %s",
                     appName, appVersion, moduleVo.getInstallPackage().getMd5(), installPackage.getFileMd5()));
         }
-        if(!this.appSetRelationMap.containsKey(appName) && !AppType.CCOD_WEBAPPS_MODULE.equals(appType)) {
+        if(!this.appSetRelationMap.containsKey(appName) && !AppType.RESIN_WEB_APP.equals(appType)) {
             Map<String, DeployFileInfo> reportCfgMap = Arrays.stream(cfgs).collect(Collectors.toMap(DeployFileInfo::getFileName, Function.identity()));
             Map<String, AppCfgFilePo> wantCfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
             if (reportCfgMap.size() != wantCfgMap.size()) {
@@ -630,7 +630,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         if(debug)
         {
             if(StringUtils.isBlank(app.getAppType()))
-                app.setAppType(AppType.CCOD_KERNEL_MODULE.name);
+                app.setAppType(AppType.BINARY_FILE.name);
             if(StringUtils.isBlank(app.getCcodVersion()))
                 app.setCcodVersion("4.5");
         }
