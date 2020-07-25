@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * @ClassName: K8sOperationInfo
@@ -93,4 +94,14 @@ public class K8sOperationInfo {
         this.obj = obj;
     }
 
+    @Autowired
+    public String toString()
+    {
+        if(platformId == null)
+            return String.format("%s %s %s to k8s", operation.name, kind.name, name);
+        else if(domainId == null)
+            return String.format("%s %s %s to namespace %s", operation.name, kind.name, name, platformId);
+        else
+            return String.format("%s %s %s to namespace %s for %s", operation.name, kind.name, name, platformId, domainId);
+    }
 }

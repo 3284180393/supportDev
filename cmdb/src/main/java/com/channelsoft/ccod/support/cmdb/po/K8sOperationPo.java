@@ -2,6 +2,8 @@ package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Date;
 
@@ -38,7 +40,13 @@ public class K8sOperationPo {
 
     private boolean isSuccess; //是否执行成功
 
+    private String retJson; //如果执行该项操作需要返回结果，返回结果的json
+
     private String comment; //如果执行失败了，失败说明
+
+    private String desc; //操作描述
+
+    public K8sOperationPo() {}
 
     public K8sOperationPo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation, String json)
     {
@@ -50,6 +58,12 @@ public class K8sOperationPo {
         this.operation = operation;
         this.json = json;
         this.startTime = new Date();
+        if(StringUtils.isBlank(platformId))
+            this.desc = String.format("%s %s %s to k8s", operation.name, kind.name, name);
+        else if(StringUtils.isBlank(domainId))
+            this.desc = String.format("%s %s %s to namespace %s", operation.name, kind.name, name, platformId, domainId);
+        else
+            desc = String.format("%s %s %s to namespace %s for domain %s", operation.name, kind.name, name, platformId, domainId);
     }
 
     public int getOperationId() {
@@ -142,6 +156,14 @@ public class K8sOperationPo {
         timeUsage = endTime.getTime() - startTime.getTime();
     }
 
+    public String getRetJson() {
+        return retJson;
+    }
+
+    public void setRetJson(String retJson) {
+        this.retJson = retJson;
+    }
+
     public String getComment() {
         return comment;
     }
@@ -156,5 +178,43 @@ public class K8sOperationPo {
 
     public void setTimeUsage(long timeUsage) {
         this.timeUsage = timeUsage;
+    }
+
+    public String getDesc() {
+        return desc;
+    }
+
+    public void setDesc(String desc) {
+        this.desc = desc;
+    }
+
+    public void success(String retJson)
+    {
+        this.isSuccess = true;
+        this.retJson = retJson;
+        this.comment = "execute success";
+        this.endTime = new Date();
+        this.timeUsage = endTime.getTime() - startTime.getTime();
+        this.desc = String.format("%s : success, timeUsage=%d", this.desc, this.timeUsage);
+    }
+
+    public void fail(String errMsg)
+    {
+        this.isSuccess = false;
+        this.comment = errMsg;
+        this.endTime = new Date();
+        this.timeUsage = endTime.getTime() - startTime.getTime();
+        this.desc = String.format("%s fail : %s, timeUsage=%d(ms)", this.desc, errMsg, this.timeUsage);
+    }
+
+    @Autowired
+    public String toString()
+    {
+        if(platformId == null)
+            return String.format("%s %s %s to k8s", operation.name, kind.name, name);
+        else if(domainId == null)
+            return String.format("%s %s %s to namespace %s", operation.name, kind.name, name, platformId);
+        else
+            return String.format("%s %s %s to namespace %s for %s", operation.name, kind.name, name, platformId, domainId);
     }
 }

@@ -15,7 +15,7 @@ public enum K8sKind {
 
     NAMESPACE(3, "NAMESPACE", "namespace of k8s"),
 
-    DEPLOYMENT(4, "Deployment", "deployment of k8s"),
+    DEPLOYMENT(4, "DEPLOYMENT", "deployment of k8s"),
 
     INGRESS(5, "INGRESS", "ingress of k8s"),
 

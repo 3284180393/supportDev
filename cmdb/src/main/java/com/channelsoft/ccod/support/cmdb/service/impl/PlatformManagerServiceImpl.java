@@ -1,10 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
-import com.channelsoft.ccod.support.cmdb.config.AppDefine;
-import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
-import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
-import com.channelsoft.ccod.support.cmdb.config.ImageCfg;
+import com.channelsoft.ccod.support.cmdb.config.*;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
@@ -21,6 +18,7 @@ import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +58,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private final static Logger logger = LoggerFactory.getLogger(PlatformManagerServiceImpl.class);
 
-    private Gson gson = new Gson();
+    private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
 
     private Gson templateParseGson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
         @Override
@@ -79,7 +77,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             //过滤掉 类名包含 Bean的类
             return clazz.getName().contains("Bean");
         }
-    }).create();
+    }).registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
 
     @Autowired
     IK8sApiService ik8sApiService;
@@ -137,6 +135,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     @Autowired
     AppMapper appMapper;
+
+    @Autowired
+    K8sOperationMapper k8sOperationMapper;
 
     @Autowired
     CCODBiz ccodBiz;
@@ -269,6 +270,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String k8sApiUrl = "https://10.130.41.218:6443";
         String namespace = "clone-test";
         try {
+            this.k8sOperationMapper.select(null, null, null);
 //            portTest();
 //            V1Namespace ns = ik8sApiService.queryNamespace(namespace, k8sApiUrl, authToken);
 //            System.out.println(JSONObject.toJSONString(ns));
@@ -1972,7 +1974,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             List<K8sOperationInfo> execSteps = generateSchemaK8sExecStep(updateSchema, UpdateStatus.EXEC, registerApps);
             logger.debug(String.format("exec step is %s", gson.toJson(execSteps)));
-            execPlatformUpdateSteps(execSteps, updateSchema);
+            PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(execSteps, updateSchema);
+            logger.info(String.format("platform schema execute result : %s", gson.toJson(execResultVo)));
+            for(K8sOperationPo stepResult : execResultVo.getExecResults())
+            {
+                this.k8sOperationMapper.insert(stepResult);
+            }
+            if(!execResultVo.isSuccess())
+                throw new ParamException(String.format("schema execute fail : %s", execResultVo.getErrorMsg()));
         }
         Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
         for (DomainUpdatePlanInfo plan : execPlans) {
@@ -4981,166 +4990,202 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return k8sOptList;
     }
 
-    private Object execK8sOpt(K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException
+    private K8sOperationPo execK8sOpt(K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException
     {
         if(optInfo.getOperation().equals(K8sOperation.CREATE) && optInfo.getOperation().equals(K8sOperation.DELETE))
             throw new ParamException(String.format("current version not support %s %s %s",
                     optInfo.getOperation().name, optInfo.getKind().name, optInfo.getName()));
         Object retVal = null;
-        switch (optInfo.getKind())
+        K8sOperationPo execResult = new K8sOperationPo(optInfo.getJobId(), platformId, optInfo.getDomainId(), optInfo.getKind(),
+                optInfo.getName(), optInfo.getOperation(), gson.toJson(optInfo.getObj()));
+        try
         {
-            case NAMESPACE: {
-                switch (optInfo.getOperation())
-                {
-                    case CREATE:
-                        retVal = this.k8sApiService.createNamespace((V1Namespace)optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                        break;
-                    case DELETE:
-                        this.k8sApiService.deleteNamespace(optInfo.getName(), k8sApiUrl, k8sAuthToken);
-                        break;
+            switch (optInfo.getKind())
+            {
+                case NAMESPACE: {
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            this.k8sApiService.createNamespace((V1Namespace)optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.readNamespace(optInfo.getName(), k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespace(optInfo.getName(), k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
                 }
-                break;
+                case SECRET:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            this.k8sApiService.createNamespacedSecret(platformId, (V1Secret) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.readNamespacedSecret(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespacedSecret(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
+                case PV:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            this.k8sApiService.createPersistentVolume((V1PersistentVolume) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.readPersistentVolume(optInfo.getName(), k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deletePersistentVolume(optInfo.getName(), k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
+                case PVC:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            this.k8sApiService.createNamespacedPersistentVolumeClaim(platformId, (V1PersistentVolumeClaim) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.readNamespacedPersistentVolumeClaim(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespacedPersistentVolumeClaim(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
+                case CONFIGMAP:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            this.k8sApiService.createNamespacedConfigMap(platformId, (V1ConfigMap) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.readNamespacedConfigMap(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespacedConfigMap(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
+                case DEPLOYMENT:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            this.k8sApiService.createNamespacedDeployment(platformId, (V1Deployment) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.readNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
+                case SERVICE:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            this.k8sApiService.createNamespacedService(platformId, (V1Service) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.readNamespacedService(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespacedService(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
+                case INGRESS:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            this.k8sApiService.createNamespacedIngress(platformId, (ExtensionsV1beta1Ingress) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.readNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
+                default:
+                    throw new ParamException(String.format("current version not support %s %s %s",
+                            optInfo.getOperation().name, optInfo.getKind().name, optInfo.getName()));
             }
-            case SECRET:
-                switch (optInfo.getOperation())
-                {
-                    case CREATE:
-                        retVal = this.k8sApiService.createNamespacedSecret(platformId, (V1Secret) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                        break;
-                    case DELETE:
-                        this.k8sApiService.deleteNamespacedSecret(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
-                        break;
-                }
-                break;
-            case PV:
-                switch (optInfo.getOperation())
-                {
-                    case CREATE:
-                        retVal = this.k8sApiService.createPersistentVolume((V1PersistentVolume) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                        break;
-                    case DELETE:
-                        this.k8sApiService.deletePersistentVolume(optInfo.getName(), k8sApiUrl, k8sAuthToken);
-                        break;
-                }
-                break;
-            case PVC:
-                switch (optInfo.getOperation())
-                {
-                    case CREATE:
-                        retVal = this.k8sApiService.createNamespacedPersistentVolumeClaim(platformId, (V1PersistentVolumeClaim) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                        break;
-                    case DELETE:
-                        this.k8sApiService.deleteNamespacedPersistentVolumeClaim(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
-                        break;
-                }
-                break;
-            case CONFIGMAP:
-                switch (optInfo.getOperation())
-                {
-                    case CREATE:
-                        retVal = this.k8sApiService.createNamespacedConfigMap(platformId, (V1ConfigMap) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                        break;
-                    case DELETE:
-                        this.k8sApiService.deleteNamespacedConfigMap(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
-                        break;
-                }
-                break;
-            case DEPLOYMENT:
-                switch (optInfo.getOperation())
-                {
-                    case CREATE:
-                        retVal = this.k8sApiService.createNamespacedDeployment(platformId, (V1Deployment) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                        break;
-                    case DELETE:
-                        this.k8sApiService.deleteNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
-                        break;
-                }
-                break;
-            case SERVICE:
-                switch (optInfo.getOperation())
-                {
-                    case CREATE:
-                        retVal = this.k8sApiService.createNamespacedService(platformId, (V1Service) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                        break;
-                    case DELETE:
-                        this.k8sApiService.deleteNamespacedService(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
-                        break;
-                }
-                break;
-            case INGRESS:
-                switch (optInfo.getOperation())
-                {
-                    case CREATE:
-                        retVal = this.k8sApiService.createNamespacedIngress(platformId, (ExtensionsV1beta1Ingress) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                        break;
-                    case DELETE:
-                        this.k8sApiService.deleteNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
-                        break;
-                }
-                break;
-            default:
-                throw new ParamException(String.format("current version not support %s %s %s",
-                        optInfo.getOperation().name, optInfo.getKind().name, optInfo.getName()));
-
+            String retJson = retVal != null ? gson.toJson(retVal) : null;
+            execResult.success(retJson);
         }
-        return retVal;
+        catch (Exception ex)
+        {
+            logger.error(String.format("exec %s exception", gson.toJson(optInfo)), ex);
+            execResult.fail(ex.getMessage());
+        }
+        return execResult;
     }
 
-    private void execPlatformUpdateSteps(List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema) throws ApiException, ParamException, SQLException, ClassNotFoundException, K8sDataException
+    private PlatformSchemaExecResultVo execPlatformUpdateSteps(List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema) throws ApiException, ParamException, SQLException, ClassNotFoundException, K8sDataException
     {
         String platformId = schema.getPlatformId();
         String k8sApiUrl = schema.getK8sApiUrl();
         String k8sAuthToken = schema.getK8sAuthToken();
         V1Deployment glsserver = null;
         int oraclePort = 0;
+        List<K8sOperationPo> execResults = new ArrayList<>();
+        PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(schema.getSchemaId(), platformId, k8sOptList);
         for(K8sOperationInfo k8sOpt : k8sOptList)
         {
-            Object ret = execK8sOpt(k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
-            if(k8sOpt.getKind().equals(K8sKind.SERVICE) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
+            K8sOperationPo ret = execK8sOpt(k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
+            try
             {
-                V1Service service = (V1Service)ret;
-                Map<String, String> labels = service.getMetadata().getLabels();
-                if(labels == null || labels.size() == 0 || !labels.containsKey(this.serviceTypeLabel) || !labels.containsKey(this.appNameLabel))
-                    continue;
-                if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name)
-                        && labels.get(this.appNameLabel).equals("oracle"))
+                if(k8sOpt.getKind().equals(K8sKind.SERVICE) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
                 {
-                    oraclePort = getNodePortFromK8sService(service);
-                    boolean isConn = oracleConnectTest(schema.getGlsDBUser(), schema.getGlsDBPwd(), schema.getK8sHostIp(), oraclePort, "xe", 240);
-                    if(!isConn)
-                        throw new ApiException("create service for oracle fail");
-                }
-                else if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.DOMAIN_OUT_SERVICE.name) && labels.get(this.appNameLabel).equals("UCDServer"))
-                {
-                    if(oraclePort == 0)
+                    V1Service service = (V1Service)gson.fromJson(ret.getRetJson(), V1Service.class);
+                    Map<String, String> labels = service.getMetadata().getLabels();
+                    if(labels == null || labels.size() == 0 || !labels.containsKey(this.serviceTypeLabel) || !labels.containsKey(this.appNameLabel))
+                        continue;
+                    if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name)
+                            && labels.get(this.appNameLabel).equals("oracle"))
                     {
-                        V1Service oracleService = k8sApiService.readNamespacedService("oracle", platformId, k8sApiUrl, k8sAuthToken);
-                        oraclePort = getNodePortFromK8sService(oracleService);
+                        oraclePort = getNodePortFromK8sService(service);
+                        boolean isConn = oracleConnectTest(schema.getGlsDBUser(), schema.getGlsDBPwd(), schema.getK8sHostIp(), oraclePort, "xe", 240);
+                        if(!isConn)
+                            throw new ApiException("create service for oracle fail");
                     }
-                    Connection connect = createOracleConnection(schema.getGlsDBUser(), schema.getGlsDBPwd(), schema.getK8sHostIp(), oraclePort, "xe");
-                    int ucdsPort = getNodePortFromK8sService(service);
-                    String updateSql = String.format("update \"CCOD\".\"GLS_SERVICE_UNIT\" set PARAM_UCDS_PORT=%d where NAME='ucds-cloud01'", ucdsPort);
-                    PreparedStatement ps = connect.prepareStatement(updateSql);
-                    logger.debug(String.format("begin to update ucds port : %s", updateSql));
-                    ps.executeUpdate();
-                    if(glsserver == null) {
-                        glsserver = this.k8sApiService.readNamespacedDeployment("glsserver-public01", platformId, k8sApiUrl, k8sAuthToken);
-                        glsserver = templateParseGson.fromJson(templateParseGson.toJson(glsserver), V1Deployment.class);
+                    else if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.DOMAIN_OUT_SERVICE.name) && labels.get(this.appNameLabel).equals("UCDServer"))
+                    {
+                        if(oraclePort == 0)
+                        {
+                            V1Service oracleService = k8sApiService.readNamespacedService("oracle", platformId, k8sApiUrl, k8sAuthToken);
+                            oraclePort = getNodePortFromK8sService(oracleService);
+                        }
+                        Connection connect = createOracleConnection(schema.getGlsDBUser(), schema.getGlsDBPwd(), schema.getK8sHostIp(), oraclePort, "xe");
+                        int ucdsPort = getNodePortFromK8sService(service);
+                        String updateSql = String.format("update \"CCOD\".\"GLS_SERVICE_UNIT\" set PARAM_UCDS_PORT=%d where NAME='ucds-cloud01'", ucdsPort);
+                        PreparedStatement ps = connect.prepareStatement(updateSql);
+                        logger.debug(String.format("begin to update ucds port : %s", updateSql));
+                        ps.executeUpdate();
+                        if(glsserver == null) {
+                            glsserver = this.k8sApiService.readNamespacedDeployment("glsserver-public01", platformId, k8sApiUrl, k8sAuthToken);
+                            glsserver = templateParseGson.fromJson(templateParseGson.toJson(glsserver), V1Deployment.class);
+                        }
+                        Date now = new Date();
+                        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+                        glsserver.getMetadata().getLabels().put("restart-time", sf.format(now));
+                        this.k8sApiService.replaceNamespacedDeployment(glsserver.getMetadata().getName(), platformId, glsserver, k8sApiUrl, k8sAuthToken);
                     }
-                    Date now = new Date();
-                    SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-                    glsserver.getMetadata().getLabels().put("restart-time", sf.format(now));
-                    this.k8sApiService.replaceNamespacedDeployment(glsserver.getMetadata().getName(), platformId, glsserver, k8sApiUrl, k8sAuthToken);
+                }
+                else if(k8sOpt.getKind().equals(K8sKind.DEPLOYMENT) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
+                {
+                    V1Deployment deployment = gson.fromJson(ret.getRetJson(), V1Deployment.class);
+                    Map<String, String> labels = deployment.getMetadata().getLabels();
+                    if(labels.containsKey(this.deploymentTypeLabel) && labels.get(this.deploymentTypeLabel).equals(K8sDeploymentType.CCOD_DOMAIN_APP.name) && labels.containsKey("glsServer"))
+                        glsserver = (V1Deployment) k8sOpt.getObj();
                 }
             }
-            else if(k8sOpt.getKind().equals(K8sKind.DEPLOYMENT) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
+            catch (Exception ex)
             {
-                V1Deployment deployment = (V1Deployment)ret;
-                Map<String, String> labels = deployment.getMetadata().getLabels();
-                if(labels.containsKey(this.deploymentTypeLabel) && labels.get(this.deploymentTypeLabel).equals(K8sDeploymentType.CCOD_DOMAIN_APP.name) && labels.containsKey("glsServer"))
-                    glsserver = (V1Deployment) k8sOpt.getObj();
+                logger.error(String.format("exec %s fail", gson.toJson(k8sOpt)), ex);
+                ret.fail(ex.getMessage());
+                execResults.add(ret);
+                execResultVo.execFail(execResults, ex.getMessage());
+                return execResultVo;
             }
+            execResults.add(ret);
         }
+        logger.info(String.format("%s schema with jobId=%s execute success", platformId, schema.getSchemaId()));
+        execResultVo.execSuccess(execResults);
+        return execResultVo;
     }
 
 

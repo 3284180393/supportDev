@@ -1,27 +1,27 @@
 package com.channelsoft.ccod.support.cmdb.config;
 
 import com.google.gson.*;
-import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
-
 import java.lang.reflect.Type;
 
+import org.joda.time.LocalDate;
+
 /**
- * @ClassName: GsonDateUtil
+ * @ClassName: LocalDateSerializer
  * @Author: lanhb
- * @Description: 用来处理gson中的Date处理
- * @Date: 2020/6/23 18:51
+ * @Description: 用来解析LocalDate
+ * @Date: 2020/7/25 17:26
  * @Version: 1.0
  */
-public class GsonDateUtil implements JsonSerializer<DateTime>, JsonDeserializer<DateTime> {
+public class LocalDateSerializer implements JsonDeserializer<LocalDate>, JsonSerializer<LocalDate>{
 
-    private static final DateTimeFormatter TIME_FORMAT = ISODateTimeFormat.dateTime();
+    private static final DateTimeFormatter DATE_FORMAT = ISODateTimeFormat.date();
 
     @Override
-    public DateTime deserialize(final JsonElement je, final Type type,
-                                final JsonDeserializationContext jdc) throws JsonParseException
+    public LocalDate deserialize(final JsonElement je, final Type type,
+                                 final JsonDeserializationContext jdc) throws JsonParseException
     {
         final String dateAsString = je.getAsString();
         if (dateAsString.length() == 0)
@@ -30,12 +30,12 @@ public class GsonDateUtil implements JsonSerializer<DateTime>, JsonDeserializer<
         }
         else
         {
-            return TIME_FORMAT.parseDateTime(dateAsString);
+            return DATE_FORMAT.parseLocalDate(dateAsString);
         }
     }
 
     @Override
-    public JsonElement serialize(final DateTime src, final Type typeOfSrc,
+    public JsonElement serialize(final LocalDate src, final Type typeOfSrc,
                                  final JsonSerializationContext context)
     {
         String retVal;
@@ -45,7 +45,7 @@ public class GsonDateUtil implements JsonSerializer<DateTime>, JsonDeserializer<
         }
         else
         {
-            retVal = TIME_FORMAT.print(src);
+            retVal = DATE_FORMAT.print(src);
         }
         return new JsonPrimitive(retVal);
     }
