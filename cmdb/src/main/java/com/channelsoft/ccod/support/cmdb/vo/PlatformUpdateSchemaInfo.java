@@ -97,6 +97,8 @@ public class PlatformUpdateSchemaInfo {
     @NotNull(message = "k8sPVCList can not be null")
     private List<V1PersistentVolumeClaim> k8sPVCList; //需要加载的pvc列表
 
+    private V1Job k8sJob; //需要执行的k8s job
+
     private List<V1Deployment> k8sDeploymentList; //需要执行的deployment
 
     private List<V1Service> k8sServiceList; //需要执行的service列表
@@ -107,6 +109,8 @@ public class PlatformUpdateSchemaInfo {
 
     @NotNull(message = "threePartApps can not be null")
     private List<K8sCollection> threePartApps;
+
+    private List<K8sOperationInfo> execSteps;
 
     private K8sCollection oracle;
 
@@ -485,5 +489,21 @@ public class PlatformUpdateSchemaInfo {
 
     public void setK8sSecrets(List<V1Secret> k8sSecrets) {
         this.k8sSecrets = k8sSecrets;
+    }
+
+    public V1Job getK8sJob() {
+        return k8sJob;
+    }
+
+    public void setK8sJob(V1Job k8sJob) {
+        this.k8sJob = k8sJob;
+    }
+
+    public List<K8sOperationInfo> getExecSteps() {
+        return execSteps;
+    }
+
+    public void setExecSteps(List<K8sOperationInfo> execSteps) {
+        this.execSteps = execSteps;
     }
 }

@@ -25,7 +25,9 @@ public enum K8sKind {
 
     PVC(8, "PVC", "pvc of k8s"),
 
-    CONFIGMAP(9, "CONFIGMAP", "configMap of k8s"),;
+    CONFIGMAP(9, "CONFIGMAP", "configMap of k8s"),
+
+    JOB(10, "JOB", "job of k8s"),;
 
     public int id;
 

@@ -138,7 +138,7 @@ public class PlatformSchemaExecResultVo {
         return timeUsage;
     }
 
-    public void execSuccess(List<K8sOperationPo> execResults)
+    public void execResult(List<K8sOperationPo> execResults)
     {
         this.isSuccess = true;
         this.execResults = execResults;

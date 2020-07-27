@@ -58,10 +58,8 @@ public class PlatformCreateParamVo implements Serializable {
     @NotNull(message = "ccodVersion can not be null")
     private String glsDBPwd; //gls数据库的登录密码
 
-    @NotNull(message = "baseDataNexusRepository can not be null")
     private String baseDataNexusRepository; //基础数据在nexus的存放仓库
 
-    @NotNull(message = "baseDataNexusPath can not be null")
     private String baseDataNexusPath; //基础数据在nexus的存放path
 
     @NotNull(message = "publicConfig can not be null")

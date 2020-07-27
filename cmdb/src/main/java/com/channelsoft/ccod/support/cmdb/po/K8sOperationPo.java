@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
+import com.channelsoft.ccod.support.cmdb.vo.K8sOperationInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 

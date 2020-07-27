@@ -218,6 +218,8 @@ public class AppUpdateOperationInfo {
         po.setAppId(appId);
         po.setPlatformAppId(0);
         po.setPort(this.port);
+        po.setStartCmd(this.startCmd);
+        po.setDeployPath(this.deployPath);
         return po;
     }
 

@@ -101,8 +101,6 @@
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         update platform_app set
-            app_id = #{appId,jdbcType=VARCHAR},
-            assemble_id = #{assembleId,jdbcType=INTEGER},
             deploy_path = #{deployPath,jdbcType=VARCHAR},
             start_cmd = #{startCmd,jdbcType=VARCHAR}
         where platform_app_id = #{platformAppId,jdbcType=VARCHAR}

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformUpdateRecordMapper" >
+    <resultMap id="PlatformUpdateRecordMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo" >
+        <id column="record_id" property="record" jdbcType="INTEGER" />
+        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="job_id" property="jobId" jdbcType="VARCHAR" />
+        <result column="last_update_job_id" property="lastUpdateJobId" jdbcType="VARCHAR" />
+        <result column="pre_deploy_apps" property="preDeployApps" jdbcType="BLOB" />
+        <result column="exec_schema" property="execSchema" jdbcType="BLOB" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+        <result column="time_usage" property="timeUsage" jdbcType="INTEGER" />
+        <result column="result" property="result" jdbcType="BOOLEAN" />
+        <result column="comment" property="comment" jdbcType="VARCHAR" />
+        <result column="is_last" property="isLast" jdbcType="BOOLEAN" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+	    pur.record_id,
+	    pur.platform_id,
+	    pur.job_id,
+	    pur.last_update_job_id,
+	    pur.pre_deploy_apps,
+	    pur.exec_schema,
+	    pur.update_time,
+	    pur.time_usage,
+	    pur.result,
+	    pur.`comment`,
+	    pur.is_last
+    </sql>
+    <select id="select" resultMap="PlatformUpdateRecordMap">
+        select
+            <include refid="Base_Column_List" />
+        from platform_update_record pur
+        where 1=1
+        <if test="platformId!=null">
+            And
+                platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="isLastUpdate!=null">
+            And
+                is_last=#{isLastUpdate,jdbcType=BOOLEAN}
+        </if>
+    </select>
+    <select id="selectByJobId" resultMap="PlatformUpdateRecordMap" parameterType="java.lang.String">
+        select
+        <include refid="Base_Column_List" />
+        from platform_update_record pur
+        where pur.job_id=#{jobId,jdbcType=VARCHAR}
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo"
+            useGeneratedKeys="true" keyProperty="recordId">
+        insert into platform_update_record(platform_id, job_id, last_update_job_id, pre_deploy_apps, exec_schema, update_time, time_usage, result, `comment`, is_last)
+        values
+        (
+            #{platformId,jdbcType=VARCHAR},
+            #{jobId,jdbcType=VARCHAR},
+            #{lastUpdateJobId,jdbcType=VARCHAR},
+            #{preDeployApps,jdbcType=BLOB},
+            #{execSchema,jdbcType=BLOB},
+            #{updateTime,jdbcType=TIMESTAMP},
+            #{timeUsage,jdbcType=INTEGER},
+            #{result,jdbcType=BOOLEAN},
+            #{comment,jdbcType=VARCHAR},
+            #{isLast,jdbcType=BOOLEAN}
+        )
+    </insert>
+    <delete id="delete" parameterType="java.lang.String">
+        delete
+        from platform_update_record
+        where 1=1
+        <if test="platformId!=null">
+            And
+            platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="jobId!=null">
+            And
+            job_id=#{jobId,jdbcType=VARCHAR}
+        </if>
+    </delete>
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo" >
+    update platform_update_record set
+        is_last = #{isLast,jdbcType=BOOLEAN}
+    where record_id = #{recordId,jdbcType=INTEGER}
+  </update>
+</mapper>

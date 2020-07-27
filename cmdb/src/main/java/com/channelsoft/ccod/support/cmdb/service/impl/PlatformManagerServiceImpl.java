@@ -140,6 +140,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     K8sOperationMapper k8sOperationMapper;
 
     @Autowired
+    PlatformUpdateRecordMapper platformUpdateRecordMapper;
+
+    @Autowired
     CCODBiz ccodBiz;
 
     @Autowired
@@ -697,6 +700,22 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         for (AppUpdateOperationInfo optInfo : addOptList) {
             if (StringUtils.isBlank(optInfo.getOriginalAlias()))
                 optInfo.setOriginalAlias(optInfo.getAppAlias());
+        }
+    }
+
+    private void updateDeployApp()
+    {
+        Map<Integer, AppModuleVo> registerAppMap = this.appManagerService.queryAllRegisterAppModule(null).stream().collect(Collectors.toMap(AppModuleVo::getAppId, Function.identity()));
+        List<PlatformAppPo> platformApps = this.platformAppMapper.select(null, null, null, null, null, null);
+        for(PlatformAppPo  po : platformApps)
+        {
+            if(StringUtils.isNotBlank(po.getStartCmd()) && StringUtils.isNotBlank(po.getDeployPath()))
+                continue;
+            if(!registerAppMap.containsKey(po.getAppId()))
+                logger.error(String.format("%d is illegal appId", po.getAppId()));
+            po.setStartCmd(registerAppMap.get(po.getAppId()).getStartCmd());
+            po.setDeployPath(registerAppMap.get(po.getAppId()).getDeployPath());
+            this.platformAppMapper.update(po);
         }
     }
 
@@ -1907,11 +1926,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.error(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
             throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
         }
+        PlatformUpdateRecordPo rcd = this.platformUpdateRecordMapper.selectByJobId(updateSchema.getSchemaId());
+        if(rcd != null)
+            throw new ParamException(String.format("schema id %s has been used", updateSchema.getSchemaId()));
         PlatformPo platformPo = platformMapper.selectByPrimaryKey(updateSchema.getPlatformId());
         if (platformPo == null) {
             if (!updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE)) {
                 logger.error(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
-                throw new ParamException(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
+                throw new ParamException(String.format("%s platform %s not exist", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
             } else {
                 platformPo = new PlatformPo(updateSchema.getPlatformId(), updateSchema.getPlatformName(),
                         updateSchema.getBkBizId(), updateSchema.getBkCloudId(), CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
@@ -1967,6 +1989,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             List<K8sOperationInfo> tryOptList = generateSchemaK8sExecStep(updateSchema, UpdateStatus.WAIT_EXEC, registerApps);
             logger.debug(String.format("schema need exec steps : %s", gson.toJson(tryOptList)));
+            updateSchema.setExecSteps(tryOptList);
 //            execPlatformUpdateSteps(tryOptList, updateSchema);
         }
         List<DomainUpdatePlanInfo> execPlans = statusPlanMap.containsKey(UpdateStatus.EXEC) ? statusPlanMap.get(UpdateStatus.EXEC) : new ArrayList<>();
@@ -1974,12 +1997,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             List<K8sOperationInfo> execSteps = generateSchemaK8sExecStep(updateSchema, UpdateStatus.EXEC, registerApps);
             logger.debug(String.format("exec step is %s", gson.toJson(execSteps)));
-            PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(execSteps, updateSchema);
+            PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(execSteps, updateSchema, platformDeployApps);
             logger.info(String.format("platform schema execute result : %s", gson.toJson(execResultVo)));
-            for(K8sOperationPo stepResult : execResultVo.getExecResults())
-            {
-                this.k8sOperationMapper.insert(stepResult);
-            }
             if(!execResultVo.isSuccess())
                 throw new ParamException(String.format("schema execute fail : %s", execResultVo.getErrorMsg()));
         }
@@ -2050,6 +2069,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException(String.format("namespace name %s is not equal platformId %s", schema.getNamespace().getMetadata().getName(), platformId));
             else if(this.k8sApiService.isNamespaceExist(platformId, apiUrl, authToken))
                 throw new ParamException(String.format("namespace %s exist at %s", platformId, apiUrl));
+//            if(schema.getK8sJob() == null)
+//                throw new ParamException(String.format("job of new create platform is blank"));
             if(schema.getK8sSecrets() == null || schema.getK8sSecrets().size() == 0)
                 throw new ParamException(String.format("secret of new create platform can not be empty"));
             Map<String, List<V1ObjectMeta>> metaMap = schema.getK8sSecrets().stream().map(svc -> svc.getMetadata())
@@ -2121,6 +2142,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pvc);
                 execSteps.add(optInfo);
             }
+//            optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, schema.getK8sJob().getMetadata().getName(), K8sOperation.CREATE, schema.getK8sJob());
+//            execSteps.add(optInfo);
             List<NexusAssetInfo> cfgs = new ArrayList<>();
             for(AppFileNexusInfo cfgFile : schema.getPublicConfig())
             {
@@ -2616,7 +2639,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 if (hostList.size() < clonedApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp)).keySet().size())
                     throw new ParamException(String.format("%s has not enough hosts, want %s but has %d",
                             paramVo.getPlatformName(), clonedApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp)).size(), hostList.size()));
-                schemaInfo = cloneExistPlatform(paramVo, clonedDomains, clonedApps, hostList);
+                schemaInfo = cloneExistPlatform(paramVo, clonedPlatform, clonedDomains, clonedApps, hostList);
                 break;
             case PREDEFINE:
                 if (StringUtils.isBlank(paramVo.getParams())) {
@@ -2777,6 +2800,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      * 从已有的平台创建一个新的平台
      *
      * @param paramVo       平台创建参数
+     * @param clonedPlatform 被克隆的平台
      * @param clonedDomains 需要克隆的域
      * @param clonedApps    需要克隆的应用
      * @param hostList      给新平台分配的服务器列表
@@ -2787,7 +2811,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      * @throws InterfaceCallException
      * @throws LJPaasException
      */
-    private PlatformUpdateSchemaInfo cloneExistPlatform(PlatformCreateParamVo paramVo, List<DomainPo> clonedDomains, List<PlatformAppDeployDetailVo> clonedApps, List<LJHostInfo> hostList) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
+    private PlatformUpdateSchemaInfo cloneExistPlatform(PlatformCreateParamVo paramVo, PlatformPo clonedPlatform, List<DomainPo> clonedDomains, List<PlatformAppDeployDetailVo> clonedApps, List<LJHostInfo> hostList) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
         logger.debug(String.format("begin to clone platform : %s", JSONObject.toJSONString(paramVo)));
         Map<String, DomainUpdatePlanInfo> planMap = new HashMap<>();
         Map<String, DomainPo> clonedDomainMap = clonedDomains.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
@@ -2809,6 +2833,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 opt.setAppName(deployApp.getAppName());
                 opt.setTargetVersion(deployApp.getVersion());
                 opt.setAssembleTag(deployApp.getAssembleTag());
+                opt.setStartCmd(deployApp.getStartCmd());
+                opt.setDeployPath(deployApp.getDeployPath());
                 List<AppFileNexusInfo> cfgs = new ArrayList<>();
                 for (PlatformAppCfgFilePo cfg : deployApp.getCfgs()) {
                     AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
@@ -2828,6 +2854,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             i++;
         }
         PlatformUpdateSchemaInfo schema = paramVo.getPlatformCreateSchema(new ArrayList<>(planMap.values()));
+        schema.setPlatformType(clonedPlatform.getType());
+        schema.setPlatformFunc(schema.getPlatformFunc());
+        schema.setCreateMethod(PlatformCreateMethod.CLONE);
+        schema.setPublicConfig(paramVo.getPublicConfig());
 //        makeupPlatformUpdateSchema(schema, new ArrayList<>(), new ArrayList<>());
         return schema;
     }
@@ -4852,16 +4882,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         deleteList.addAll(updateList);
         addList.addAll(updateList);
         List<K8sOperationInfo> k8sOptList = new ArrayList<>();
-        for(K8sCollection collection : deleteCollections)
-        {
-            String configName = String.format("%s-%s", collection.getAlias(), domainId);
-            if(!configMapMap.containsKey(configName))
-                throw new K8sDataException(String.format("configMap %s not exist", configName));
-            K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.CONFIGMAP,
-                    configName, K8sOperation.DELETE, configMapMap.get(configName));
-            k8sOptList.add(k8sOpt);
-            configMapMap.remove(configName);
-        }
         List<NexusAssetInfo> cfgs = new ArrayList<>();
         if(planInfo.getUpdateType().equals(DomainUpdateType.ADD) && planInfo.getPublicConfig() != null && planInfo.getPublicConfig().size() > 0)
         {
@@ -4875,6 +4895,50 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.CONFIGMAP,
                     domainId, K8sOperation.CREATE, configMap);
             k8sOptList.add(k8sOpt);
+        }
+        Map<V1Deployment, List<K8sCollection>> deleteMap = deleteCollections.stream().collect(Collectors.groupingBy(K8sCollection::getDeployment));
+        for(V1Deployment deployment : deleteMap.keySet())
+        {
+            K8sOperationInfo k8sOpt;
+            for(K8sCollection collection : deleteMap.get(deployment))
+            {
+                if(!deleteList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).containsKey(collection.getAlias()))
+                    throw new ParamException(String.format("%s not in %s DELETE list", collection.getAlias(), domainId));
+                for(ExtensionsV1beta1Ingress ingress : collection.getIngresses())
+                {
+                    if(!ingress.getMetadata().getNamespace().equals(platformId))
+                        throw new ParamException(String.format("error namespace of deleted ingress %s:wanted %s,actual %s",
+                                ingress.getMetadata().getName(), platformId, ingress.getMetadata().getNamespace()));
+                    k8sOpt = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS,
+                            ingress.getMetadata().getName(), K8sOperation.DELETE, ingress);
+                    k8sOptList.add(k8sOpt);
+                }
+                for(V1Service service : collection.getServices())
+                {
+                    if(!service.getMetadata().getNamespace().equals(platformId))
+                        throw new ParamException(String.format("error namespace of deleted service %s:wanted %s,actual %s",
+                                service.getMetadata().getName(), platformId, service.getMetadata().getNamespace()));
+                    k8sOpt = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
+                            service.getMetadata().getName(), K8sOperation.DELETE, service);
+                    k8sOptList.add(k8sOpt);
+                }
+            }
+            k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.DEPLOYMENT,
+                    deployment.getMetadata().getName(), K8sOperation.DELETE, deployment);
+            if(!deployment.getMetadata().getNamespace().equals(platformId))
+                throw new ParamException(String.format("error namespace of deleted deployment %s:wanted %s,actual %s",
+                        deployment.getMetadata().getName(), platformId, deployment.getMetadata().getNamespace()));
+            k8sOptList.add(k8sOpt);
+        }
+        for(K8sCollection collection : deleteCollections)
+        {
+            String configName = String.format("%s-%s", collection.getAlias(), domainId);
+            if(!configMapMap.containsKey(configName))
+                throw new K8sDataException(String.format("configMap %s not exist", configName));
+            K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.CONFIGMAP,
+                    configName, K8sOperation.DELETE, configMapMap.get(configName));
+            k8sOptList.add(k8sOpt);
+            configMapMap.remove(configName);
         }
         for(K8sCollection collection : addCollections)
         {
@@ -4892,39 +4956,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.CONFIGMAP,
                     configName, K8sOperation.CREATE, configMap);
             k8sOptList.add(k8sOpt);
-        }
-        Map<V1Deployment, List<K8sCollection>> deleteMap = deleteCollections.stream().collect(Collectors.groupingBy(K8sCollection::getDeployment));
-        for(V1Deployment deployment : deleteMap.keySet())
-        {
-            K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, planInfo.getDomainId(), K8sKind.DEPLOYMENT,
-                    deployment.getMetadata().getName(), K8sOperation.DELETE, deployment);
-            if(!deployment.getMetadata().getNamespace().equals(platformId))
-                throw new ParamException(String.format("error namespace of deleted deployment %s:wanted %s,actual %s",
-                        deployment.getMetadata().getName(), platformId, deployment.getMetadata().getNamespace()));
-            k8sOptList.add(k8sOpt);
-            for(K8sCollection collection : deleteMap.get(deployment))
-            {
-                if(!deleteList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).containsKey(collection.getAlias()))
-                    throw new ParamException(String.format("%s not in %s DELETE list", collection.getAlias(), domainId));
-                for(V1Service service : collection.getServices())
-                {
-                    if(!service.getMetadata().getNamespace().equals(platformId))
-                        throw new ParamException(String.format("error namespace of deleted service %s:wanted %s,actual %s",
-                                service.getMetadata().getName(), platformId, service.getMetadata().getNamespace()));
-                    k8sOpt = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
-                            service.getMetadata().getName(), K8sOperation.DELETE, service);
-                    k8sOptList.add(k8sOpt);
-                }
-                for(ExtensionsV1beta1Ingress ingress : collection.getIngresses())
-                {
-                    if(!ingress.getMetadata().getNamespace().equals(platformId))
-                        throw new ParamException(String.format("error namespace of deleted ingress %s:wanted %s,actual %s",
-                                ingress.getMetadata().getName(), platformId, ingress.getMetadata().getNamespace()));
-                    k8sOpt = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS,
-                            ingress.getMetadata().getName(), K8sOperation.DELETE, ingress);
-                    k8sOptList.add(k8sOpt);
-                }
-            }
         }
         Map<V1Deployment, List<K8sCollection>> addMap = addCollections.stream().collect(Collectors.groupingBy(K8sCollection::getDeployment));
         for(V1Deployment deployment : addMap.keySet())
@@ -5006,8 +5037,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     switch (optInfo.getOperation())
                     {
                         case CREATE:
-                            this.k8sApiService.createNamespace((V1Namespace)optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            retVal = this.k8sApiService.readNamespace(optInfo.getName(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.createNamespace((V1Namespace)optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespace(optInfo.getName(), k8sApiUrl, k8sAuthToken);
@@ -5019,8 +5049,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     switch (optInfo.getOperation())
                     {
                         case CREATE:
-                            this.k8sApiService.createNamespacedSecret(platformId, (V1Secret) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            retVal = this.k8sApiService.readNamespacedSecret(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.createNamespacedSecret(platformId, (V1Secret) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedSecret(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
@@ -5031,8 +5060,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     switch (optInfo.getOperation())
                     {
                         case CREATE:
-                            this.k8sApiService.createPersistentVolume((V1PersistentVolume) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            retVal = this.k8sApiService.readPersistentVolume(optInfo.getName(), k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.createPersistentVolume((V1PersistentVolume) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                         case DELETE:
                             this.k8sApiService.deletePersistentVolume(optInfo.getName(), k8sApiUrl, k8sAuthToken);
@@ -5043,8 +5071,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     switch (optInfo.getOperation())
                     {
                         case CREATE:
-                            this.k8sApiService.createNamespacedPersistentVolumeClaim(platformId, (V1PersistentVolumeClaim) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            retVal = this.k8sApiService.readNamespacedPersistentVolumeClaim(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.createNamespacedPersistentVolumeClaim(platformId, (V1PersistentVolumeClaim) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedPersistentVolumeClaim(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
@@ -5055,8 +5082,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     switch (optInfo.getOperation())
                     {
                         case CREATE:
-                            this.k8sApiService.createNamespacedConfigMap(platformId, (V1ConfigMap) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            retVal = this.k8sApiService.readNamespacedConfigMap(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.createNamespacedConfigMap(platformId, (V1ConfigMap) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedConfigMap(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
@@ -5067,8 +5093,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     switch (optInfo.getOperation())
                     {
                         case CREATE:
-                            this.k8sApiService.createNamespacedDeployment(platformId, (V1Deployment) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            retVal = this.k8sApiService.readNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.createNamespacedDeployment(platformId, (V1Deployment) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
@@ -5079,8 +5104,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     switch (optInfo.getOperation())
                     {
                         case CREATE:
-                            this.k8sApiService.createNamespacedService(platformId, (V1Service) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            retVal = this.k8sApiService.readNamespacedService(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.createNamespacedService(platformId, (V1Service) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedService(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
@@ -5091,8 +5115,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     switch (optInfo.getOperation())
                     {
                         case CREATE:
-                            this.k8sApiService.createNamespacedIngress(platformId, (ExtensionsV1beta1Ingress) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            retVal = this.k8sApiService.readNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            retVal = this.k8sApiService.createNamespacedIngress(platformId, (ExtensionsV1beta1Ingress) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
@@ -5114,14 +5137,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResult;
     }
 
-    private PlatformSchemaExecResultVo execPlatformUpdateSteps(List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema) throws ApiException, ParamException, SQLException, ClassNotFoundException, K8sDataException
+    private PlatformSchemaExecResultVo execPlatformUpdateSteps(List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps) throws ApiException, ParamException, SQLException, ClassNotFoundException, K8sDataException
     {
+        Date startTime = new Date();
         String platformId = schema.getPlatformId();
         String k8sApiUrl = schema.getK8sApiUrl();
         String k8sAuthToken = schema.getK8sAuthToken();
         V1Deployment glsserver = null;
         int oraclePort = 0;
         List<K8sOperationPo> execResults = new ArrayList<>();
+        List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
         PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(schema.getSchemaId(), platformId, k8sOptList);
         for(K8sOperationInfo k8sOpt : k8sOptList)
         {
@@ -5184,7 +5209,32 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             execResults.add(ret);
         }
         logger.info(String.format("%s schema with jobId=%s execute success", platformId, schema.getSchemaId()));
-        execResultVo.execSuccess(execResults);
+        execResultVo.execResult(execResults);
+        for(K8sOperationPo stepResult : execResultVo.getExecResults())
+        {
+            this.k8sOperationMapper.insert(stepResult);
+        }
+        String lastJobId = lastRecords.size() == 1 ? lastRecords.get(0).getJobId() : null;
+        PlatformUpdateRecordPo recordPo = new PlatformUpdateRecordPo();
+        recordPo.setResult(execResultVo.isSuccess());
+        recordPo.setLast(true);
+        recordPo.setJobId(schema.getSchemaId());
+        recordPo.setExecSchema(gson.toJson(schema).getBytes());
+        if(!execResultVo.isSuccess())
+            recordPo.setComment(execResultVo.getErrorMsg());
+        recordPo.setLastUpdateJobId(lastJobId);
+        recordPo.setPlatformId(platformId);
+        recordPo.setJobId(schema.getSchemaId());
+        recordPo.setPreDeployApps(gson.toJson(platformApps).getBytes());
+        recordPo.setUpdateTime(startTime);
+        recordPo.setTimeUsage((int)((new Date()).getTime() - startTime.getTime())/1000);
+        logger.error(String.format("record=%s", gson.toJson(recordPo)));
+        this.platformUpdateRecordMapper.insert(recordPo);
+        for(PlatformUpdateRecordPo po : lastRecords)
+        {
+            po.setLast(false);
+            this.platformUpdateRecordMapper.update(po);
+        }
         return execResultVo;
     }
 
@@ -5242,6 +5292,160 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             this.k8sApiService.createNamespacedIngress(platformId, ingress, k8sApiUrl, k8sAuthToken);
         this.k8sApiService.replaceNamespacedDeployment(createSchema.getDcs().getDeployment().getMetadata().getName(), platformId, createSchema.getDcs().getDeployment(), k8sApiUrl, k8sAuthToken);
         return this.getPlatformTopologyFromK8s(createSchema.getPlatformName(), platformId, createSchema.getBkBizId(), createSchema.getBkCloudId(), createSchema.getCcodVersion(), hostIp, k8sApiUrl, k8sAuthToken, createSchema.getPlatformFunc());
+    }
+
+    private List<K8sOperationInfo> generateDomainRollBackSteps(List<K8sOperationPo> updateSteps)
+    {
+        List<K8sOperationInfo> optList = new ArrayList<>();
+        for(K8sOperationPo step : updateSteps)
+        {
+            Object obj = null;
+            switch (step.getKind())
+            {
+                case INGRESS:
+                    obj = this.templateParseGson.fromJson(step.getJson(), ExtensionsV1beta1Ingress.class);
+                    break;
+                case SERVICE:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1Service.class);
+                    break;
+                case DEPLOYMENT:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1Deployment.class);
+                    break;
+                case CONFIGMAP:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1ConfigMap.class);
+                    break;
+                case PV:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1PersistentVolume.class);
+                    break;
+                case NAMESPACE:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1Namespace.class);
+                    break;
+                case PVC:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1PersistentVolumeClaim.class);
+                    break;
+                case SECRET:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1Secret.class);
+                    break;
+                case JOB:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1Job.class);
+                    break;
+                case POD:
+                    obj = this.templateParseGson.fromJson(step.getJson(), V1Pod.class);
+                    break;
+            }
+            K8sOperation operation = null;
+            switch (step.getOperation())
+            {
+                case CREATE:
+                    operation = K8sOperation.DELETE;
+                    break;
+                case REPLACE:
+                    operation = K8sOperation.REPLACE;
+                    break;
+                case DELETE:
+                    operation = K8sOperation.CREATE;
+                    break;
+            }
+            K8sOperationInfo info = new K8sOperationInfo(step.getJobId(), step.getPlatformId(), step.getDomainId(), step.getKind(), step.getName(), operation, obj);
+            optList.add(info);
+        }
+        return optList;
+    }
+
+    private List<DomainUpdatePlanInfo> getK8sPlatformRollBackInfo(String platformId, String jobId, List<String> domainIds) throws ParamException
+    {
+        PlatformPo platform = this.getK8sPlatform(platformId);
+        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
+        PlatformUpdateRecordPo record = this.platformUpdateRecordMapper.selectByJobId(jobId);
+        if(record == null)
+            throw new ParamException(String.format("%s(%s) has not update record with jobId=%s", platform.getPlatformName(), platformId, jobId));
+        if(!record.isLast())
+            throw new ParamException(String.format("jobId=%s is not last update of %s(%s)", jobId, platform.getPlatformName(), platformId));
+        PlatformUpdateSchemaInfo updateSchema = gson.fromJson(new String(record.getExecSchema()), PlatformUpdateSchemaInfo.class);
+        List<PlatformAppDeployDetailVo> srcApps = gson.fromJson(new String(record.getPreDeployApps()), new TypeToken<List<PlatformAppDeployDetailVo>>(){}.getType());
+        Map<String, List<PlatformAppDeployDetailVo>> srcDomainAppMap = srcApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        Map<String, DomainUpdatePlanInfo> planMap = updateSchema.getDomainUpdatePlanList().stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity()));
+        for(String domainId : domainIds)
+        {
+            if(!planMap.containsKey(domainId))
+                throw new ParamException(String.format("%s do not do any change at last update", domainId));
+            if(!planMap.get(domainId).getUpdateType().equals(DomainUpdateType.UPDATE))
+                throw new ParamException(String.format("rollback only support update domain, not support %s %s",
+                        planMap.get(domainId).getUpdateType().name, domainId));
+            if(!srcDomainAppMap.containsKey(domainId))
+                throw new ParamException(String.format("can not find original app deploy detail of %s", domainId));
+            DomainUpdatePlanInfo rollBackPlan = getDomainRollbackPlan(domainId, planMap.get(domainId).getAppUpdateOperationList(), srcDomainAppMap.get(domainId));
+            planList.add(rollBackPlan);
+        }
+        return planList;
+    }
+
+    private DomainUpdatePlanInfo getDomainRollbackPlan(String domainId, List<AppUpdateOperationInfo> updateList, List<PlatformAppDeployDetailVo> deployApps) throws ParamException
+    {
+        List<AppUpdateOperationInfo> rolls = new ArrayList<>();
+        Map<String, PlatformAppDeployDetailVo> deployMap = deployApps.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity()));
+        for(AppUpdateOperationInfo src : updateList)
+        {
+            AppUpdateOperationInfo roll = new AppUpdateOperationInfo();
+            roll.setAppName(src.getAppName());
+            roll.setAppAlias(src.getAppAlias());
+            roll.setOriginalAlias(src.getOriginalAlias());
+            switch (src.getOperation())
+            {
+                case ADD:
+                    roll.setOperation(AppUpdateOperation.DELETE);
+                    break;
+                case UPDATE:
+                case DELETE:
+                    if(!deployMap.containsKey(src.getAppAlias()))
+                        throw new ParamException(String.format("%s has been %s at domain %s, but can not find src deploy detail", src.getAppAlias(), domainId));
+                    PlatformAppDeployDetailVo srcDetail = deployMap.get(src.getAppAlias());
+                    if(src.getOperation().equals(AppUpdateOperation.UPDATE)) {
+                        roll.setOperation(AppUpdateOperation.UPDATE);
+                        roll.setTargetVersion(srcDetail.getVersion());
+                        roll.setOriginalVersion(src.getTargetVersion());
+                    }
+                    else {
+                        roll.setOperation(AppUpdateOperation.ADD);
+                        roll.setTargetVersion(srcDetail.getVersion());
+                        roll.setOriginalVersion(null);
+                    }
+                    roll.setDeployPath(srcDetail.getDeployPath());
+                    roll.setStartCmd(srcDetail.getStartCmd());
+                    roll.setBasePath(srcDetail.getBasePath());
+                    roll.setAssembleTag(srcDetail.getAssembleTag());
+                    roll.setDomainId(domainId);
+                    roll.setHostIp(srcDetail.getHostIp());
+                    roll.setAppRunner(srcDetail.getAppAlias());
+                    roll.setCfgs(getFromPlatformAppCfg(srcDetail.getCfgs()));
+                    roll.setDomainName(srcDetail.getDomainName());
+                    roll.setPort(srcDetail.getPort());
+            }
+            rolls.add(roll);
+        }
+        DomainUpdatePlanInfo plan = new DomainUpdatePlanInfo();
+        plan.setDomainId(domainId);
+        plan.setUpdateType(DomainUpdateType.UPDATE);
+        plan.setAppUpdateOperationList(rolls);
+        return plan;
+    }
+
+    List<AppFileNexusInfo> getFromPlatformAppCfg(List<PlatformAppCfgFilePo> cfgFiles)
+    {
+        List<AppFileNexusInfo> cfgs = new ArrayList<>();
+        for (PlatformAppCfgFilePo cfg : cfgFiles) {
+            AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
+            nexusInfo.setDeployPath(cfg.getDeployPath());
+            nexusInfo.setExt(cfg.getExt());
+            nexusInfo.setFileName(cfg.getFileName());
+            nexusInfo.setFileSize(0);
+            nexusInfo.setMd5(cfg.getMd5());
+            nexusInfo.setNexusAssetId(cfg.getNexusAssetId());
+            nexusInfo.setNexusPath(cfg.getFileNexusSavePath());
+            nexusInfo.setNexusRepository(cfg.getNexusRepository());
+            cfgs.add(nexusInfo);
+        }
+        return cfgs;
     }
 
     private void deploySpecialApp(PlatformUpdateSchemaInfo schemaInfo, K8sCollection specialApp, String k8sApiUrl, String k8sAuthToken) throws ApiException, SQLException {

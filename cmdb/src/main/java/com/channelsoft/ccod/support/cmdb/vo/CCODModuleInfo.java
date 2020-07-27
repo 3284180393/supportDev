@@ -36,6 +36,10 @@ public class CCODModuleInfo {
 
     private String basePath; //应用base path
 
+    private String deployPath; //部署路径
+
+    private String startCmd; //启动命令
+
     private String appRunner; //应用运行用户
 
     private AppInstallPackagePo installPackage; //应用安装包
@@ -58,6 +62,8 @@ public class CCODModuleInfo {
         this.hostIp = deployApp.getHostIp();
         this.platformAppId = deployApp.getPlatformAppId();
         this.basePath = deployApp.getBasePath();
+        this.deployPath = deployApp.getDeployPath();
+        this.startCmd = deployApp.getStartCmd();
         this.appRunner = deployApp.getAppRunner();
         this.installPackage = deployApp.getInstallPackage();
         this.cfgs = deployApp.getCfgs();
@@ -156,6 +162,22 @@ public class CCODModuleInfo {
 
     public void setOriginalAlias(String originalAlias) {
         this.originalAlias = originalAlias;
+    }
+
+    public String getDeployPath() {
+        return deployPath;
+    }
+
+    public void setDeployPath(String deployPath) {
+        this.deployPath = deployPath;
+    }
+
+    public String getStartCmd() {
+        return startCmd;
+    }
+
+    public void setStartCmd(String startCmd) {
+        this.startCmd = startCmd;
     }
 
     @Override
