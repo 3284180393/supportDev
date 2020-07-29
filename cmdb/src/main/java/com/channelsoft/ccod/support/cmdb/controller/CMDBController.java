@@ -2,9 +2,11 @@ package com.channelsoft.ccod.support.cmdb.controller;
 
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
+import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.Gson;
@@ -103,7 +105,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<AppModuleVo> apps = this.appManagerService.queryAllRegisterAppModule(hasImage);
+            List<AppModuleVo> apps = this.appManagerService.queryAllRegisterAppModule(hasImage);;
             resultPo = new AjaxResultPo(true, "query SUCCESs", apps.size(), apps);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -619,14 +621,18 @@ public class CMDBController {
 
 
     @RequestMapping(value = "/sets", method = RequestMethod.GET)
-    public AjaxResultPo queryAllCCODBizSet()
+    public AjaxResultPo queryAllCCODBizSet(Boolean hasImage)
     {
         String uri = String.format("GET %s/sets", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            List<BizSetDefine> setDefines = this.appManagerService.queryCCODBizSet(true);
+            List<BizSetDefine> setDefines;
+            if(hasImage == null)
+                 setDefines = this.appManagerService.queryCCODBizSet(true);
+            else
+                setDefines = this.appManagerService.queryCCODBizSetWithImage(hasImage);
             resultPo = new AjaxResultPo(true, "query SUCCESS", setDefines.size(), setDefines);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -796,6 +802,112 @@ public class CMDBController {
         {
             List<PlatformTopologyInfo> platformList = this.platformManagerService.queryAllPlatformTopology();
             resultPo = new AjaxResultPo(true, "query SUCCESS", platformList.size(), platformList);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformRollBack/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformRollbackPlans(@PathVariable String platformId, DomainUpdateType updateType)
+    {
+        String uri = String.format("GET %s/domainPlans/%s?updateType=%s", this.apiBasePath, platformId, updateType);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            if(DomainUpdateType.ROLLBACK.equals(updateType))
+            {
+                List<DomainUpdatePlanInfo> planList = this.platformManagerService.queryPlatformRollbackInfo(platformId);
+                resultPo = new AjaxResultPo(true, "query SUCCESS", planList.size(), planList);
+                logger.info(String.format("query SUCCESS, quit %s", uri));
+            }
+            else
+                throw new Exception(String.format("current version not support %s update plan query", updateType));
+
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformRollBack/{platformId}", method = RequestMethod.POST)
+    public AjaxResultPo rollbackPlatform(@PathVariable String platformId, @RequestBody @Valid PlatformRollbackParamVo paramVo)
+    {
+        String uri = String.format("POST %s/platformRollBack/%s, param=%s", this.apiBasePath, platformId, gson.toJson(paramVo));
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformUpdateRecordVo recordVo = this.platformManagerService.rollbackPlatform(platformId, paramVo.getDomainIds());
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, recordVo);
+            logger.info(String.format("rollback SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformUpdateRecords", method = RequestMethod.GET)
+    public AjaxResultPo getAllUpdateRecords()
+    {
+        String uri = String.format("GET %s/platformUpdateRecords", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<PlatformUpdateRecordVo> recordList = this.platformManagerService.queryPlatformUpdateRecords();
+            resultPo = new AjaxResultPo(true, "query SUCCESS", recordList.size(), recordList);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformUpdateRecords/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformUpdateRecords(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/platformUpdateRecords/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<PlatformUpdateRecordVo> recordList = this.platformManagerService.queryPlatformUpdateRecordByPlatformId(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", recordList.size(), recordList);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platformTopologies exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformUpdateRecords/{platformId}/{jobId}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformUpdateRecordByJobId(@PathVariable String platformId, @PathVariable String jobId)
+    {
+        String uri = String.format("GET %s/platformUpdateRecords/%s/%s", this.apiBasePath, platformId, jobId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformUpdateRecordVo recordPo = this.platformManagerService.queryPlatformUpdateRecordByJobId(platformId, jobId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, recordPo);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
         catch (Exception e)

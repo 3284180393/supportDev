@@ -143,6 +143,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     PlatformUpdateRecordMapper platformUpdateRecordMapper;
 
     @Autowired
+    AppCfgFileMapper appCfgFileMapper;
+
+    @Autowired
     CCODBiz ccodBiz;
 
     @Autowired
@@ -722,6 +725,66 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private void updateRegisterApp(List<AppUpdateOperationInfo> optList)
     {
         List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
+        Map<String, List<AppUpdateOperationInfo>> optMap = optList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+        for(AppModuleVo moduleVo : registerApps)
+        {
+            AppPo app = moduleVo.getApp();
+            if(AppType.BINARY_FILE.equals(moduleVo.getAppType()))
+            {
+                app.setBasePath(String.format("/home/%s", app.getAppName().toLowerCase()));
+                app.setDeployPath("./bin");
+                app.setStartCmd(String.format("./%s", moduleVo.getInstallPackage().getFileName()));
+            }
+            else if(AppType.RESIN_WEB_APP.equals(moduleVo.getAppType()))
+            {
+                app.setBasePath("/root/resin-4.0.13");
+                app.setDeployPath("./webapps");
+                app.setStartCmd("keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/jre/lib/security/cacerts;./bin/resin.sh start;tail -F ./log/jvm-default.log");
+            }
+            else
+            {
+                app.setBasePath("/usr/local/tomcat");
+                app.setDeployPath("./webapps");
+                app.setStartCmd("keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/lib/security/cacerts;./bin/startup.sh;tail -F ./logs/catalina.out");
+            }
+            if(optMap.containsKey(app.getAppName()))
+            {
+                app.setBasePath(optMap.get(app.getAppName()).get(0).getBasePath());
+                app.setDeployPath(optMap.get(app.getAppName()).get(0).getDeployPath());
+                app.setStartCmd(optMap.get(app.getAppName()).get(0).getStartCmd());
+            }
+            this.appMapper.update(app);
+        }
+    }
+
+    private void updateRegisterAppCfgs(List<AppUpdateOperationInfo> optList)
+    {
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
+        Map<String, List<AppModuleVo>> appMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        for(AppUpdateOperationInfo optInfo : optList)
+        {
+            for(AppModuleVo module : appMap.get(optInfo.getAppName()))
+            {
+                Map<String, AppCfgFilePo> cfgMap = module.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
+                for(AppFileNexusInfo cfg : optInfo.getCfgs())
+                {
+                    if(cfgMap.containsKey(cfg.getFileName()))
+                    {
+                        AppCfgFilePo cfgFilePo = cfgMap.get(cfg.getFileName());
+                        cfgFilePo.setDeployPath(cfg.getDeployPath());
+                        this.appCfgFileMapper.update(cfgFilePo);
+                    }
+                    else
+                        logger.error(String.format("%s is not cfg file of %s with version %s", cfg.getFileName(), module.getAppName(), module.getVersion()));
+                }
+                Map<String, AppFileNexusInfo> existMap = optInfo.getCfgs().stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
+                for(AppCfgFilePo cfgFilePo : module.getCfgs())
+                {
+                    if(!existMap.containsKey(cfgFilePo.getFileName()))
+                        logger.error(String.format("deploy path of cfg file %s of %s(%s) is unconfirmed", cfgFilePo.getFileName(), module.getAppName(), module.getVersion()));
+                }
+            }
+        }
         Map<String, List<AppUpdateOperationInfo>> optMap = optList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
         for(AppModuleVo moduleVo : registerApps)
         {
@@ -1926,6 +1989,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.error(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
             throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
         }
+//        updateRegisterAppCfgs(updateSchema.getDomainUpdatePlanList().stream().flatMap(plan -> plan.getAppUpdateOperationList().stream()).collect(Collectors.toList()));
         PlatformUpdateRecordPo rcd = this.platformUpdateRecordMapper.selectByJobId(updateSchema.getSchemaId());
         if(rcd != null)
             throw new ParamException(String.format("schema id %s has been used", updateSchema.getSchemaId()));
@@ -2130,6 +2194,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException("public config of new create platform is empty");
             K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, schema.getNamespace().getMetadata().getName(), K8sOperation.CREATE, schema.getNamespace());
             execSteps.add(optInfo);
+//            optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, schema.getK8sJob().getMetadata().getName(), K8sOperation.CREATE, schema.getK8sJob());
+//            execSteps.add(optInfo);
             optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.SECRET, schema.getK8sSecrets().get(0).getMetadata().getName(), K8sOperation.CREATE, schema.getK8sSecrets().get(0));
             execSteps.add(optInfo);
             for(V1PersistentVolume pv : schema.getK8sPVList())
@@ -2142,8 +2208,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pvc);
                 execSteps.add(optInfo);
             }
-//            optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, schema.getK8sJob().getMetadata().getName(), K8sOperation.CREATE, schema.getK8sJob());
-//            execSteps.add(optInfo);
             List<NexusAssetInfo> cfgs = new ArrayList<>();
             for(AppFileNexusInfo cfgFile : schema.getPublicConfig())
             {
@@ -2232,7 +2296,53 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             List<K8sOperationInfo> optList = generateDomainK8sOperation(jobId, platformId, domainId, plan, existDomainCollects, domainConfigs, schema.getPublicConfig(), plan.getPublicConfig(), setDefine, registerApps);
             execSteps.addAll(optList);
         }
+        Map<K8sKind, List<K8sOperationInfo>> operationMap = execSteps.stream().collect(Collectors.groupingBy(K8sOperationInfo::getKind));
+        List<K8sOperationInfo> serviceList = operationMap.containsKey(K8sKind.SERVICE) ? operationMap.get(K8sKind.SERVICE) : new ArrayList<>();
+        reuseServiceNodePort(serviceList, allServices);
         return execSteps;
+    }
+
+    /**
+     * 重用已有的k8s服务的nodePort
+     * @param svcOptList 需要执行的服务列表
+     * @param existServiceList 系统正在运行的k8s服务列表
+     */
+    void reuseServiceNodePort(List<K8sOperationInfo> svcOptList, List<V1Service> existServiceList)
+    {
+        logger.debug(String.format("begin to reuse exist nodePort of k8s service"));
+        Map<String, List<K8sOperationInfo>> nameMap = svcOptList.stream().collect(Collectors.groupingBy(K8sOperationInfo::getName));
+        for(V1Service svc : existServiceList)
+        {
+            for(V1ServicePort srcPort : svc.getSpec().getPorts())
+            {
+                if(srcPort.getNodePort() == null)
+                    continue;
+                if(!nameMap.containsKey(svc.getMetadata().getName()))
+                    continue;
+                for(K8sOperationInfo optInfo : nameMap.get(svc.getMetadata().getName()))
+                {
+                    V1Service execSvc = (V1Service)optInfo.getObj();
+                    if(!execSvc.getSpec().getType().equals("NodePort"))
+                        continue;
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                        case REPLACE:
+
+                            Map<String, V1ServicePort> portMap = execSvc.getSpec().getPorts().stream().collect(Collectors.toMap(V1ServicePort::getName, Function.identity()));
+                            if(portMap.containsKey(srcPort.getName()))
+                            {
+                                logger.debug(String.format("service %s has nodePort %s, so reuse it", svc.getMetadata().getName(), srcPort.getNodePort()));
+                                portMap.get(srcPort.getName()).setNodePort(srcPort.getNodePort());
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+        logger.debug(String.format("reuse exist nodePort of exist k8s services finish"));
     }
 
     List<V1Deployment> getDomainServiceDeploy(String domainId, List<V1Deployment> allDeployments)
@@ -4866,17 +4976,29 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<AppUpdateOperationInfo> deleteList = optMap.containsKey(AppUpdateOperation.DELETE) ? optMap.get(AppUpdateOperation.DELETE) : new ArrayList<>();
         Collections.sort(deleteList, sort);
         List<K8sCollection> deleteCollections = new ArrayList<>();
-        for(int i = deleteList.size() - 1; i >=0; i--)
-            deleteCollections.add(existMap.get(deleteList.get(i).getAppAlias()));
+        for(int i = deleteList.size() - 1; i >=0; i--) {
+            AppUpdateOperationInfo deleted = deleteList.get(i);
+            if(!existMap.containsKey(deleted.getAppAlias()))
+                throw new ParamException(String.format("not find exist k8s definition for DELETE %s", deleted.getAppAlias()));
+            deleteCollections.add(existMap.get(deleted.getAppAlias()));
+        }
         List<AppUpdateOperationInfo> addList = optMap.containsKey(AppUpdateOperation.ADD) ? optMap.get(AppUpdateOperation.ADD) : new ArrayList<>();
         Collections.sort(addList, sort);
         List<K8sCollection> addCollections = new ArrayList<>();
         for(AppUpdateOperationInfo optInfo : addList)
+        {
+            if(!targetMap.containsKey(optInfo.getAppAlias()))
+                throw new ParamException(String.format("not find target k8s definition for ADD %s", optInfo.getAppAlias()));
             addCollections.add(targetMap.get(optInfo.getAppAlias()));
+        }
         List<AppUpdateOperationInfo> updateList = optMap.containsKey(AppUpdateOperation.UPDATE) ? optMap.get(AppUpdateOperation.UPDATE) : new ArrayList<>();
         Collections.sort(updateList, sort);
         for(AppUpdateOperationInfo optInfo : updateList) {
+            if(!existMap.containsKey(optInfo.getAppAlias()))
+                throw new ParamException(String.format("not find exist k8s definition for UPDATE %s", optInfo.getAppAlias()));
             deleteCollections.add(existMap.get(optInfo.getAppAlias()));
+            if(!targetMap.containsKey(optInfo.getAppAlias()))
+                throw new ParamException(String.format("not find target k8s definition for UPDATE %s", optInfo.getAppAlias()));
             addCollections.add(targetMap.get(optInfo.getAppAlias()));
         }
         deleteList.addAll(updateList);
@@ -5021,7 +5143,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return k8sOptList;
     }
 
-    private K8sOperationPo execK8sOpt(K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException
+    private K8sOperationPo execK8sOpt(K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ParamException
     {
         if(optInfo.getOperation().equals(K8sOperation.CREATE) && optInfo.getOperation().equals(K8sOperation.DELETE))
             throw new ParamException(String.format("current version not support %s %s %s",
@@ -5122,6 +5244,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             break;
                     }
                     break;
+                case JOB:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            retVal = this.k8sApiService.createNamespacedJob(platformId, (V1Job) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
                 default:
                     throw new ParamException(String.format("current version not support %s %s %s",
                             optInfo.getOperation().name, optInfo.getKind().name, optInfo.getName()));
@@ -5151,6 +5284,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         for(K8sOperationInfo k8sOpt : k8sOptList)
         {
             K8sOperationPo ret = execK8sOpt(k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
+            if(!ret.isSuccess())
+            {
+                logger.error(String.format("platform update schema exec fail : %s", ret.getComment()));
+                execResults.add(ret);
+                execResultVo.execFail(execResults, ret.getComment());
+                return execResultVo;
+            }
             try
             {
                 if(k8sOpt.getKind().equals(K8sKind.SERVICE) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
@@ -5222,7 +5362,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         recordPo.setExecSchema(gson.toJson(schema).getBytes());
         if(!execResultVo.isSuccess())
             recordPo.setComment(execResultVo.getErrorMsg());
-        recordPo.setLastUpdateJobId(lastJobId);
+        recordPo.setPreUpdateJobId(lastJobId);
         recordPo.setPlatformId(platformId);
         recordPo.setJobId(schema.getSchemaId());
         recordPo.setPreDeployApps(gson.toJson(platformApps).getBytes());
@@ -5238,6 +5378,112 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResultVo;
     }
 
+    @Override
+    public PlatformUpdateRecordVo rollbackPlatform(String platformId, List<String> domainIds) throws ParamException, ApiException {
+        logger.debug(String.format("rollback domain %s of %s to previous status", platformId, String.join(",", domainIds)));
+        PlatformPo platform = getK8sPlatform(platformId);
+        List<V1Service> existServices = this.k8sApiService.listNamespacedService(platformId, platform.getApiUrl(), platform.getAuthToken());
+        List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
+        if(lastRecords.size() == 0)
+            throw new ParamException(String.format("platform %s can not find any record to rollback", platformId));
+        else if(lastRecords.size() > 1)
+            throw new ParamException(String.format("platform %s has %d record with is_last=true, so dont know to to rollback",
+                    platformId, lastRecords.size()));
+        PlatformUpdateRecordVo lastRecord = new PlatformUpdateRecordVo(lastRecords.get(0), gson);
+        String preJobId = lastRecord.getJobId();
+        if(StringUtils.isBlank(preJobId))
+            throw new ParamException(String.format("pre_update_job_id of last update record, so %s can not rollback", platformId));
+        Map<UpdateStatus, List<DomainUpdatePlanInfo>> statusPlanMap = lastRecord.getExecSchema().getDomainUpdatePlanList().stream()
+                .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getStatus));
+        if(!statusPlanMap.containsKey(UpdateStatus.EXEC))
+            throw new ParamException(String.format("last update of %s do not EXEC any domain plan", platformId));
+        Set<String> execDomainIds = statusPlanMap.get(UpdateStatus.EXEC).stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity())).keySet();
+        Map<DomainUpdateType, List<DomainUpdatePlanInfo>> typePlanMap = lastRecord.getExecSchema().getDomainUpdatePlanList().stream()
+                .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getUpdateType));
+        if(!typePlanMap.containsKey(DomainUpdateType.UPDATE))
+            throw new ParamException(String.format("last update of %s has not any domain UPDATE plan", platformId));
+        Set<String> updateDomainIds = typePlanMap.get(DomainUpdateType.UPDATE).stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity())).keySet();
+        Map<String, DomainPo> domainMap = this.domainMapper.select(platformId, null).stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        for(String domainId : domainIds)
+        {
+            if(!domainMap.containsKey(domainId))
+                throw new ParamException(String.format("%s is not domain of platform %s", domainId, platformId));
+            else if(!execDomainIds.contains(domainId))
+                throw new ParamException(String.format("domain %s of %s do not EXEC update plan at last update record", domainId, platformId));
+            else if(!updateDomainIds.contains(domainId))
+                throw new ParamException(String.format("domain %s of %s has not UPDATE plan at last update record", domainId, platformId));
+        }
+        List<K8sOperationInfo> optList = new ArrayList<>();
+        Map<String, Integer> setMap = new HashMap<>();
+        for(int i = 0; i < this.ccodBiz.getSet().size(); i++)
+            setMap.put(this.ccodBiz.getSet().get(i).getFixedDomainId(), i);
+        Comparator<String> sort = new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                String id1 = o1.replaceAll("\\d*$", "");
+                String id2 = o2.replaceAll("\\d*$", "");
+                if(!id1.equals(id2))
+                    return setMap.get(id1) - setMap.get(id2);
+                return Integer.parseInt(o1.replaceAll(id2, "")) - Integer.parseInt(o2.replaceAll(id1, "")) ;
+            }
+        };
+        Collections.sort(domainIds, sort);
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMdd HH:mm:ss");
+        String jobId = DigestUtils.md5DigestAsHex(sf.format(new Date()).getBytes()).substring(0, 10);
+        for(String domainId : domainIds)
+        {
+            List<K8sOperationPo> domainUpdateSteps = this.k8sOperationMapper.select(lastRecord.getJobId(), platformId, domainId);
+            List<K8sOperationInfo> domainRollbackOperations = generateDomainRollBackSteps(domainUpdateSteps, jobId);
+            optList.addAll(domainRollbackOperations);
+        }
+        Map<K8sKind, List<K8sOperationInfo>> operationMap = optList.stream().collect(Collectors.groupingBy(K8sOperationInfo::getKind));
+        List<K8sOperationInfo> serviceList = operationMap.containsKey(K8sKind.SERVICE) ? operationMap.get(K8sKind.SERVICE) : new ArrayList<>();
+        reuseServiceNodePort(serviceList, existServices);
+        List<PlatformAppDeployDetailVo> platformApps = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null);
+        List<K8sOperationPo> rollbackResults = new ArrayList<>();
+        String title = String.format("rollback platform %s to status before %s", platformId, sf.format(lastRecord.getUpdateTime()));
+        String comment = String.format("rollback domain %s of platform %s(%s, updateJobId=%s) to status before %s(updateJobId=%s)",
+                String.join(",", domainIds), platform.getPlatformName(), platformId, lastRecord.getJobId(),
+                sf.format(lastRecord.getUpdateTime()), lastRecord.getPreUpdateJobId());
+        PlatformUpdateSchemaInfo schemaInfo = new PlatformUpdateSchemaInfo(platform, PlatformUpdateTaskType.ROLLBACK, UpdateStatus.EXEC, title, comment);
+        List<DomainUpdatePlanInfo> planList = getK8sPlatformRollBackInfo(platform, lastRecord.getExecSchema(), lastRecord.getPreDeployApps(), domainIds);
+        schemaInfo.setDomainUpdatePlanList(planList);
+        PlatformUpdateRecordPo updateRecord = new PlatformUpdateRecordPo();
+        updateRecord.setJobId(jobId);
+        updateRecord.setPreUpdateJobId(lastRecord.getJobId());
+        updateRecord.setLast(false);
+        updateRecord.setPreDeployApps(gson.toJson(platformApps).getBytes());
+        updateRecord.setUpdateTime(new Date());
+        updateRecord.setPlatformId(platformId);
+        updateRecord.setExecSchema(gson.toJson(schemaInfo).getBytes());
+        logger.info(String.format("rollback step is : %s", gson.toJson(optList)));
+        boolean isSuccess = true;
+        for(K8sOperationInfo optInfo : optList)
+        {
+            K8sOperationPo execResult = execK8sOpt(optInfo, platformId, platform.getApiUrl(), platform.getAuthToken());
+            rollbackResults.add(execResult);
+            if(!execResult.isSuccess()) {
+                logger.error(String.format("rollback step exec fail : %s", gson.toJson(execResult)));
+                isSuccess = false;
+                updateRecord.setResult(false);
+                updateRecord.setComment(execResult.getComment());
+                break;
+            }
+        }
+        lastRecords.get(0).setLast(false);
+        logger.debug(String.format("update is_last of job_id=%s from true to false", lastRecord.getJobId()));
+        this.platformUpdateRecordMapper.update(lastRecords.get(0));
+        if(isSuccess) {
+            logger.info(String.format("rollback domain %s of platform %s SUCCESS", String.join(",", domainIds), platformId));
+            updateRecord.setResult(true);
+        }
+        logger.debug(String.format("insert rollback steps to db"));
+        for(K8sOperationPo execResult : rollbackResults)
+            this.k8sOperationMapper.insert(execResult);
+        logger.debug(String.format("insert new platform update record(updateJobId=%s) to db", jobId));
+        this.platformUpdateRecordMapper.insert(updateRecord);
+        return new PlatformUpdateRecordVo(updateRecord, gson);
+    }
 
     @Override
     public PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException, SQLException, ClassNotFoundException, K8sDataException {
@@ -5294,11 +5540,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return this.getPlatformTopologyFromK8s(createSchema.getPlatformName(), platformId, createSchema.getBkBizId(), createSchema.getBkCloudId(), createSchema.getCcodVersion(), hostIp, k8sApiUrl, k8sAuthToken, createSchema.getPlatformFunc());
     }
 
-    private List<K8sOperationInfo> generateDomainRollBackSteps(List<K8sOperationPo> updateSteps)
+    private List<K8sOperationInfo> generateDomainRollBackSteps(List<K8sOperationPo> updateSteps, String jobId)
     {
         List<K8sOperationInfo> optList = new ArrayList<>();
-        for(K8sOperationPo step : updateSteps)
+        for(int i = updateSteps.size() - 1; i >= 0; i--)
         {
+            K8sOperationPo step = updateSteps.get(i);
             Object obj = null;
             switch (step.getKind())
             {
@@ -5346,24 +5593,60 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     operation = K8sOperation.CREATE;
                     break;
             }
-            K8sOperationInfo info = new K8sOperationInfo(step.getJobId(), step.getPlatformId(), step.getDomainId(), step.getKind(), step.getName(), operation, obj);
+            K8sOperationInfo info = new K8sOperationInfo(jobId, step.getPlatformId(), step.getDomainId(), step.getKind(), step.getName(), operation, obj);
             optList.add(info);
+        }
+        Map<K8sKind, List<K8sOperationInfo>> operationMap = optList.stream().collect(Collectors.groupingBy(K8sOperationInfo::getKind));
+        List<K8sOperationInfo> serviceList = operationMap.containsKey(K8sKind.SERVICE) ? operationMap.get(K8sKind.SERVICE) : new ArrayList<>();
+        Map<String, List<K8sOperationInfo>> nameMap = serviceList.stream().collect(Collectors.groupingBy(K8sOperationInfo::getName));
+        for(Map.Entry<String, List<K8sOperationInfo>> entry : nameMap.entrySet())
+        {
+            List<K8sOperationInfo> svcs = entry.getValue();
+            if(svcs.size() == 2)
+            {
+                V1Service deleted = (V1Service) svcs.get(0).getObj();
+                List<V1ServicePort> srcPorts = deleted.getSpec().getPorts();
+                V1Service added = (V1Service)svcs.get(1).getObj();
+                Map<String, V1ServicePort> dstPortMap = added.getSpec().getPorts().stream().collect(Collectors.toMap(V1ServicePort::getName, Function.identity()));
+                for(V1ServicePort srcPort : srcPorts)
+                {
+                    if(srcPort.getNodePort() != null && dstPortMap.containsKey(srcPort.getName()))
+                        dstPortMap.get(srcPort.getName()).setNodePort(srcPort.getNodePort());
+                }
+            }
         }
         return optList;
     }
 
-    private List<DomainUpdatePlanInfo> getK8sPlatformRollBackInfo(String platformId, String jobId, List<String> domainIds) throws ParamException
-    {
+    @Override
+    public List<DomainUpdatePlanInfo> queryPlatformRollbackInfo(String platformId) throws ParamException {
         PlatformPo platform = this.getK8sPlatform(platformId);
+        List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
+        if(lastRecords.size() == 0)
+            throw new ParamException(String.format("can not find last update info of %s", platformId));
+        else if(lastRecords.size() > 1)
+            throw new ParamException(String.format("find %d update record with is_last=true of %s", lastRecords.size(), platformId));
+        PlatformUpdateRecordPo lastRecord = lastRecords.get(0);
+        PlatformUpdateSchemaInfo schema = gson.fromJson(new String(lastRecord.getExecSchema()), PlatformUpdateSchemaInfo.class);
+        List<PlatformAppDeployDetailVo> preDeployApps = gson.fromJson(new String(lastRecord.getPreDeployApps()), new TypeToken<List<PlatformAppDeployDetailVo>>() {}.getType());
+        Map<UpdateStatus, List<DomainUpdatePlanInfo>> planStatusMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getStatus));
+        if(!planStatusMap.containsKey(UpdateStatus.EXEC))
+            throw new ParamException(String.format("platform %s with jobId=%s has not any EXEC domain plan", platformId, lastRecord.getJobId()));
+        Map<DomainUpdateType, List<DomainUpdatePlanInfo>> planTypeMap = planStatusMap.get(UpdateStatus.EXEC).stream()
+                .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getUpdateType));
+        if(!planTypeMap.containsKey(DomainUpdateType.UPDATE))
+            throw new ParamException(String.format("platform %s with jobId=%s has not any domain UPDATE plan", platformId, lastRecord.getJobId()));
+        Set<String> domainIds = planTypeMap.get(DomainUpdateType.UPDATE).stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity()))
+                .keySet();
+        List<DomainUpdatePlanInfo> planList = getK8sPlatformRollBackInfo(platform, schema, preDeployApps, new ArrayList<>(domainIds));
+        return planList;
+    }
+
+    private List<DomainUpdatePlanInfo> getK8sPlatformRollBackInfo(PlatformPo platform, PlatformUpdateSchemaInfo updateSchema, List<PlatformAppDeployDetailVo> preDeployApps, List<String> domainIds) throws ParamException
+    {
+        String platformId = platform.getPlatformId();
         List<DomainUpdatePlanInfo> planList = new ArrayList<>();
-        PlatformUpdateRecordPo record = this.platformUpdateRecordMapper.selectByJobId(jobId);
-        if(record == null)
-            throw new ParamException(String.format("%s(%s) has not update record with jobId=%s", platform.getPlatformName(), platformId, jobId));
-        if(!record.isLast())
-            throw new ParamException(String.format("jobId=%s is not last update of %s(%s)", jobId, platform.getPlatformName(), platformId));
-        PlatformUpdateSchemaInfo updateSchema = gson.fromJson(new String(record.getExecSchema()), PlatformUpdateSchemaInfo.class);
-        List<PlatformAppDeployDetailVo> srcApps = gson.fromJson(new String(record.getPreDeployApps()), new TypeToken<List<PlatformAppDeployDetailVo>>(){}.getType());
-        Map<String, List<PlatformAppDeployDetailVo>> srcDomainAppMap = srcApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        Map<String, List<PlatformAppDeployDetailVo>> srcDomainAppMap = preDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         Map<String, DomainUpdatePlanInfo> planMap = updateSchema.getDomainUpdatePlanList().stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity()));
         for(String domainId : domainIds)
         {
@@ -5428,6 +5711,40 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         plan.setUpdateType(DomainUpdateType.UPDATE);
         plan.setAppUpdateOperationList(rolls);
         return plan;
+    }
+
+    @Override
+    public List<PlatformUpdateRecordVo> queryPlatformUpdateRecords() {
+        List<PlatformUpdateRecordVo> retList = new ArrayList<>();
+        List<PlatformUpdateRecordPo> records = this.platformUpdateRecordMapper.select(null, null);
+        for(PlatformUpdateRecordPo record : records)
+            retList.add(new PlatformUpdateRecordVo(record, gson));
+        return retList;
+    }
+
+    @Override
+    public List<PlatformUpdateRecordVo> queryPlatformUpdateRecordByPlatformId(String platformId) throws ParamException {
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+            throw new ParamException(String.format("platform %s not exist", platformId));
+        List<PlatformUpdateRecordVo> retList = new ArrayList<>();
+        List<PlatformUpdateRecordPo> records =  this.platformUpdateRecordMapper.select(platformId, null);
+        for(PlatformUpdateRecordPo record : records)
+            retList.add(new PlatformUpdateRecordVo(record, gson));
+        return retList;
+    }
+
+    @Override
+    public PlatformUpdateRecordVo queryPlatformUpdateRecordByJobId(String platformId, String jobId) throws ParamException {
+        PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platformPo == null)
+            throw new ParamException(String.format("platform %s not exist", platformId));
+        PlatformUpdateRecordPo recordPo = this.platformUpdateRecordMapper.selectByJobId(jobId);
+        if(recordPo == null)
+            throw new ParamException(String.format("id=%s update record not exist", jobId));
+        if(!recordPo.getPlatformId().equals(platformId))
+            throw new ParamException(String.format("%s has not id=%s update record", platformId, jobId));
+        return new PlatformUpdateRecordVo(recordPo, gson);
     }
 
     List<AppFileNexusInfo> getFromPlatformAppCfg(List<PlatformAppCfgFilePo> cfgFiles)

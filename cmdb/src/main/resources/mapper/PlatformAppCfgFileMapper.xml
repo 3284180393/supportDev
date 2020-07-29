@@ -37,13 +37,9 @@
         values (#{platformAppId,jdbcType=VARCHAR}, #{fileName,jdbcType=VARCHAR}, #{ext,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{nexusRepository,jdbcType=VARCHAR}, #{nexusDirectory,jdbcType=VARCHAR}, #{nexusAssetId,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{md5,jdbcType=VARCHAR})
     </insert>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo" >
-        update platform_app_cfg_file set
-        ext = #{ext,jdbcType=VARCHAR},
-        deploy_path = #{deployPath,jdbcType=VARCHAR},
-        nexus_repository = #{nexusRepository,jdbcType=VARCHAR},
-        nexus_directory = #{nexusDirectory,jdbcType=VARCHAR},
-        nexus_asset_id = #{nexusAssetId,jdbcType=VARCHAR},
-        md5 = #{md5,jdbcType=VARCHAR}
+        update platform_app_cfg_file
+        set
+            deploy_path = #{deployPath,jdbcType=VARCHAR}
         where cfg_file_id = #{cfgFileId,jdbcType=INTEGER}
     </update>
     <delete id="delete">

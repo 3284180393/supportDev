@@ -117,6 +117,13 @@ public interface IAppManagerService {
     List<BizSetDefine> queryCCODBizSet(boolean isCheckApp);
 
     /**
+     * 查询ccod biz下面set信息
+     * @param hasImage 是否有image
+     * @return set下的所有模块都至少有一个已经注册并且已经生成镜像版本
+     */
+    List<BizSetDefine> queryCCODBizSetWithImage(boolean hasImage);
+
+    /**
      * 将应用从指定仓库迁移到目标仓库
      * @param targetRepository 目标仓库
      */

@@ -1,0 +1,5 @@
+http://10.130.40.164:8086/cmdb/api/platformUpdateRecords/{platformId}/{jobId}
+分别查询所有/指定平台/指定平台下指定jobId的升级记录
+
+http://10.130.40.164:8086/cmdb/api/domainUpdatePlans/{platformId}/{domainId}?updateType=ROLLBACK
+查询指定平台/域的回滚方案

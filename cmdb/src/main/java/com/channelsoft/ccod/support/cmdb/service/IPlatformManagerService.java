@@ -2,7 +2,9 @@ package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.exception.*;
+import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
@@ -143,6 +145,46 @@ public interface IPlatformManagerService {
     void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException;
 
     K8sPlatformSchemaInfo createK8sPlatformSchema(K8sPlatformSchemaInfo schemaInfo) throws Exception;
+
+    /**
+     * 查询平台回滚信息
+     * @param platformId 需要回滚的平台id
+     * @return 平台回滚信息
+     * @throws ParamException
+     */
+    List<DomainUpdatePlanInfo> queryPlatformRollbackInfo(String platformId) throws ParamException;
+
+    /**
+     * 查询所有的平台升级记录
+     * @return 查询结果
+     */
+    List<PlatformUpdateRecordVo> queryPlatformUpdateRecords();
+
+    /**
+     * 查询指定平台升级记录
+     * @param platformId 平台id
+     * @return 查询结果
+     * @throws ParamException
+     */
+    List<PlatformUpdateRecordVo> queryPlatformUpdateRecordByPlatformId(String platformId) throws ParamException;
+
+    /**
+     * 查询指定job id的平台升级记录
+     * @param platformId 平台id
+     * @param jobId job id
+     * @return 查询结果
+     * @throws ParamException platformId或是job不存在或是jobId和platformId不一致
+     */
+    PlatformUpdateRecordVo queryPlatformUpdateRecordByJobId(String platformId, String jobId) throws ParamException;
+
+    /**
+     * 回滚指定的平台
+     * @param platformId 平台id
+     * @param domainIds 需要回滚的域
+     * @return 回滚过程
+     * @throws ParamException
+     */
+    PlatformUpdateRecordVo rollbackPlatform(String platformId, List<String> domainIds) throws ParamException, ApiException;
 
     /**
      * 创建新的升级计划

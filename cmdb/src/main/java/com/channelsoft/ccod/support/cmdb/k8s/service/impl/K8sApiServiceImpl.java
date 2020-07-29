@@ -16,6 +16,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.ExtensionsV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
@@ -282,6 +283,36 @@ public class K8sApiServiceImpl implements IK8sApiService {
         V1Status status = apiInstance.deleteNamespacedSecret(name, namespace, null, null, null, null, null, null);
         logger.info(String.format("from %s Secret %s at %s delete : %s", k8sApiUrl, name, namespace, gson.toJson(status)));
         return status;
+    }
+
+    @Override
+    public List<V1Job> listNamespacedJob(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list job at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        BatchV1Api apiInstance = new BatchV1Api();
+        V1JobList list = apiInstance.listNamespacedJob(namespace, null ,null, null, null, null, null, null, null, null);
+        logger.info(String.format("find %d jobs %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1Job readNamespacedJob(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read job %s at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        BatchV1Api apiInstance = new BatchV1Api();
+        V1Job job = apiInstance.readNamespacedJob(name, namespace, null, null, null);
+        logger.info(String.format("find secret %s at %s from %s", gson.toJson(job), namespace, k8sApiUrl));
+        return job;
+    }
+
+    @Override
+    public V1Job createNamespacedJob(String namespace, V1Job job, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create job %s for %s from %s", gson.toJson(job), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        BatchV1Api apiInstance = new BatchV1Api();
+        V1Job create = apiInstance.createNamespacedJob(namespace, job, null, null, null);
+        logger.info(String.format("job %s been created for %s from %s", gson.toJson(create), namespace, k8sApiUrl));
+        return create;
     }
 
     @Override

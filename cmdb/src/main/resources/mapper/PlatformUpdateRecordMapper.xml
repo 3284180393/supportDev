@@ -2,10 +2,10 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.channelsoft.ccod.support.cmdb.dao.PlatformUpdateRecordMapper" >
     <resultMap id="PlatformUpdateRecordMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo" >
-        <id column="record_id" property="record" jdbcType="INTEGER" />
+        <id column="record_id" property="recordId" jdbcType="INTEGER" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="job_id" property="jobId" jdbcType="VARCHAR" />
-        <result column="last_update_job_id" property="lastUpdateJobId" jdbcType="VARCHAR" />
+        <result column="pre_update_job_id" property="preUpdateJobId" jdbcType="VARCHAR" />
         <result column="pre_deploy_apps" property="preDeployApps" jdbcType="BLOB" />
         <result column="exec_schema" property="execSchema" jdbcType="BLOB" />
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
@@ -18,7 +18,7 @@
 	    pur.record_id,
 	    pur.platform_id,
 	    pur.job_id,
-	    pur.last_update_job_id,
+	    pur.pre_update_job_id,
 	    pur.pre_deploy_apps,
 	    pur.exec_schema,
 	    pur.update_time,
@@ -49,12 +49,12 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo"
             useGeneratedKeys="true" keyProperty="recordId">
-        insert into platform_update_record(platform_id, job_id, last_update_job_id, pre_deploy_apps, exec_schema, update_time, time_usage, result, `comment`, is_last)
+        insert into platform_update_record(platform_id, job_id, pre_update_job_id, pre_deploy_apps, exec_schema, update_time, time_usage, result, `comment`, is_last)
         values
         (
             #{platformId,jdbcType=VARCHAR},
             #{jobId,jdbcType=VARCHAR},
-            #{lastUpdateJobId,jdbcType=VARCHAR},
+            #{preUpdateJobId,jdbcType=VARCHAR},
             #{preDeployApps,jdbcType=BLOB},
             #{execSchema,jdbcType=BLOB},
             #{updateTime,jdbcType=TIMESTAMP},

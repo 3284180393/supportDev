@@ -16,7 +16,7 @@ public class PlatformUpdateRecordPo {
 
     private String jobId;
 
-    private String lastUpdateJobId;
+    private String preUpdateJobId;
 
     private byte[] preDeployApps;
 
@@ -104,12 +104,12 @@ public class PlatformUpdateRecordPo {
         this.preDeployApps = preDeployApps;
     }
 
-    public String getLastUpdateJobId() {
-        return lastUpdateJobId;
+    public String getPreUpdateJobId() {
+        return preUpdateJobId;
     }
 
-    public void setLastUpdateJobId(String lastUpdateJobId) {
-        this.lastUpdateJobId = lastUpdateJobId;
+    public void setPreUpdateJobId(String preUpdateJobId) {
+        this.preUpdateJobId = preUpdateJobId;
     }
 
     public boolean isLast() {

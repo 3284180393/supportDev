@@ -13,7 +13,9 @@ public enum DomainUpdateType {
 
     DELETE(2, "DELETE", "移除已有域"),
 
-    UPDATE(3, "UPDATE", "更新已有域"),;
+    UPDATE(3, "UPDATE", "更新已有域"),
+
+    ROLLBACK(4, "ROLLBACK", "将该域回滚到最后一次更新前"),;
 
     public int id;
 

@@ -128,6 +128,32 @@ public class PlatformUpdateSchemaInfo {
 
     public PlatformUpdateSchemaInfo() {}
 
+    public PlatformUpdateSchemaInfo(PlatformPo platformPo, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
+    {
+        this.platformId = platformPo.getPlatformId();
+        this.platformName = platformPo.getPlatformName();
+        this.platformType = platformPo.getType();
+        this.platformFunc = platformPo.getFunc();
+        this.createMethod = platformPo.getCreateMethod();
+        this.bkBizId = platformPo.getBkBizId();
+        this.bkCloudId = platformPo.getBkCloudId();
+        this.ccodVersion = platformPo.getCcodVersion();
+        this.k8sApiUrl = platformPo.getApiUrl();
+        this.k8sAuthToken = platformPo.getAuthToken();
+        this.taskType = taskType;
+        this.title = title;
+        this.comment = comment;
+        this.status = status;
+        this.domainUpdatePlanList = new ArrayList<>();
+        this.k8sDeploymentList = new ArrayList<>();
+        this.k8sServiceList = new ArrayList<>();
+        this.k8sIngressList = new ArrayList<>();
+        this.k8sEndpointsList = new ArrayList<>();
+        this.k8sPVList = new ArrayList<>();
+        this.k8sPVCList = new ArrayList<>();
+        this.threePartApps = new ArrayList<>();
+    }
+
     public PlatformUpdateSchemaInfo(String platformId, String platformName, PlatformType platformType, PlatformFunction platformFunc,
                                     PlatformCreateMethod createMethod, int bkBizId, int bkCloudId, String ccodVersion,
                                     PlatformUpdateTaskType taskType, String title, String comment)
@@ -139,7 +165,6 @@ public class PlatformUpdateSchemaInfo {
         this.ccodVersion = ccodVersion;
         this.taskType = taskType;
         this.status = UpdateStatus.CREATE;
-        Date now = new Date();
         this.title = title;
         this.comment = comment;
         this.domainUpdatePlanList = new ArrayList<>();

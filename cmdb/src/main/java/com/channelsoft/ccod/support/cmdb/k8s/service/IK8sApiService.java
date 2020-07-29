@@ -169,6 +169,38 @@ public interface IK8sApiService {
     V1Status deleteNamespacedSecret(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 查询指定命名空间下的所有job
+     * @param namespace 指定命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 查询结果
+     * @throws ApiException
+     */
+    List<V1Job> listNamespacedJob(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定job
+     * @param name Endpoints的名称
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的job信息
+     * @throws ApiException
+     */
+    V1Job readNamespacedJob(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 为指定命名空间创建job
+     * @param namespace 命名空间
+     * @param job 需要创建的job
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 被创建的job
+     * @throws ApiException
+     */
+    V1Job createNamespacedJob(String namespace, V1Job job, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
      * 查询指定命名空间下的所有PersistentVolumeClaim
      * @param namespace 指定命名空间
      * @param k8sApiUrl k8s的api的url

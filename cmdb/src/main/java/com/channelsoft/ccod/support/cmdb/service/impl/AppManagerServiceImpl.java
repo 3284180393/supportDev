@@ -1404,6 +1404,39 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
+    @Override
+    public List<BizSetDefine> queryCCODBizSetWithImage(boolean hasImage) {
+        this.appReadLock.readLock().lock();
+        try
+        {
+            Map<String, List<AppModuleVo>> hasImageMap = this.registerAppMap.values().stream().flatMap(listContainer -> listContainer.stream()).collect(Collectors.toList())
+                    .stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).get(true).stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+            List<BizSetDefine> defineList = new ArrayList<>();
+            for(BizSetDefine setDefine : this.ccodBiz.getSet())
+            {
+                BizSetDefine define = new BizSetDefine();
+                define.setApps(new ArrayList<>());
+                define.setFixedDomainId(setDefine.getFixedDomainId());
+                define.setFixedDomainName(setDefine.getFixedDomainName());
+                define.setId(setDefine.getId());
+                define.setIsBasic(setDefine.getIsBasic());
+                define.setName(setDefine.getName());
+                for(AppDefine appDefine : setDefine.getApps())
+                {
+                    if(hasImageMap.containsKey(appDefine.getName()) && hasImage)
+                        define.getApps().add(appDefine);
+                    else if(this.registerAppMap.containsKey(appDefine.getName()) && !hasImageMap.containsKey(appDefine.getName()) && !hasImage)
+                        define.getApps().add(appDefine);
+                }
+                defineList.add(define);
+            }
+            return defineList;
+        }
+        finally {
+            this.appReadLock.readLock().unlock();
+        }
+    }
+
     /**
      * 为域新加的应用自动生成应用别名
      * @param domainPo 添加应用的域
