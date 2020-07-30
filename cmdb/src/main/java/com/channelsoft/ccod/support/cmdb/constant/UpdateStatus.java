@@ -8,6 +8,7 @@ package com.channelsoft.ccod.support.cmdb.constant;
  * @Version: 1.0
  */
 public enum UpdateStatus {
+
     CREATE(1, "CREATE", "创建"),
 
     MODIFY(2, "MODIFY", "修改"),

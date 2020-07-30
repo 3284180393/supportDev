@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.po.*;
 
@@ -42,6 +43,10 @@ public class AppModuleVo {
 
     private String startCmd; //启动命令
 
+    private String ports; //应用使用的端口
+
+    private String nodePorts; //应用对外开放的端口
+
     private String comment; //备注
 
     private AppInstallPackagePo installPackage; //应用部署包
@@ -70,6 +75,8 @@ public class AppModuleVo {
         this.basePath = app.getBasePath();
         this.deployPath = app.getDeployPath();
         this.startCmd = app.getStartCmd();
+        this.ports = app.getPorts();
+        this.nodePorts = app.getNodePorts();
         this.comment = app.getComment();
         this.installPackage = installPackage;
         this.cfgs = cfgs;
@@ -228,6 +235,22 @@ public class AppModuleVo {
         this.startCmd = startCmd;
     }
 
+    public String getPorts() {
+        return ports;
+    }
+
+    public void setPorts(String ports) {
+        this.ports = ports;
+    }
+
+    public String getNodePorts() {
+        return nodePorts;
+    }
+
+    public void setNodePorts(String nodePorts) {
+        this.nodePorts = nodePorts;
+    }
+
     public AppPo getApp()
     {
         AppPo po = new AppPo();
@@ -248,6 +271,8 @@ public class AppModuleVo {
         po.setAppId(this.appId);
         po.setDeployPath(this.deployPath);
         po.setStartCmd(this.startCmd);
+        po.setPorts(this.ports);
+        po.setNodePorts(this.nodePorts);
         po.setVersionControlUrl(this.versionControlUrl);
         return po;
     }

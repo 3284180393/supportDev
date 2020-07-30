@@ -27,6 +27,10 @@ public class K8sOperationInfo {
 
     private Object obj; //该操作对象
 
+    private boolean necessary; //是否该命令执行成功后才执行后面的命令
+
+    private int timeout; //如果necessary为true，则timeout秒内该命令未能执行成功将返回false
+
     public K8sOperationInfo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation, Object obj)
     {
         this.jobId = jobId;
@@ -92,6 +96,22 @@ public class K8sOperationInfo {
 
     public void setObj(Object obj) {
         this.obj = obj;
+    }
+
+    public boolean isNecessary() {
+        return necessary;
+    }
+
+    public void setNecessary(boolean necessary) {
+        this.necessary = necessary;
+    }
+
+    public int getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(int timeout) {
+        this.timeout = timeout;
     }
 
     @Autowired

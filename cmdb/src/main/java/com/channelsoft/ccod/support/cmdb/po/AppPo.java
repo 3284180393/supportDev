@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
 
 import java.util.Date;
@@ -28,6 +29,10 @@ public class AppPo {
     private String deployPath; //应用程序/包相对basePath的路径
 
     private String startCmd; //启动命令
+
+    private String ports; //该应用使用的端口
+
+    private String nodePorts; //该应用对外开放的端口
 
     private Date createTime; //应用创建时间
 
@@ -201,5 +206,21 @@ public class AppPo {
 
     public void setStartCmd(String startCmd) {
         this.startCmd = startCmd;
+    }
+
+    public String getPorts() {
+        return ports;
+    }
+
+    public void setPorts(String ports) {
+        this.ports = ports;
+    }
+
+    public String getNodePorts() {
+        return nodePorts;
+    }
+
+    public void setNodePorts(String nodePorts) {
+        this.nodePorts = nodePorts;
     }
 }
