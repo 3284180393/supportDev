@@ -2154,6 +2154,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException(String.format("job of new create platform is blank"));
             if(schema.getK8sSecrets() == null || schema.getK8sSecrets().size() == 0)
                 throw new ParamException(String.format("secret of new create platform can not be empty"));
+            if(schema.getThreePartServices() == null || schema.getThreePartServices().size() == 0)
+                throw new ParamException(String.format("three part service of new create platform can not be empty"));
             Map<String, List<V1ObjectMeta>> metaMap = schema.getK8sSecrets().stream().map(svc -> svc.getMetadata())
                     .collect(Collectors.toList()).stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
             if(!metaMap.containsKey("ssl"))
@@ -2236,6 +2238,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP,
                     platformId, K8sOperation.CREATE, configMap);
             execSteps.add(k8sOpt);
+            metaMap = schema.getThreePartServices().stream().map(pv -> pv.getMetadata()).collect(Collectors.toList()).stream()
+                    .collect(Collectors.groupingBy(V1ObjectMeta::getName));
+            for(String name : metaMap.keySet())
+            {
+                if(metaMap.get(name).size() > 1)
+                    throw new ParamException(String.format("three part service %s multi define", name));
+            }
+            for(V1Service threeSvc : schema.getThreePartServices())
+            {
+                optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.SERVICE, threeSvc.getMetadata().getName(), K8sOperation.CREATE, threeSvc);
+                execSteps.add(optInfo);
+            }
             for(K8sCollection threeApp : schema.getThreePartApps())
             {
                 if(threeApp.getDeployment().getMetadata().getLabels() == null)

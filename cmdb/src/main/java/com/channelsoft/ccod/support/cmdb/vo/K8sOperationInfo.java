@@ -27,9 +27,9 @@ public class K8sOperationInfo {
 
     private Object obj; //该操作对象
 
-    private boolean necessary; //是否该命令执行成功后才执行后面的命令
+    private boolean kernal; //是否是核心模块，如果是核心模块，则必须CREATE/REPLACE该模块的deployment成功后才执行后面的操作
 
-    private int timeout; //如果necessary为true，则timeout秒内该命令未能执行成功将返回false
+    private int timeout; //如果kernal为true，则timeout秒内该命令未能执行成功将返回false
 
     public K8sOperationInfo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation, Object obj)
     {
@@ -98,12 +98,12 @@ public class K8sOperationInfo {
         this.obj = obj;
     }
 
-    public boolean isNecessary() {
-        return necessary;
+    public boolean isKernal() {
+        return kernal;
     }
 
-    public void setNecessary(boolean necessary) {
-        this.necessary = necessary;
+    public void setKernal(boolean kernal) {
+        this.kernal = kernal;
     }
 
     public int getTimeout() {

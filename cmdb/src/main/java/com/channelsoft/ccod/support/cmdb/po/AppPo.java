@@ -34,6 +34,10 @@ public class AppPo {
 
     private String nodePorts; //该应用对外开放的端口
 
+    private boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
+
+    private int timeout; //启动超时
+
     private Date createTime; //应用创建时间
 
     private Date updateTime; //应用最后一次修改时间
@@ -70,6 +74,8 @@ public class AppPo {
         this.versionControl = moduleVo.getVersionControl().name;
         this.versionControlUrl = moduleVo.getVersionControlUrl();
         this.hasImage = hasImage;
+        this.setKernal(moduleVo.isKernal());
+        this.setTimeout(moduleVo.getTimeout());
     }
 
     public int getAppId() {
@@ -222,5 +228,21 @@ public class AppPo {
 
     public void setNodePorts(String nodePorts) {
         this.nodePorts = nodePorts;
+    }
+
+    public boolean isKernal() {
+        return kernal;
+    }
+
+    public void setKernal(boolean kernal) {
+        this.kernal = kernal;
+    }
+
+    public int getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(int timeout) {
+        this.timeout = timeout;
     }
 }
