@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.k8s.service;
 
+import com.channelsoft.ccod.support.cmdb.constant.K8sStatus;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import io.kubernetes.client.openapi.ApiException;
@@ -336,6 +337,18 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     V1ConfigMap createNamespacedConfigMap(String namespace, V1ConfigMap configMap, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 将指定的configMap替换成新的configMap
+     * @param name 需要替换的configMap的名称
+     * @param namespace 命名空间
+     * @param configMap 替换后的configMap
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 替换结果
+     * @throws ApiException
+     */
+    V1ConfigMap replaceNamespacedConfigMap(String name, String namespace, V1ConfigMap configMap, String k8sApiUrl, String authToken) throws ApiException;
     /**
      *
      * @param namespace
@@ -394,6 +407,17 @@ public interface IK8sApiService {
      * @throws ApiException 查询失败
      */
     V1Deployment readNamespacedDeployment(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定的Deployment的状态
+     * @param name Deployment名
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的status信息
+     * @throws ApiException 查询失败
+     */
+    K8sStatus readNamespacedDeploymentStatus(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 在指定的k8s系统里为指定命名空间创建deployment

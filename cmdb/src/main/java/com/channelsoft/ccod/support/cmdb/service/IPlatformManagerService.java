@@ -197,6 +197,29 @@ public interface IPlatformManagerService {
     PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
 
     /**
+     * 查询指定应用模块的配置文件
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param alias 应用别名
+     * @return
+     * @throws ParamException
+     */
+    List<AppFileNexusInfo> queryPlatformAppCfgs(String platformId, String domainId, String alias) throws ParamException;
+
+    /**
+     * 修改平台应用配置文件
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param alias 应用别名
+     * @param newCfgs 新的配置文件
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws NexusException
+     * @throws ApiException
+     */
+    void modifyK8sPlatformAppCfg(String platformId, String domainId, String alias, List<AppFileNexusInfo> newCfgs) throws ParamException, InterfaceCallException, NexusException, ApiException, IOException;
+
+    /**
      * 查询指定平台的命名空间
      * @param platformId 指定平台的id
      * @return 平台的的k8s的命名空间

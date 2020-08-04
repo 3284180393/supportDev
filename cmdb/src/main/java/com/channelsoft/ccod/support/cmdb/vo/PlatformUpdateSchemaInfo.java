@@ -126,6 +126,8 @@ public class PlatformUpdateSchemaInfo {
 
     private List<V1Service> threePartServices;
 
+    private List<V1Endpoints> threePartEndpoints;
+
     public PlatformUpdateSchemaInfo() {}
 
     public PlatformUpdateSchemaInfo(PlatformPo platformPo, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
@@ -530,5 +532,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setExecSteps(List<K8sOperationInfo> execSteps) {
         this.execSteps = execSteps;
+    }
+
+    public List<V1Endpoints> getThreePartEndpoints() {
+        return threePartEndpoints;
+    }
+
+    public void setThreePartEndpoints(List<V1Endpoints> threePartEndpoints) {
+        this.threePartEndpoints = threePartEndpoints;
     }
 }

@@ -14,7 +14,13 @@
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
+        <result column="init_cmd" property="startCmd" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
+        <result column="kernal" property="kernal" jdbcType="BOOLEAN" />
+        <result column="time_out" property="timeout" jdbcType="INTEGER" />
+        <result column="ports" property="ports" jdbcType="VARCHAR" />
+        <result column="node_ports" property="nodePorts" jdbcType="VARCHAR" />
+        <result column="resources" property="resources" jdbcType="VARCHAR" />
         <result column="comment" property="comment" jdbcType="VARCHAR" />
         <result column="has_image" property="hasImage" jdbcType="VARCHAR" />
         <association property="installPackage"
@@ -41,7 +47,13 @@
         a.version_control_url,
         a.base_path,
         a.deploy_path,
+        a.init_cmd,
         a.start_cmd,
+        a.kernal,
+        a.time_out,
+        a.ports,
+        a.node_ports,
+        a.resources,
         a.`comment`,
         a.has_image,
         aip.app_id AS aip_app_id,

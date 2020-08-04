@@ -41,15 +41,25 @@ public class AppModuleVo {
 
     private String deployPath; //应用程序/包相对basePath的路径
 
+    private String initCmd; //初始话命令
+
     private String startCmd; //启动命令
+
+    private String logOutputCmd; //日志输出命令
+
+    private boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
+
+    private int timeout; //启动超时
 
     private String ports; //应用使用的端口
 
     private String nodePorts; //应用对外开放的端口
 
-    private boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
+    private String resources; //启动该模块所需的资源
 
-    private int timeout; //启动超时
+    private int initialDelaySeconds; //应用预计启动时间
+
+    private int periodSeconds; //应用健康检查周期
 
     private String comment; //备注
 
@@ -78,9 +88,16 @@ public class AppModuleVo {
         this.versionControlUrl = app.getVersionControlUrl();
         this.basePath = app.getBasePath();
         this.deployPath = app.getDeployPath();
+        this.initCmd = app.getInitCmd();
         this.startCmd = app.getStartCmd();
+        this.logOutputCmd = app.getLogOutputCmd();
+        this.kernal = app.isKernal();
+        this.timeout = app.getTimeout();
         this.ports = app.getPorts();
         this.nodePorts = app.getNodePorts();
+        this.resources = app.getResources();
+        this.initialDelaySeconds = app.getInitialDelaySeconds();
+        this.periodSeconds = app.getPeriodSeconds();
         this.comment = app.getComment();
         this.installPackage = installPackage;
         this.cfgs = cfgs;
@@ -271,6 +288,46 @@ public class AppModuleVo {
         this.timeout = timeout;
     }
 
+    public String getInitCmd() {
+        return initCmd;
+    }
+
+    public void setInitCmd(String initCmd) {
+        this.initCmd = initCmd;
+    }
+
+    public String getResources() {
+        return resources;
+    }
+
+    public void setResources(String resources) {
+        this.resources = resources;
+    }
+
+    public String getLogOutputCmd() {
+        return logOutputCmd;
+    }
+
+    public void setLogOutputCmd(String logOutputCmd) {
+        this.logOutputCmd = logOutputCmd;
+    }
+
+    public int getInitialDelaySeconds() {
+        return initialDelaySeconds;
+    }
+
+    public void setInitialDelaySeconds(int initialDelaySeconds) {
+        this.initialDelaySeconds = initialDelaySeconds;
+    }
+
+    public int getPeriodSeconds() {
+        return periodSeconds;
+    }
+
+    public void setPeriodSeconds(int periodSeconds) {
+        this.periodSeconds = periodSeconds;
+    }
+
     public AppPo getApp()
     {
         AppPo po = new AppPo();
@@ -290,12 +347,19 @@ public class AppModuleVo {
             po.setVersionControl(null);
         po.setAppId(this.appId);
         po.setDeployPath(this.deployPath);
+        po.setInitCmd(this.initCmd);
         po.setStartCmd(this.startCmd);
+        po.setLogOutputCmd(this.getLogOutputCmd());
+        po.setLogOutputCmd(this.logOutputCmd);
+        po.setTimeout(this.timeout);
+        po.setResources(this.resources);
         po.setPorts(this.ports);
         po.setNodePorts(this.nodePorts);
+        po.setResources(this.resources);
+
         po.setVersionControlUrl(this.versionControlUrl);
         po.setKernal(this.kernal);
-        po.setTimeout(this.timeout);
+
         return po;
     }
 

@@ -178,4 +178,18 @@ public class AppFilePo {
         return assetInfo;
 
     }
+
+    public AppFileNexusInfo getAppFileNexusInfo()
+    {
+        AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
+        nexusInfo.setDeployPath(this.deployPath);
+        nexusInfo.setNexusRepository(this.nexusRepository);
+        nexusInfo.setNexusPath(getNexusFileSavePath());
+        nexusInfo.setNexusAssetId(this.nexusAssetId);
+        nexusInfo.setMd5(this.md5);
+        nexusInfo.setFileSize(0);
+        nexusInfo.setFileName(this.fileName);
+        nexusInfo.setExt(this.ext);
+        return nexusInfo;
+    }
 }

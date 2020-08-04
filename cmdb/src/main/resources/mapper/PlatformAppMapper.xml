@@ -10,16 +10,21 @@
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="assemble_id" property="assembleId" jdbcType="INTEGER" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
-        <result column="port" property="port" jdbcType="VARCHAR" />
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
-        <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
-        <result column="start_cmd" property="startCmd" jdbcType="TIMESTAMP" />
+        <result column="init_cmd" property="port" jdbcType="VARCHAR" />
+        <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
+        <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
+        <result column="ports" property="ports" jdbcType="VARCHAR" />
+        <result column="node_ports" property="nodePorts" jdbcType="VARCHAR" />
+        <result column="resources" property="resources" jdbcType="VARCHAR" />
+        <result column="initial_delay_seconds" property="initialDelaySeconds" jdbcType="INTEGER" />
+        <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
+        <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
     </resultMap>
-    <select id="selectByPrimaryKey" resultMap="PlatformAppMap" parameterType="java.lang.String">
-        SELECT
-	        pa.platform_app_id AS platform_app_id,
+    <sql id="Base_Column_List" >
+        	pa.platform_app_id AS platform_app_id,
 	        pa.app_id AS app_id,
 	        pa.app_alias AS app_alias,
 	        pa.original_alias AS original_alias,
@@ -27,37 +32,34 @@
 	        pa.domain_id AS domain_id,
 	        pa.assemble_id AS assemble_id,
 	        pa.host_ip AS host_ip,
-	        pa.port AS port,
 	        pa.app_runner AS app_runner,
 	        pa.base_path AS base_path,
-	        pa.deploy_time AS deploy_time,
 	        pa.deploy_path AS deploy_path,
-	        pa.start_cmd AS start_cmd
+            pa.init_cmd AS init_cmd,
+	        pa.start_cmd AS start_cmd,
+	        pa.log_output_cmd AS log_output_cmd,
+	        pa.ports AS ports,
+	        pa.node_ports AS node_ports,
+	        pa.resources AS resources,
+	        pa.initial_delay_seconds AS initial_delay_seconds,
+	        pa.period_seconds AS period_seconds,
+	        pa.deploy_time AS deploy_time
+    </sql>
+    <select id="selectByPrimaryKey" resultMap="PlatformAppMap" parameterType="java.lang.Integer">
+        SELECT
+        <include refid="Base_Column_List" />
         FROM
-	        platform_app pa
+        platform_app pa
         where pa.platform_app_id=#{platformAppId,jdbcType=INTEGER}
     </select>
     <select id="select" resultMap="PlatformAppMap" >
         SELECT
-            pa.platform_app_id AS platform_app_id,
-            pa.app_id AS app_id,
-            pa.app_alias AS app_alias,
-            pa.original_alias AS original_alias,
-            pa.platform_id AS platform_id,
-            pa.domain_id AS domain_id,
-            pa.assemble_id AS assemble_id,
-            pa.host_ip AS host_ip,
-            pa.port AS port,
-            pa.app_runner AS app_runner,
-            pa.base_path AS base_path,
-            pa.deploy_time AS deploy_time,
-            pa.deploy_path AS deploy_path,
-            pa.start_cmd AS start_cmd
+        <include refid="Base_Column_List" />
         FROM
-            platform_app pa
+        platform_app pa
         INNER JOIN app a ON pa.app_id = a.app_id
         WHERE
-            1 = 1
+        1 = 1
         <if test="platformId!=null">
             And pa.platform_id=#{platformId,jdbcType=VARCHAR}
         </if>
@@ -79,8 +81,48 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo"
             useGeneratedKeys="true" keyProperty="platformAppId">
-        insert into platform_app(app_id, app_alias, original_alias, platform_id, domain_id, assemble_id, host_ip, port, app_runner, base_path,	deploy_time, deploy_path, start_cmd)
-        values (#{appId,jdbcType=VARCHAR}, #{appAlias,jdbcType=VARCHAR}, #{originalAlias,jdbcType=VARCHAR}, #{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{assembleId,jdbcType=INTEGER}, #{hostIp,jdbcType=VARCHAR}, #{port,jdbcType=VARCHAR}, #{appRunner,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{deployTime,jdbcType=TIMESTAMP}, #{deployPath,jdbcType=VARCHAR}, #{startCmd,jdbcType=VARCHAR})
+        insert into platform_app
+            (
+                app_id,
+                app_alias,
+                original_alias,
+                platform_id,
+                domain_id,
+                assemble_id,
+                host_ip,
+                app_runner,
+                base_path,
+                deploy_path,
+                init_cmd,
+                start_cmd,
+                log_output_cmd,
+                ports,
+                node_ports,
+                resources,
+                initial_delay_seconds,
+                period_seconds,
+                deploy_time)
+        values (
+                #{appId,jdbcType=INTEGER},
+                #{appAlias,jdbcType=VARCHAR},
+                #{originalAlias,jdbcType=VARCHAR},
+                #{platformId,jdbcType=VARCHAR},
+                #{domainId,jdbcType=VARCHAR},
+                #{assembleId,jdbcType=INTEGER},
+                #{hostIp,jdbcType=VARCHAR},
+                #{appRunner,jdbcType=VARCHAR},
+                #{basePath,jdbcType=VARCHAR},
+                #{deployPath,jdbcType=VARCHAR},
+                #{initCmd,jdbcType=VARCHAR},
+                #{startCmd,jdbcType=VARCHAR},
+                #{logOutputCmd,jdbcType=VARCHAR},
+                #{ports,jdbcType=VARCHAR},
+                #{nodePorts,jdbcType=VARCHAR},
+                #{resources,jdbcType=VARCHAR},
+                #{initialDelaySeconds,jdbcType=INTEGER},
+                #{periodSeconds,jdbcType=INTEGER},
+                #{deployTime,jdbcType=TIMESTAMP}
+            )
     </insert>
     <delete id="delete">
         delete
@@ -101,8 +143,15 @@
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         update platform_app set
+            base_path = #{basePath,jdbcType=VARCHAR},
             deploy_path = #{deployPath,jdbcType=VARCHAR},
-            start_cmd = #{startCmd,jdbcType=VARCHAR}
+            init_cmd = #{initCmd,jdbcType=VARCHAR},
+            start_cmd = #{startCmd,jdbcType=VARCHAR},
+            ports = #{ports,jdbcType=VARCHAR},
+            node_ports = #{nodePorts,jdbcType=VARCHAR},
+            resources = #{resources,jdbcType=VARCHAR},
+            initial_delay_seconds = #{initialDelaySeconds,jdbcType=INTEGER},
+            period_seconds = #{periodSeconds,jdbcType=INTEGER}
         where platform_app_id = #{platformAppId,jdbcType=VARCHAR}
     </update>
 </mapper>

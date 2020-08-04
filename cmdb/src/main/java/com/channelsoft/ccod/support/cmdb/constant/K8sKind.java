@@ -27,7 +27,9 @@ public enum K8sKind {
 
     CONFIGMAP(9, "CONFIGMAP", "configMap of k8s"),
 
-    JOB(10, "JOB", "job of k8s"),;
+    JOB(10, "JOB", "job of k8s"),
+
+    ENDPOINTS(11, "ENDPOINTS", "end points of k8s"),;
 
     public int id;
 

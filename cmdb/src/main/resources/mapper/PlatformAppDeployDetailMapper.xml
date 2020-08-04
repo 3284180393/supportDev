@@ -17,18 +17,23 @@
         <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
         <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
-        <result column="port" property="port" jdbcType="VARCHAR" />
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
-        <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
         <result column="version" property="version" jdbcType="VARCHAR" />
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
+        <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
+        <result column="init_cmd" property="port" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
-
+        <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
+        <result column="ports" property="ports" jdbcType="VARCHAR" />
+        <result column="node_ports" property="nodePorts" jdbcType="VARCHAR" />
+        <result column="resources" property="resources" jdbcType="VARCHAR" />
+        <result column="initial_delay_seconds" property="initialDelaySeconds" jdbcType="INTEGER" />
+        <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
         <result column="bk_biz_id" property="bkBizId" jdbcType="INTEGER" />
         <result column="bk_set_id" property="bkSetId" jdbcType="INTEGER" />
         <result column="bk_module_id" property="bkModuleId" jdbcType="INTEGER" />
@@ -66,14 +71,20 @@
 	    pa.original_alias AS original_alias,
 	    a.app_type,
 	    pa.host_ip AS host_ip,
-	    pa.port AS port,
 	    a.version,
 	    pa.app_runner AS app_runner,
 	    a.ccod_version,
 	    pa.base_path,
-	    pa.deploy_time,
 	    pa.deploy_path,
 	    pa.start_cmd,
+	    pa.start_cmd,
+	    pa.log_output_cmd,
+	    pa.ports,
+	    pa.node_ports,
+	    pa.resources,
+	    pa.initial_delay_seconds AS initial_delay_seconds,
+	    pa.period_seconds AS period_seconds,
+	    pa.deploy_time,
 	    a.create_time,
 	    a.version_control,
 	    a.version_control_url,

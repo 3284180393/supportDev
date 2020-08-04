@@ -28,15 +28,25 @@ public class AppPo {
 
     private String deployPath; //应用程序/包相对basePath的路径
 
+    private String initCmd; //初始化命令
+
     private String startCmd; //启动命令
+
+    private String logOutputCmd; //日志输出命令
+
+    private boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
+
+    private int timeout; //启动超时
 
     private String ports; //该应用使用的端口
 
     private String nodePorts; //该应用对外开放的端口
 
-    private boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
+    private String resources; //启动该应用所需的资源
 
-    private int timeout; //启动超时
+    private int initialDelaySeconds; //应用预计启动时间
+
+    private int periodSeconds; //应用健康检查周期
 
     private Date createTime; //应用创建时间
 
@@ -66,7 +76,16 @@ public class AppPo {
         this.ccodVersion = moduleVo.getCcodVersion();
         this.basePath = moduleVo.getBasePath();
         this.deployPath = moduleVo.getDeployPath();
+        this.initCmd = moduleVo.getInitCmd();
         this.startCmd = moduleVo.getStartCmd();
+        this.logOutputCmd = moduleVo.getLogOutputCmd();
+        this.kernal = moduleVo.isKernal();
+        this.timeout = moduleVo.getTimeout();
+        this.ports = moduleVo.getPorts();
+        this.nodePorts = moduleVo.getNodePorts();
+        this.resources = moduleVo.getResources();
+        this.initialDelaySeconds = moduleVo.getInitialDelaySeconds();
+        this.periodSeconds = moduleVo.getPeriodSeconds();
         this.createTime = moduleVo.getCreateTime();
         this.updateTime = moduleVo.getUpdateTime();
         this.createReason = moduleVo.getCreateReason();
@@ -74,8 +93,6 @@ public class AppPo {
         this.versionControl = moduleVo.getVersionControl().name;
         this.versionControlUrl = moduleVo.getVersionControlUrl();
         this.hasImage = hasImage;
-        this.setKernal(moduleVo.isKernal());
-        this.setTimeout(moduleVo.getTimeout());
     }
 
     public int getAppId() {
@@ -244,5 +261,45 @@ public class AppPo {
 
     public void setTimeout(int timeout) {
         this.timeout = timeout;
+    }
+
+    public String getInitCmd() {
+        return initCmd;
+    }
+
+    public void setInitCmd(String initCmd) {
+        this.initCmd = initCmd;
+    }
+
+    public String getResources() {
+        return resources;
+    }
+
+    public void setResources(String resources) {
+        this.resources = resources;
+    }
+
+    public String getLogOutputCmd() {
+        return logOutputCmd;
+    }
+
+    public void setLogOutputCmd(String logOutputCmd) {
+        this.logOutputCmd = logOutputCmd;
+    }
+
+    public int getInitialDelaySeconds() {
+        return initialDelaySeconds;
+    }
+
+    public void setInitialDelaySeconds(int initialDelaySeconds) {
+        this.initialDelaySeconds = initialDelaySeconds;
+    }
+
+    public int getPeriodSeconds() {
+        return periodSeconds;
+    }
+
+    public void setPeriodSeconds(int periodSeconds) {
+        this.periodSeconds = periodSeconds;
     }
 }

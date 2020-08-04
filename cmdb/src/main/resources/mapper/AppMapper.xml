@@ -9,7 +9,15 @@
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
+        <result column="init_cmd" property="initCmd" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
+        <result column="kernal" property="kernal" jdbcType="BOOLEAN" />
+        <result column="time_out" property="timeout" jdbcType="INTEGER" />
+        <result column="ports" property="ports" jdbcType="VARCHAR" />
+        <result column="node_ports" property="nodePorts" jdbcType="VARCHAR" />
+        <result column="resources" property="resources" jdbcType="VARCHAR" />
+        <result column="initial_delay_seconds" property="initialDelaySeconds" jdbcType="INTEGER" />
+        <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
         <result column="create_reason" property="createReason" jdbcType="VARCHAR" />
@@ -19,7 +27,29 @@
         <result column="has_image" property="hasImage" jdbcType="BOOLEAN" />
     </resultMap>
     <sql id="Base_Column_List" >
-        a.app_id, a.app_name, a.app_type, a.version, a.ccod_version, a.base_path, a.deploy_path, a.start_cmd, a.create_time, a.update_time, a.create_reason, a.`comment`, a.version_control, a.version_control_url, a.has_image
+        a.app_id,
+        a.app_name,
+        a.app_type,
+        a.version,
+        a.ccod_version,
+        a.base_path,
+        a.deploy_path,
+        a.init_cmd,
+        a.start_cmd,
+        a.kernal,
+        a.time_out,
+        a.ports,
+        a.node_ports,
+        a.resources,
+        a.initial_delay_seconds,
+        a.period_seconds,
+        a.create_time,
+        a.update_time,
+        a.create_reason,
+        a.`comment`,
+        a.version_control,
+        a.version_control_url,
+        a.has_image
     </sql>
     <select id="selectByPrimaryKey" resultMap="AppMap" parameterType="java.lang.Integer">
         select
@@ -50,8 +80,54 @@
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppPo"
             useGeneratedKeys="true" keyProperty="appId">
-        insert into app(app_name, app_type, version, ccod_version, base_path, deploy_path, start_cmd, create_time, update_time, create_reason, `comment`, version_control, version_control_url, has_image)
-        values (#{appName,jdbcType=VARCHAR}, #{appType,jdbcType=VARCHAR}, #{version,jdbcType=VARCHAR}, #{ccodVersion,jdbcType=VARCHAR}, #{basePath,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{startCmd,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{createReason,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{versionControl,jdbcType=VARCHAR}, #{versionControlUrl,jdbcType=VARCHAR}, #{hasImage,jdbcType=BOOLEAN})
+        insert into app(
+                        app_name,
+                        app_type,
+                        version,
+                        ccod_version,
+                        base_path,
+                        deploy_path,
+                        init_cmd,
+                        start_cmd,
+                        log_output_cmd,
+                        kernal,
+                        time_out,
+                        ports,
+                        node_ports,
+                        resources,
+                        initial_delay_seconds,
+                        period_seconds,
+                        create_time,
+                        update_time,
+                        create_reason,
+                        `comment`,
+                        version_control,
+                        version_control_url,
+                        has_image)
+        values (
+                    #{appName,jdbcType=VARCHAR},
+                    #{appType,jdbcType=VARCHAR},
+                    #{version,jdbcType=VARCHAR},
+                    #{ccodVersion,jdbcType=VARCHAR},
+                    #{basePath,jdbcType=VARCHAR},
+                    #{deployPath,jdbcType=VARCHAR},
+                    #{initCmd,jdbcType=VARCHAR},
+                    #{startCmd,jdbcType=VARCHAR},
+                    #{logOutputCmd,jdbcType=VARCHAR},
+                    #{kernal,jdbcType=BOOLEAN},
+                    #{timeout,jdbcType=INTEGER},
+                    #{ports,jdbcType=VARCHAR},
+                    #{nodePorts,jdbcType=VARCHAR},
+                    #{resources,jdbcType=VARCHAR},
+                    #{initialDelaySeconds,jdbcType=INTEGER},
+                    #{periodSeconds,jdbcType=INTEGER},
+                    #{createTime,jdbcType=TIMESTAMP},
+                    #{updateTime,jdbcType=TIMESTAMP},
+                    #{createReason,jdbcType=VARCHAR},
+                    #{comment,jdbcType=VARCHAR},
+                    #{versionControl,jdbcType=VARCHAR},
+                    #{versionControlUrl,jdbcType=VARCHAR},
+                    #{hasImage,jdbcType=BOOLEAN})
     </insert>
     <delete id="delete" parameterType="java.lang.Integer">
         delete
@@ -64,7 +140,15 @@
         ccod_version = #{ccodVersion,jdbcType=VARCHAR},
         base_path = #{basePath,jdbcType=VARCHAR},
         deploy_path = #{deployPath,jdbcType=VARCHAR},
+        init_cmd = #{initCmd,jdbcType=VARCHAR},
         start_cmd = #{startCmd,jdbcType=VARCHAR},
+        kernal = #{kernal,jdbcType=BOOLEAN},
+        time_out = #{timeout,jdbcType=INTEGER},
+        ports = #{ports,jdbcType=VARCHAR},
+        node_ports = #{nodePorts,jdbcType=VARCHAR},
+        resources = #{resources,jdbcType=VARCHAR},
+        initial_delay_seconds = #{initialDelaySeconds,jdbcType=INTEGER},
+        period_seconds = #{periodSeconds,jdbcType=INTEGER},
         comment = #{comment,jdbcType=VARCHAR},
         update_time = #{updateTime,jdbcType=TIMESTAMP},
         version_control = #{versionControl,jdbcType=VARCHAR},

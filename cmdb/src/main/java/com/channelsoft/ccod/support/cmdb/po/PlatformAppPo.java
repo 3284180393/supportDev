@@ -42,7 +42,21 @@ public class PlatformAppPo {
 
     private String deployPath; //部署路径
 
+    private String initCmd; //初始化命令
+
     private String startCmd; //启动命令
+
+    private String logOutputCmd; //日志输出命令
+
+    private String ports; //该应用使用的端口
+
+    private String nodePorts; //该应用对外开放的端口
+
+    private String resources; //启动该应用所需的资源
+
+    private int initialDelaySeconds; //应用预计启动时间
+
+    private int periodSeconds; //应用健康检查周期
 
     private Date deployTime; //该应用的部署路径
 
@@ -172,6 +186,62 @@ public class PlatformAppPo {
 
     public void setStartCmd(String startCmd) {
         this.startCmd = startCmd;
+    }
+
+    public String getInitCmd() {
+        return initCmd;
+    }
+
+    public void setInitCmd(String initCmd) {
+        this.initCmd = initCmd;
+    }
+
+    public String getLogOutputCmd() {
+        return logOutputCmd;
+    }
+
+    public void setLogOutputCmd(String logOutputCmd) {
+        this.logOutputCmd = logOutputCmd;
+    }
+
+    public String getPorts() {
+        return ports;
+    }
+
+    public void setPorts(String ports) {
+        this.ports = ports;
+    }
+
+    public String getNodePorts() {
+        return nodePorts;
+    }
+
+    public void setNodePorts(String nodePorts) {
+        this.nodePorts = nodePorts;
+    }
+
+    public String getResources() {
+        return resources;
+    }
+
+    public void setResources(String resources) {
+        this.resources = resources;
+    }
+
+    public int getInitialDelaySeconds() {
+        return initialDelaySeconds;
+    }
+
+    public void setInitialDelaySeconds(int initialDelaySeconds) {
+        this.initialDelaySeconds = initialDelaySeconds;
+    }
+
+    public int getPeriodSeconds() {
+        return periodSeconds;
+    }
+
+    public void setPeriodSeconds(int periodSeconds) {
+        this.periodSeconds = periodSeconds;
     }
 
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {

@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.config.LocalDateSerializer;
 import com.channelsoft.ccod.support.cmdb.config.LocalTimeSerializer;
+import com.channelsoft.ccod.support.cmdb.constant.K8sStatus;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
@@ -166,6 +167,16 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public V1ConfigMap replaceNamespacedConfigMap(String name, String namespace, V1ConfigMap configMap, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("begin to replace configMap %s to %s at %s from %s", name, gson.toJson(configMap), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ConfigMap replace = apiInstance.replaceNamespacedConfigMap(name, namespace, configMap, null, null, null);
+        logger.info(String.format("configMap replace success : %s", gson.toJson(replace)));
+        return replace;
+    }
+
+    @Override
     public List<V1Deployment> listNamespacedDeployment(String namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("list deployment at %s from %s", namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
@@ -183,6 +194,17 @@ public class K8sApiServiceImpl implements IK8sApiService {
         V1Deployment deployment = appsV1Api.readNamespacedDeployment(name, namespace, null, null, null);
         logger.debug(String.format("find deployment %s from %s", gson.toJson(deployment), k8sApiUrl));
         return deployment;
+    }
+
+    @Override
+    public K8sStatus readNamespacedDeploymentStatus(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read deployment status %s from %s at %s", name, k8sApiUrl, namespace));
+        V1Deployment deployment = readNamespacedDeployment(name, namespace, k8sApiUrl, authToken);
+        K8sStatus status = K8sStatus.UPDATING;
+        if(deployment.getStatus().getAvailableReplicas() == deployment.getStatus().getReplicas())
+            status = K8sStatus.ACTIVE;
+        logger.info(String.format("status of deployment %s is %s", name, status.name));
+        return status;
     }
 
     @Override
@@ -702,11 +724,12 @@ public class K8sApiServiceImpl implements IK8sApiService {
         {
 //            deployReplaceTest();
 //            namespaceCreateTest();
-            createDeploymentTest();
+//            createDeploymentTest();
 //            createPVTest();
 //            createPVCTest();
 //            createSvcTest();
 //            streamTest();
+            createEndpointsTest();
         }
         catch (Exception ex)
         {
@@ -788,4 +811,30 @@ public class K8sApiServiceImpl implements IK8sApiService {
         System.out.println(gson.toJson(svc));
     }
 
+    void createEndpointsTest() throws Exception
+    {
+        String name = "umg41";
+        String namespace = "clone-test";
+        V1Endpoints endpoints = new V1Endpoints();
+        endpoints.setMetadata(new V1ObjectMeta());
+        endpoints.getMetadata().setName(name);
+        endpoints.getMetadata().setNamespace(namespace);
+        V1EndpointSubset subset = new V1EndpointSubset();
+        List<V1EndpointAddress> addressList = new ArrayList<>();
+        V1EndpointAddress address = new V1EndpointAddress();
+        address.setIp("10.130.41.41");
+        addressList.add(address);
+        V1EndpointPort port = new V1EndpointPort();
+        port.setPort(120000);
+        port.setProtocol("TCP");
+        List<V1EndpointPort> ports = new ArrayList<>();
+        ports.add(port);
+        subset.addAddressesItem(address);
+        endpoints.setSubsets(new ArrayList<>());
+        endpoints.getSubsets().add(subset);
+        getConnection(this.testK8sApiUrl, this.testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Endpoints ret = apiInstance.createNamespacedEndpoints(namespace, endpoints, null, null, null);
+        System.out.println(ret);
+    }
 }

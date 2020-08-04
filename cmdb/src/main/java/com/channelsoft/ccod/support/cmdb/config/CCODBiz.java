@@ -24,6 +24,8 @@ public class CCODBiz {
 
     private List<String> threePartServices;
 
+    private StartChains startChains;
+
     public List<BizSetDefine> getSet() {
         return set;
     }
@@ -54,5 +56,13 @@ public class CCODBiz {
 
     public void setThreePartServices(List<String> threePartServices) {
         this.threePartServices = threePartServices;
+    }
+
+    public StartChains getStartChains() {
+        return startChains;
+    }
+
+    public void setStartChains(StartChains startChains) {
+        this.startChains = startChains;
     }
 }
