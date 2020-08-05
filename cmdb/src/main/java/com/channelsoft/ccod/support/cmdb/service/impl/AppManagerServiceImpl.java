@@ -629,8 +629,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
     {
         if(debug)
         {
-            if(StringUtils.isBlank(app.getAppType()))
-                app.setAppType(AppType.BINARY_FILE.name);
+            if(app.getAppType() == null)
+                app.setAppType(AppType.BINARY_FILE);
             if(StringUtils.isBlank(app.getCcodVersion()))
                 app.setCcodVersion("4.5");
         }
@@ -976,10 +976,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
                 throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
             }
-            if(this.registerAppMap.containsKey(appName) && this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getAppName, Function.identity())).containsKey(version))
+            if(this.registerAppMap.containsKey(appName))
             {
-                logger.error(String.format("%s(%s) has registered", appName, version));
-                throw new ParamException(String.format("%s(%s) has registered", appName, version));
+                Map<String, AppModuleVo> versionMap = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+                if(versionMap.containsKey(version))
+                {
+                    logger.error(String.format("%s(%s) has registered", appName, version));
+                    throw new ParamException(String.format("%s(%s) has registered", appName, version));
+                }
             }
             String directory = appModule.getAppNexusDirectory();
             String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
@@ -995,7 +999,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new ParamException(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
                         appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
             }
-            fileList.add(new DeployFileInfo(appModule.getInstallPackage().getFileName(), savePth));
+            fileList.add(new DeployFileInfo(appModule.getInstallPackage(), savePth));
             for(AppCfgFilePo cfg : appModule.getCfgs())
             {
                 downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
@@ -1009,7 +1013,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
                             cfg.getFileName(), cfg.getMd5(), md5));
                 }
-                fileList.add(new DeployFileInfo(cfg.getFileName(), savePth));
+                fileList.add(new DeployFileInfo(cfg, savePth));
             }
             this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
             Map<String, DeployFileInfo> fileMap = fileList.stream().collect(Collectors.toMap(DeployFileInfo::getFileName, Function.identity()));
@@ -1164,93 +1168,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new ParamException(String.format("file %s verify md5 FAIL : report=%s and download=%s",
                         filePo.getFileName(), filePo.getMd5(), md5));
             }
-            fileList.add(new DeployFileInfo(filePo.getFileName(), savePth));
+            fileList.add(new DeployFileInfo(filePo, savePth));
         }
         return this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, dstRepository, dstDirectory, fileList.toArray(new DeployFileInfo[0]));
     }
-
-    /**
-     * 为平台创建计划的新建域自动生成域id，为域部署的应用自动生成应用别名
-     * @param schema 原始平台创建计划
-     * @param setDefineList 预定义的ccod集群
-     * @throws ParamException 输入参数有误
-     * @throws NotSupportAppException
-     * @throws NotSupportSetException
-     */
-    void makeupPlatform4CreateSchema(PlatformUpdateSchemaInfo schema, List<BizSetDefine> setDefineList) throws ParamException, NotSupportAppException, NotSupportSetException
-    {
-        Map<String, BizSetDefine> setDefineMap = setDefineList.stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
-        Map<String, List<DomainUpdatePlanInfo>> setDomainMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getBkSetName));
-        for(String setName : setDefineMap.keySet())
-        {
-            if(!setDomainMap.containsKey(setName))
-                continue;
-            List<DomainUpdatePlanInfo> planList = setDomainMap.get(setName);
-            if(!setDefineMap.containsKey(setName))
-            {
-                logger.error(String.format("set name %s is not support", setName));
-                throw new NotSupportSetException(String.format("set name %s is not support", setName));
-            }
-            BizSetDefine setDefine = setDefineMap.get(setName);
-            Map<String, AppDefine> map = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
-            String standardDomainId = setDefine.getFixedDomainId();
-            List<String> usedDomainIds = new ArrayList<>();
-            List<DomainUpdatePlanInfo> notDomainIdPlans = new ArrayList<>();
-            for(DomainUpdatePlanInfo planInfo : planList)
-            {
-                if(StringUtils.isBlank(planInfo.getDomainId()))
-                {
-                    notDomainIdPlans.add(planInfo);
-                }
-                else
-                {
-                    usedDomainIds.add(planInfo.getDomainId());
-                }
-                Map<String, List<AppUpdateOperationInfo>> appOptMap = planInfo.getAppUpdateOperationList().stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-                for(String appName : appOptMap.keySet())
-                {
-                    if(!this.registerAppMap.containsKey(appName))
-                    {
-                        logger.error(String.format("set %s not support %s", setName, appName));
-                        throw new NotSupportAppException(String.format("set %s not support %s", setName, appName));
-                    }
-                    String standardAlias = map.get(appName).getAlias();
-                    List<AppUpdateOperationInfo> optList = appOptMap.get(appName);
-                    List<AppUpdateOperationInfo> notAliasOpts = new ArrayList<>();
-                    List<String> usedAlias = new ArrayList<>();
-                    for(AppUpdateOperationInfo opt : optList)
-                    {
-                        if(StringUtils.isBlank(opt.getAppAlias()))
-                        {
-                            notAliasOpts.add(opt);
-                        }
-                        else
-                        {
-                            usedAlias.add(opt.getAppAlias());
-                        }
-                    }
-                    if(optList.size() > 0) {
-                        boolean onlyOne = optList.size() > 1 ? false : true;
-                        for (AppUpdateOperationInfo opt : notAliasOpts) {
-                            String alias = autoGenerateAlias(standardAlias, usedAlias, onlyOne);
-                            opt.setAppAlias(alias);
-                            usedAlias.add(alias);
-                        }
-                    }
-                }
-            }
-            if(notDomainIdPlans.size() > 0)
-            {
-                for(DomainUpdatePlanInfo planInfo : notDomainIdPlans)
-                {
-                    String domainId = autoGenerateDomainId(standardDomainId, usedDomainIds);
-                    planInfo.setDomainId(domainId);
-                    usedDomainIds.add(domainId);
-                }
-            }
-        }
-    }
-
 
     /**
      * 自动生成域id
@@ -1405,12 +1326,23 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public List<BizSetDefine> queryCCODBizSetWithImage(boolean hasImage) {
+    public List<BizSetDefine> queryCCODBizSetWithImage(String ccodVersion, Boolean hasImage) {
         this.appReadLock.readLock().lock();
         try
         {
-            Map<String, List<AppModuleVo>> hasImageMap = this.registerAppMap.values().stream().flatMap(listContainer -> listContainer.stream()).collect(Collectors.toList())
-                    .stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).get(true).stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+            List<AppModuleVo> registerApps = this.registerAppMap.values().stream().flatMap(apps -> apps.stream()).collect(Collectors.toList());
+            List<AppModuleVo> imageList = registerApps;
+            if(hasImage != null) {
+                Map<Boolean, List<AppModuleVo>> map = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage));
+                imageList = map.containsKey(hasImage) ? map.get(hasImage) : new ArrayList<>();
+            }
+            Map<String, List<AppModuleVo>> imageMap = imageList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+            List<AppModuleVo> versionList = registerApps;
+            if(StringUtils.isNotBlank(ccodVersion)) {
+                Map<String, List<AppModuleVo>> map = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getCcodVersion));
+                versionList = map.containsKey(ccodVersion) ? map.get(ccodVersion) : new ArrayList<>();
+            }
+            Map<String, List<AppModuleVo>> ccodVersionMap = versionList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
             List<BizSetDefine> defineList = new ArrayList<>();
             for(BizSetDefine setDefine : this.ccodBiz.getSet())
             {
@@ -1423,9 +1355,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 define.setName(setDefine.getName());
                 for(AppDefine appDefine : setDefine.getApps())
                 {
-                    if(hasImageMap.containsKey(appDefine.getName()) && hasImage)
-                        define.getApps().add(appDefine);
-                    else if(this.registerAppMap.containsKey(appDefine.getName()) && !hasImageMap.containsKey(appDefine.getName()) && !hasImage)
+                    if(imageMap.containsKey(appDefine.getName()) && ccodVersionMap.containsKey(appDefine.getName()))
                         define.getApps().add(appDefine);
                 }
                 defineList.add(define);

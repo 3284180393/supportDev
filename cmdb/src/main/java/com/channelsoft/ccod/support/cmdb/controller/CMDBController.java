@@ -621,18 +621,14 @@ public class CMDBController {
 
 
     @RequestMapping(value = "/sets", method = RequestMethod.GET)
-    public AjaxResultPo queryAllCCODBizSet(Boolean hasImage)
+    public AjaxResultPo queryAllCCODBizSet(String ccodVersion, Boolean hasImage)
     {
-        String uri = String.format("GET %s/sets", this.apiBasePath);
+        String uri = String.format("GET %s/sets, ccodVersion=%s and hasImage=%s", this.apiBasePath, ccodVersion, hasImage);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            List<BizSetDefine> setDefines;
-            if(hasImage == null)
-                 setDefines = this.appManagerService.queryCCODBizSet(true);
-            else
-                setDefines = this.appManagerService.queryCCODBizSetWithImage(hasImage);
+            List<BizSetDefine> setDefines = this.appManagerService.queryCCODBizSetWithImage(ccodVersion, hasImage);
             resultPo = new AjaxResultPo(true, "query SUCCESS", setDefines.size(), setDefines);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }

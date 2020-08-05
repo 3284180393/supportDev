@@ -47,18 +47,18 @@ public class AppFilePo {
         this.md5 = assetInfo.getMd5();
     }
 
-    public AppFilePo(int appId, DeployFileInfo cfgFileInfo)
+    public AppFilePo(int appId, DeployFileInfo deployFile)
     {
         this.appId = appId;
-        this.fileName = cfgFileInfo.getFileName();
+        this.fileName = deployFile.getFileName();
         String[] arr = this.fileName.split("\\.");
         this.ext = arr.length == 1 ? "" : arr[arr.length - 1];
-        this.deployPath = cfgFileInfo.getDeployPath();
-        this.nexusAssetId = cfgFileInfo.getNexusAssetId();
-        this.nexusDirectory = cfgFileInfo.getNexusDirectory();
-        this.nexusRepository = cfgFileInfo.getNexusRepository();
+        this.deployPath = deployFile.getDeployPath();
+        this.nexusAssetId = deployFile.getNexusAssetId();
+        this.nexusDirectory = deployFile.getNexusDirectory();
+        this.nexusRepository = deployFile.getNexusRepository();
         this.createTime = new Date();
-        this.md5 = cfgFileInfo.getFileMd5();
+        this.md5 = deployFile.getFileMd5();
     }
 
     public AppFilePo(int appId, AppFileNexusInfo nexusInfo)

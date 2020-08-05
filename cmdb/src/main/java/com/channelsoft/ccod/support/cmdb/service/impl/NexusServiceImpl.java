@@ -411,7 +411,7 @@ public class NexusServiceImpl implements INexusService {
                 throw new ParamException(String.format("file %s verify md5 FAIL : report=%s and download=%s",
                         filePo.getNexusAssetFileName(), filePo.getMd5(), md5));
             }
-            fileList.add(new DeployFileInfo(filePo.getNexusAssetFileName(), savePth));
+            fileList.add(new DeployFileInfo(filePo, savePth));
         }
         if(isClearTargetDirectory)
             this.clearComponent(dstNexusHostUrl, dstNexusUser, dstNexusPwd, dstRepository, dstDirectory);

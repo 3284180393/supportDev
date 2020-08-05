@@ -46,15 +46,27 @@ public class AppUpdateOperationInfo {
 
     private String hostIp; //应用所在的服务器ip
 
-    private String port; //应用相关端口
-
     private String basePath; //该应用所在的base path
 
     private String deployPath; //应用部署目录
 
     private String appRunner; //该应用的执行用户
 
+    private String initCmd; //初始化命令
+
     private String startCmd; //启动命令
+
+    private String logOutputCmd; //日志输出命令
+
+    private String ports; //该应用使用的端口
+
+    private String nodePorts; //该应用对外开放的端口
+
+    private String resources; //启动该应用所需的资源
+
+    private int initialDelaySeconds; //应用预计启动时间
+
+    private int periodSeconds; //应用健康检查周期
 
     private List<AppFileNexusInfo> cfgs; //如果升级成功,需要返回升级后的应用配置在nexus中的存储信息
 
@@ -172,14 +184,6 @@ public class AppUpdateOperationInfo {
         this.assembleTag = assembleTag;
     }
 
-    public String getPort() {
-        return port;
-    }
-
-    public void setPort(String port) {
-        this.port = port;
-    }
-
     public String getDeployPath() {
         return deployPath;
     }
@@ -204,6 +208,62 @@ public class AppUpdateOperationInfo {
         this.domainName = domainName;
     }
 
+    public String getInitCmd() {
+        return initCmd;
+    }
+
+    public void setInitCmd(String initCmd) {
+        this.initCmd = initCmd;
+    }
+
+    public String getLogOutputCmd() {
+        return logOutputCmd;
+    }
+
+    public void setLogOutputCmd(String logOutputCmd) {
+        this.logOutputCmd = logOutputCmd;
+    }
+
+    public String getPorts() {
+        return ports;
+    }
+
+    public void setPorts(String ports) {
+        this.ports = ports;
+    }
+
+    public String getNodePorts() {
+        return nodePorts;
+    }
+
+    public void setNodePorts(String nodePorts) {
+        this.nodePorts = nodePorts;
+    }
+
+    public String getResources() {
+        return resources;
+    }
+
+    public void setResources(String resources) {
+        this.resources = resources;
+    }
+
+    public int getInitialDelaySeconds() {
+        return initialDelaySeconds;
+    }
+
+    public void setInitialDelaySeconds(int initialDelaySeconds) {
+        this.initialDelaySeconds = initialDelaySeconds;
+    }
+
+    public int getPeriodSeconds() {
+        return periodSeconds;
+    }
+
+    public void setPeriodSeconds(int periodSeconds) {
+        this.periodSeconds = periodSeconds;
+    }
+
     public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -217,8 +277,12 @@ public class AppUpdateOperationInfo {
         po.setAppAlias(this.appAlias);
         po.setAppId(appId);
         po.setPlatformAppId(0);
-        po.setPort(this.port);
+        po.setInitCmd(this.initCmd);
         po.setStartCmd(this.startCmd);
+        po.setLogOutputCmd(this.logOutputCmd);
+        po.setResources(this.resources);
+        po.setInitialDelaySeconds(this.initialDelaySeconds);
+        po.setPeriodSeconds(this.periodSeconds);
         po.setDeployPath(this.deployPath);
         return po;
     }

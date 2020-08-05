@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
 
@@ -18,7 +19,7 @@ public class AppPo {
 
     private String appName; //应用名
 
-    private String appType; //应用类型
+    private AppType appType; //应用类型
 
     private String version; //应用版本
 
@@ -71,7 +72,7 @@ public class AppPo {
     {
         this.appId = moduleVo.getAppId();
         this.appName = moduleVo.getAppName();
-        this.appType = moduleVo.getAppType().name;
+        this.appType = moduleVo.getAppType();
         this.version = moduleVo.getVersion();
         this.ccodVersion = moduleVo.getCcodVersion();
         this.basePath = moduleVo.getBasePath();
@@ -90,7 +91,10 @@ public class AppPo {
         this.updateTime = moduleVo.getUpdateTime();
         this.createReason = moduleVo.getCreateReason();
         this.comment = moduleVo.getComment();
-        this.versionControl = moduleVo.getVersionControl().name;
+        if(moduleVo.getVersionControl() != null)
+            this.versionControl = moduleVo.getVersionControl().name;
+        else
+            this.versionControl = null;
         this.versionControlUrl = moduleVo.getVersionControlUrl();
         this.hasImage = hasImage;
     }
@@ -103,11 +107,11 @@ public class AppPo {
         this.appId = appId;
     }
 
-    public String getAppType() {
+    public AppType getAppType() {
         return appType;
     }
 
-    public void setAppType(String appType) {
+    public void setAppType(AppType appType) {
         this.appType = appType;
     }
 

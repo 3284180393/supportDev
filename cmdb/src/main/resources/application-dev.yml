@@ -34,6 +34,8 @@ ccod:
       delay: 30
     apps[3]:
       name: RMServer
+    apps[4]:
+      name: dcmsCntLimit
   set[1]:
     name: 网关接入
     id: gatewayAccess
@@ -191,6 +193,14 @@ ccod:
       name: safetyStaticsQT
     apps[37]:
       name: tomcat
+    apps[38]:
+      name: dcmsRecordKL
+    apps[39]:
+      name: CommBankSHReport
+    apps[40]:
+      name: CommBankSHReportEX
+    apps[41]:
+      name: dcmsNew
   set[4]:
     name: 对外接口
     id: api
@@ -227,6 +237,16 @@ ccod:
       name: DialEngine
     apps[2]:
       name: UCGateway
+    apps[3]:
+      name: dcmsDialerWebserviceFRQ
+    apps[4]:
+      name: dcmsDialerWebserviceRQ
+    apps[5]:
+      name: dcmsDialerWebservice_mjwh
+    apps[6]:
+      name: dcmsDialerWS
+    apps[7]:
+      name: dcmsDialerRQ
   startChains:
     chains[0]:
       name: glsServer

@@ -118,10 +118,11 @@ public interface IAppManagerService {
 
     /**
      * 查询ccod biz下面set信息
+     * @param ccodVersion ccod大版本
      * @param hasImage 是否有image
      * @return set下的所有模块都至少有一个已经注册并且已经生成镜像版本
      */
-    List<BizSetDefine> queryCCODBizSetWithImage(boolean hasImage);
+    List<BizSetDefine> queryCCODBizSetWithImage(String ccodVersion, Boolean hasImage);
 
     /**
      * 将应用从指定仓库迁移到目标仓库

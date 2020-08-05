@@ -337,11 +337,11 @@ public class PlatformAppModuleVo {
         po.setCcodVersion(this.ccodVersion);
         po.setBasePath(this.basePath);
         if(this.moduleType == "CCOD_KERNEL_MODULE")
-            po.setAppType(AppType.BINARY_FILE.name);
+            po.setAppType(AppType.BINARY_FILE);
         else if(this.moduleType == "CCOD_WEBAPPS_MODULE")
-            po.setAppType(AppType.RESIN_WEB_APP.name);
+            po.setAppType(AppType.RESIN_WEB_APP);
         else
-            po.setAppType(this.moduleType);
+            po.setAppType(AppType.getEnum(this.moduleType));
         po.setAppName(this.moduleName);
         po.setVersionControl(this.versionControl);
         po.setVersionControlUrl(this.versionControlUrl);

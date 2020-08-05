@@ -77,7 +77,7 @@ public class AppModuleVo {
     public AppModuleVo(AppPo app, AppInstallPackagePo installPackage, List<AppCfgFilePo> cfgs)
     {
         this.appId = app.getAppId();
-        this.appType = AppType.getEnum(app.getAppType());
+        this.appType = app.getAppType();
         this.appName = app.getAppName();
         this.version = app.getVersion();
         this.ccodVersion = app.getCcodVersion();
@@ -339,7 +339,7 @@ public class AppModuleVo {
         po.setCreateTime(this.createTime);
         po.setCreateReason(this.createReason);
         po.setComment(this.comment);
-        po.setAppType(this.appType.name);
+        po.setAppType(this.appType);
         po.setCcodVersion(this.ccodVersion);
         if(this.versionControl != null)
             po.setVersionControl(this.versionControl.name);

@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.po.AppFilePo;
+import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 
 /**
  * @ClassName: DeployFileInfo
@@ -33,10 +34,28 @@ public class DeployFileInfo {
 
     private String transferFailReason; //源文件传输失败原因
 
-    public DeployFileInfo(String fileName, String savePath)
+//    public DeployFileInfo(String fileName, String savePath)
+//    {
+//        this.fileName = fileName;
+//        this.localSavePath = savePath;
+//    }
+
+    public DeployFileInfo(AppFilePo filePo, String savePath)
     {
-        this.fileName = fileName;
+        this.fileMd5 = filePo.getMd5();
         this.localSavePath = savePath;
+        this.deployPath = filePo.getDeployPath();
+        this.fileName = filePo.getFileName();
+        this.ext = filePo.getExt();
+    }
+
+    public DeployFileInfo(NexusAssetInfo assetInfo, String savePath)
+    {
+        this.fileMd5 = assetInfo.getMd5();
+        this.localSavePath = savePath;
+        this.fileName = assetInfo.getNexusAssetFileName();
+        String[] arr = this.fileName.split("\\.");
+        this.ext = arr.length > 1 ? arr[arr.length -1] : null;
     }
 
     public DeployFileInfo()

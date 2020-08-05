@@ -66,6 +66,8 @@ public class PlatformUpdateSchemaInfo {
 
     private String k8sHostIp; //运行平台的k8s主机ip
 
+    private String hostUrl; //平台的域名
+
     @NotNull(message = "glsDBType can not be null")
     private DatabaseType glsDBType; //ccod平台glsserver的数据库类型
 
@@ -540,5 +542,13 @@ public class PlatformUpdateSchemaInfo {
 
     public void setThreePartEndpoints(List<V1Endpoints> threePartEndpoints) {
         this.threePartEndpoints = threePartEndpoints;
+    }
+
+    public String getHostUrl() {
+        return hostUrl;
+    }
+
+    public void setHostUrl(String hostUrl) {
+        this.hostUrl = hostUrl;
     }
 }

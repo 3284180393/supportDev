@@ -52,6 +52,19 @@ public class K8sCollection {
 
     private int timeout;
 
+    public K8sCollection()
+    {}
+
+    public K8sCollection(String appName, String alias, AppType appType, V1Deployment deploy)
+    {
+        this.appName = appName;
+        this.alias = alias;
+        this.appType = appType;
+        this.deployment = deploy;
+        this.services = new ArrayList<>();
+        this.ingresses = new ArrayList<>();
+    }
+
     public K8sCollection(String domainId, AppModuleVo appModule, String alias, V1Deployment deployment, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses)
     {
         this.domainId = domainId;

@@ -15,8 +15,10 @@ import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
+import javafx.application.Platform;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -59,6 +61,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private final static Logger logger = LoggerFactory.getLogger(PlatformManagerServiceImpl.class);
 
     private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
+
+    protected String testPlatformId = "test-by-wyf";
+
+    protected String testK8sApiUrl = "https://10.130.41.218:6443";
+
+    protected String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA";
 
     private Gson templateParseGson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
         @Override
@@ -250,10 +258,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private String domainServiceNameFmt = "^%s-%s($|(-[0-9a-z]+)+$)";
 
-    protected String testK8sApiUrl = "https://10.130.41.218:6443";
-
-    protected String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA";
-
     @PostConstruct
     void init() throws Exception {
         this.appSetRelationMap = new HashMap<>();
@@ -292,6 +296,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            someTest();
 //            configMapTest();
 //            generateDemoCreateSchema();
+//            PlatformUpdateRecordPo recordPo = this.platformUpdateRecordMapper.selectByJobId("f885b19ef5");
+//            PlatformUpdateSchemaInfo existSchema = gson.fromJson(new String(recordPo.getExecSchema()), PlatformUpdateSchemaInfo.class);
+//            logger.info(String.format("has been create platform test-by-wyf schema is %s", gson.toJson(existSchema)));
             String platformName = "ccod开发测试平台";
             String platformId = "123456-wuph";
             int bkBizId = 25;
@@ -774,6 +781,57 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             po.setStartCmd(registerAppMap.get(po.getAppId()).getStartCmd());
             po.setDeployPath(registerAppMap.get(po.getAppId()).getDeployPath());
             this.platformAppMapper.update(po);
+        }
+    }
+
+    private void updateRegisterAppPort()
+    {
+        String ports = "cas-manage01                 ClusterIP   10.99.180.94     <none>        80/TCP                                              25m\n" +
+                "cms1-cloud01                 ClusterIP   10.100.198.96    <none>        17119/TCP,11520/TCP                                 28m\n" +
+                "cms2-cloud01                 ClusterIP   10.102.165.246   <none>        17119/TCP,11520/TCP                                 27m\n" +
+                "configserver-public01        ClusterIP   10.99.211.158    <none>        18869/TCP                                           31m\n" +
+                "customwebservice-manage01    ClusterIP   10.107.64.117    <none>        80/TCP                                              25m\n" +
+                "daengine-cloud01             ClusterIP   10.110.159.64    <none>        10101/TCP                                           26m\n" +
+                "dcms-manage01                ClusterIP   10.103.135.253   <none>        80/TCP                                              25m\n" +
+                "dcmsrecord-manage01          ClusterIP   10.101.242.96    <none>        80/TCP                                              25m\n" +
+                "dcmssg-manage01              ClusterIP   10.102.79.168    <none>        80/TCP                                              25m\n" +
+                "dcmsstatics-manage01         ClusterIP   10.97.179.221    <none>        80/TCP                                              25m\n" +
+                "dcmsstaticsreport-manage01   ClusterIP   10.105.136.213   <none>        80/TCP                                              25m\n" +
+                "dcmswebservice-manage01      ClusterIP   10.111.33.102    <none>        80/TCP                                              25m\n" +
+                "dcmsx-manage01               ClusterIP   10.111.152.101   <none>        80/TCP                                              25m\n" +
+                "dcproxy-cloud01              ClusterIP   10.96.26.17      <none>        12009/TCP                                           26m\n" +
+                "dcs-cloud01                  ClusterIP   10.102.247.111   <none>        18070/TCP                                           29m\n" +
+                "dds-cloud01                  ClusterIP   10.100.208.123   <none>        17088/TCP                                           31m\n" +
+                "gls-ops01                    ClusterIP   10.97.3.142      <none>        80/TCP                                              25m\n" +
+                "glsserver-public01           ClusterIP   10.96.158.127    <none>        17020/TCP                                           31m\n" +
+                "licenseserver-public01       ClusterIP   10.106.154.0     <none>        17021/TCP                                           31m\n" +
+                "safetymonitor-manage01       ClusterIP   10.104.186.79    <none>        80/TCP                                              25m\n" +
+                "ss-cloud01                   ClusterIP   10.110.119.102   <none>        18889/TCP                                           26m\n" +
+                "ucds-cloud01                 ClusterIP   10.109.91.128    <none>        12003/TCP,17009/TCP,17002/TCP,60001/TCP,17004/TCP   30m\n" +
+                "ucx-cloud01                  ClusterIP   10.96.131.60     <none>        11000/TCP                                           26m";
+        String[] lines = ports.split("\\n");
+        Map<String, String> portMap = new HashMap<>();
+        for(String line : lines)
+        {
+            String[] arr = line.split("\\s+");
+            portMap.put(arr[0].replaceAll("\\d*$", "").split("\\-")[0], arr[4]);
+        }
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
+        Map<String, List<AppModuleVo>> registerMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        for(BizSetDefine setDefine : this.ccodBiz.getSet())
+        {
+            for(AppDefine define : setDefine.getApps())
+            {
+                if(!portMap.containsKey(define.getAlias()))
+                    continue;
+                List<AppModuleVo> modules = registerMap.get(define.getName());
+                for(AppModuleVo moduleVo : modules)
+                {
+                    AppPo app = moduleVo.getApp();
+                    app.setPorts(portMap.get(define.getAlias()));
+                    this.appMapper.update(app);
+                }
+            }
         }
     }
 
@@ -2156,6 +2214,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
         Boolean hasImage = PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType()) ? true : null;
         List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(hasImage);
+        updateSchema = getK8sObjectForSchema(updateSchema, registerApps);
         boolean clone = PlatformCreateMethod.CLONE.equals(updateSchema.getCreateMethod()) ? true : false;
         List<PlatformAppDeployDetailVo> platformDeployApps = this.platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null);
         logger.debug("begin check param of schema");
@@ -2168,21 +2227,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(updateSchema.getPlatformId(), null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
-        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
-        List<DomainUpdatePlanInfo> successList = new ArrayList<>();
         makeupDomainIdAndAliasForSchema(updateSchema, domainList, platformDeployApps, clone);
-        for (DomainUpdatePlanInfo plan : updateSchema.getDomainUpdatePlanList()) {
-            if (plan.getStatus().equals(UpdateStatus.SUCCESS)) {
-                successList.add(plan);
-            } else
-                planList.add(plan);
-        }
-        if (updateSchema.getStatus().equals(UpdateStatus.SUCCESS) && planList.size() > 0) {
-            logger.error(String.format("status of %s(%s) update schema is SUCCESS, but there are %d domain update plan not execute",
-                    updateSchema.getPlatformName(), updateSchema.getPlatformId(), planList.size()));
-            throw new ParamException(String.format("status of %s(%s) update schema is SUCCESS, but there are %d domain update plan not execute",
-                    updateSchema.getPlatformName(), updateSchema.getPlatformId(), planList.size()));
-        }
         Map<UpdateStatus, List<DomainUpdatePlanInfo>> statusPlanMap = updateSchema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getStatus));
         List<DomainUpdatePlanInfo> preparePlans = statusPlanMap.containsKey(UpdateStatus.WAIT_EXEC) ? statusPlanMap.get(UpdateStatus.WAIT_EXEC) : new ArrayList<>();
         if(preparePlans.size() > 0)
@@ -2237,7 +2282,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             this.platformMapper.update(platformPo);
         } else {
             logger.debug(String.format("%s(%s) platform not complete deployment, so update schema and set status to PLANING", updateSchema.getPlatformName(), updateSchema.getPlatformId()));
-            updateSchema.setDomainUpdatePlanList(planList);
+            updateSchema.setDomainUpdatePlanList(statusPlanMap.values().stream().flatMap(plans -> plans.stream()).collect(Collectors.toList()));
             PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
             schemaPo.setContext(gson.toJson(updateSchema).getBytes());
             schemaPo.setPlatformId(updateSchema.getPlatformId());
@@ -2248,7 +2293,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             this.platformMapper.update(platformPo);
         }
         if (execPlans.size() > 0) {
-            logger.debug(String.format("%d domain complete deployment, so sync new platform topo to lj paas", successList.size()));
+            logger.debug(String.format("%d domain complete deployment, so sync new platform topo to lj paas", execPlans.size()));
             this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
         }
     }
@@ -5075,6 +5120,263 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
     }
 
+    private V1Deployment selectDeployTemplate(AppType appType, String appName) throws ApiException
+    {
+        String name = null;
+        switch (appType)
+        {
+            case BINARY_FILE:
+                name = "glsserver-public01";
+                break;
+            case RESIN_WEB_APP:
+                name = "dcms-manage01";
+                break;
+            case TOMCAT_WEB_APP:
+                name = "cas-manage01";
+                break;
+            case THREE_PART_APP:
+                name = appName;
+                break;
+        }
+        V1Deployment deploy = this.k8sApiService.readNamespacedDeployment(name, testPlatformId, testK8sApiUrl, testAuthToken);
+        deploy = this.templateParseGson.fromJson(this.templateParseGson.toJson(deploy), V1Deployment.class);
+        return deploy;
+    }
+
+    private V1Service selectServiceTemplate(AppType appType, String appName) throws ApiException
+    {
+        String name = null;
+        switch (appType)
+        {
+            case BINARY_FILE:
+                name = "glsserver-public01";
+                break;
+            case RESIN_WEB_APP:
+                name = "dcms-manage01";
+                break;
+            case TOMCAT_WEB_APP:
+                name = "cas-manage01";
+                break;
+            case THREE_PART_APP:
+                name = appName;
+                break;
+        }
+        V1Service service = this.k8sApiService.readNamespacedService(name, testPlatformId, testK8sApiUrl, testAuthToken);
+        service = this.templateParseGson.fromJson(this.templateParseGson.toJson(service), V1Service.class);
+        return service;
+    }
+
+    private ExtensionsV1beta1Ingress selectIngressTemplate(AppType appType, String appName) throws ApiException
+    {
+        String name = null;
+        switch (appType)
+        {
+            case BINARY_FILE:
+                name = "glsserver-public01";
+                break;
+            case RESIN_WEB_APP:
+                name = "dcms-manage01";
+                break;
+            case TOMCAT_WEB_APP:
+                name = "cas-manage01";
+                break;
+            case THREE_PART_APP:
+                name = appName;
+                break;
+        }
+        ExtensionsV1beta1Ingress ingress = this.k8sApiService.readNamespacedIngress(name, testPlatformId, testK8sApiUrl, testAuthToken);
+        ingress = this.templateParseGson.fromJson(this.templateParseGson.toJson(ingress), ExtensionsV1beta1Ingress.class);
+        return ingress;
+    }
+
+    private PlatformUpdateSchemaInfo getK8sObjectForSchema(PlatformUpdateSchemaInfo schema, List<AppModuleVo> registerApps) throws ApiException
+    {
+        Map<String, List<AppModuleVo>> registerAppMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        String jobId = schema.getSchemaId();
+        String platformId = schema.getPlatformId();
+        String hostUrl = schema.getHostUrl();
+        V1Namespace ns = this.k8sApiService.readNamespace(testPlatformId, testK8sApiUrl, testAuthToken);
+        ns.getMetadata().setNamespace(platformId);
+        ns.getMetadata().setName(platformId);
+        ns = this.templateParseGson.fromJson(this.templateParseGson.toJson(ns), V1Namespace.class);
+        schema.setNamespace(ns);
+        V1Secret ssl = this.k8sApiService.readNamespacedSecret("ssl", testPlatformId, testK8sApiUrl, testAuthToken);
+        ssl.getMetadata().setNamespace(platformId);
+        ssl = this.templateParseGson.fromJson(this.templateParseGson.toJson(ssl), V1Secret.class);
+        schema.setK8sSecrets(new ArrayList<>());
+        schema.getK8sSecrets().add(ssl);
+        schema.setThreePartApps(new ArrayList<>());
+        V1Deployment oraDep = this.k8sApiService.readNamespacedDeployment("oracle", testPlatformId, testK8sApiUrl, testAuthToken);
+        oraDep.getMetadata().setNamespace(platformId);
+        oraDep.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity()))
+                .get("sql").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId));
+        oraDep.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(0, String.format("/tmp/init.sh %s", hostUrl));
+        V1Service oraSvc = this.k8sApiService.readNamespacedService("oracle", testPlatformId, this.testK8sApiUrl, this.testAuthToken);
+        oraSvc.getMetadata().setNamespace(platformId);
+        K8sCollection ora = new K8sCollection("oracle", "oracle", AppType.THREE_PART_APP, oraDep);
+        ora.getServices().add(oraSvc);
+        ora.setVersion("10g-32");
+        ora = templateParseGson.fromJson(templateParseGson.toJson(ora), K8sCollection.class);
+        schema.getThreePartApps().add(ora);
+        V1Deployment mysqlDep = this.k8sApiService.readNamespacedDeployment("mysql", testPlatformId, testK8sApiUrl, testAuthToken);
+        mysqlDep.getMetadata().setNamespace(platformId);
+        mysqlDep.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity()))
+                .get("sql").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId));
+        mysqlDep.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(0, String.format("/tmp/init.sh %s", hostUrl));
+        V1Service mysqlSvc = this.k8sApiService.readNamespacedService("mysql", testPlatformId, this.testK8sApiUrl, this.testAuthToken);
+        mysqlSvc.getMetadata().setNamespace(platformId);
+        K8sCollection mysql = new K8sCollection("mysql", "mysql", AppType.THREE_PART_APP, mysqlDep);
+        mysql.setVersion("5.7.29");
+        mysql.getServices().add(mysqlSvc);
+        mysql = templateParseGson.fromJson(templateParseGson.toJson(mysql), K8sCollection.class);
+        schema.getThreePartApps().add(mysql);
+        schema.setThreePartServices(new ArrayList<>());
+        V1Service svc = this.k8sApiService.readNamespacedService("umg141", testPlatformId, testK8sApiUrl, testAuthToken);
+        svc = templateParseGson.fromJson(templateParseGson.toJson(svc), V1Service.class);
+        schema.getThreePartServices().add(svc);
+        svc = this.k8sApiService.readNamespacedService("umg147", testPlatformId, testK8sApiUrl, testAuthToken);
+        svc = templateParseGson.fromJson(templateParseGson.toJson(svc), V1Service.class);
+        schema.getThreePartServices().add(svc);
+        svc = this.k8sApiService.readNamespacedService("umg41", testPlatformId, testK8sApiUrl, testAuthToken);
+        svc = templateParseGson.fromJson(templateParseGson.toJson(svc), V1Service.class);
+        schema.getThreePartServices().add(svc);
+        schema.setThreePartEndpoints(new ArrayList<>());
+        V1Endpoints ep = this.k8sApiService.readNamespacedEndpoints("umg141", testPlatformId, testK8sApiUrl, testAuthToken);
+        ep = templateParseGson.fromJson(templateParseGson.toJson(ep), V1Endpoints.class);
+        schema.getThreePartEndpoints().add(ep);
+        ep = this.k8sApiService.readNamespacedEndpoints("umg147", testPlatformId, testK8sApiUrl, testAuthToken);
+        ep = templateParseGson.fromJson(templateParseGson.toJson(ep), V1Endpoints.class);
+        schema.getThreePartEndpoints().add(ep);
+        ep = this.k8sApiService.readNamespacedEndpoints("umg41", testPlatformId, testK8sApiUrl, testAuthToken);
+        ep = templateParseGson.fromJson(templateParseGson.toJson(ep), V1Endpoints.class);
+        schema.getThreePartEndpoints().add(ep);
+        for(DomainUpdatePlanInfo plan : schema.getDomainUpdatePlanList())
+        {
+            plan.setDeployments(new ArrayList<>());
+            plan.setServices(new ArrayList<>());
+            plan.setIngresses(new ArrayList<>());
+            String domainId = plan.getDomainId();
+            for(AppUpdateOperationInfo optInfo : plan.getAppUpdateOperationList())
+            {
+                String appName = optInfo.getAppName();
+                String alias = optInfo.getAppAlias();
+                String version = optInfo.getTargetVersion();
+                AppModuleVo module = registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+                optInfo.setPorts(module.getPorts());
+                optInfo.setNodePorts(module.getNodePorts());
+                AppType appType = module.getAppType();
+                String imageUrl = String.format("%s/ccod/%s:%s",
+                        this.nexusDockerUrl, appName.toLowerCase(), version.replaceAll("\\:", "-")).replaceAll("//", "/");
+                V1Deployment deploy = generateDeployForApp(appName, alias, version, appType, imageUrl, jobId, platformId, domainId);
+                plan.getDeployments().add(deploy);
+                V1Service service = generateAppServiceForPort(appName, alias, appType, jobId, platformId, domainId, optInfo.getPorts(), "ClusterIP");
+                plan.getServices().add(service);
+                if(StringUtils.isNotBlank(optInfo.getNodePorts()))
+                {
+                    service = generateAppServiceForPort(appName, alias, appType, jobId, platformId, domainId, optInfo.getNodePorts(), "NodePort");
+                    plan.getServices().add(service);
+                }
+                List<ExtensionsV1beta1Ingress> ingresses = generateIngressForApp(appName, alias, appType, optInfo.getPorts(), platformId, hostUrl);
+                if(ingresses.size() > 0)
+                    plan.getIngresses().addAll(ingresses);
+            }
+        }
+        return schema;
+    }
+
+    private V1Deployment generateDeployForApp(String appName, String alias, String version, AppType appType, String imageUrl, String jobId, String platformId, String domainId) throws ApiException
+    {
+        String name = StringUtils.isNotBlank(domainId) ? String.format("%s-$s", alias, domainId) : alias;
+        V1Deployment deploy = selectDeployTemplate(appType, appName);
+        deploy.getMetadata().setNamespace(platformId);
+        deploy.getMetadata().setName(name);
+        deploy.getMetadata().setLabels(new HashMap<>());
+        if(StringUtils.isNotBlank(domainId))
+            deploy.getMetadata().getLabels().put(this.domainIdLabel, domainId);
+        deploy.getMetadata().getLabels().put(this.jobIdLabel, jobId);
+        deploy.getMetadata().getLabels().put(appName, alias);
+        deploy.getMetadata().getLabels().put(String.format("%s-version", appName), version);
+        Map<String, String> selector = new HashMap<>();
+        selector.put(this.domainIdLabel, domainId);
+        selector.put(appName, alias);
+        deploy.getSpec().getSelector().setMatchLabels(selector);
+        deploy.getMetadata().setLabels(selector);
+        V1Container initContainer = deploy.getSpec().getTemplate().getSpec().getInitContainers().get(0);
+        initContainer.setName(alias);
+        initContainer.setImage(imageUrl);
+        if(!appType.equals(AppType.THREE_PART_APP))
+        {
+            V1Container runtimeContainer = deploy.getSpec().getTemplate().getSpec().getContainers().get(0);
+            runtimeContainer.setName(String.format("%s-runtime", alias));
+        }
+        deploy = templateParseGson.fromJson(templateParseGson.toJson(deploy), V1Deployment.class);
+        return deploy;
+    }
+
+    private V1Service generateAppServiceForPort(String appName, String alias, AppType appType, String jobId, String platformId, String domainId, String portStr, String portType) throws ApiException
+    {
+        V1Service service = this.selectServiceTemplate(appType, appName);
+        String[] ports = portStr.split(",");
+        String name = portType.equals("NodePort") ? String.format("%s-%s-out", alias, domainId) : String.format("%s-%s", alias, domainId);
+        service.getMetadata().setLabels(new HashMap<>());
+        service.getMetadata().getLabels().put(this.jobIdLabel, jobId);
+        service.getMetadata().getLabels().put(this.domainIdLabel, domainId);
+        service.getMetadata().getLabels().put(appName, alias);
+        service.getMetadata().setName(name);
+        service.getMetadata().setNamespace(platformId);
+        Map<String, String> selector = new HashMap<>();
+        selector.put(this.domainIdLabel, domainId);
+        selector.put(appName, alias);
+        service.getSpec().setSelector(selector);
+        service.getSpec().setPorts(new ArrayList<>());
+        service.getSpec().setType(portType);
+        for(String clusterPort : ports)
+        {
+            V1ServicePort svcPort = new V1ServicePort();
+            String[] arr = clusterPort.split("/");
+            svcPort.setProtocol(arr[1]);
+            String[] arr1 = arr[0].split("\\:");
+            svcPort.setPort(Integer.parseInt(arr1[0]));
+            svcPort.setName(arr1[0]);
+            if(arr1.length == 2) {
+                if("NodePort".equals(portType))
+                    svcPort.setNodePort(Integer.parseInt(arr[1]));
+                else
+                    svcPort.setTargetPort(new IntOrString(arr1[1]));
+            }
+            service.getSpec().getPorts().add(svcPort);
+        }
+        service = templateParseGson.fromJson(templateParseGson.toJson(service), V1Service.class);
+        return service;
+    }
+
+    private List<ExtensionsV1beta1Ingress> generateIngressForApp(String appName, String alias, AppType appType, String port, String platformId, String hostUrl) throws ApiException
+    {
+        List<ExtensionsV1beta1Ingress> retList = new ArrayList<>();
+        if(!appType.equals(AppType.TOMCAT_WEB_APP) && !appType.equals(AppType.RESIN_WEB_APP))
+            return retList;
+        ExtensionsV1beta1Ingress ingress = selectIngressTemplate(appType, appName);
+        String name = String.format("%s-%s", alias, appName);
+        ingress.getMetadata().setName(alias);
+        ingress.getMetadata().setNamespace(platformId);
+        ingress.getSpec().setRules(new ArrayList<>());
+        ExtensionsV1beta1IngressRule rule = new ExtensionsV1beta1IngressRule();
+        rule.setHost(hostUrl);
+        ExtensionsV1beta1HTTPIngressRuleValue value = new ExtensionsV1beta1HTTPIngressRuleValue();
+        ExtensionsV1beta1HTTPIngressPath path = new ExtensionsV1beta1HTTPIngressPath();
+        ExtensionsV1beta1IngressBackend backend = new ExtensionsV1beta1IngressBackend();
+        backend.serviceName(name);
+        backend.setServicePort(new IntOrString(port.split("/")[0]));
+        path.setPath(String.format("/%s", name));
+        path.setBackend(backend);
+        value.addPathsItem(path);
+        rule.setHttp(value);
+        ingress.getSpec().getRules().add(rule);
+        ingress = templateParseGson.fromJson(templateParseGson.toJson(ingress), ExtensionsV1beta1Ingress.class);
+        retList.add(ingress);
+        return retList;
+    }
+
     private List<K8sCollection> parseAppK8sCollection(String domainId, List<V1Deployment> deployments, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses, List<AppModuleVo> registerApps) throws ParamException, K8sDataException, NotSupportAppException
     {
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
@@ -5307,6 +5609,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             boolean kernal = false;
             int timeout = 0;
             for(K8sCollection collection : collections) {
+                if(collection.getAppName().equals("UCDServer"))
+                    System.out.println("here");
                 if(!addList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).containsKey(collection.getAlias()))
                     throw new ParamException(String.format("%s not in %s ADD list", collection.getAlias(), domainId));
                 AppUpdateOperationInfo optInfo = addList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(collection.getAlias());
@@ -5967,7 +6271,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     roll.setAppRunner(srcDetail.getAppAlias());
                     roll.setCfgs(getFromPlatformAppCfg(srcDetail.getCfgs()));
                     roll.setDomainName(srcDetail.getDomainName());
-                    roll.setPort(srcDetail.getPort());
+                    roll.setPorts(srcDetail.getPort());
             }
             rolls.add(roll);
         }
