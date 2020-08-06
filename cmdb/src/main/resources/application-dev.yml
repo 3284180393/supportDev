@@ -199,8 +199,6 @@ ccod:
       name: CommBankSHReport
     apps[40]:
       name: CommBankSHReportEX
-    apps[41]:
-      name: dcmsNew
   set[4]:
     name: 对外接口
     id: api
@@ -336,6 +334,7 @@ k8s:
   gls_oracle_svc_name: oracle
   gls_oracle_sid: xe
   labels:
+    ccod-version: ccod-version
     domain-id: domain-id
     app-name: app-name
     app-alias: alias

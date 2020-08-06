@@ -2214,7 +2214,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
         Boolean hasImage = PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType()) ? true : null;
         List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(hasImage);
-        updateSchema = getK8sObjectForSchema(updateSchema, registerApps);
+//        updateSchema = getK8sObjectForSchema(updateSchema, registerApps);
         boolean clone = PlatformCreateMethod.CLONE.equals(updateSchema.getCreateMethod()) ? true : false;
         List<PlatformAppDeployDetailVo> platformDeployApps = this.platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null);
         logger.debug("begin check param of schema");
@@ -5026,97 +5026,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             selector.put(this.jobIdLabel, jobId);
             service.getSpec().setSelector(selector);
             service.getMetadata().setLabels(selector);
-        }
-    }
-
-    /**
-     * 为定义ccod域模块的deployment挂载所有配置文件
-     *
-     * @param schemaId     本次平台创建/升级的唯一id
-     * @param deployment   用来定义ccod域模块的deployment
-     * @param configMapMap 以键值对保存的所有configMap信息
-     * @param cfgMap       平台所有配置
-     * @param optList      deployment归属域下的所有模块操作信息
-     * @param registerApps 已经向cmdb注册过的所有ccod模块信息
-     * @throws ParamException
-     * @throws NotSupportAppException
-     */
-    private void generateConfigForCCODDomainModuleDeployment(String schemaId, V1Deployment deployment, Map<String, V1ConfigMap> configMapMap, Map<String, List<AppFileNexusInfo>> cfgMap, List<AppUpdateOperationInfo> optList, List<AppModuleVo> registerApps) throws ParamException, NotSupportAppException {
-        String platformId = deployment.getMetadata().getNamespace();
-        String domainId = deployment.getMetadata().getLabels().get("domain-id");
-        V1Container initContainer = deployment.getSpec().getTemplate().getSpec().getInitContainers().get(0);
-        V1Container container = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
-        AppType appType = getAppTypeFromImageUrl(initContainer.getImage());
-        initContainer.setCommand(new ArrayList<>());
-        initContainer.getCommand().add("/bin/sh");
-        initContainer.getCommand().add("-c");
-        initContainer.getCommand().add("");
-        String alias = initContainer.getName();
-        AppModuleVo moduleVo = getAppModuleFromImageTag(initContainer.getImage(), registerApps);
-        V1ConfigMap configMap = configMapMap.get(String.format("%s-%s", alias, domainId));
-        AppUpdateOperationInfo optInfo = optList.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAppAlias, Function.identity())).get(alias);
-        String mountPath = String.format("%s/%s-cfg", this.defaultCfgMountPath, alias);
-        if (appType.equals(AppType.BINARY_FILE)) {
-            container.setArgs(new ArrayList<>());
-            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity())).get("binary-file").setMountPath(optInfo.getBasePath());
-        }
-        String basePath = appType.equals(AppType.BINARY_FILE) ? "/binary-file" : "/opt";
-        String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
-        addModuleCfgToContainer(String.format("%s-%s", alias, domainId), cfgMap.get(String.format("%s-%s", alias, domainId)), basePath, deployPath, configMap, moduleVo, mountPath, false, initContainer, deployment);
-        basePath = optInfo.getBasePath();
-        deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
-        if (configMapMap.containsKey(domainId)) {
-            mountPath = String.format("%s/%s", this.defaultCfgMountPath, domainId);
-            addModuleCfgToContainer(domainId, cfgMap.get(domainId), optInfo.getBasePath(), deployPath, configMapMap.get(domainId), moduleVo, mountPath, true, container, deployment);
-        }
-        if (configMapMap.containsKey(platformId)) {
-            mountPath = String.format("%s/%s", this.defaultCfgMountPath, platformId);
-            addModuleCfgToContainer(platformId, cfgMap.get(platformId), optInfo.getBasePath(), deployPath, configMapMap.get(platformId), moduleVo, mountPath, true, container, deployment);
-        }
-        if (appType.equals(AppType.BINARY_FILE)) {
-            String startCmd = StringUtils.isNotBlank(optInfo.getStartCmd()) ? optInfo.getStartCmd() : String.format("./%s", moduleVo.getInstallPackage().getFileName());
-            String args = String.format("cd %s;%s;sleep 5;tailf /root/Platform/log/*/*.log;", deployPath, startCmd);
-            if (container.getArgs() == null) {
-                container.setArgs(new ArrayList<>());
-                container.getArgs().add(args);
-            } else {
-                args = String.format("%s;%s", container.getArgs().get(0), args);
-                container.getArgs().set(0, args);
-            }
-            if ("ucx".equals(alias)) {
-                String cmd = initContainer.getCommand().get(2);
-                cmd = String.format("%s;mv /opt/FlowMap.full /binary-file/cfg", cmd, basePath);
-                initContainer.getCommand().set(2, cmd);
-            }
-        } else if (appType.equals(AppType.RESIN_WEB_APP)) {
-            initContainer.setArgs(new ArrayList<>());
-            String cmd = initContainer.getCommand().get(2);
-            cmd = String.format("%s;mv /opt/%s /war/%s-%s.war", cmd, moduleVo.getInstallPackage().getFileName(), alias, domainId);
-            initContainer.getCommand().set(2, cmd);
-            if (container.getCommand() != null && container.getCommand().size() > 2) {
-                cmd = container.getCommand().get(2);
-                cmd = String.format("%s;%s", container.getArgs().get(0), cmd).replaceAll("^;", "").replaceAll("//", "/");
-                container.getArgs().set(0, cmd);
-                container.setCommand(new ArrayList<>());
-                container.getCommand().add("/bin/sh");
-                container.getCommand().add("-c");
-            }
-        }
-        container.setName(String.format("%s-runtime", alias));
-        V1HostPathVolumeSource host = new V1HostPathVolumeSource();
-        host.setPath(String.format("/var/ccod-runtime/%s/%s-%s/%s-%s", platformId, alias, domainId, alias, domainId));
-        deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).get("ccod-runtime").setHostPath(host);
-        if(appType.equals(AppType.RESIN_WEB_APP)) {
-            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
-                    .get("war").setMountPath(String.format("%s/webapps", optInfo.getBasePath()).replaceAll("//", "/"));
-            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
-                    .get("ccod-runtime").setMountPath(String.format("%s/log", optInfo.getBasePath()).replaceAll("//", "/"));
-        }
-        else if(appType.equals(AppType.TOMCAT_WEB_APP)){
-            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
-                    .get("war").setMountPath(String.format("%s/webapps", optInfo.getBasePath()).replaceAll("//", "/"));
-            container.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
-                    .get("ccod-runtime").setMountPath(String.format("%s/logs", optInfo.getBasePath()).replaceAll("//", "/"));
         }
     }
 

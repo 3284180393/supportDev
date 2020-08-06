@@ -9,6 +9,8 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
 import com.google.gson.GsonBuilder;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -38,6 +40,8 @@ import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 
+import javax.annotation.PostConstruct;
+
 /**
  * @ClassName: K8sApiServiceImpl
  * @Author: lanhb
@@ -52,12 +56,39 @@ public class K8sApiServiceImpl implements IK8sApiService {
 
     private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
 
+    private Gson templateParseGson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
+        @Override
+        public boolean shouldSkipField(FieldAttributes f) {
+            //过滤掉字段名包含"age"
+            return f.getName().contains("creationTimestamp") || f.getName().contains("status") || f.getName().contains("resourceVersion") || f.getName().contains("selfLink") || f.getName().contains("uid")
+                    || f.getName().contains("generation") || f.getName().contains("annotations") || f.getName().contains("strategy")
+                    || f.getName().contains("terminationMessagePath") || f.getName().contains("terminationMessagePolicy")
+                    || f.getName().contains("dnsPolicy") || f.getName().contains("securityContext") || f.getName().contains("schedulerName")
+                    || f.getName().contains("restartPolicy") || f.getName().contains("clusterIP")
+                    || f.getName().contains("sessionAffinity") || f.getName().contains("nodePort");
+        }
+
+        @Override
+        public boolean shouldSkipClass(Class<?> clazz) {
+            //过滤掉 类名包含 Bean的类
+            return clazz.getName().contains("Bean");
+        }
+    }).registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
+
     @Autowired
     INexusService nexusService;
+
+    protected String testPlatformId = "test-by-wyf";
 
     protected String testK8sApiUrl = "https://10.130.41.218:6443";
 
     protected String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA";
+
+    @PostConstruct
+    public void init() throws Exception
+    {
+//        getTemplateJsonTest();
+    }
 
     @Override
     public V1Pod readNamespacedPod(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
@@ -726,7 +757,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
 //            createPVCTest();
 //            createSvcTest();
 //            streamTest();
-            createEndpointsTest();
+//            createEndpointsTest();
+            getTemplateJsonTest();
         }
         catch (Exception ex)
         {
@@ -833,5 +865,41 @@ public class K8sApiServiceImpl implements IK8sApiService {
         CoreV1Api apiInstance = new CoreV1Api();
         V1Endpoints ret = apiInstance.createNamespacedEndpoints(namespace, endpoints, null, null, null);
         System.out.println(ret);
+    }
+
+    private void getTemplateJsonTest() throws Exception
+    {
+        V1Namespace ns = readNamespace(testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(ns));
+        V1Secret ssl = readNamespacedSecret("ssl", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(ssl));
+        V1PersistentVolume pv = readPersistentVolume("base-volume-test-by-wyf", testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(pv));
+        V1PersistentVolumeClaim pvc = readNamespacedPersistentVolumeClaim("base-volume-test-by-wyf", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(pvc));
+        V1Job job = readNamespacedJob("platform-base-init", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(job));
+        V1Deployment deploy = readNamespacedDeployment("oracle", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(deploy));
+        deploy = readNamespacedDeployment("mysql", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(deploy));
+        deploy = readNamespacedDeployment("glsserver-public01", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(deploy));
+        deploy = readNamespacedDeployment("dcms-manage01", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(deploy));
+        deploy = readNamespacedDeployment("cas-manage01", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(deploy));
+        V1Service service = readNamespacedService("oracle", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(service));
+        service = readNamespacedService("mysql", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(service));
+        service = readNamespacedService("glsserver-public01", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(service));
+        service = readNamespacedService("dcms-manage01", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(service));
+        service = readNamespacedService("cas-manage01", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(service));
+        ExtensionsV1beta1Ingress ingress = readNamespacedIngress("dcms-manage01", testPlatformId, testK8sApiUrl, testAuthToken);
+        logger.error(templateParseGson.toJson(ingress));
     }
 }

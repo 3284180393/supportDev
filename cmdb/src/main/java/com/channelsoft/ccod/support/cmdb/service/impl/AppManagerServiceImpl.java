@@ -1037,6 +1037,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             this.appReadLock.writeLock().lock();
             try
             {
+                if(!this.registerAppMap.containsKey(appName))
+                    this.registerAppMap.put(appName, new ArrayList<>());
                 this.registerAppMap.get(appName).add(newModule);
             }
             finally {
