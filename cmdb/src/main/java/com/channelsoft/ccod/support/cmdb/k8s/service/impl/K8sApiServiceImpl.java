@@ -750,6 +750,9 @@ public class K8sApiServiceImpl implements IK8sApiService {
     {
         try
         {
+            String path = "/root/Platform/bin";
+            String logPath = path.replaceAll("/[^/]+$", "/logs");
+            System.out.println(logPath);
 //            deployReplaceTest();
 //            namespaceCreateTest();
 //            createDeploymentTest();
