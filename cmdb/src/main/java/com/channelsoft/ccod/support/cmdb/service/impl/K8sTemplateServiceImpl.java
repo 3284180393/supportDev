@@ -16,6 +16,7 @@ import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -77,6 +79,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Value("${ccod.service-port-regex}")
     private String portRegex;
 
+    @Value("${k8s.template-file-path}")
+    private String templateSavePath;
+
     private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
 
     private Gson templateParseGson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
@@ -107,8 +112,13 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @PostConstruct
     void init() throws Exception
     {
-        List<K8sObjectTemplatePo> testList = generatePlatformObjectTemplate("test-by-wyf", "4.1", "ucds-cloud01", "cas-manage01", "dcms-manage01");
-        this.objectTemplateList.addAll(testList);
+//        List<K8sObjectTemplatePo> testList = generatePlatformObjectTemplate("test-by-wyf", "4.1", "ucds-cloud01", "cas-manage01", "dcms-manage01");
+//        this.objectTemplateList.addAll(testList);
+//        testList = generatePlatformObjectTemplate("jhkzx-1", "3.9", "ucds-cloud01", "cas-manage01", "dcmswebservice-manage01");
+//        this.objectTemplateList.addAll(testList);
+        List<K8sObjectTemplatePo> list = parseTemplateFromFile(this.templateSavePath);
+        this.objectTemplateList.addAll(list);
+        logger.warn(String.format("test template=%s", gson.toJson(this.objectTemplateList)));
     }
 
     private List<K8sObjectTemplatePo> generatePlatformObjectTemplate(String srcPlatformId, String ccodVersion, String binaryApp, String tomcatApp, String resinApp) throws ApiException
@@ -121,9 +131,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         template.setNamespaceJson(templateParseGson.toJson(ns));
         V1Secret ssl = this.ik8sApiService.readNamespacedSecret("ssl", srcPlatformId, testK8sApiUrl, testAuthToken);
         template.setSecretJson(templateParseGson.toJson(ssl));
-        V1PersistentVolume pv = this.ik8sApiService.readPersistentVolume("base-volume-test-by-wyf", testK8sApiUrl, testAuthToken);
+        V1PersistentVolume pv = this.ik8sApiService.readPersistentVolume(String.format("base-volume-%s", srcPlatformId), testK8sApiUrl, testAuthToken);
         template.setPersistentVolumeJson(templateParseGson.toJson(pv));
-        V1PersistentVolumeClaim pvc = this.ik8sApiService.readNamespacedPersistentVolumeClaim("base-volume-test-by-wyf", srcPlatformId, testK8sApiUrl, testAuthToken);
+        V1PersistentVolumeClaim pvc = this.ik8sApiService.readNamespacedPersistentVolumeClaim(String.format("base-volume-%s", srcPlatformId), srcPlatformId, testK8sApiUrl, testAuthToken);
         template.setPersistentVolumeClaimJson(templateParseGson.toJson(pvc));
         templateList.add(template);
         labels = new HashMap<>();
@@ -435,7 +445,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
         String alias = optInfo.getAppAlias();
         Map<String, V1VolumeMount> volumeMountMap = runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()));
-        String pkgPath = getAbsolutePath(basePath, deployPath).replace("/$", "");
+        String pkgPath = getAbsolutePath(basePath, deployPath).replaceAll("/$", "");
         String logPath = appType.equals(AppType.TOMCAT_WEB_APP) ? pkgPath.replaceAll("/[^/]+$", "/logs") : pkgPath.replaceAll("/[^/]+$", "/log");
         volumeMountMap.get("ccod-runtime").setMountPath(logPath);
         volumeMountMap.get("ccod-runtime").setSubPath(alias);
@@ -577,6 +587,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String appName = optInfo.getAppName();
         String alias = optInfo.getAppAlias();
         String packageFileName = module.getInstallPackage().getFileName();
+        String theName = packageFileName.replaceAll("\\.war$", "");
         String basePath = appType.equals(AppType.BINARY_FILE) ? "/binary-file" : "/opt";
         String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
         String execParam = "";
@@ -596,11 +607,36 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         Map<String, List<AppFileNexusInfo>> deployPathCfgMap = optInfo.getCfgs().stream().collect(Collectors.groupingBy(AppFileNexusInfo::getDeployPath));
         for (String cfgDeployPath : deployPathCfgMap.keySet()) {
             String absolutePath = getAbsolutePath(basePath, cfgDeployPath);
+            switch (appType)
+            {
+                case BINARY_FILE:
+                    execParam = String.format("%s;mkdir %s -p", execParam, absolutePath);
+                    break;
+                case RESIN_WEB_APP:
+                case TOMCAT_WEB_APP:
+                    execParam = String.format("%s;mkdir %s -p", execParam, absolutePath.replaceAll(String.format("/%s/", theName), "/"));
+                    break;
+            }
             execParam = String.format("%s;mkdir %s -p", execParam, absolutePath);
             for (AppFileNexusInfo cfg : deployPathCfgMap.get(cfgDeployPath)) {
-                execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
-                if (appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.TOMCAT_WEB_APP))
-                    execParam = String.format("%s;jar uf %s %s/%s", execParam, module.getInstallPackage().getFileName(), absolutePath.replaceAll(String.format("^%s", deployPath), "").replaceAll("^/", ""), cfg.getFileName());
+                switch (appType)
+                {
+                    case BINARY_FILE:
+                        execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
+                        break;
+                    case RESIN_WEB_APP:
+                    case TOMCAT_WEB_APP:
+                        absolutePath = absolutePath.replaceAll(String.format("/%s/", theName), "/");
+                        execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
+                        absolutePath = absolutePath.replaceAll(String.format("^%s/", deployPath), "");
+                        execParam = String.format("%s;jar uf %s %s/%s", execParam, packageFileName, absolutePath, cfg.getFileName());
+                        break;
+                    default:
+                        break;
+                }
+//                execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
+//                if (appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.TOMCAT_WEB_APP))
+//                    execParam = String.format("%s;jar uf %s %s/%s", execParam, module.getInstallPackage().getFileName(), absolutePath.replaceAll(String.format("^%s", deployPath), "").replaceAll("^/", "").replaceAll(String.format("^%s/", theName), ""), cfg.getFileName());
             }
         }
         if ("ucxserver".equals(appName))
@@ -815,5 +851,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 return false;
         }
         return true;
+    }
+
+    private List<K8sObjectTemplatePo> parseTemplateFromFile(String savePath) throws IOException
+    {
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(savePath)),
+                "UTF-8"));
+        String lineTxt = br.readLine();
+        List<K8sObjectTemplatePo> list = this.gson.fromJson(lineTxt, new TypeToken<List<K8sObjectTemplatePo>>() {
+        }.getType());
+        return list;
     }
 }

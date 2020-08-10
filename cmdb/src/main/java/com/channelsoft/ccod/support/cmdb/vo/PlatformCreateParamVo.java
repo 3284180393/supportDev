@@ -69,6 +69,8 @@ public class PlatformCreateParamVo implements Serializable {
 
     private String k8sAuthToken; //如果平台是部署在k8s上，需要指明访问k8s api的认证token
 
+    private String hostUrl; //被创建的平台的访问url
+
     public PlatformCreateMethod getCreateMethod() {
         return createMethod;
     }
@@ -221,6 +223,22 @@ public class PlatformCreateParamVo implements Serializable {
         this.ccodVersion = ccodVersion;
     }
 
+    public void setBkBizId(Integer bkBizId) {
+        this.bkBizId = bkBizId;
+    }
+
+    public void setBkCloudId(Integer bkCloudId) {
+        this.bkCloudId = bkCloudId;
+    }
+
+    public String getHostUrl() {
+        return hostUrl;
+    }
+
+    public void setHostUrl(String hostUrl) {
+        this.hostUrl = hostUrl;
+    }
+
     public PlatformPo getCreatePlatform()
     {
         String desc;
@@ -272,6 +290,7 @@ public class PlatformCreateParamVo implements Serializable {
         schema.setPlatformFunc(platformFunc);
         schema.setPlatformType(platformType);
         schema.setCreateMethod(createMethod);
+        schema.setHostUrl(hostUrl);
         return schema;
     }
 }

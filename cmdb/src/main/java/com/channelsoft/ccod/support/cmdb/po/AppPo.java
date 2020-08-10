@@ -29,6 +29,8 @@ public class AppPo {
 
     private String deployPath; //应用程序/包相对basePath的路径
 
+    private String cfgCreateCmd; //配置创建命令
+
     private String initCmd; //初始化命令
 
     private String startCmd; //启动命令
@@ -193,6 +195,14 @@ public class AppPo {
 
     public void setVersionControlUrl(String versionControlUrl) {
         this.versionControlUrl = versionControlUrl;
+    }
+
+    public String getCfgCreateCmd() {
+        return cfgCreateCmd;
+    }
+
+    public void setCfgCreateCmd(String cfgCreateCmd) {
+        this.cfgCreateCmd = cfgCreateCmd;
     }
 
     public String getAppNexusDirectory() {

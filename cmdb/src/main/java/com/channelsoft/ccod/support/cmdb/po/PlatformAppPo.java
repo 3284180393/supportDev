@@ -42,6 +42,8 @@ public class PlatformAppPo {
 
     private String deployPath; //部署路径
 
+    private String cfgCreateCmd; //配置创建命令
+
     private String initCmd; //初始化命令
 
     private String startCmd; //启动命令
@@ -242,6 +244,14 @@ public class PlatformAppPo {
 
     public void setPeriodSeconds(int periodSeconds) {
         this.periodSeconds = periodSeconds;
+    }
+
+    public String getCfgCreateCmd() {
+        return cfgCreateCmd;
+    }
+
+    public void setCfgCreateCmd(String cfgCreateCmd) {
+        this.cfgCreateCmd = cfgCreateCmd;
     }
 
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {

@@ -2247,7 +2247,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.debug("schema param check success");
         else
             throw new ParamException(String.format("schema check fail : %s", platformCheckResult));
-        updateSchema = getK8sObjectForSchema(updateSchema, registerApps);
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(updateSchema.getPlatformId(), null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
@@ -2264,6 +2263,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<DomainUpdatePlanInfo> execPlans = statusPlanMap.containsKey(UpdateStatus.EXEC) ? statusPlanMap.get(UpdateStatus.EXEC) : new ArrayList<>();
         if(execPlans.size() > 0)
         {
+            if(StringUtils.isBlank(updateSchema.getHostUrl()))
+                throw new ParamException(String.format("hostUrl of platform is blank"));
+            updateSchema = getK8sObjectForSchema(updateSchema, registerApps);
             List<K8sOperationInfo> execSteps = generateSchemaK8sExecStep(updateSchema, UpdateStatus.EXEC, registerApps);
             logger.debug(String.format("exec step is %s", gson.toJson(execSteps)));
             PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(execSteps, updateSchema, platformDeployApps);
@@ -2320,6 +2322,129 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.debug(String.format("%d domain complete deployment, so sync new platform topo to lj paas", execPlans.size()));
             this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
         }
+    }
+
+    @Override
+    public PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, ApiException {
+        String appName = optInfo.getAppName();
+        String alias = optInfo.getAppAlias();
+        if(StringUtils.isBlank(platformId))
+            throw new ParamException("platformId can not be null");
+        if(StringUtils.isBlank(domainId))
+            throw new ParamException("domainId can not be null");
+        if(StringUtils.isBlank(appName))
+            throw new ParamException("appName can not be null");
+        if(StringUtils.isBlank(alias))
+            throw new ParamException("alias can not be null");
+        if(!optInfo.getOperation().equals(AppUpdateOperation.UPDATE))
+            throw new ParamException(String.format("current version only support UPDATE debug"));
+        PlatformPo platform = this.platformMapper.selectByPrimaryKey(platformId);
+        if(platform == null)
+            throw new ParamException(String.format("platform %s not exist", platformId));
+        if(!platform.getType().equals(PlatformType.K8S_CONTAINER))
+            throw new ParamException(String.format("current version only support K8S_CONTAINER type platform debug, not support %s", platform.getType().name));
+        DomainPo domain = this.domainMapper.selectByPrimaryKey(platformId, domainId);
+        if(domain == null)
+            throw new ParamException(String.format("domain %s not exit", domainId));
+        List<PlatformAppDeployDetailVo> deployApps = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, domainId, null);
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName));
+        if(!domainAppMap.containsKey(appName))
+            throw new ParamException(String.format("domain %s has not deployed %s", domainId, appName));
+        Map<String, PlatformAppDeployDetailVo> deployAppMap = domainAppMap.get(appName).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity()));
+        if(!deployAppMap.containsKey(alias))
+            throw new ParamException(String.format("domain %s has not deploy %s with alias %s", domainId, appName, alias));
+        PlatformAppDeployDetailVo deployApp = deployAppMap.get(alias);
+        return null;
+    }
+
+    List<K8sOperationInfo> generateAppDebugStep(String platformId, String domainId, PlatformAppDeployDetailVo deployApp, AppUpdateOperationInfo optInfo)
+    {
+        String appName = optInfo.getAppName();
+        String alias = optInfo.getAppAlias();
+        logger.debug(String.format("generate debug step of %s(%s) at %s", alias, appName, domainId));
+        logger.debug(String.format(""));
+        if(StringUtils.isBlank(optInfo.getPorts())) {
+            logger.debug(String.format("ports not change"));
+            optInfo.setPorts(deployApp.getPorts());
+        }
+        else
+            logger.debug(String.format("ports changed from %s to %s", deployApp.getPort(), optInfo.getPorts()));
+        if(StringUtils.isBlank(optInfo.getNodePorts())) {
+            logger.debug(String.format("nodePorts not change"));
+            optInfo.setNodePorts(deployApp.getNodePorts());
+        }
+        else
+            logger.debug(String.format("nodePorts changed from %s to %s", deployApp.getNodePorts(), optInfo.getNodePorts()));
+        if(StringUtils.isBlank(optInfo.getStartCmd())) {
+            logger.debug(String.format("startCmd not change"));
+            optInfo.setStartCmd(deployApp.getStartCmd());
+        }
+        else
+            logger.debug(String.format("startCmd changed from %s to %s", deployApp.getStartCmd(), optInfo.getStartCmd()));
+        if(StringUtils.isBlank(optInfo.getDeployPath())){
+            logger.debug(String.format("deployPath not change"));
+            optInfo.setDeployPath(deployApp.getDeployPath());
+        }
+        else
+            logger.debug(String.format("deployPath has changed from %s to %s", deployApp.getDeployPath(), optInfo.getDeployPath()));
+        if(StringUtils.isBlank(optInfo.getBasePath())){
+            logger.debug(String.format("basePath not change"));
+            optInfo.setBasePath(deployApp.getBasePath());
+        }
+        else
+            logger.debug(String.format("basePath has changed from %s to %s", deployApp.getBasePath(), optInfo.getBasePath()));
+        if(StringUtils.isBlank(optInfo.getTargetVersion())){
+            logger.debug(String.format("targetVersion is not change"));
+            optInfo.setTargetVersion(deployApp.getVersion());
+        }
+        else
+            logger.debug(String.format("version has changed from %s to %s", deployApp.getVersion(), optInfo.getTargetVersion()));
+        if(optInfo.getCfgs() == null || optInfo.getCfgs().size() == 0)
+        {
+            logger.debug(String.format("cfg not change"));
+            List<AppFileNexusInfo> cfgs = new ArrayList<>();
+            cfgs.addAll(deployApp.getCfgs().stream().map(cfgFile -> cfgFile.getAppFileNexusInfo()).collect(Collectors.toList()));
+        }
+        else
+            logger.debug(String.format("cfgs changed from %s to %s", gson.toJson(deployApp.getCfgs()), gson.toJson(optInfo.getCfgs())));
+        if(StringUtils.isBlank(optInfo.getHostIp())){
+            logger.debug(String.format("host ip not changed"));
+            optInfo.setHostIp(deployApp.getHostIp());
+        }
+        else
+            logger.debug(String.format("host ip has changed from %s to %s", deployApp.getHostIp(), optInfo.getHostIp()));
+        if(StringUtils.isBlank(optInfo.getInitCmd())){
+            logger.debug(String.format("int cmd not change"));
+            optInfo.setInitCmd(deployApp.getInitCmd());
+        }
+        else
+            logger.debug(String.format("init cmd changed from %s to %s", deployApp.getInitCmd(), optInfo.getInitCmd()));
+        if(StringUtils.isBlank(optInfo.getLogOutputCmd())){
+            logger.debug(String.format("log output cmd not change"));
+            optInfo.setLogOutputCmd(deployApp.getLogOutputCmd());
+        }
+        else
+            logger.debug(String.format("log output cmd changed from %s to %s", deployApp.getLogOutputCmd(), optInfo.getLogOutputCmd()));
+        if(StringUtils.isBlank(optInfo.getResources())){
+            logger.debug(String.format("resources not change"));
+            optInfo.setResources(deployApp.getResources());
+        }
+        else
+            logger.debug(String.format("resources has changed from %s to %s", deployApp.getResources(), optInfo.getResources()));
+        if(optInfo.getInitialDelaySeconds() == 0){
+            logger.debug(String.format("initialDelaySeconds not change"));
+            optInfo.setInitialDelaySeconds(deployApp.getInitialDelaySeconds());
+        }
+        else
+            logger.debug(String.format("initialDelaySeconds has changed from %d to %d", deployApp.getInitialDelaySeconds(), optInfo.getInitialDelaySeconds()));
+        if(optInfo.getPeriodSeconds() == 0){
+            logger.debug(String.format("periodSeconds not change"));
+            optInfo.setPeriodSeconds(deployApp.getPeriodSeconds());
+        }
+        else
+            logger.debug(String.format("periodSeconds has changed from %d to %d", deployApp.getPeriodSeconds(), optInfo.getPeriodSeconds()));
+        List<K8sOperationInfo> stepList = new ArrayList<>();
+        return stepList;
     }
 
     private List<K8sOperationInfo> generateSchemaK8sExecStep(PlatformUpdateSchemaInfo schema, UpdateStatus planStatus, List<AppModuleVo> registerApps) throws K8sDataException, ParamException, ApiException, NotSupportAppException, IOException, InterfaceCallException
@@ -2412,8 +2537,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException("public config of new create platform is empty");
             K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, schema.getNamespace().getMetadata().getName(), K8sOperation.CREATE, schema.getNamespace());
             execSteps.add(optInfo);
-            optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, schema.getK8sJob().getMetadata().getName(), K8sOperation.CREATE, schema.getK8sJob());
-            execSteps.add(optInfo);
+//            optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, schema.getK8sJob().getMetadata().getName(), K8sOperation.CREATE, schema.getK8sJob());
+//            execSteps.add(optInfo);
             optInfo = new K8sOperationInfo(jobId, platformId, null, K8sKind.SECRET, schema.getK8sSecrets().get(0).getMetadata().getName(), K8sOperation.CREATE, schema.getK8sSecrets().get(0));
             execSteps.add(optInfo);
             for(V1PersistentVolume pv : schema.getK8sPVList())
@@ -2776,8 +2901,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             if(StringUtils.isBlank(updateSchema.getK8sHostIp()))
                 sb.append(String.format("k8sHostIp is blank;"));
-            if(StringUtils.isBlank(updateSchema.getHostUrl()))
-                sb.append(String.format("hostUrl of platform is blank;"));
         }
         if (StringUtils.isNotBlank(sb.toString()))
             return sb.toString();
@@ -3231,6 +3354,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         schema.setPlatformFunc(schema.getPlatformFunc());
         schema.setCreateMethod(PlatformCreateMethod.CLONE);
         schema.setPublicConfig(paramVo.getPublicConfig());
+        schema.setHostUrl(paramVo.getHostUrl());
 //        makeupPlatformUpdateSchema(schema, new ArrayList<>(), new ArrayList<>());
         return schema;
     }

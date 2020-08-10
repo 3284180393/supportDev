@@ -14,8 +14,10 @@
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
+        <result column="cfg_create_cmd" property="cfgCreateCmd" jdbcType="VARCHAR" />
         <result column="init_cmd" property="startCmd" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
+        <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
         <result column="kernal" property="kernal" jdbcType="BOOLEAN" />
         <result column="time_out" property="timeout" jdbcType="INTEGER" />
         <result column="ports" property="ports" jdbcType="VARCHAR" />
@@ -47,8 +49,10 @@
         a.version_control_url,
         a.base_path,
         a.deploy_path,
+        a.cfg_create_cmd,
         a.init_cmd,
         a.start_cmd,
+        a.log_output_cmd,
         a.kernal,
         a.time_out,
         a.ports,

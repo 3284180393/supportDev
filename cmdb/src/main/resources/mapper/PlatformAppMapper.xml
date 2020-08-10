@@ -13,6 +13,7 @@
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
+        <result column="cfg_create_cmd" property="port" jdbcType="VARCHAR" />
         <result column="init_cmd" property="port" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
         <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
@@ -35,6 +36,7 @@
 	        pa.app_runner AS app_runner,
 	        pa.base_path AS base_path,
 	        pa.deploy_path AS deploy_path,
+	        pa.cfg_create_cmd AS cfg_create_cmd,
             pa.init_cmd AS init_cmd,
 	        pa.start_cmd AS start_cmd,
 	        pa.log_output_cmd AS log_output_cmd,
@@ -93,6 +95,7 @@
                 app_runner,
                 base_path,
                 deploy_path,
+                cfg_create_cmd,
                 init_cmd,
                 start_cmd,
                 log_output_cmd,
@@ -113,6 +116,7 @@
                 #{appRunner,jdbcType=VARCHAR},
                 #{basePath,jdbcType=VARCHAR},
                 #{deployPath,jdbcType=VARCHAR},
+                #{cfgCreateCmd,jdbcType=VARCHAR},
                 #{initCmd,jdbcType=VARCHAR},
                 #{startCmd,jdbcType=VARCHAR},
                 #{logOutputCmd,jdbcType=VARCHAR},
@@ -145,8 +149,10 @@
         update platform_app set
             base_path = #{basePath,jdbcType=VARCHAR},
             deploy_path = #{deployPath,jdbcType=VARCHAR},
+            cfg_create_cmd = #{cfgCreateCmd,jdbcType=VARCHAR},
             init_cmd = #{initCmd,jdbcType=VARCHAR},
             start_cmd = #{startCmd,jdbcType=VARCHAR},
+            log_output_cmd = #{logOutputCmd,jdbcType=VARCHAR},
             ports = #{ports,jdbcType=VARCHAR},
             node_ports = #{nodePorts,jdbcType=VARCHAR},
             resources = #{resources,jdbcType=VARCHAR},

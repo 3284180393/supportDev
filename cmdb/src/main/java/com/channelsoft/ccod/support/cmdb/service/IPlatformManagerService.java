@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
@@ -205,6 +206,8 @@ public interface IPlatformManagerService {
      * @throws ParamException
      */
     List<AppFileNexusInfo> queryPlatformAppCfgs(String platformId, String domainId, String alias) throws ParamException;
+
+    PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, ApiException;
 
     /**
      * 修改平台应用配置文件

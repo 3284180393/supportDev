@@ -117,6 +117,13 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/appsFlush", method = RequestMethod.GET)
+    public AjaxResultPo flushApps()
+    {
+        this.appManagerService.flushRegisteredApp();
+        AjaxResultPo resultPo = new AjaxResultPo(true, "flush SUCCESS", 1, null);
+        return resultPo;
+    }
 
     @RequestMapping(value = "/apps/{appName}", method = RequestMethod.GET)
     public AjaxResultPo queryAppsByName(@PathVariable String appName, Boolean hasImage)

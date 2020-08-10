@@ -67,6 +67,8 @@ public class PlatformAppDeployDetailVo {
 
     private String deployPath; //应用程序/安装包部署路径
 
+    private String cfgCreateCmd; //配置创建命令
+
     private String initCmd; //初始化命令
 
     private String startCmd; //启动命令
@@ -456,6 +458,14 @@ public class PlatformAppDeployDetailVo {
         this.periodSeconds = periodSeconds;
     }
 
+    public String getCfgCreateCmd() {
+        return cfgCreateCmd;
+    }
+
+    public void setCfgCreateCmd(String cfgCreateCmd) {
+        this.cfgCreateCmd = cfgCreateCmd;
+    }
+
     public PlatformAppPo getPlatformApp()
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -464,6 +474,7 @@ public class PlatformAppDeployDetailVo {
         po.setDeployTime(this.deployTime);
         po.setBasePath(this.basePath);
         po.setDeployPath(this.deployPath);
+        po.setCfgCreateCmd(this.cfgCreateCmd);
         po.setInitCmd(this.initCmd);
         po.setStartCmd(this.startCmd);
         po.setLogOutputCmd(this.logOutputCmd);
@@ -481,7 +492,6 @@ public class PlatformAppDeployDetailVo {
         po.setAssembleId(this.assembleId);
         po.setReplicas(this.replicas);
         po.setAvailableReplicas(this.availableReplicas);
-
         return po;
     }
 
