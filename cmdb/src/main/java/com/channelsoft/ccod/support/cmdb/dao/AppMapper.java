@@ -46,12 +46,10 @@ public interface AppMapper {
      * 根据指定条件查询app记录，如果某个参数为空，则查询时忽略该参数，如果所有参数为空则查询所有记录
      * @param appType 应用类型
      * @param appName 应用名
-     * @param appAlias 应用别名
-     * @param version 应用版本号
      * @return 满足条件的记录
      * @throws DataAccessException
      */
-    List<AppPo> select(@Param("appType")String appType, @Param("appName")String appName, @Param("appAlias")String appAlias, @Param("version")String version) throws DataAccessException;
+    List<AppPo> select(@Param("appType")String appType, @Param("appName")String appName) throws DataAccessException;
 
     /**
      * 修改已有的app记录

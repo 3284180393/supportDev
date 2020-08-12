@@ -262,7 +262,8 @@ public class PlatformAppModuleVo {
     public PlatformPo getPlatform()
     {
         PlatformPo po = new PlatformPo(this.platformId, this.platformName, 0, 0,
-                CCODPlatformStatus.RUNNING, this.ccodVersion, "create by auto data collected", PlatformType.PHYSICAL_MACHINE, PlatformFunction.ONLINE, PlatformCreateMethod.ONLINE_MANAGER_COLLECT);
+                CCODPlatformStatus.RUNNING, this.ccodVersion, "create by auto data collected", PlatformType.PHYSICAL_MACHINE,
+                PlatformFunction.ONLINE, PlatformCreateMethod.ONLINE_MANAGER_COLLECT, String.format("%s.ccod.com", platformId));
 //        po.setCcodVersion(this.ccodVersion);
 //        po.setComment("");
 //        po.setCreateTime(this.checkTime);

@@ -231,7 +231,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public ExtensionsV1beta1Ingress selectIngress(Map<String, String> selector, String alias, String platformId, String domainId, String hostUrl) throws ParamException {
+    public ExtensionsV1beta1Ingress getIngress(Map<String, String> selector, String alias, String platformId, String domainId, String hostUrl) throws ParamException {
         ExtensionsV1beta1Ingress ingress = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -252,7 +252,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Service selectService(Map<String, String> selector, String appName, String alias, AppType appType, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException {
+    public V1Service getService(Map<String, String> selector, String appName, String alias, AppType appType, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException {
         if(!portType.equals(ServicePortType.ClusterIP) && !portType.equals(ServicePortType.NodePort))
             throw new ParamException(String.format("can not handle service port type : %s", portType.name));
         V1Service service = null;
@@ -283,36 +283,19 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         {
             V1ServicePort svcPort = new V1ServicePort();
             svcPort.setPort(portVo.getPort());
-            svcPort.setName(portVo.getProtocol() + "");
+            svcPort.setName(portVo.getPort() + "");
             svcPort.setProtocol(portVo.getProtocol());
             if(portType.equals(ServicePortType.NodePort))
                 svcPort.setNodePort(portVo.getNodePort());
             else
                 svcPort.setTargetPort(new IntOrString(portVo.getTargetPort()));
-
-
-        }
-        for(String clusterPort : ports)
-        {
-            V1ServicePort svcPort = new V1ServicePort();
-            String[] arr = clusterPort.split("/");
-            svcPort.setProtocol(arr[1]);
-            String[] arr1 = arr[0].split("\\:");
-            svcPort.setPort(Integer.parseInt(arr1[0]));
-            svcPort.setName(arr1[0]);
-            if(arr1.length == 2) {
-                if(ServicePortType.NodePort.equals(portType))
-                    svcPort.setNodePort(Integer.parseInt(arr[1]));
-                else
-                    svcPort.setTargetPort(new IntOrString(arr1[1]));
-            }
             service.getSpec().getPorts().add(svcPort);
         }
         return service;
     }
 
     @Override
-    public V1Service selectService(Map<String, String> selector, String appName, String alias, String platformId) throws ParamException {
+    public V1Service getService(Map<String, String> selector, String appName, String alias, String platformId) throws ParamException {
         V1Service service = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -334,7 +317,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Deployment selectDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException {
+    public V1Deployment getDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException {
         String appName = optInfo.getAppName();
         String version = optInfo.getTargetVersion();
         String alias = optInfo.getAppAlias();
@@ -404,7 +387,17 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             logger.debug(String.format("modify deployment hostnames of hostAliases to %s", hostUrl));
             deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).getHostnames().set(0, hostUrl);
         }
-        logger.debug("modify labels and selector of deploy");
+        if(optInfo.getInitialDelaySeconds() > 0){
+            logger.debug(String.format("change initialDelaySeconds of runtime container from %d to %d",
+                    runtimeContainer.getLivenessProbe().getInitialDelaySeconds(), optInfo.getInitialDelaySeconds()));
+            runtimeContainer.getLivenessProbe().setInitialDelaySeconds(optInfo.getInitialDelaySeconds());
+        }
+        if(optInfo.getPeriodSeconds() > 0)
+        {
+            logger.debug(String.format("change periodSeconds of runtime container from %d to %d",
+                    runtimeContainer.getLivenessProbe().getPeriodSeconds(), optInfo.getPeriodSeconds()));
+            runtimeContainer.getLivenessProbe().setPeriodSeconds(optInfo.getPeriodSeconds());
+        }
         logger.info(String.format("selected deployment is %s for selector %s", gson.toJson(deploy), gson.toJson(selector)));
         return deploy;
     }
@@ -572,7 +565,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 }
             }
         }
-        execParam = String.format("%s;cd %s;%s", execParam, appType.equals(AppType.BINARY_FILE) ? deployPath:basePath, optInfo.getStartCmd());
+        String cwd = appType.equals(AppType.BINARY_FILE) ? deployPath:basePath;
+        if(StringUtils.isNotBlank(optInfo.getInitCmd()))
+            execParam = String.format("%s;cd %s;%s", execParam, cwd, optInfo.getInitCmd());
+        execParam = String.format("%s;cd %s;%s", execParam, cwd, optInfo.getStartCmd());
+        if(StringUtils.isNotBlank(optInfo.getLogOutputCmd()))
+            execParam = String.format("%s;cd %s;%", execParam, cwd, optInfo.getLogOutputCmd());
         commands.add(execParam.replaceAll("^;", "").replaceAll(";;", ";"));
         logger.debug(String.format("command for %s at %s is : %s", alias, domainId, String.join(";", commands)));
         return commands;
@@ -647,6 +645,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             case RESIN_WEB_APP:
                 execParam = String.format("%s;mv /%s/%s /war/%s-%s.war", execParam, deployPath, packageFileName, alias, domainId);
         }
+        if(StringUtils.isNotBlank(optInfo.getCfgCreateCmd()))
+            execParam = String.format("%s;cd %s;%s", execParam, basePath, optInfo.getCfgCreateCmd());
         commands.add(execParam.replaceAll("^;", "").replaceAll(";;", ";").replaceAll("//", "/"));
         logger.debug(String.format("command of init container is %s", String.join(";", commands)));
         return commands;
@@ -731,7 +731,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Deployment selectDeployment(Map<String, String> selector, String appName, String alias, String version, String platformId) throws ParamException {
+    public V1Deployment getDeployment(Map<String, String> selector, String appName, String alias, String version, String platformId) throws ParamException {
         V1Deployment deploy = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -758,7 +758,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Namespace selectNamespace(Map<String, String> selector, String platformId) throws ParamException {
+    public V1Namespace getNamespace(Map<String, String> selector, String platformId) throws ParamException {
         V1Namespace ns = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -777,7 +777,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Secret selectSecret(Map<String, String> selector, String platformId, String name) throws ParamException {
+    public V1Secret getSecret(Map<String, String> selector, String platformId, String name) throws ParamException {
         V1Secret secret = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -796,7 +796,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1PersistentVolume selectPersistentVolume(Map<String, String> selector, String platformId) throws ParamException {
+    public V1PersistentVolume getPersistentVolume(Map<String, String> selector, String platformId) throws ParamException {
         V1PersistentVolume pv = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -819,7 +819,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1PersistentVolumeClaim selectPersistentVolumeClaim(Map<String, String> selector, String platformId) throws ParamException {
+    public V1PersistentVolumeClaim getPersistentVolumeClaim(Map<String, String> selector, String platformId) throws ParamException {
         V1PersistentVolumeClaim pvc = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {

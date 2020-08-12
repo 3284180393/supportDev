@@ -4,7 +4,7 @@
     <resultMap id="DomainPublicConfigMap" type="com.channelsoft.ccod.support.cmdb.po.DomainPublicConfigPo" >
         <id column="dom_pub_cfg_id" property="domPubCfgId" jdbcType="INTEGER" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
-        <result column="domain_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="file_name" property="fileName" jdbcType="VARCHAR" />
         <result column="ext" property="ext" jdbcType="VARCHAR" />
         <result column="file_size" property="fileSize" jdbcType="INTEGER" />
@@ -15,7 +15,17 @@
         <result column="nexus_asset_id" property="nexusAssetId" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        dpc.dom_pub_cfg_id, dpc.platform_id, dpc.domain_id, dpc.file_name, dpc.ext, dpc.file_size, dpc.md5, dpc.nexus_repository, dpc.nexus_path, dpc.nexus_asset_id
+        dpc.dom_pub_cfg_id,
+        dpc.platform_id,
+        dpc.domain_id,
+        dpc.file_name,
+        dpc.ext,
+        dpc.file_size,
+        dpc.md5,
+        dpc.deploy_path,
+        dpc.nexus_repository,
+        dpc.nexus_path,
+        dpc.nexus_asset_id
     </sql>
     <select id="select" resultMap="DomainPublicConfigMap" parameterType="java.lang.String">
         select
@@ -30,7 +40,7 @@
         </if>
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.DomainPublicConfigPo"
-            useGeneratedKeys="true" keyProperty="domPubCfgId">>
+            useGeneratedKeys="true" keyProperty="domPubCfgId">
         insert into domain_public_config(platform_id, domain_id, file_name, ext, file_size, md5, deploy_path, nexus_repository, nexus_path, nexus_asset_id)
         values (#{platformId,jdbcType=VARCHAR}, #{domainId,jdbcType=VARCHAR}, #{fileName,jdbcType=VARCHAR}, #{ext,jdbcType=VARCHAR}, #{fileSize,jdbcType=INTEGER}, #{md5,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{nexusRepository,jdbcType=VARCHAR}, #{nexusPath,jdbcType=VARCHAR}, #{nexusAssetId,jdbcType=VARCHAR})
     </insert>

@@ -20,6 +20,21 @@ public class DomainPublicConfigPo extends AppFileNexusInfo {
     public DomainPublicConfigPo()
     {}
 
+    public DomainPublicConfigPo(String platformId, String domainId, AppFileNexusInfo fileInfo)
+    {
+        this.platformId = platformId;
+        this.domainId = domainId;
+        this.nexusPath = fileInfo.getNexusPath();
+        this.nexusRepository = fileInfo.getNexusRepository();
+        this.fileName = fileInfo.getFileName();
+        this.md5 = fileInfo.getMd5();
+        this.deployPath = fileInfo.getDeployPath();
+        this.nexusAssetId = fileInfo.getNexusAssetId();
+        String[] arr = this.fileName.split("\\.");
+        this.ext = arr.length == 1 ? null : arr[arr.length - 1];
+        this.fileSize = fileInfo.getFileSize();
+    }
+
     public DomainPublicConfigPo(String domainId, String platformId, String deployPath, NexusAssetInfo assetInfo)
     {
         super(assetInfo, deployPath);

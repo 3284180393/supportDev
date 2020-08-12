@@ -9,6 +9,7 @@ import io.kubernetes.client.openapi.models.*;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @ClassName: IK8sApiService
@@ -153,7 +154,7 @@ public interface IK8sApiService {
      * @param secret 替换的Secret
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
-     * @return Endpoints被替换后的结果
+     * @return Secret被替换后的结果
      * @throws ApiException
      */
     V1Secret replaceNamespacedSecret(String name, String namespace, V1Secret secret, String k8sApiUrl, String authToken) throws ApiException;
@@ -181,7 +182,7 @@ public interface IK8sApiService {
 
     /**
      * 查询指定job
-     * @param name Endpoints的名称
+     * @param name job的名称
      * @param namespace 命名空间
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
@@ -228,7 +229,7 @@ public interface IK8sApiService {
      * @param persistentVolumeClaim 需要创建的PersistentVolumeClaim
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
-     * @return 被创建的EndPoints
+     * @return 被创建的PersistentVolumeClaim
      * @throws ApiException
      */
     V1PersistentVolumeClaim createNamespacedPersistentVolumeClaim(String namespace, V1PersistentVolumeClaim persistentVolumeClaim, String k8sApiUrl, String authToken) throws ApiException;
@@ -240,7 +241,7 @@ public interface IK8sApiService {
      * @param persistentVolumeClaim 替换的PersistentVolumeClaim
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
-     * @return Endpoints被替换后的结果
+     * @return PersistentVolumeClaim被替换后的结果
      * @throws ApiException
      */
     V1PersistentVolumeClaim replaceNamespacedPersistentVolumeClaim(String name, String namespace, V1PersistentVolumeClaim persistentVolumeClaim, String k8sApiUrl, String authToken) throws ApiException;
@@ -464,6 +465,17 @@ public interface IK8sApiService {
     V1Deployment replaceNamespacedDeployment(String name, String namespace, V1Deployment deployment, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 选择指定命名空间下满足条件的所有deployment
+     * @param namespace 命名空间
+     * @param selector 选择条件
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 选择结果
+     * @throws ApiException
+     */
+    List<V1Deployment> selectorNamespacedDeployment(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
      * 查询指定的服务信息
      * @param name 服务名
      * @param namespace 命名空间
@@ -517,6 +529,17 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     V1Service replaceNamespacedService(String name, String namespace, V1Service service, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 选择指定命名空间下满足条件的所有service
+     * @param namespace 命名空间
+     * @param selector 选择条件
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 选择结果
+     * @throws ApiException
+     */
+    List<V1Service> selectorNamespacedService(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 查询指定的命名空间

@@ -14,7 +14,16 @@
         <result column="nexus_asset_id" property="nexusAssetId" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
-        select ppc.plat_pub_cfg_id, ppc.platform_id, ppc.file_name, ppc.ext, ppc.file_size, ppc.md5, ppc.nexus_repository, ppc.nexus_path, ppc.nexus_asset_id
+        ppc.plat_pub_cfg_id,
+        ppc.platform_id,
+        ppc.file_name,
+        ppc.ext,
+        ppc.file_size,
+        ppc.md5,
+        ppc.deploy_path,
+        ppc.nexus_repository,
+        ppc.nexus_path,
+        ppc.nexus_asset_id
     </sql>
     <select id="select" resultMap="PlatformPublicConfigMap" parameterType="java.lang.String">
         select
@@ -23,9 +32,27 @@
         where ppc.platform_id=#{platformId,jdbcType=VARCHAR}
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformPublicConfigPo"
-            useGeneratedKeys="true" keyProperty="platPubCfgId">>
-        insert into platform_public_config(platform_id, file_name, ext, file_size, md5, deploy_path, nexus_repository, nexus_path, nexus_asset_id)
-        values (#{platformId,jdbcType=VARCHAR}, #{fileName,jdbcType=VARCHAR}, #{ext,jdbcType=VARCHAR}, #{fileSize,jdbcType=INTEGER}, #{md5,jdbcType=VARCHAR}, #{deployPath,jdbcType=VARCHAR}, #{nexusRepository,jdbcType=VARCHAR}, #{nexusPath,jdbcType=VARCHAR}, #{nexusAssetId,jdbcType=VARCHAR})
+            useGeneratedKeys="true" keyProperty="platPubCfgId">
+        insert into platform_public_config(
+            platform_id,
+            file_name,
+            ext,
+            file_size,
+            md5,
+            deploy_path,
+            nexus_repository,
+            nexus_path,
+            nexus_asset_id)
+        values (
+            #{platformId,jdbcType=VARCHAR},
+            #{fileName,jdbcType=VARCHAR},
+            #{ext,jdbcType=VARCHAR},
+            #{fileSize,jdbcType=INTEGER},
+            #{md5,jdbcType=VARCHAR},
+            #{deployPath,jdbcType=VARCHAR},
+            #{nexusRepository,jdbcType=VARCHAR},
+            #{nexusPath,jdbcType=VARCHAR},
+            #{nexusAssetId,jdbcType=VARCHAR})
     </insert>
     <delete id="delete" parameterType="java.lang.String">
         delete

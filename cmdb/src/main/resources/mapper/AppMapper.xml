@@ -70,9 +70,6 @@
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}
         </if>
-        <if test="version!=null">
-            And a.version=#{version,jdbcType=VARCHAR}
-        </if>
     </select>
     <select id="selectByNameAndVersion" resultMap="AppMap">
         select

@@ -14,9 +14,24 @@
         <result column="func" property="func" jdbcType="VARCHAR" />
         <result column="api_url" property="apiUrl" jdbcType="VARCHAR" />
         <result column="auth_token" property="authToken" jdbcType="VARCHAR" />
+        <result column="host_url" property="hostUrl" jdbcType="VARCHAR" />
+        <result column="params" property="params" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
     </resultMap>
     <sql id="Base_Column_List" >
-        pf.platform_id, pf.platform_name, pf.bk_biz_id, pf.bk_cloud_id, pf.create_time, pf.update_time, pf.`status`, pf.ccod_version, pf.`comment`, pf.`type`, pf.func, pf.api_url, pf.auth_token
+        pf.platform_id,
+        pf.platform_name,
+        pf.bk_biz_id,
+        pf.bk_cloud_id,
+        pf.create_time,
+        pf.update_time,
+        pf.`status`,
+        pf.ccod_version,
+        pf.`comment`,
+        pf.`type`,
+        pf.func,
+        pf.api_url,
+        pf.auth_token,
+        pf.host_url
     </sql>
     <select id="selectByPrimaryKey" resultMap="PlatformMap" parameterType="java.lang.String">
         select
@@ -46,8 +61,38 @@
         </if>
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformPo">
-        insert into platform(platform_id, platform_name, bk_biz_id, bk_cloud_id, create_time, update_time, `status`, ccod_version, `comment`, `type`, func, api_url, auth_token)
-        values (#{platformId,jdbcType=VARCHAR}, #{platformName,jdbcType=VARCHAR}, #{bkBizId,jdbcType=INTEGER}, #{bkCloudId,jdbcType=INTEGER}, #{createTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{status,jdbcType=INTEGER}, #{ccodVersion,jdbcType=VARCHAR}, #{comment,jdbcType=VARCHAR}, #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{func,typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{apiUrl,jdbcType=VARCHAR}, #{authToken,jdbcType=VARCHAR})
+        insert into platform(
+            platform_id,
+            platform_name,
+            bk_biz_id,
+            bk_cloud_id,
+            create_time,
+            update_time,
+            `status`,
+            ccod_version,
+            `comment`,
+            `type`,
+            func,
+            api_url,
+            auth_token,
+            host_url,
+            params)
+        values (
+            #{platformId,jdbcType=VARCHAR},
+            #{platformName,jdbcType=VARCHAR},
+            #{bkBizId,jdbcType=INTEGER},
+            #{bkCloudId,jdbcType=INTEGER},
+            #{createTime,jdbcType=TIMESTAMP},
+            #{updateTime,jdbcType=TIMESTAMP},
+            #{status,jdbcType=INTEGER},
+            #{ccodVersion,jdbcType=VARCHAR},
+            #{comment,jdbcType=VARCHAR},
+            #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            #{func,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
+            #{apiUrl,jdbcType=VARCHAR},
+            #{authToken,jdbcType=VARCHAR},
+            #{hostUrl,jdbcType=VARCHAR},
+            #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler})
     </insert>
     <delete id="delete" parameterType="java.lang.String">
         delete
@@ -66,7 +111,9 @@
             `type` = #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
             func = #{func,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
             api_url = #{apiUrl,jdbcType=VARCHAR},
-            auth_token = #{authToken,jdbcType=VARCHAR}
+            auth_token = #{authToken,jdbcType=VARCHAR},
+            host_url = #{hostUrl,jdbcType=VARCHAR},
+            params = #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler}
         where platform_id = #{platformId,jdbcType=VARCHAR}
   </update>
 </mapper>

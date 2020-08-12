@@ -580,6 +580,15 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public List<V1Deployment> selectorNamespacedDeployment(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("select deployment at %s from %s with selector=%s", namespace, k8sApiUrl, gson.toJson(selector)));
+        List<V1Deployment> deployments = this.listNamespacedDeployment(namespace, k8sApiUrl, authToken).stream()
+                .filter(deploy -> isSelected(selector, deploy.getSpec().getTemplate().getMetadata().getLabels())).collect(Collectors.toList());
+        logger.info(String.format("select %d deployment at %s from %s", deployments.size(), namespace, k8sApiUrl));
+        return deployments;
+    }
+
+    @Override
     public V1Service createNamespacedService(String namespace, V1Service service, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("create service %s for %s at %s", gson.toJson(service), namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
@@ -607,6 +616,55 @@ public class K8sApiServiceImpl implements IK8sApiService {
         V1Service replace = apiInstance.replaceNamespacedService(name, namespace, service, null, null, null);
         logger.info(String.format("replace Service %s at %s from %s to %s SUCCESS", name, namespace, k8sApiUrl, gson.toJson(replace)));
         return replace;
+    }
+
+    @Override
+    public List<V1Service> selectorNamespacedService(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("select service at %s from %s with selector=%s", namespace, k8sApiUrl, gson.toJson(selector)));
+        List<V1Service> services = this.listNamespacedService(namespace, k8sApiUrl, authToken).stream().filter(svc -> isMatch(selector, svc.getSpec().getSelector()))
+                .collect(Collectors.toList());
+        logger.info(String.format("select %d service at %s from %s matched for %s", services.size(), namespace, k8sApiUrl, gson.toJson(selector)));
+        return services;
+    }
+
+    /**
+     * 确定标签是否被选择器选择
+     * @param selector 选择器
+     * @param labels 标签
+     * @return 选择结果
+     */
+    private boolean isSelected(Map<String, String> selector, Map<String, String> labels)
+    {
+        if(selector == null || selector.size() == 0 || labels == null || labels.size() == 0)
+            return  false;
+        if(selector.size() < labels.size())
+            return false;
+        for(String key : selector.keySet())
+        {
+            if(!labels.containsKey(key) || !labels.get(key).equals(selector.get(key)))
+                return false;
+        }
+        return true;
+    }
+
+    /**
+     * 确定标签是和选择器匹配
+     * @param selector 选择器
+     * @param labels 标签
+     * @return 选择结果
+     */
+    private boolean isMatch(Map<String, String> selector, Map<String, String> labels)
+    {
+        if(selector == null || selector.size() == 0 || labels == null || labels.size() == 0)
+            return  false;
+        if(selector.size() != labels.size())
+            return false;
+        for(String key : selector.keySet())
+        {
+            if(!labels.containsKey(key) || !labels.get(key).equals(selector.get(key)))
+                return false;
+        }
+        return true;
     }
 
     @Override

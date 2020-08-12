@@ -251,7 +251,7 @@ public class PlatformCreateParamVo implements Serializable {
                 desc = String.format("create by %s", createMethod.name);
         }
         PlatformPo po = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
-                ccodVersion, desc, platformType, platformFunc, createMethod);
+                ccodVersion, desc, platformType, platformFunc, createMethod, hostUrl);
         if(PlatformType.K8S_CONTAINER.equals(platformType))
         {
             po.setAuthToken(k8sAuthToken);

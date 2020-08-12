@@ -223,7 +223,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //            }
 
 //            updateRegisterAppModuleImageExist();
-            List<AppModuleVo> list = queryAllHasImageAppModule();
+//            List<AppModuleVo> list = queryAllHasImageAppModule();
+            updateRegisteredApps();
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -270,7 +271,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public void appDataTransfer(String targetRepository) {
         List<AppModuleVo> moduleList = this.appModuleMapper.select(null, null, null, null);
-        Map<Integer, AppPo> appMap = this.appMapper.select(null, null, null, null).stream().collect(Collectors.toMap(AppPo::getAppId, Function.identity()));
+        Map<Integer, AppPo> appMap = this.appMapper.select(null, null).stream().collect(Collectors.toMap(AppPo::getAppId, Function.identity()));
         for(AppModuleVo vo : moduleList)
         {
             logger.debug(String.format("begin to transfer %s", vo.getAppNexusDirectory()));
@@ -922,7 +923,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.appWriteLock.writeLock().lock();
         try
         {
-            List<AppPo> appList = this.appMapper.select(null, null, null, null);
+            List<AppPo> appList = this.appMapper.select(null, null);
             for(AppPo appPo : appList)
             {
                 boolean hasImage = this.hasImage(appPo.getAppName(), appPo.getVersion());
@@ -1480,6 +1481,53 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         finally {
             this.appReadLock.readLock().unlock();
+        }
+    }
+
+    private void updateRegisteredApps()
+    {
+        this.appReadLock.writeLock().lock();
+        try
+        {
+            List<AppModuleVo> apps = this.appModuleMapper.select(null, null, null, null);
+            Map<String, String> portMap = apps.stream().filter(app->StringUtils.isNotBlank(app.getPorts())).collect(Collectors.toList())
+                    .stream().collect(Collectors.toMap(app->app.getAppName(), v->v.getPorts(), (v1,v2)->v1));
+            Map<String, String> nodePortMap = apps.stream().filter(app->StringUtils.isNotBlank(app.getNodePorts())).collect(Collectors.toList())
+                    .stream().collect(Collectors.toMap(app->app.getAppName(), v->v.getNodePorts(), (v1,v2)->v1));
+            Map<String, String> cmdMap = apps.stream().filter(app->StringUtils.isNotBlank(app.getStartCmd())).collect(Collectors.toList())
+                    .stream().collect(Collectors.toMap(app->app.getAppName(), v->v.getStartCmd(), (v1,v2)->v1));
+            for(AppModuleVo module : apps) {
+                AppPo app = module.getApp();
+                String appName = app.getAppName();
+                AppType appType = app.getAppType();
+                String ports = StringUtils.isBlank(app.getPorts()) && portMap.containsKey(appName) ? portMap.get(appName) : app.getPorts();
+                String nodePorts = StringUtils.isBlank(app.getNodePorts()) && nodePortMap.containsKey(appName) ? nodePortMap.get(appName) : app.getNodePorts();
+                String cmd = StringUtils.isBlank(app.getStartCmd()) && cmdMap.containsKey(appName) ? cmdMap.get(appName) : app.getStartCmd();
+                app.setPorts(ports);
+                app.setNodePorts(nodePorts);
+                String regex = String.format("(^|;)[^;]*%s[^;]*($|;)", appType.equals(AppType.BINARY_FILE) ? module.getInstallPackage().getFileName() : "(start.sh|resin.sh)");
+                if (StringUtils.isNotBlank(cmd)) {
+                    cmd = cmd.replaceAll("^;", "").replaceAll(";$", "").replaceAll("\\s+;", ";");
+                    Pattern pattern = Pattern.compile(regex);
+                    Matcher matcher = pattern.matcher(cmd);
+                    if (matcher.find()) {
+                        String startCmd = matcher.group().replaceAll("^;", "").replaceAll(";$", "");
+                        String[] arr = cmd.split(startCmd);
+                        String initCmd = cmd.matches(String.format("^%s.*", startCmd)) ? null : arr[0].replaceAll("^\\s*;", "");
+                        String logOutputCmd = cmd.matches(String.format(".*%s$", startCmd)) ? null : arr[arr.length - 1].replaceAll("^\\s*;", "");
+                        ;
+                        app.setInitCmd(initCmd);
+                        app.setStartCmd(startCmd);
+                        app.setLogOutputCmd(logOutputCmd);
+                    }
+                }
+                app.setInitialDelaySeconds(20);
+                app.setPeriodSeconds(10);
+                this.appMapper.update(app);
+            }
+        }
+        finally {
+            this.appReadLock.writeLock().unlock();
         }
     }
 

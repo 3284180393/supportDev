@@ -22,21 +22,21 @@ import java.util.Map;
  */
 public interface IK8sTemplateService {
 
-    ExtensionsV1beta1Ingress selectIngress(Map<String, String> selector, String alias, String platformId, String domainId, String hostUrl) throws ParamException;
+    ExtensionsV1beta1Ingress getIngress(Map<String, String> selector, String alias, String platformId, String domainId, String hostUrl) throws ParamException;
 
-    V1Service selectService(Map<String, String> selector, String appName, String alias, AppType appType, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException;
+    V1Service getService(Map<String, String> selector, String appName, String alias, AppType appType, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException;
 
-    V1Service selectService(Map<String, String> selector, String appName, String alias, String platformId) throws ParamException;
+    V1Service getService(Map<String, String> selector, String appName, String alias, String platformId) throws ParamException;
 
-    V1Deployment selectDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException;
+    V1Deployment getDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException;
 
-    V1Deployment selectDeployment(Map<String, String> selector, String appName, String alias, String version, String platformId) throws ParamException;
+    V1Deployment getDeployment(Map<String, String> selector, String appName, String alias, String version, String platformId) throws ParamException;
 
-    V1Namespace selectNamespace(Map<String, String> selector, String platformId) throws ParamException;
+    V1Namespace getNamespace(Map<String, String> selector, String platformId) throws ParamException;
 
-    V1Secret selectSecret(Map<String, String> selector, String platformId, String name) throws ParamException;
+    V1Secret getSecret(Map<String, String> selector, String platformId, String name) throws ParamException;
 
-    V1PersistentVolume selectPersistentVolume(Map<String, String> selector, String platformId) throws ParamException;
+    V1PersistentVolume getPersistentVolume(Map<String, String> selector, String platformId) throws ParamException;
 
-    V1PersistentVolumeClaim selectPersistentVolumeClaim(Map<String, String> selector, String platformId) throws ParamException;
+    V1PersistentVolumeClaim getPersistentVolumeClaim(Map<String, String> selector, String platformId) throws ParamException;
 }

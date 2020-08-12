@@ -207,7 +207,18 @@ public interface IPlatformManagerService {
      */
     List<AppFileNexusInfo> queryPlatformAppCfgs(String platformId, String domainId, String alias) throws ParamException;
 
-    PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, ApiException;
+    /**
+     * 调试平台应用
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param optInfo 需要调试的相关内容
+     * @return 调试后的结果
+     * @throws ParamException
+     * @throws ApiException
+     * @throws InterfaceCallException
+     * @throws IOException
+     */
+    PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
      * 修改平台应用配置文件

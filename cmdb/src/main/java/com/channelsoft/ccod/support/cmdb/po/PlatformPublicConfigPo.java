@@ -19,6 +19,20 @@ public class PlatformPublicConfigPo extends AppFileNexusInfo {
     public PlatformPublicConfigPo()
     {}
 
+    public PlatformPublicConfigPo(String platformId, AppFileNexusInfo fileInfo)
+    {
+        this.platformId = platformId;
+        this.nexusPath = fileInfo.getNexusPath();
+        this.nexusRepository = fileInfo.getNexusRepository();
+        this.fileName = fileInfo.getFileName();
+        this.md5 = fileInfo.getMd5();
+        this.deployPath = fileInfo.getDeployPath();
+        this.nexusAssetId = fileInfo.getNexusAssetId();
+        String[] arr = this.fileName.split("\\.");
+        this.ext = arr.length == 1 ? null : arr[arr.length - 1];
+        this.fileSize = fileInfo.getFileSize();
+    }
+
     public PlatformPublicConfigPo(String platformId, String deployPath, NexusAssetInfo assetInfo)
     {
         super(assetInfo, deployPath);
@@ -31,5 +45,13 @@ public class PlatformPublicConfigPo extends AppFileNexusInfo {
 
     public void setPlatPubCfgId(int platPubCfgId) {
         this.platPubCfgId = platPubCfgId;
+    }
+
+    public String getPlatformId() {
+        return platformId;
+    }
+
+    public void setPlatformId(String platformId) {
+        this.platformId = platformId;
     }
 }

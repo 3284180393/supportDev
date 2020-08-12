@@ -6,6 +6,8 @@ import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformType;
 
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @ClassName: PlatformPo
@@ -44,12 +46,16 @@ public class PlatformPo {
 
     private String authToken; //查询api的认证 token
 
+    private String hostUrl; //访问平台的域名
+
+    private Map<String, Object> params; //其它同平台有关的参数，例如oracle、mango连接方式等
+
     public PlatformPo()
     {
 
     }
 
-    public PlatformPo(String platformId, String platformName, int bkBizId, int bkCloudId, CCODPlatformStatus status, String ccodVersion, String comment, PlatformType type, PlatformFunction func, PlatformCreateMethod createMethod)
+    public PlatformPo(String platformId, String platformName, int bkBizId, int bkCloudId, CCODPlatformStatus status, String ccodVersion, String comment, PlatformType type, PlatformFunction func, PlatformCreateMethod createMethod, String hostUrl)
     {
         Date now = new Date();
         this.platformId = platformId;
@@ -64,6 +70,8 @@ public class PlatformPo {
         this.type = type;
         this.func = func;
         this.createMethod = createMethod;
+        this.hostUrl = hostUrl;
+        this.params = new HashMap<>();
     }
 
     public String getPlatformId() {
@@ -176,5 +184,21 @@ public class PlatformPo {
 
     public void setCreateMethod(PlatformCreateMethod createMethod) {
         this.createMethod = createMethod;
+    }
+
+    public String getHostUrl() {
+        return hostUrl;
+    }
+
+    public void setHostUrl(String hostUrl) {
+        this.hostUrl = hostUrl;
+    }
+
+    public Map<String, Object> getParams() {
+        return params;
+    }
+
+    public void setParams(Map<String, Object> params) {
+        this.params = params;
     }
 }
