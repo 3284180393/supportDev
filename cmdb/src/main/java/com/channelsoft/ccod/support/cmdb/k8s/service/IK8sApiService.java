@@ -473,7 +473,7 @@ public interface IK8sApiService {
      * @return 选择结果
      * @throws ApiException
      */
-    List<V1Deployment> selectorNamespacedDeployment(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
+    List<V1Deployment> selectNamespacedDeployment(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 查询指定的服务信息
@@ -539,7 +539,7 @@ public interface IK8sApiService {
      * @return 选择结果
      * @throws ApiException
      */
-    List<V1Service> selectorNamespacedService(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
+    List<V1Service> selectNamespacedService(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 查询指定的命名空间

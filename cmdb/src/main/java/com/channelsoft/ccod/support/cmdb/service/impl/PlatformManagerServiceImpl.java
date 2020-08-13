@@ -6,6 +6,8 @@ import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sDatabaseVo;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
@@ -2454,98 +2456,220 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return stepList;
     }
 
-    private List<K8sOperationInfo> generatePlatformAppUpdateStep(String jobId, PlatformPo platform, String domainId,
-                                                                 List<AppFileNexusInfo> platformCfg,
-                                                                 List<AppFileNexusInfo> domainCfg,
-                                                                 AppUpdateOperationInfo updateOptInfo,
-                                                                 AppType appType) throws ApiException, ParamException, InterfaceCallException, IOException
+    private K8sCCODDomainAppVo getCCODDomainAppFromK8s(AppModuleVo appModule, String alias, PlatformPo platform, String domainId) throws ParamException, ApiException
     {
-        String platformId = platform.getPlatformId();
-        String ccodVersion = platform.getCcodVersion();
-        String k8sApiUrl = platform.getApiUrl();
-        String k8sAuthToken = platform.getAuthToken();
-        String hostUrl = platform.getHostUrl();
-        logger.debug(String.format("generate update step for %s domain %s at %s", gson.toJson(updateOptInfo), domainId, platformId));
-        String appName = updateOptInfo.getAppName();
-        String alias = updateOptInfo.getAppAlias();
+        String appName = appModule.getAppName();
         Map<String, String> selector = new HashMap<>();
         selector.put(this.domainIdLabel, domainId);
-        selector.put(updateOptInfo.getAppName(), updateOptInfo.getAppAlias());
-        List<V1Deployment> oriDeploys = this.k8sApiService.selectorNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
-        if(oriDeploys.size() == 0)
-            throw new ParamException(String.format("not select deployment for %s at %s", gson.toJson(selector), platformId));
-        else if(oriDeploys.size() > 1)
-            throw new ParamException(String.format("select %d deployment for %s at %s", oriDeploys.size(), gson.toJson(selector), platformId));
-        List<V1Service> oriSvcs = this.k8sApiService.selectorNamespacedService(platformId, selector, k8sApiUrl, k8sAuthToken);
-        if(oriSvcs.size() == 0)
-            throw new ParamException(String.format("not select service for %s at %s", gson.toJson(selector), platformId));
-        ExtensionsV1beta1Ingress oriIngress = null;
+        selector.put(appName, alias);
+        String platformId = platform.getPlatformId();
+        String k8sApiUrl = platform.getApiUrl();
+        String k8sAuthToken = platform.getAuthToken();
+        List<V1Deployment> deploys = this.k8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
+        if(deploys.size() == 0)
+            throw new ParamException(String.format("not select deployment for selector %s", gson.toJson(selector)));
+        else if(deploys.size() > 0)
+            throw new ParamException(String.format("select %d deployment for selector %s", deploys.size(), gson.toJson(selector)));
+        List<V1Service> services = this.k8sApiService.selectNamespacedService(platformId, selector, k8sApiUrl, k8sAuthToken);
+        if(services.size() == 0)
+            throw new ParamException(String.format("not select service for selector %s", gson.toJson(selector)));
+        else if(services.size() > 2)
+            throw new ParamException(String.format("select %d service for selctor %s", services.size(), gson.toJson(selector)));
+        ExtensionsV1beta1Ingress ingress = null;
+        String name = String.format("%s-%s", alias, domainId)
+        if(appModule.getAppType().equals(AppType.TOMCAT_WEB_APP) || appModule.getAppType().equals(AppType.RESIN_WEB_APP))
+        {
+            ingress = this.k8sApiService.readNamespacedIngress(name, platformId, k8sApiUrl, k8sAuthToken);
+            if(ingress == null)
+                throw new ParamException(String.format("not find ingress for %s at %s", alias, domainId));
+        }
+        V1ConfigMap configMap = this.k8sApiService.readNamespacedConfigMap(name, platformId, k8sApiUrl, k8sAuthToken);
+        K8sCCODDomainAppVo appVo = new K8sCCODDomainAppVo(alias, appModule, domainId, configMap, deploys.get(0), services, ingress);
+        return appVo;
+    }
+    /**
+     * 删除已有的域应用
+     * @param jobId 任务的job id
+     * @param platform 执行任务的平台信息
+     * @param app 需要删除的域应用信息
+     * @return 删除域应用步骤
+     * @throws ApiException
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws IOException
+     */
+    private List<K8sOperationInfo> generatePlatformAppDeleteStep(String jobId, PlatformPo platform,
+                                                                 K8sCCODDomainAppVo app) throws ApiException, ParamException, InterfaceCallException, IOException
+    {
+        String platformId = platform.getPlatformId();
+        String k8sApiUrl = platform.getApiUrl();
+        String k8sAuthToken = platform.getAuthToken();
+        String alias = app.getAlias();
+        String domainId = app.getDomainId();
+        logger.debug(String.format("generate delete step for %s at %s", alias, domainId));
+        String appName = app.getAppName();
         String name = String.format("%s-%s", alias, domainId);
-        if(appType.equals(AppType.TOMCAT_WEB_APP) || appType.equals(AppType.RESIN_WEB_APP))
-            oriIngress = this.k8sApiService.readNamespacedIngress(String.format("%s-%s", alias, domainId), platformId, k8sApiUrl, k8sAuthToken);
         V1ConfigMap oriConfigMap = this.k8sApiService.readNamespacedConfigMap(name, platformId, k8sApiUrl, k8sAuthToken);
         List<K8sOperationInfo> steps = new ArrayList<>();
         K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, name, K8sOperation.DELETE, oriConfigMap);
         steps.add(step);
-        if(oriIngress != null)
+        if(app.getIngress() != null)
         {
-            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS, name, K8sOperation.DELETE, oriIngress);
+            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS, name, K8sOperation.DELETE, oriApp.getIngress());
             steps.add(step);
         }
-        for(V1Service service : oriSvcs)
+        for(V1Service service : app.getServices())
         {
             step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE, name, K8sOperation.DELETE, service);
             steps.add(step);
         }
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT, name, K8sOperation.DELETE, oriDeploys.get(0));
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT, name, K8sOperation.DELETE, app.getDeploy());
         steps.add(step);
-        Map<String, String> templateSelector = new HashMap<>();
-        templateSelector.put(this.ccodVersionLabel, ccodVersion);
-        templateSelector.put(this.appTypeLabel, appType.name);
-        V1ConfigMap configMap = this.k8sApiService.createConfigMapFromNexus(platformId, name, k8sApiUrl, k8sAuthToken,
-                updateOptInfo.getCfgs().stream().map(cfg -> cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
-                this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, name, K8sOperation.CREATE, configMap);
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, name, K8sOperation.DELETE, app.getConfigMap());
         steps.add(step);
-        V1Deployment deploy = this.k8sTemplateService.getDeployment(updateOptInfo, hostUrl, platformId, domainId, platformCfg, domainCfg);
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT, deploy.getMetadata().getName(), K8sOperation.CREATE, deploy);
+        logger.debug(String.format("delete %s at domain %s steps are %s", alias, domainId, gson.toJson(steps)));
+        return steps;
+    }
+
+    /**
+     * 添加新的域应用
+     * @param jobId 任务的job id
+     * @param platform 执行添加操作的平台信息
+     * @param domainId 域id
+     * @param addApp 需要添加的域应用
+     * @return 添加域应用的步骤
+     */
+    private List<K8sOperationInfo> generatePlatformAppAddStep(String jobId, PlatformPo platform, String domainId,
+                                                              K8sCCODDomainAppVo addApp)
+    {
+        String platformId = platform.getPlatformId();
+        String alias = addApp.getAlias();
+        logger.debug(String.format("generate add step for %s at %s", alias, domainId));
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+                addApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, addApp.getConfigMap());
         steps.add(step);
-        V1Service service = this.k8sTemplateService.getService(selector, updateOptInfo.getAppName(),
-                updateOptInfo.getAppAlias(), appType, ServicePortType.ClusterIP, updateOptInfo.getPorts(), platformId, domainId);
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE, service.getMetadata().getName(), K8sOperation.CREATE, service);
-        steps.add(step);
-        if(StringUtils.isNotBlank(updateOptInfo.getNodePorts()))
+        for(V1Service service : addApp.getServices())
         {
-            service = this.k8sTemplateService.getService(selector, updateOptInfo.getAppName(), updateOptInfo.getAppAlias(),
-                    appType, ServicePortType.NodePort, updateOptInfo.getNodePorts(), platformId, domainId);
-            Map<String, V1Service> oriSvcMap = oriSvcs.stream().collect(Collectors.toMap(svc->svc.getMetadata().getName(), v->v));
-            if(oriSvcMap.containsKey(service.getMetadata().getName()))
+            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE, service.getMetadata().getName(),
+                    K8sOperation.CREATE, service);
+            steps.add(step);
+        }
+        if(addApp.getIngress() != null)
+        {
+            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS,
+                    addApp.getIngress().getMetadata().getName(), K8sOperation.CREATE, addApp.getIngress());
+            steps.add(step);
+        }
+        logger.debug(String.format("add %s at domain %s steps are %s", alias, domainId, gson.toJson(steps)));
+        return steps;
+    }
+
+    /**
+     * 生成ccod域应用更新k8s操作步骤
+     * @param jobId 任务的job id
+     * @param platform 任务归属平台
+     * @param domainId 域id
+     * @param updateApp 更新后的域应用k8s相关信息
+     * @param oriApp 更新前的域应用的k8s相关信息
+     * @return 域应用更新步骤
+     * @throws ApiException
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws IOException
+     */
+    private List<K8sOperationInfo> generatePlatformAppUpdateStep(String jobId, PlatformPo platform, String domainId,
+                                                                 K8sCCODDomainAppVo updateApp,
+                                                                 K8sCCODDomainAppVo oriApp) throws ApiException, ParamException, InterfaceCallException, IOException
+    {
+        String platformId = platform.getPlatformId();
+        String alias = updateApp.getAlias();
+        logger.debug(String.format("generate update step for %s at %s", alias, domainId));
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getConfigMap());
+        steps.add(step);
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getDeploy());
+        steps.add(step);
+        for(V1Service service : updateApp.getServices())
+        {
+            String portKind = service.getKind();
+            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getKind().equals(portKind)).collect(Collectors.toList());
+            boolean isChanged = isServicePortChanged(portKind, service, oriServices);
+            if(isChanged)
             {
-                Map<Integer, V1ServicePort> oriPortMap = oriSvcMap.get(service.getMetadata().getName()).getSpec().getPorts()
-                        .stream().collect(Collectors.toMap(V1ServicePort::getPort, Function.identity()));
-                for(V1ServicePort srvPort : service.getSpec().getPorts())
+                for(V1Service svc : oriServices)
                 {
-                    if(oriPortMap.containsKey(srvPort.getPort()))
-                        srvPort.setTargetPort(oriPortMap.get(srvPort.getPort()).getTargetPort());
+                    step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
+                            svc.getMetadata().getName(), K8sOperation.DELETE, svc);
+                    steps.add(step);
                 }
             }
-            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE, service.getMetadata().getName(), K8sOperation.CREATE, service);
-            steps.add(step);
         }
-        if(appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.TOMCAT_WEB_APP))
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getConfigMap());
+        steps.add(step);
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getDeploy());
+        steps.add(step);
+        for(V1Service service : updateApp.getServices())
         {
-            ExtensionsV1beta1Ingress ingress = this.k8sTemplateService.getIngress(selector, updateOptInfo.getAppAlias(),
-                    platformId, domainId, hostUrl);
-            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS, service.getMetadata().getName(), K8sOperation.CREATE, ingress);
-            steps.add(step);
+            String portKind = service.getKind();
+            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getKind().equals(portKind)).collect(Collectors.toList());
+            boolean isChanged = isServicePortChanged(portKind, service, oriServices);
+            if(isChanged)
+            {
+                step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
+                        service.getMetadata().getName(), K8sOperation.DELETE, service);
+                steps.add(step);
+            }
         }
-        AppK8sDeployInfo deployInfo = new AppK8sDeployInfo(appType, appName, alias, updateOptInfo.getOperation(), steps);
-        if("UCDServer".equals(appName))
-        {
-
-        }
-        logger.debug(String.format("exec update %s at domain %s update steps are %s", updateOptInfo.getAppAlias(), domainId, gson.toJson(steps)));
+        logger.debug(String.format("update %s at domain %s steps are %s", alias, domainId, gson.toJson(steps)));
         return steps;
+    }
+
+    /**
+     * 检查同一类型的服务端口是否发生变化
+     * @param portKind 服务端口类型
+     * @param service 新服务
+     * @param oriServices 以前正在运行的该类型的服务
+     * @return 发生变化返回true，否则false
+     */
+    private boolean isServicePortChanged(String portKind, V1Service service, List<V1Service> oriServices)
+    {
+        if(portKind != "NodePort" && portKind != "ClusterIP")
+            return true;
+        if(portKind == "ClusterIP")
+        {
+            Map<Integer, IntOrString> portMap = service.getSpec().getPorts().stream()
+                    .collect(Collectors.toMap(port->port.getPort(), v->v.getTargetPort()));
+            Map<Integer, IntOrString> oriPortMap = oriServices.stream().flatMap(svc->svc.getSpec().getPorts().stream())
+                    .collect(Collectors.toList()).stream().collect(Collectors.toMap(port->port.getPort(), v->v.getTargetPort()));
+            if(portMap != oriPortMap)
+                return true;
+            for(int port : portMap.keySet())
+            {
+                if(!portMap.containsKey(port) || !oriPortMap.get(port).equals(portMap.get(port)))
+                    return true;
+            }
+            return false;
+        }
+        else
+        {
+            Map<Integer, Integer> portMap = service.getSpec().getPorts().stream()
+                    .collect(Collectors.toMap(port->port.getPort(), v->v.getNodePort()));
+            Map<Integer, Integer> oriPortMap = oriServices.stream().flatMap(svc->svc.getSpec().getPorts().stream())
+                    .collect(Collectors.toList()).stream().collect(Collectors.toMap(port->port.getPort(), v->v.getNodePort()));
+            if(portMap.size() != oriPortMap.size())
+                return true;
+            for(int port : portMap.keySet())
+            {
+                if(!oriPortMap.containsKey(port) || oriPortMap.get(port) != portMap.get(port))
+                    return true;
+            }
+            return false;
+        }
     }
 
     private List<K8sOperationInfo> generateSchemaK8sExecStep(PlatformUpdateSchemaInfo schema, UpdateStatus planStatus, List<AppModuleVo> registerApps) throws K8sDataException, ParamException, ApiException, NotSupportAppException, IOException, InterfaceCallException
@@ -6049,6 +6173,55 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             execResult.fail(ex.getMessage());
         }
         return execResult;
+    }
+
+    private List<K8sOperationPo> execCCODDomainAppDeploy(K8sCCODDomainAppVo app, K8sOperation operation, List<K8sOperationInfo> execSteps, PlatformPo platform, K8sCCODDomainAppVo glsserver, K8sDatabaseVo glsDB) throws ParamException, ApiException, SQLException, ClassNotFoundException
+    {
+        String appName = app.getAppName();
+        String platformId = platform.getPlatformId();
+        String k8sApiUrl = platform.getApiUrl();
+        String k8sAuthToken = platform.getAuthToken();
+        String deployTag = String.format("%s %s", operation.name, app.toString());
+        logger.debug(String.format("%s : estimated %d steps", deployTag, execSteps.size()));
+        List<K8sOperationPo> execResults = new ArrayList<>();
+        for(K8sOperationInfo step : execSteps)
+        {
+            K8sOperationPo execResult = execK8sOpt(step, platform.getPlatformId(), platform.getApiUrl(), platform.getAuthToken());
+            execResults.add(execResult);
+            if(!execResult.isSuccess())
+            {
+                logger.error(String.format("%s fail : %s", deployTag, execResult.getComment()));
+                return execResults;
+            }
+            if(step.getKind().equals(K8sKind.SERVICE))
+            {
+                V1Service service = (V1Service)step.getObj();
+                if(service.getKind().equals("NodePort") && appName.equals("UCDServer"))
+                {
+                    Connection connect = createOracleConnection(glsDB.getUser(), glsDB.getPwd(), glsDB.getIp(), glsDB.getPort(), glsDB.getSid());
+                    int ucdsPort = getNodePortFromK8sService(service);
+                    String updateSql = String.format("update \"CCOD\".\"GLS_SERVICE_UNIT\" set PARAM_UCDS_PORT=%d where NAME='ucds-cloud01'", ucdsPort);
+                    PreparedStatement ps = connect.prepareStatement(updateSql);
+                    logger.debug(String.format("begin to update ucds port : %s", updateSql));
+                    ps.executeUpdate();
+                    V1Deployment glsDeploy = templateParseGson.fromJson(templateParseGson.toJson(glsserver.getDeploy()), V1Deployment.class);
+                    Date now = new Date();
+                    SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHssmm");
+                    glsDeploy.getMetadata().getLabels().put("restart-time", sf.format(now));
+                    K8sOperationInfo optInfo = new K8sOperationInfo(step.getJobId(), platformId, glsserver.getDomainId(), K8sKind.DEPLOYMENT,
+                            glsDeploy.getMetadata().getName(), K8sOperation.REPLACE, glsDeploy);
+                    execResult = execK8sOpt(optInfo, platformId, k8sApiUrl, k8sAuthToken);
+                    execResults.add(execResult);
+                    if(!execResult.isSuccess())
+                    {
+                        logger.error(String.format("restart glsserver fail : %s", execResult.getComment()));
+                        return execResults;
+                    }
+                }
+            }
+        }
+        logger.info(String.format("%s success", deployTag));
+        return execResults;
     }
 
     private PlatformSchemaExecResultVo execPlatformUpdateSteps(List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps) throws ParamException

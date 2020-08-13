@@ -3,7 +3,10 @@ package com.channelsoft.ccod.support.cmdb.service;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
+import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
 import com.channelsoft.ccod.support.cmdb.vo.AppUpdateOperationInfo;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
@@ -39,4 +42,6 @@ public interface IK8sTemplateService {
     V1PersistentVolume getPersistentVolume(Map<String, String> selector, String platformId) throws ParamException;
 
     V1PersistentVolumeClaim getPersistentVolumeClaim(Map<String, String> selector, String platformId) throws ParamException;
+
+    K8sCCODDomainAppVo getCCODDomainApp(String alias, AppModuleVo module, String domainId, PlatformPo platform) throws ParamException, ApiException;
 }

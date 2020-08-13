@@ -5,7 +5,9 @@ import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IK8sTemplateService;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
@@ -861,5 +863,29 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<K8sObjectTemplatePo> list = this.gson.fromJson(lineTxt, new TypeToken<List<K8sObjectTemplatePo>>() {
         }.getType());
         return list;
+    }
+
+    @Override
+    public K8sCCODDomainAppVo getCCODDomainApp(String alias, AppModuleVo module, String domainId, PlatformPo platform) throws ParamException, ApiException {
+        String platformId = platform.getPlatformId();
+        String k8sApiUrl = platform.getApiUrl();
+        String k8sAuthToken = platform.getAuthToken();
+        AppType appType = module.getAppType();
+        Map<String, String> selector = new HashMap<>();
+        selector.put(this.domainIdLabel, domainId);
+        selector.put(module.getAppName(), alias);
+        List<V1Deployment> deploys = this.ik8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
+        if(deploys.size() == 0)
+            throw new ParamException(String.format("not select deployment for %s at %s from %s", gson.toJson(selector), platformId, k8sApiUrl));
+        else if(deploys.size() > 1)
+            throw new ParamException(String.format("select %d deployment for %s at %s from %s", deploys.size(), gson.toJson(selector), platformId, k8sApiUrl));
+        List<V1Service> services = this.ik8sApiService.selectNamespacedService(platformId, selector, k8sApiUrl, k8sAuthToken);
+        if(services.size() == 0)
+            throw new ParamException(String.format("not select service for %s at %s", gson.toJson(selector), platformId));
+        ExtensionsV1beta1Ingress ingress = null;
+        if(appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.TOMCAT_WEB_APP))
+            ingress = this.ik8sApiService.readNamespacedIngress(String.format("%s-%s", alias, domainId), platformId, k8sApiUrl, k8sAuthToken);
+        K8sCCODDomainAppVo appVo = new K8sCCODDomainAppVo(alias, module, domainId, deploys.get(0), services, ingress);
+        return appVo;
     }
 }

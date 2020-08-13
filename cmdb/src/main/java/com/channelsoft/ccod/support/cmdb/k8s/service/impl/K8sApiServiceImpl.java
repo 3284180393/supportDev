@@ -580,7 +580,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public List<V1Deployment> selectorNamespacedDeployment(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
+    public List<V1Deployment> selectNamespacedDeployment(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("select deployment at %s from %s with selector=%s", namespace, k8sApiUrl, gson.toJson(selector)));
         List<V1Deployment> deployments = this.listNamespacedDeployment(namespace, k8sApiUrl, authToken).stream()
                 .filter(deploy -> isSelected(selector, deploy.getSpec().getTemplate().getMetadata().getLabels())).collect(Collectors.toList());
@@ -619,7 +619,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public List<V1Service> selectorNamespacedService(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
+    public List<V1Service> selectNamespacedService(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("select service at %s from %s with selector=%s", namespace, k8sApiUrl, gson.toJson(selector)));
         List<V1Service> services = this.listNamespacedService(namespace, k8sApiUrl, authToken).stream().filter(svc -> isMatch(selector, svc.getSpec().getSelector()))
                 .collect(Collectors.toList());
