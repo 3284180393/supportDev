@@ -12,6 +12,7 @@ import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.GsonBuilder;
+import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
@@ -78,7 +79,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
     @Autowired
     INexusService nexusService;
 
-    protected String testPlatformId = "test-by-wyf";
+    protected String testPlatformId = "jhkzx";
 
     protected String testK8sApiUrl = "https://10.130.41.218:6443";
 
@@ -122,26 +123,6 @@ public class K8sApiServiceImpl implements IK8sApiService {
                 setAuthentication(new AccessTokenAuthentication(token)).build();
         Configuration.setDefaultApiClient(client);
         return client;
-    }
-
-    @Override
-    public V1Service readNamespacedService(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("read service %s at %s from %s ", name, namespace, k8sApiUrl));
-        getConnection(k8sApiUrl, authToken);
-        CoreV1Api apiInstance = new CoreV1Api();
-        V1Service service = apiInstance.readNamespacedService(name, namespace, null, null, null);
-        logger.info(String.format("find service %s from %s ", gson.toJson(service), k8sApiUrl));
-        return service;
-    }
-
-    @Override
-    public List<V1Service> listNamespacedService(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("list service at namespace %s from %s", namespace, k8sApiUrl));
-        getConnection(k8sApiUrl, authToken);
-        CoreV1Api apiInstance = new CoreV1Api();
-        V1ServiceList list = apiInstance.listNamespacedService(namespace, null, null, null, null, null, null, null, null, null);
-        logger.info(String.format("find %d service %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
-        return list.getItems();
     }
 
     @Override
@@ -205,34 +186,15 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public List<V1Deployment> listNamespacedDeployment(String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("list deployment at %s from %s", namespace, k8sApiUrl));
+    public boolean isNamespacedConfigMapExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("check configMap %s exist at %s from %s", name, namespace, k8sApiUrl));
+        String fieldSelector = String.format("metadata.name=%s", name);
         getConnection(k8sApiUrl, authToken);
-        AppsV1Api appsV1Api = new AppsV1Api();
-        V1DeploymentList list = appsV1Api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
-        logger.info(String.format("find %d deployment %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
-        return list.getItems();
-    }
-
-    @Override
-    public V1Deployment readNamespacedDeployment(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("read deployment %s from %s at %s", name, k8sApiUrl, namespace));
-        getConnection(k8sApiUrl, authToken);
-        AppsV1Api appsV1Api = new AppsV1Api();
-        V1Deployment deployment = appsV1Api.readNamespacedDeployment(name, namespace, null, null, null);
-        logger.debug(String.format("find deployment %s from %s", gson.toJson(deployment), k8sApiUrl));
-        return deployment;
-    }
-
-    @Override
-    public K8sStatus readNamespacedDeploymentStatus(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("read deployment status %s from %s at %s", name, k8sApiUrl, namespace));
-        V1Deployment deployment = readNamespacedDeployment(name, namespace, k8sApiUrl, authToken);
-        K8sStatus status = K8sStatus.UPDATING;
-        if(deployment.getStatus().getAvailableReplicas() == deployment.getStatus().getReplicas())
-            status = K8sStatus.ACTIVE;
-        logger.info(String.format("status of deployment %s is %s", name, status.name));
-        return status;
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ConfigMapList list = apiInstance.listNamespacedConfigMap(namespace, null, null, null, fieldSelector, null, null, null, null, null);
+        boolean exist = list.getItems().size() == 0 ? false : true;
+        logger.info(String.format("configMap %s at %s exist : %b", name, namespace, exist));
+        return exist;
     }
 
     @Override
@@ -540,6 +502,37 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public List<V1Deployment> listNamespacedDeployment(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list deployment at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api appsV1Api = new AppsV1Api();
+        V1DeploymentList list = appsV1Api.listNamespacedDeployment(namespace, null, null, null, null, null, null, null, null, null);
+        logger.info(String.format("find %d deployment %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1Deployment readNamespacedDeployment(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read deployment %s from %s at %s", name, k8sApiUrl, namespace));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api appsV1Api = new AppsV1Api();
+        V1Deployment deployment = appsV1Api.readNamespacedDeployment(name, namespace, null, null, null);
+        logger.debug(String.format("find deployment %s from %s", gson.toJson(deployment), k8sApiUrl));
+        return deployment;
+    }
+
+    @Override
+    public K8sStatus readNamespacedDeploymentStatus(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read deployment status %s from %s at %s", name, k8sApiUrl, namespace));
+        V1Deployment deployment = readNamespacedDeployment(name, namespace, k8sApiUrl, authToken);
+        K8sStatus status = K8sStatus.UPDATING;
+        if(deployment.getStatus().getAvailableReplicas() == deployment.getStatus().getReplicas())
+            status = K8sStatus.ACTIVE;
+        logger.info(String.format("status of deployment %s is %s", name, status.name));
+        return status;
+    }
+
+    @Override
     public V1Deployment createNamespacedDeployment(String namespace, V1Deployment deployment, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("create deployment %s for %s at %s", gson.toJson(deployment), namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
@@ -557,6 +550,18 @@ public class K8sApiServiceImpl implements IK8sApiService {
         V1Status status = apiInstance.deleteNamespacedDeployment(name, namespace, null, null, null, null, null, null);
         logger.info(String.format("delete Deployment %s at %s from %s : %s", name, namespace, k8sApiUrl, gson.toJson(status)));
         return status;
+    }
+
+    @Override
+    public boolean isNamespacedDeploymentExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("check deployment %s exist at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        String fieldSelector = String.format("metadata.name=%s", name);
+        V1DeploymentList deploymentList = apiInstance.listNamespacedDeployment(namespace, null, null, null, fieldSelector, null, null, null, null, null);
+        boolean exist = deploymentList.getItems().size() == 0 ? false : true;
+        logger.info(String.format("deployment %s at %s exist : %b", name, namespace, exist));
+        return exist;
     }
 
     @Override
@@ -581,11 +586,35 @@ public class K8sApiServiceImpl implements IK8sApiService {
 
     @Override
     public List<V1Deployment> selectNamespacedDeployment(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("select deployment at %s from %s with selector=%s", namespace, k8sApiUrl, gson.toJson(selector)));
-        List<V1Deployment> deployments = this.listNamespacedDeployment(namespace, k8sApiUrl, authToken).stream()
-                .filter(deploy -> isSelected(selector, deploy.getSpec().getTemplate().getMetadata().getLabels())).collect(Collectors.toList());
-        logger.info(String.format("select %d deployment at %s from %s", deployments.size(), namespace, k8sApiUrl));
-        return deployments;
+        String labelSelector = null;
+        if(selector != null && selector.size() > 0)
+            labelSelector = String.join(",", selector.keySet().stream().map(key->String.format("%s=%s", key, selector.get(key))).collect(Collectors.toList()));
+        logger.debug(String.format("select deployment at %s from %s for labelSelector=%s", namespace, k8sApiUrl, labelSelector));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api appsV1Api = new AppsV1Api();
+        List<V1Deployment> list = appsV1Api.listNamespacedDeployment(namespace, null, null, null, null, labelSelector, null, null, null, null).getItems();
+        logger.info(String.format("select %d deployment at %s for labelSelector=%s", list.size(), namespace, labelSelector));
+        return list;
+    }
+
+    @Override
+    public V1Service readNamespacedService(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read service %s at %s from %s ", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1Service service = apiInstance.readNamespacedService(name, namespace, null, null, null);
+        logger.info(String.format("find service %s from %s ", gson.toJson(service), k8sApiUrl));
+        return service;
+    }
+
+    @Override
+    public List<V1Service> listNamespacedService(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list service at namespace %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        V1ServiceList list = apiInstance.listNamespacedService(namespace, null, null, null, null, null, null, null, null, null);
+        logger.info(String.format("find %d service %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
     }
 
     @Override
@@ -620,11 +649,63 @@ public class K8sApiServiceImpl implements IK8sApiService {
 
     @Override
     public List<V1Service> selectNamespacedService(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
-        logger.debug(String.format("select service at %s from %s with selector=%s", namespace, k8sApiUrl, gson.toJson(selector)));
-        List<V1Service> services = this.listNamespacedService(namespace, k8sApiUrl, authToken).stream().filter(svc -> isMatch(selector, svc.getSpec().getSelector()))
-                .collect(Collectors.toList());
-        logger.info(String.format("select %d service at %s from %s matched for %s", services.size(), namespace, k8sApiUrl, gson.toJson(selector)));
+        String labelSelector = null;
+        if(selector != null && selector.size() > 0)
+            labelSelector = String.join(",", selector.keySet().stream().map(key->String.format("%s=%s", key, selector.get(key))).collect(Collectors.toList()));
+        logger.debug(String.format("select service at %s from %s for labelSelector=%s", namespace, k8sApiUrl, labelSelector));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        List<V1Service> services = apiInstance.listNamespacedService(namespace, null, null, null, null, labelSelector, null, null, null, null).getItems();
+        logger.info(String.format("select %d service at %s for selector %s", services.size(), namespace, gson.toJson(selector)));
         return services;
+    }
+
+    @Override
+    public boolean isNamespacedServiceExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("check exist of service %s at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        String fieldSelector = String.format("metadata.name=%s", name);
+        V1ServiceList services = apiInstance.listNamespacedService(namespace, null, null, null, fieldSelector, null, null, null, null, null);
+        boolean exist = services.getItems().size() == 0 ? false : true;
+        logger.debug(String.format("service %s at %s exist : %b", name, namespace, exist));
+        return exist;
+    }
+
+    @Override
+    public boolean isServicePortChanged(String portKind, V1Service service, List<V1Service> oriServices) {
+        if(portKind != "NodePort" && portKind != "ClusterIP")
+            return true;
+        if(portKind == "ClusterIP")
+        {
+            Map<Integer, IntOrString> portMap = service.getSpec().getPorts().stream()
+                    .collect(Collectors.toMap(port->port.getPort(), v->v.getTargetPort()));
+            Map<Integer, IntOrString> oriPortMap = oriServices.stream().flatMap(svc->svc.getSpec().getPorts().stream())
+                    .collect(Collectors.toList()).stream().collect(Collectors.toMap(port->port.getPort(), v->v.getTargetPort()));
+            if(portMap != oriPortMap)
+                return true;
+            for(int port : portMap.keySet())
+            {
+                if(!portMap.containsKey(port) || !oriPortMap.get(port).equals(portMap.get(port)))
+                    return true;
+            }
+            return false;
+        }
+        else
+        {
+            Map<Integer, Integer> portMap = service.getSpec().getPorts().stream()
+                    .collect(Collectors.toMap(port->port.getPort(), v->v.getNodePort()));
+            Map<Integer, Integer> oriPortMap = oriServices.stream().flatMap(svc->svc.getSpec().getPorts().stream())
+                    .collect(Collectors.toList()).stream().collect(Collectors.toMap(port->port.getPort(), v->v.getNodePort()));
+            if(portMap.size() != oriPortMap.size())
+                return true;
+            for(int port : portMap.keySet())
+            {
+                if(!oriPortMap.containsKey(port) || oriPortMap.get(port) != portMap.get(port))
+                    return true;
+            }
+            return false;
+        }
     }
 
     /**
@@ -789,7 +870,19 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public V1Secret createNamespacedSSLCert(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+    public boolean isNamespacedIngressExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("check ingress %s at %s from %s exist", name, namespace, k8sApiUrl));
+        String fieldSelector = String.format("metadata.name=%s", name);
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        ExtensionsV1beta1IngressList list = apiInstance.listNamespacedIngress(namespace,null, null, null ,fieldSelector, null, null, null,null, null);
+        boolean exist = list.getItems().size() == 0 ? false : true;
+        logger.info(String.format("ingress %s at %s exist : %b", name, namespace, exist));
+        return exist;
+    }
+
+    @Override
+    public V1Secret generateNamespacedSSLCert(String namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("create ssl cert for %s at %s", namespace, k8sApiUrl));
         V1Secret srcSecret = readNamespacedSecret("ssl", "kube-system", k8sApiUrl, authToken);
         srcSecret.getMetadata().setAnnotations(null);
@@ -798,9 +891,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
         srcSecret.getMetadata().setSelfLink(null);
         srcSecret.getMetadata().setUid(null);
         srcSecret.getMetadata().setResourceVersion(null);
-        V1Secret sslCert = createNamespacedSecret(namespace, srcSecret, k8sApiUrl, authToken);
-        logger.info(String.format("ssl cert %s created for %s at %s", gson.toJson(srcSecret), namespace, k8sApiUrl));
-        return sslCert;
+        logger.info(String.format("generate ssl cert %s for %s at %s", gson.toJson(srcSecret), namespace, k8sApiUrl));
+        return srcSecret;
     }
 
     @Test
@@ -819,12 +911,23 @@ public class K8sApiServiceImpl implements IK8sApiService {
 //            createSvcTest();
 //            streamTest();
 //            createEndpointsTest();
-            getTemplateJsonTest();
+//            getTemplateJsonTest();
+            deploySelectTest();
         }
         catch (Exception ex)
         {
             ex.printStackTrace();
         }
+    }
+
+    private void deploySelectTest() throws Exception
+    {
+        Map<String, String> selector = new HashMap<>();
+        selector.put("domain-id", "public01");
+        getConnection(this.testK8sApiUrl, this.testAuthToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1DeploymentList deploymentList = apiInstance.listNamespacedDeployment(testPlatformId, null, null, null, "", "domain-id=cloud01,cmsserver=cms1", null, null, null, null);
+        System.out.println(gson.toJson(deploymentList.getItems()));
     }
 
     private void deployReplaceTest() throws Exception

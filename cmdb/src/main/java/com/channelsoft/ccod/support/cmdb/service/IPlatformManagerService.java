@@ -218,7 +218,7 @@ public interface IPlatformManagerService {
      * @throws InterfaceCallException
      * @throws IOException
      */
-    PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, ApiException, InterfaceCallException, IOException;
+    PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, ApiException, InterfaceCallException, IOException, NotSupportAppException, LJPaasException, NexusException;
 
     /**
      * 修改平台应用配置文件

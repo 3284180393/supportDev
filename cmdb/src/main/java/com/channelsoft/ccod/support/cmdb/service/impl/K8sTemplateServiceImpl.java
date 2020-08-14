@@ -2,7 +2,10 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
+import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
+import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
@@ -10,10 +13,7 @@ import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IK8sTemplateService;
-import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
-import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
-import com.channelsoft.ccod.support.cmdb.vo.AppUpdateOperationInfo;
-import com.channelsoft.ccod.support.cmdb.vo.PortVo;
+import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
@@ -83,6 +83,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Value("${k8s.template-file-path}")
     private String templateSavePath;
+
+    @Value("${nexus.user}")
+    private String nexusUserName;
+
+    @Value("${nexus.password}")
+    private String nexusPassword;
+
+    @Value("${nexus.host-url}")
+    private String nexusHostUrl;
 
     private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
 
@@ -327,9 +336,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 .collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName).stream()
                 .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
         AppType appType = module.getAppType();
-        Map<String, String> selector = new HashMap<>();
-        selector.put(this.ccodVersionLabel, module.getCcodVersion());
-        selector.put(this.appTypeLabel, appType.name);
+        Map<String, String> selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.DEPLOYMENT);
         V1Deployment deploy = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -760,7 +767,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Namespace getNamespace(Map<String, String> selector, String platformId) throws ParamException {
+    public V1Namespace generateNamespace(String ccodVersion, String platformId) throws ParamException {
+        Map<String, String> selector = getK8sTemplateSelector(ccodVersion, null, null, null, K8sKind.NAMESPACE);
         V1Namespace ns = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -798,7 +806,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1PersistentVolume getPersistentVolume(Map<String, String> selector, String platformId) throws ParamException {
+    public V1PersistentVolume generatePersistentVolume(String ccodVersion, String platformId) throws ParamException {
+        Map<String, String> selector = getK8sTemplateSelector(ccodVersion, null, null, null, K8sKind.PV);
         V1PersistentVolume pv = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -821,7 +830,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1PersistentVolumeClaim getPersistentVolumeClaim(Map<String, String> selector, String platformId) throws ParamException {
+    public V1PersistentVolumeClaim generatePersistentVolumeClaim(String ccodVersion, String platformId) throws ParamException {
+        Map<String, String> selector = getK8sTemplateSelector(ccodVersion, null, null, null, K8sKind.PVC);
         V1PersistentVolumeClaim pvc = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -866,14 +876,22 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public K8sCCODDomainAppVo getCCODDomainApp(String alias, AppModuleVo module, String domainId, PlatformPo platform) throws ParamException, ApiException {
-        String platformId = platform.getPlatformId();
-        String k8sApiUrl = platform.getApiUrl();
-        String k8sAuthToken = platform.getAuthToken();
+    public String preCheckCCODDomainApps(String domainId, List<AppUpdateOperationInfo> optList, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException {
+        return null;
+    }
+
+    @Override
+    public K8sCCODDomainAppVo getCCODDomainApp(String appName, String alias, String version, String domainId, String platformId, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException {
+        logger.debug(String.format("get %s[%s(%s)] at %s deploy detail from k8s", alias, appName, version, domainId));
+        List<AppModuleVo> modules = this.appManagerService.queryAllRegisterAppModule(true).stream()
+                .filter(app->app.getAppName().equals(appName) && app.getVersion().equals(version)).collect(Collectors.toList());
+        if(modules.size() == 0)
+            throw new ParamException(String.format("%s(%s) has not register or not image", appName, version));
+        AppModuleVo module = modules.get(0);
         AppType appType = module.getAppType();
-        Map<String, String> selector = new HashMap<>();
-        selector.put(this.domainIdLabel, domainId);
-        selector.put(module.getAppName(), alias);
+        Map<String, String> selector = getCCODDomainAppSelector(appName, alias, version, appType, domainId);
+        String name = String.format("%s-%s", alias, domainId);
+        V1ConfigMap configMap = this.ik8sApiService.readNamespacedConfigMap(name, platformId, k8sApiUrl, k8sAuthToken);
         List<V1Deployment> deploys = this.ik8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
         if(deploys.size() == 0)
             throw new ParamException(String.format("not select deployment for %s at %s from %s", gson.toJson(selector), platformId, k8sApiUrl));
@@ -885,7 +903,226 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         ExtensionsV1beta1Ingress ingress = null;
         if(appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.TOMCAT_WEB_APP))
             ingress = this.ik8sApiService.readNamespacedIngress(String.format("%s-%s", alias, domainId), platformId, k8sApiUrl, k8sAuthToken);
-        K8sCCODDomainAppVo appVo = new K8sCCODDomainAppVo(alias, module, domainId, deploys.get(0), services, ingress);
+        K8sCCODDomainAppVo appVo = new K8sCCODDomainAppVo(alias, module, domainId, configMap, deploys.get(0), services, ingress);
         return appVo;
+    }
+
+    @Override
+    public K8sCCODDomainAppVo getNewCCODDomainApp(AppUpdateOperationInfo optInfo, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException, InterfaceCallException, IOException{
+        String appName = optInfo.getAppName();
+        String alias = optInfo.getAppAlias();
+        String version = optInfo.getTargetVersion();
+        List<AppModuleVo> modules = this.appManagerService.queryAllRegisterAppModule(true).stream()
+                .filter(app->app.getAppName().equals(appName) && app.getVersion().equals(version)).collect(Collectors.toList());
+        if(modules.size() == 0)
+            throw new ParamException(String.format("%s(%s) has not register or not image", appName, version));
+        AppModuleVo module = modules.get(0);
+        AppType appType = module.getAppType();
+        V1ConfigMap configMap = this.ik8sApiService.createConfigMapFromNexus(platformId, String.format("%s-%s", alias, domainId),
+                k8sApiUrl, k8sAuthToken, optInfo.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
+                this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
+        V1Deployment deploy = this.getDeployment(optInfo, hostUrl, platformId, domainId, platformCfg, domainCfg);
+        Map<String, String> selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.SERVICE);
+        List<V1Service> services = new ArrayList<>();
+        V1Service service = this.getService(selector, appName, alias, appType, ServicePortType.ClusterIP, optInfo.getPorts(), platformId, domainId);
+        services.add(service);
+        if(StringUtils.isNotBlank(optInfo.getNodePorts())) {
+            service = this.getService(selector, appName, alias, appType, ServicePortType.NodePort, optInfo.getNodePorts(), platformId, domainId);
+            services.add(service);
+        }
+        ExtensionsV1beta1Ingress ingress = null;
+        if(appType.equals(AppType.TOMCAT_WEB_APP) || appType.equals(AppType.RESIN_WEB_APP))
+        {
+            selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.INGRESS);
+            ingress = this.getIngress(selector, alias, platformId, domainId, hostUrl);
+        }
+        K8sCCODDomainAppVo app = new K8sCCODDomainAppVo(alias, module, domainId, configMap, deploy, services, ingress);
+        return app;
+    }
+
+    @Override
+    public List<K8sOperationInfo> getDeletePlatformAppSteps(String jobId, String appName, String alias, String version, String domainId, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException {
+        logger.debug(String.format("generate delete %s[%s(%s)] at %s from k8s steps", alias, appName, version, domainId));
+        K8sCCODDomainAppVo app = getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
+        String name = String.format("%s-%s", alias, domainId);
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, name, K8sOperation.DELETE, app.getConfigMap());
+        steps.add(step);
+        if(app.getIngress() != null)
+        {
+            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS, name, K8sOperation.DELETE, app.getIngress());
+            steps.add(step);
+        }
+        for(V1Service service : app.getServices())
+        {
+            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE, name, K8sOperation.DELETE, service);
+            steps.add(step);
+        }
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT, name, K8sOperation.DELETE, app.getDeploy());
+        steps.add(step);
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, name, K8sOperation.DELETE, app.getConfigMap());
+        steps.add(step);
+        logger.debug(String.format("delete %s at domain %s steps are %s", alias, domainId, gson.toJson(steps)));
+        return steps;
+    }
+
+    @Override
+    public List<K8sOperationInfo> getAddPlatformAppSteps(String jobId, AppUpdateOperationInfo optInfo, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException {
+        logger.debug(String.format("generate step of add %s to %s", gson.toJson(optInfo), domainId));
+        String appName = optInfo.getAppName();
+        String alias = optInfo.getAppAlias();
+        String version = optInfo.getTargetVersion();
+        String name = String.format("%s-%s", alias, domainId);
+        AppModuleVo module = this.appManagerService.queryAllRegisterAppModule(true).stream()
+                .filter(app->app.getAppName().equals(appName)&&app.getVersion().equals(version))
+                .collect(Collectors.toList()).get(0);
+        AppType appType = module.getAppType();
+        if(!isNewPlatform)
+        {
+            Map<String, String> selector = getCCODDomainAppSelector(appName, alias, version, appType, domainId);
+            if(this.ik8sApiService.isNamespacedConfigMapExist(name, platformId, k8sApiUrl, k8sAuthToken))
+                throw new ParamException(String.format("configMap %s exist at %s", name, platformId));
+            if(this.ik8sApiService.isNamespacedDeploymentExist(name, platformId, k8sApiUrl, k8sAuthToken))
+                throw new ParamException(String.format("deployment %s exist at %s", name, platformId));
+            List<V1Deployment> deploys = this.ik8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
+            if(deploys.size() > 0)
+                throw new ParamException(String.format("deployment for selector %s exist at %s", gson.toJson(selector), platformId));
+            if(this.ik8sApiService.isNamespacedServiceExist(name, platformId, k8sApiUrl, k8sAuthToken))
+                throw new ParamException(String.format("service %s exist at %s", name, platformId));
+            if(this.ik8sApiService.isNamespacedServiceExist(String.format("%s-out", name), platformId, k8sApiUrl, k8sAuthToken))
+                throw new ParamException(String.format("service %s-out exist at %s", name, platformId));
+            List<V1Service> services = this.ik8sApiService.selectNamespacedService(platformId, selector, k8sApiUrl, k8sAuthToken);
+            if(services.size() > 0)
+                throw new ParamException(String.format("service for selector %s exist at %s", gson.toJson(selector), platformId));
+             if(this.ik8sApiService.isNamespacedIngressExist(name, platformId, k8sApiUrl, k8sAuthToken))
+                 throw new ParamException(String.format("ingress %s exist at %s", name, platformId));
+
+        }
+        K8sCCODDomainAppVo app = getNewCCODDomainApp(optInfo, domainId, domainCfg, platformId, platformCfg, hostUrl, k8sApiUrl, k8sAuthToken);
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+                app.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, app.getConfigMap());
+        steps.add(step);
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
+                app.getDeploy().getMetadata().getName(), K8sOperation.CREATE, app.getDeploy());
+        steps.add(step);
+        for(V1Service service : app.getServices())
+        {
+            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
+                    service.getMetadata().getName(), K8sOperation.CREATE, service);
+            steps.add(step);
+        }
+        if(app.getIngress() != null)
+        {
+            step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS,
+                    app.getIngress().getMetadata().getName(), K8sOperation.CREATE, app.getIngress());
+            steps.add(step);
+        }
+        return steps;
+    }
+
+    @Override
+    public List<K8sOperationInfo> getUpdatePlatformAppSteps(String jobId, AppUpdateOperationInfo optInfo, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException, InterfaceCallException, IOException {
+        String alias = optInfo.getAppAlias();
+        String appName = optInfo.getAppName();
+        String version = optInfo.getTargetVersion();
+        logger.debug(String.format("generate update step for %s at %s", alias, domainId));
+        K8sCCODDomainAppVo oriApp= getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
+        K8sCCODDomainAppVo updateApp = getNewCCODDomainApp(optInfo, domainId, domainCfg, platformId, platformCfg, hostUrl, k8sApiUrl, k8sAuthToken);
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getConfigMap());
+        steps.add(step);
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getDeploy());
+        steps.add(step);
+        for(V1Service service : updateApp.getServices())
+        {
+            String portKind = service.getKind();
+            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getKind().equals(portKind)).collect(Collectors.toList());
+            boolean isChanged = this.ik8sApiService.isServicePortChanged(portKind, service, oriServices);
+            if(isChanged)
+            {
+                for(V1Service svc : oriServices)
+                {
+                    step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
+                            svc.getMetadata().getName(), K8sOperation.DELETE, svc);
+                    steps.add(step);
+                }
+            }
+        }
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getConfigMap());
+        steps.add(step);
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getDeploy());
+        steps.add(step);
+        for(V1Service service : updateApp.getServices())
+        {
+            String portKind = service.getKind();
+            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getKind().equals(portKind)).collect(Collectors.toList());
+            boolean isChanged = this.ik8sApiService.isServicePortChanged(portKind, service, oriServices);
+            if(isChanged)
+            {
+                step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
+                        service.getMetadata().getName(), K8sOperation.DELETE, service);
+                steps.add(step);
+            }
+        }
+        logger.debug(String.format("update %s at domain %s steps are %s", alias, domainId, gson.toJson(steps)));
+        return steps;
+    }
+
+    /**
+     * 生成选择器用于选择k8s上的ccod域应用相关资源
+     * @param appName 应用名
+     * @param alias 应用别名
+     * @param version 应用版本
+     * @param appType 应用类型
+     * @param domainId 域id
+     * @return 生成的选择器
+     */
+    @Override
+    public Map<String, String> getCCODDomainAppSelector(String appName, String alias, String version, AppType appType, String domainId)
+    {
+        Map<String, String> selector = new HashMap<>();
+        selector.put(this.domainIdLabel, domainId);
+        selector.put(appName, alias);
+        return selector;
+    }
+
+    @Override
+    public Map<String, String> getK8sTemplateSelector(String ccodVersion, String appName, String vesion, AppType appType, K8sKind kind)
+    {
+        Map<String, String> selector = new HashMap<>();
+        selector.put(this.ccodVersionLabel, ccodVersion);
+        switch (kind)
+        {
+            case POD:
+            case CONFIGMAP:
+            case DEPLOYMENT:
+            case SERVICE:
+            case INGRESS:
+            case ENDPOINTS:
+                selector.put(this.appTypeLabel, appType.name);
+                switch (appType)
+                {
+                    case THREE_PART_APP:
+                      selector.put(this.appNameLabel, appName);
+                      break;
+                    default:
+                        break;
+                }
+                break;
+            case JOB:
+            case SECRET:
+            case NAMESPACE:
+            case PV:
+            case PVC:
+                break;
+            default:
+                break;
+        }
+        return selector;
     }
 }

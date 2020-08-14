@@ -350,6 +350,18 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     V1ConfigMap replaceNamespacedConfigMap(String name, String namespace, V1ConfigMap configMap, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 检查指定名称的configMap是否存在
+     * @param name 名称
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 不存在false，否则true
+     * @throws ApiException
+     */
+    boolean isNamespacedConfigMapExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
     /**
      *
      * @param namespace
@@ -441,6 +453,17 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     V1Status deleteNamespacedDeployment(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 指定名称的deployment是否存在
+     * @param name 名称
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return true存在，false不存在
+     * @throws ApiException
+     */
+    boolean isNamespacedDeploymentExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 删除命名空间下的所有deployment
@@ -540,6 +563,26 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     List<V1Service> selectNamespacedService(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 指定名称的服务是否存在
+     * @param name Service名称
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return true存在，false不存在
+     * @throws ApiException
+     */
+    boolean isNamespacedServiceExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 检查同一类型的服务端口是否发生变化
+     * @param portKind 服务端口类型
+     * @param service 新服务
+     * @param oriServices 以前正在运行的该类型的服务
+     * @return 发生变化返回true，否则false
+     */
+    boolean isServicePortChanged(String portKind, V1Service service, List<V1Service> oriServices);
 
     /**
      * 查询指定的命名空间
@@ -656,6 +699,17 @@ public interface IK8sApiService {
     ExtensionsV1beta1Ingress replaceNamespacedIngress(String name, String namespace, ExtensionsV1beta1Ingress ingress, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 检查指定名称的ingress是否存在
+     * @param name 名称
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return true存在，false不存在
+     * @throws ApiException
+     */
+    boolean isNamespacedIngressExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
      * 为指定的namespace创建ssl证书
      * @param namespace 命名空间
      * @param k8sApiUrl k8s的api的url
@@ -663,5 +717,5 @@ public interface IK8sApiService {
      * @return 创建的命名空间
      * @throws ApiException
      */
-    V1Secret createNamespacedSSLCert(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+    V1Secret generateNamespacedSSLCert(String namespace, String k8sApiUrl, String authToken) throws ApiException;
 }
