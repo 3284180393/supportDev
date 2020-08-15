@@ -1091,26 +1091,6 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/k8sPlatforms", method = RequestMethod.POST)
-    public AjaxResultPo createDemoK8sPlatform(@RequestBody PlatformUpdateSchemaInfo schema)
-    {
-        String uri = String.format("POST %s/k8sPlatforms", this.apiBasePath);
-        logger.debug(String.format("enter %s controller", uri));
-        AjaxResultPo resultPo;
-        try
-        {
-            PlatformTopologyInfo topologyInfo = this.platformManagerService.createK8sPlatform(schema);
-            resultPo = new AjaxResultPo(true, "create demo k8s platform SUCCESS", 1, topologyInfo);
-            logger.info(String.format("create demo k8s platform SUCCESS, quit %s", uri));
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("create demo k8s platform exception, quit %s controller", uri), e);
-            resultPo = AjaxResultPo.failed(e);
-        }
-        return resultPo;
-    }
-
     @RequestMapping(value = "/k8sPods/{platformId}", method = RequestMethod.GET)
     public AjaxResultPo queryAllK8sPod(@PathVariable String platformId)
     {

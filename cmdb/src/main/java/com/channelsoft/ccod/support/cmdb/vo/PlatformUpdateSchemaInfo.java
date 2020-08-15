@@ -1,6 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.*;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import io.kubernetes.client.openapi.models.*;
 import org.springframework.validation.annotation.Validated;
@@ -90,45 +92,16 @@ public class PlatformUpdateSchemaInfo {
 
     private V1Namespace namespace; //命名空间
 
-    @NotNull(message = "threePartApps can not be null")
     private List<V1Secret> k8sSecrets;
-
-    @NotNull(message = "k8sPVList can not be null")
-    private List<V1PersistentVolume> k8sPVList; //需要加载的pv列表
-
-    @NotNull(message = "k8sPVCList can not be null")
-    private List<V1PersistentVolumeClaim> k8sPVCList; //需要加载的pvc列表
 
     private V1Job k8sJob; //需要执行的k8s job
 
-    private List<V1Deployment> k8sDeploymentList; //需要执行的deployment
+    private List<K8sThreePartAppVo> threePartApps;
 
-    private List<V1Service> k8sServiceList; //需要执行的service列表
-
-    private List<V1Endpoints> k8sEndpointsList; //需要执行的endpoints 列表
-
-    private List<ExtensionsV1beta1Ingress> k8sIngressList; //需要执行的ingress列表
-
-    @NotNull(message = "threePartApps can not be null")
-    private List<K8sCollection> threePartApps;
+    private List<K8sThreePartServiceVo> threePartServices;
 
     private List<K8sOperationInfo> execSteps;
 
-    private K8sCollection oracle;
-
-    private K8sCollection mysql;
-
-    private K8sCollection licenseServer;
-
-    private K8sCollection glsserver;
-
-    private K8sCollection ucds;
-
-    private K8sCollection dcs;
-
-    private List<V1Service> threePartServices;
-
-    private List<V1Endpoints> threePartEndpoints;
 
     public PlatformUpdateSchemaInfo() {}
 
@@ -149,12 +122,6 @@ public class PlatformUpdateSchemaInfo {
         this.comment = comment;
         this.status = status;
         this.domainUpdatePlanList = new ArrayList<>();
-        this.k8sDeploymentList = new ArrayList<>();
-        this.k8sServiceList = new ArrayList<>();
-        this.k8sIngressList = new ArrayList<>();
-        this.k8sEndpointsList = new ArrayList<>();
-        this.k8sPVList = new ArrayList<>();
-        this.k8sPVCList = new ArrayList<>();
         this.threePartApps = new ArrayList<>();
     }
 
@@ -175,12 +142,6 @@ public class PlatformUpdateSchemaInfo {
         this.platformType = platformType;
         this.platformFunc = platformFunc;
         this.createMethod = createMethod;
-        this.k8sDeploymentList = new ArrayList<>();
-        this.k8sServiceList = new ArrayList<>();
-        this.k8sIngressList = new ArrayList<>();
-        this.k8sEndpointsList = new ArrayList<>();
-        this.k8sPVList = new ArrayList<>();
-        this.k8sPVCList = new ArrayList<>();
         this.threePartApps = new ArrayList<>();
     }
 
@@ -392,102 +353,6 @@ public class PlatformUpdateSchemaInfo {
         this.createMethod = createMethod;
     }
 
-    public List<V1Deployment> getK8sDeploymentList() {
-        return k8sDeploymentList;
-    }
-
-    public void setK8sDeploymentList(List<V1Deployment> k8sDeploymentList) {
-        this.k8sDeploymentList = k8sDeploymentList;
-    }
-
-    public List<V1Service> getK8sServiceList() {
-        return k8sServiceList;
-    }
-
-    public void setK8sServiceList(List<V1Service> k8sServiceList) {
-        this.k8sServiceList = k8sServiceList;
-    }
-
-    public List<V1Endpoints> getK8sEndpointsList() {
-        return k8sEndpointsList;
-    }
-
-    public void setK8sEndpointsList(List<V1Endpoints> k8sEndpointsList) {
-        this.k8sEndpointsList = k8sEndpointsList;
-    }
-
-    public List<ExtensionsV1beta1Ingress> getK8sIngressList() {
-        return k8sIngressList;
-    }
-
-    public void setK8sIngressList(List<ExtensionsV1beta1Ingress> k8sIngressList) {
-        this.k8sIngressList = k8sIngressList;
-    }
-
-    public List<V1PersistentVolume> getK8sPVList() {
-        return k8sPVList;
-    }
-
-    public void setK8sPVList(List<V1PersistentVolume> k8sPVList) {
-        this.k8sPVList = k8sPVList;
-    }
-
-    public List<V1PersistentVolumeClaim> getK8sPVCList() {
-        return k8sPVCList;
-    }
-
-    public void setK8sPVCList(List<V1PersistentVolumeClaim> k8sPVCList) {
-        this.k8sPVCList = k8sPVCList;
-    }
-
-    public K8sCollection getOracle() {
-        return oracle;
-    }
-
-    public void setOracle(K8sCollection oracle) {
-        this.oracle = oracle;
-    }
-
-    public K8sCollection getMysql() {
-        return mysql;
-    }
-
-    public void setMysql(K8sCollection mysql) {
-        this.mysql = mysql;
-    }
-
-    public K8sCollection getLicenseServer() {
-        return licenseServer;
-    }
-
-    public void setLicenseServer(K8sCollection licenseServer) {
-        this.licenseServer = licenseServer;
-    }
-
-    public K8sCollection getGlsserver() {
-        return glsserver;
-    }
-
-    public void setGlsserver(K8sCollection glsserver) {
-        this.glsserver = glsserver;
-    }
-
-    public K8sCollection getUcds() {
-        return ucds;
-    }
-
-    public void setUcds(K8sCollection ucds) {
-        this.ucds = ucds;
-    }
-
-    public K8sCollection getDcs() {
-        return dcs;
-    }
-
-    public void setDcs(K8sCollection dcs) {
-        this.dcs = dcs;
-    }
-
     public V1Namespace getNamespace() {
         return namespace;
     }
@@ -496,20 +361,12 @@ public class PlatformUpdateSchemaInfo {
         this.namespace = namespace;
     }
 
-    public List<K8sCollection> getThreePartApps() {
+    public List<K8sThreePartAppVo> getThreePartApps() {
         return threePartApps;
     }
 
-    public void setThreePartApps(List<K8sCollection> threePartApps) {
+    public void setThreePartApps(List<K8sThreePartAppVo> threePartApps) {
         this.threePartApps = threePartApps;
-    }
-
-    public List<V1Service> getThreePartServices() {
-        return threePartServices;
-    }
-
-    public void setThreePartServices(List<V1Service> threePartServices) {
-        this.threePartServices = threePartServices;
     }
 
     public List<V1Secret> getK8sSecrets() {
@@ -536,12 +393,12 @@ public class PlatformUpdateSchemaInfo {
         this.execSteps = execSteps;
     }
 
-    public List<V1Endpoints> getThreePartEndpoints() {
-        return threePartEndpoints;
+    public List<K8sThreePartServiceVo> getThreePartServices() {
+        return threePartServices;
     }
 
-    public void setThreePartEndpoints(List<V1Endpoints> threePartEndpoints) {
-        this.threePartEndpoints = threePartEndpoints;
+    public void setThreePartServices(List<K8sThreePartServiceVo> threePartServices) {
+        this.threePartServices = threePartServices;
     }
 
     public String getHostUrl() {

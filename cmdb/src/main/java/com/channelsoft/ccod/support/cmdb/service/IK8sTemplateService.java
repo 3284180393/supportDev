@@ -6,6 +6,8 @@ import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
@@ -29,19 +31,28 @@ import java.util.Map;
  */
 public interface IK8sTemplateService {
 
-    ExtensionsV1beta1Ingress getIngress(Map<String, String> selector, String alias, String platformId, String domainId, String hostUrl) throws ParamException;
+    ExtensionsV1beta1Ingress generateIngress(String ccodVersion, AppType appType, String appName, String alias, String platformId, String domainId, String hostUrl) throws ParamException;
 
-    V1Service getService(Map<String, String> selector, String appName, String alias, AppType appType, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException;
+    V1Service generateCCODDomainAppService(String ccodVersion, AppType appType, String appName, String alias, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException;
 
-    V1Service getService(Map<String, String> selector, String appName, String alias, String platformId) throws ParamException;
+    V1Service generateThreeAppService(String ccodVersion, String appName, String alias, String version, String platformId) throws ParamException;
 
-    V1Deployment getDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException;
+    V1Deployment generateCCODDomainAppDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException;
 
-    V1Deployment getDeployment(Map<String, String> selector, String appName, String alias, String version, String platformId) throws ParamException;
+    /**
+     * 生成第三方应用的deployment
+     * @param appName 第三方应用名
+     * @param alias 第三方应用别名
+     * @param version 版本号
+     * @param platformId 平台id
+     * @param ccodVersion 平台的ccod大版本
+     * @return 第三方应用的deployment
+     */
+    V1Deployment generateThreeAppDeployment(String ccodVersion, String appName, String alias, String version, String platformId) throws ParamException;
 
     V1Namespace generateNamespace(String ccodVersion, String platformId) throws ParamException;
 
-    V1Secret getSecret(Map<String, String> selector, String platformId, String name) throws ParamException;
+    V1Secret generateSecret(String ccodVersion, String platformId, String name) throws ParamException;
 
     V1PersistentVolume generatePersistentVolume(String ccodVersion, String platformId) throws ParamException;
 
@@ -142,7 +153,6 @@ public interface IK8sTemplateService {
      * @param hostUrl 平台访问域名
      * @param k8sApiUrl k8s的api的url
      * @param k8sAuthToken 访问k8s api的认证token
-     * @param isNewPlatform 该平台是否为新建平台
      * @return 修改域应用的k8s操作步骤
      * @throws ParamException
      * @throws ApiException
@@ -173,5 +183,28 @@ public interface IK8sTemplateService {
      * @return 指定条件的模板选择器
      */
     Map<String, String> getK8sTemplateSelector(String ccodVersion, String appName, String vesion, AppType appType, K8sKind kind);
+
+    /**
+     * 生成平台创建步骤
+     * @param platformId 平台id
+     * @param ccodVersion 平台的ccod大版本号
+     * @param jobId 创建平台的任务id
+     * @param job 创建平台需要预执行的job
+     * @param namespace 创建平台的namespace信息，如果为空将根据现有模板自动创建
+     * @param secrets 平台的相关secret，如果为空将自动创建ssl cert
+     * @param pv 平台使用的pv,如果为空将通过模板自动创建
+     * @param pvc 平台使用的pvc,如果为空将通过模板自动创建
+     * @param threePartApps 平台依赖的第三方应用，如果为空将根据模板自动创建oracle和mysql
+     * @param threePartServices 平台依赖的第三方服务，如果为空将根据模板自动创建umg141,umg147和umg41三个缺省第三方服务
+     * @param platformCfg 平台公共配置
+     * @param k8sApiUrl k8s的api的url
+     * @param k8sAuthToken 访问k8s api的认证token
+     * @return 平台创建所需执行的步骤
+     * @throws ApiException
+     * @throws ParamException
+     * @throws IOException
+     * @throws InterfaceCallException
+     */
+    List<K8sOperationInfo> generatePlatformCreateSteps(String platformId, String ccodVersion, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps, List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException;
 
 }

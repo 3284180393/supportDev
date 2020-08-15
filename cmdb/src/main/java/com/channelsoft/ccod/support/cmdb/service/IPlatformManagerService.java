@@ -53,13 +53,6 @@ public interface IPlatformManagerService {
     void deletePlatformUpdateSchema(String platformId) throws ParamException;
 
     /**
-     * 创建一个demo k8s平台
-     * @return 创建后的k8s平台
-     * @throws Exception
-     */
-    PlatformTopologyInfo createDemoK8sPlatform() throws Exception;
-
-    /**
      * 创建平台应用更新任务
      * @param platformId 平台id
      * @param platformName 平台名
@@ -144,8 +137,6 @@ public interface IPlatformManagerService {
      * @throws IOException 处理文件失败
      */
     void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException;
-
-    K8sPlatformSchemaInfo createK8sPlatformSchema(K8sPlatformSchemaInfo schemaInfo) throws Exception;
 
     /**
      * 查询平台回滚信息
@@ -572,26 +563,4 @@ public interface IPlatformManagerService {
      */
     V1PersistentVolumeClaim replaceK8sPlatformPersistentVolumeClaim(String platformId, String persistentVolumeClaimName, V1PersistentVolumeClaim persistentVolumeClaim) throws ParamException, ApiException;
 
-    /**
-     * 为新建平台创建configMap
-     * @param createSchema 新建平台schema
-     * @return 为新平台创建的configMap
-     * @throws ParamException
-     * @throws InterfaceCallException
-     * @throws NexusException
-     */
-    List<V1ConfigMap> createConfigMapForNewPlatform(PlatformUpdateSchemaInfo createSchema) throws InterfaceCallException, IOException, ApiException;
-
-    /**
-     * 根据schema创建新的k8s平台
-     * @param createSchema 用来创建k8s平台的schema
-     * @return 创建后的平台拓扑
-     * @throws ParamException
-     * @throws InterfaceCallException
-     * @throws NexusException
-     * @throws IOException
-     */
-    PlatformTopologyInfo createK8sPlatform(PlatformUpdateSchemaInfo createSchema) throws ParamException, InterfaceCallException, NexusException, IOException, ApiException, LJPaasException, NotSupportAppException , SQLException, ClassNotFoundException, K8sDataException;
-
-//    List<PlatformAppDeployDetailVo> updatePlatformAppTopologyFromK8s(String platformId) throws ApiException;
 }

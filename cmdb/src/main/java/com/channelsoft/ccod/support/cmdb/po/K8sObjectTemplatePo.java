@@ -21,6 +21,10 @@ public class K8sObjectTemplatePo {
 
     private String ingressJson;
 
+    private String endpointsJson;
+
+    private String podJson;
+
     private String namespaceJson;
 
     private String secretJson;
@@ -76,6 +80,14 @@ public class K8sObjectTemplatePo {
         this.ingressJson = ingressJson;
     }
 
+    public String getEndpointsJson() {
+        return endpointsJson;
+    }
+
+    public void setEndpointsJson(String endpointsJson) {
+        this.endpointsJson = endpointsJson;
+    }
+
     public String getNamespaceJson() {
         return namespaceJson;
     }
@@ -90,6 +102,14 @@ public class K8sObjectTemplatePo {
 
     public void setSecretJson(String secretJson) {
         this.secretJson = secretJson;
+    }
+
+    public String getPodJson() {
+        return podJson;
+    }
+
+    public void setPodJson(String podJson) {
+        this.podJson = podJson;
     }
 
     public String getPersistentVolumeJson() {

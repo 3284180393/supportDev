@@ -9,6 +9,8 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
+import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
@@ -32,10 +34,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -242,41 +241,22 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public ExtensionsV1beta1Ingress getIngress(Map<String, String> selector, String alias, String platformId, String domainId, String hostUrl) throws ParamException {
-        ExtensionsV1beta1Ingress ingress = null;
-        for(K8sObjectTemplatePo template : this.objectTemplateList)
-        {
-            if(isMatch(selector, template.getLabels()) && StringUtils.isNotBlank(template.getIngressJson())) {
-                ingress = templateParseGson.fromJson(template.getIngressJson(), ExtensionsV1beta1Ingress.class);
-                break;
-            }
-        }
-        if(ingress == null)
-            throw new ParamException(String.format("can not find matched ingress template for %s", gson.toJson(selector)));
+    public ExtensionsV1beta1Ingress generateIngress(String ccodVersion, AppType appType, String appName, String alias, String platformId, String domainId, String hostUrl) throws ParamException {
+        ExtensionsV1beta1Ingress ingress = (ExtensionsV1beta1Ingress)selectK8sObjectTemplate(ccodVersion, appType, appName, null, K8sKind.INGRESS);
         ingress.getMetadata().setNamespace(platformId);
         ingress.getMetadata().setName(String.format("%s-%s", alias, domainId));
         ingress.getSpec().getRules().get(0).setHost(hostUrl);
         ingress.getSpec().getRules().get(0).getHttp().getPaths().get(0).setPath(String.format("/%s-%s", alias, domainId));
         ingress.getSpec().getRules().get(0).getHttp().getPaths().get(0).getBackend().setServiceName(String.format("%s-%s", alias, domainId));
-        logger.info(String.format("selected ingress for selector %s is %s", gson.toJson(selector), gson.toJson(ingress)));
+        logger.info(String.format("generate ingress is %s",  gson.toJson(ingress)));
         return ingress;
     }
 
     @Override
-    public V1Service getService(Map<String, String> selector, String appName, String alias, AppType appType, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException {
+    public V1Service generateCCODDomainAppService(String ccodVersion, AppType appType, String appName, String alias, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException {
         if(!portType.equals(ServicePortType.ClusterIP) && !portType.equals(ServicePortType.NodePort))
             throw new ParamException(String.format("can not handle service port type : %s", portType.name));
-        V1Service service = null;
-        for(K8sObjectTemplatePo template : this.objectTemplateList)
-        {
-            if(isMatch(selector, template.getLabels()) && StringUtils.isNotBlank(template.getServiceJson()))
-            {
-                service = templateParseGson.fromJson(template.getServiceJson(), V1Service.class);
-                break;
-            }
-        }
-        if(service == null)
-            throw new ParamException(String.format("can not find service template for %s", gson.toJson(selector)));
+        V1Service service = (V1Service)selectK8sObjectTemplate(ccodVersion, appType, appName, null, K8sKind.SERVICE);
         List<PortVo> portList = parsePort(portStr, portType, appType);
         String[] ports = portStr.split(",");
         String name = portType.equals(ServicePortType.NodePort) ? String.format("%s-%s-out", alias, domainId) : String.format("%s-%s", alias, domainId);
@@ -306,18 +286,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Service getService(Map<String, String> selector, String appName, String alias, String platformId) throws ParamException {
-        V1Service service = null;
-        for(K8sObjectTemplatePo template : this.objectTemplateList)
-        {
-            if(isMatch(selector, template.getLabels()) && StringUtils.isNotBlank(template.getServiceJson()))
-            {
-                service = templateParseGson.fromJson(template.getServiceJson(), V1Service.class);
-                break;
-            }
-        }
-        if(service == null)
-            throw new ParamException(String.format("can not find service template for %s", gson.toJson(selector)));
+    public V1Service generateThreeAppService(String ccodVersion, String appName, String alias, String version, String platformId) throws ParamException {
+        Map<String, String> selector = getK8sTemplateSelector(ccodVersion, appName, version, AppType.THREE_PART_APP, K8sKind.SERVICE);
+        V1Service service = (V1Service)selectK8sObjectTemplate(ccodVersion, AppType.THREE_PART_APP, appName, version, K8sKind.SERVICE);
         service.getMetadata().setLabels(new HashMap<>());
         service.getMetadata().getLabels().put(appName, alias);
         service.getMetadata().setName(alias);
@@ -328,7 +299,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Deployment getDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException {
+    public V1Deployment generateCCODDomainAppDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException {
         String appName = optInfo.getAppName();
         String version = optInfo.getTargetVersion();
         String alias = optInfo.getAppAlias();
@@ -336,22 +307,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 .collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName).stream()
                 .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
         AppType appType = module.getAppType();
+        String ccodVersion = module.getCcodVersion();
         Map<String, String> selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.DEPLOYMENT);
-        V1Deployment deploy = null;
-        for(K8sObjectTemplatePo template : this.objectTemplateList)
-        {
-            if(isMatch(selector, template.getLabels()) && StringUtils.isNotBlank(template.getDeployJson()))
-            {
-                deploy = templateParseGson.fromJson(template.getDeployJson(), V1Deployment.class);
-                break;
-            }
-        }
+        V1Deployment deploy = (V1Deployment)selectK8sObjectTemplate(ccodVersion, appType, appName, version, K8sKind.DEPLOYMENT);
         String basePath = optInfo.getBasePath();
         String deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
-        String logPath = appType.equals(AppType.TOMCAT_WEB_APP) ? deployPath.replaceAll("/[^/]$", "/logs") : deployPath.replaceAll("/[^/]$", "/log");
-        //完成应用程序配置文件configMap挂载
-        if(deploy == null)
-            throw new ParamException(String.format("can not find deployment template for %s", gson.toJson(selector)));
         deploy.getMetadata().setNamespace(platformId);
         deploy.getMetadata().setName(String.format("%s-%s", alias, domainId));
         deploy.getMetadata().setLabels(new HashMap<>());
@@ -727,20 +687,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             return String.format("%s/%s", basePath, relativePath).replaceAll("//", "/");
     }
 
-    private Map<String, V1Service> getRelativeService(String domainId, String alias, List<V1Service> services)
-    {
-        Map<String, V1Service> serviceMap = new HashMap<>();
-        String regex = String.format("^%s-%s($|(-[0-9a-z]+)+$)", alias, domainId);
-        for(V1Service service : services)
-        {
-            if(service.getMetadata().getName().matches(regex))
-                serviceMap.put(service.getMetadata().getName(), service);
-        }
-        return serviceMap;
-    }
-
     @Override
-    public V1Deployment getDeployment(Map<String, String> selector, String appName, String alias, String version, String platformId) throws ParamException {
+    public V1Deployment generateThreeAppDeployment(String ccodVersion, String appName, String alias, String version, String platformId) throws ParamException {
+        Map<String, String> selector = getK8sTemplateSelector(ccodVersion, appName, version, AppType.THREE_PART_APP, K8sKind.DEPLOYMENT);
         V1Deployment deploy = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
         {
@@ -787,67 +736,35 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Secret getSecret(Map<String, String> selector, String platformId, String name) throws ParamException {
-        V1Secret secret = null;
-        for(K8sObjectTemplatePo template : this.objectTemplateList)
-        {
-            if(isMatch(selector, template.getLabels()) && StringUtils.isNotBlank(template.getSecretJson()))
-            {
-                secret = templateParseGson.fromJson(template.getSecretJson(), V1Secret.class);
-                break;
-            }
-        }
-        if(secret == null)
-            throw new ParamException(String.format("can not match secret for selector %s", gson.toJson(selector)));
+    public V1Secret generateSecret(String ccodVersion, String platformId, String name) throws ParamException {
+        V1Secret secret = (V1Secret) selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.SECRET);
         secret.getMetadata().setName(name);
         secret.getMetadata().setNamespace(platformId);
-        logger.info(String.format("selected secret for selector %s is %s", gson.toJson(selector), gson.toJson(secret)));
+        logger.info(String.format("generate secret is %s", gson.toJson(secret)));
         return secret;
     }
 
     @Override
     public V1PersistentVolume generatePersistentVolume(String ccodVersion, String platformId) throws ParamException {
-        Map<String, String> selector = getK8sTemplateSelector(ccodVersion, null, null, null, K8sKind.PV);
-        V1PersistentVolume pv = null;
-        for(K8sObjectTemplatePo template : this.objectTemplateList)
-        {
-            if(isMatch(selector, template.getLabels()) && StringUtils.isNotBlank(template.getPersistentVolumeJson()))
-            {
-                pv = templateParseGson.fromJson(template.getPersistentVolumeJson(), V1PersistentVolume.class);
-                break;
-            }
-        }
-        if(pv == null)
-            throw new ParamException(String.format("can not match persistentVolume for select %s", gson.toJson(selector)));
+        V1PersistentVolume pv = (V1PersistentVolume)selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.PV);
         String name = String.format("base-volume-%s", platformId);
         pv.getMetadata().setName(name);
         pv.getSpec().getClaimRef().setNamespace(platformId);
         pv.getSpec().getClaimRef().setName(name);
         pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s/base-volume", platformId));
         pv.getSpec().setStorageClassName(name);
-        logger.info(String.format("selected persistentVolume for select %s is %s", gson.toJson(selector), gson.toJson(pv)));
+        logger.info(String.format("generate persistentVolume is %s", gson.toJson(pv)));
         return pv;
     }
 
     @Override
     public V1PersistentVolumeClaim generatePersistentVolumeClaim(String ccodVersion, String platformId) throws ParamException {
-        Map<String, String> selector = getK8sTemplateSelector(ccodVersion, null, null, null, K8sKind.PVC);
-        V1PersistentVolumeClaim pvc = null;
-        for(K8sObjectTemplatePo template : this.objectTemplateList)
-        {
-            if(isMatch(selector, template.getLabels()) && StringUtils.isNotBlank(template.getPersistentVolumeClaimJson()))
-            {
-                pvc = templateParseGson.fromJson(template.getPersistentVolumeClaimJson(), V1PersistentVolumeClaim.class);
-                break;
-            }
-        }
-        if(pvc == null)
-            throw new ParamException(String.format("can not match persistentVolumeClaim for selector %s", gson.toJson(selector)));
+        V1PersistentVolumeClaim pvc = (V1PersistentVolumeClaim)selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.PVC);
         pvc.getMetadata().setName(String.format("base-volume-%s", platformId));
         pvc.getMetadata().setNamespace(platformId);
         pvc.getSpec().setStorageClassName(String.format("base-volume-%s", platformId));
         pvc.getSpec().setVolumeName(String.format("base-volume-%s", platformId));
-        logger.info(String.format("selected pvc for selector %s is %s", gson.toJson(selector), gson.toJson(pvc)));
+        logger.info(String.format("generate pvc is %s", gson.toJson(pvc)));
         return pvc;
     }
 
@@ -917,25 +834,22 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         if(modules.size() == 0)
             throw new ParamException(String.format("%s(%s) has not register or not image", appName, version));
         AppModuleVo module = modules.get(0);
+        String ccodVersion = module.getCcodVersion();
         AppType appType = module.getAppType();
         V1ConfigMap configMap = this.ik8sApiService.createConfigMapFromNexus(platformId, String.format("%s-%s", alias, domainId),
                 k8sApiUrl, k8sAuthToken, optInfo.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
-        V1Deployment deploy = this.getDeployment(optInfo, hostUrl, platformId, domainId, platformCfg, domainCfg);
-        Map<String, String> selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.SERVICE);
+        V1Deployment deploy = this.generateCCODDomainAppDeployment(optInfo, hostUrl, platformId, domainId, platformCfg, domainCfg);
         List<V1Service> services = new ArrayList<>();
-        V1Service service = this.getService(selector, appName, alias, appType, ServicePortType.ClusterIP, optInfo.getPorts(), platformId, domainId);
+        V1Service service = this.generateCCODDomainAppService(ccodVersion, appType, appName, alias, ServicePortType.ClusterIP, optInfo.getPorts(), platformId, domainId);
         services.add(service);
         if(StringUtils.isNotBlank(optInfo.getNodePorts())) {
-            service = this.getService(selector, appName, alias, appType, ServicePortType.NodePort, optInfo.getNodePorts(), platformId, domainId);
+            service = this.generateCCODDomainAppService(ccodVersion, appType, appName, alias, ServicePortType.NodePort, optInfo.getNodePorts(), platformId, domainId);
             services.add(service);
         }
         ExtensionsV1beta1Ingress ingress = null;
         if(appType.equals(AppType.TOMCAT_WEB_APP) || appType.equals(AppType.RESIN_WEB_APP))
-        {
-            selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.INGRESS);
-            ingress = this.getIngress(selector, alias, platformId, domainId, hostUrl);
-        }
+            ingress = this.generateIngress(ccodVersion, appType, appName, alias, platformId, domainId, hostUrl);
         K8sCCODDomainAppVo app = new K8sCCODDomainAppVo(alias, module, domainId, configMap, deploy, services, ingress);
         return app;
     }
@@ -1124,5 +1038,237 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 break;
         }
         return selector;
+    }
+
+    @Override
+    public List<K8sOperationInfo> generatePlatformCreateSteps(
+            String platformId, String ccodVersion, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
+            V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps,
+            List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl,
+            String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException {
+        if(this.ik8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken))
+            throw new ParamException(String.format("namespace %s has exist at %s", platformId, k8sApiUrl));
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        if(namespace == null)
+            namespace = generateNamespace(ccodVersion, platformId);
+        if(namespace.getMetadata().getName().equals(platformId))
+            throw new ParamException(String.format("name of namespace should be %s not %s", platformId, namespace.getMetadata().getName()));
+        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, platformId, K8sOperation.CREATE, namespace);
+        steps.add(step);
+        if(secrets == null)
+            secrets = new ArrayList<>();
+        Map<String, List<V1ObjectMeta>> metaMap = secrets.stream().map(se->se.getMetadata()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+        for(String name : metaMap.keySet())
+        {
+            if(metaMap.get(name).size() > 1)
+                throw new ParamException(String.format("secret %s multi define", name));
+        }
+        if(!metaMap.containsKey("ssl"))
+        {
+            V1Secret sslCert = this.ik8sApiService.generateNamespacedSSLCert(platformId, k8sApiUrl, k8sAuthToken);
+            secrets.add(sslCert);
+        }
+        for(V1Secret secret : secrets)
+        {
+            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.SECRET, secret.getMetadata().getName(), K8sOperation.CREATE, secret);
+            steps.add(step);
+        }
+        if(job != null)
+        {
+            if(!job.getMetadata().getNamespace().equals(platformId))
+                throw new ParamException(String.format("namespace of job should be %s not %s", platformId, namespace.getMetadata().getNamespace()));
+            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, job.getMetadata().getName(), K8sOperation.CREATE, job);
+            steps.add(step);
+        }
+        if(pv == null)
+            pv = generatePersistentVolume(ccodVersion, platformId);
+        step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PV, pv.getMetadata().getName(), K8sOperation.CREATE, pv);
+        steps.add(step);
+        if(pvc == null)
+            pvc = generatePersistentVolumeClaim(ccodVersion, platformId);
+        step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pv);
+        steps.add(step);
+        V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, platformId,
+                platformCfg.stream().map(cfg->cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
+                this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
+        K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP,
+                platformId, K8sOperation.CREATE, configMap);
+        if(threePartApps == null)
+            threePartApps = new ArrayList<>();
+        if(threePartApps.size() == 0)
+        {
+            V1Deployment oraDep = generateThreeAppDeployment("oracle", "oracle", "32-xe-10g-1.0", platformId, ccodVersion);
+            V1Service oraSvc = generateThreeAppService("oracle", "oracle", "32-xe-10g-1.0", platformId, ccodVersion);
+            K8sThreePartAppVo oracle = new K8sThreePartAppVo("oracle", "oracle", "32-xe-10g-1.0", oraDep, Arrays.asList(oraSvc), new ArrayList<>());
+            threePartApps.add(oracle);
+            V1Deployment mysqlDep = generateThreeAppDeployment("mysql", "mysql", "5.7", platformId, ccodVersion);
+            V1Service mysqlSvc = generateThreeAppService("mysql", "mysql", "5.7", platformId, ccodVersion);
+            K8sThreePartAppVo mysql = new K8sThreePartAppVo("mysql", "mysql", "5.7", mysqlDep, Arrays.asList(mysqlSvc), new ArrayList<>());
+            threePartApps.add(mysql);
+        }
+        metaMap = threePartApps.stream().map(app->app.getDeploy().getMetadata()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+        for(String name : metaMap.keySet())
+        {
+            if(metaMap.get(name).size() > 1)
+                throw new ParamException(String.format("deployment %s for three part app multi define", name));
+        }
+        metaMap = threePartApps.stream().flatMap(app->app.getServices().stream()).collect(Collectors.toList())
+                .stream().map(svc->svc.getMetadata()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+        for(String name : metaMap.keySet())
+        {
+            if(metaMap.get(name).size() > 1)
+                throw new ParamException(String.format("service %s for three part app multi define", name));
+        }
+        Map<String, List<V1ObjectMeta>> ingMetaMap = threePartApps.stream().filter(app->app.getIngresses() != null&&app.getIngresses().size() != 0).collect(Collectors.toList())
+                .stream().flatMap(app->app.getIngresses().stream()).collect(Collectors.toList())
+                .stream().map(ing->ing.getMetadata()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+        for(String name : ingMetaMap.keySet())
+        {
+            if(ingMetaMap.get(name).size() > 1)
+                throw new ParamException(String.format("ingress %s for three part app multi define", name));
+            else if(!metaMap.containsKey(name))
+                throw new ParamException(String.format("can not find service for three part app ingress %s", name));
+        }
+        for(K8sThreePartAppVo threeApp : threePartApps)
+        {
+            if(!threeApp.getDeploy().getMetadata().getNamespace().equals(platformId))
+                throw new ParamException(String.format("namespace of three part app deployment %s should be %s not %s",
+                        threeApp.getDeploy().getMetadata().getName(), platformId, threeApp.getDeploy().getMetadata().getNamespace()));
+            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.DEPLOYMENT, threeApp.getDeploy().getMetadata().getName(), K8sOperation.CREATE, threeApp.getDeploy());
+            steps.add(step);
+            for(V1Service svc : threeApp.getServices())
+            {
+                if(!svc.getMetadata().getNamespace().equals(platformId))
+                    throw new ParamException(String.format("namespace of three part app service %s should be %s not %s",
+                            svc.getMetadata().getName(), platformId, svc.getMetadata().getNamespace()));
+                step = new K8sOperationInfo(jobId, platformId, null, K8sKind.SERVICE, svc.getMetadata().getName(), K8sOperation.CREATE, svc);
+                steps.add(step);
+            }
+            if(threeApp.getIngresses() != null && threeApp.getIngresses().size() > 0)
+            {
+                for(ExtensionsV1beta1Ingress ingress : threeApp.getIngresses())
+                {
+                    if(!ingress.getMetadata().getNamespace().equals(platformId))
+                        throw new ParamException(String.format("namespace of three part app ingress %s should be %s not %s",
+                                ingress.getMetadata().getName(), platformId, ingress.getMetadata().getNamespace()));
+                    step = new K8sOperationInfo(jobId, platformId, null, K8sKind.INGRESS, ingress.getMetadata().getName(), K8sOperation.CREATE, ingress);
+                    steps.add(step);
+                }
+            }
+        }
+        return steps;
+    }
+
+    private Object selectK8sObjectTemplate(String ccodVersion, AppType appType, String appName, String version, K8sKind kind) throws ParamException
+    {
+        if(StringUtils.isBlank(ccodVersion))
+            throw new ParamException("ccodVersion can not be empty for select k8s object template");
+        else if(appType == null && StringUtils.isNotBlank(appName))
+            throw new ParamException(String.format("appType of %s can not be empty for select k8s object template", appName));
+        else if(StringUtils.isBlank(appName) && StringUtils.isNotBlank(version))
+            throw new ParamException(String.format("appName which has version %s can not be empty for select k8s object template", version));
+        if(kind == null)
+            throw new ParamException("kind of select k8s object can not be null");
+        String errMsg = String.format("can not select %s template for ccodVersion=%s,appType=%s,appName=%s and version=%s",
+                kind.name, ccodVersion, appType==null ? "":appType.name, appName, version);
+        Map<String, String> selector = new HashMap<>();
+        selector.put(this.ccodVersionLabel, ccodVersion);
+        if(appType != null)
+            selector.put(this.appTypeLabel, appType.name);
+        if(StringUtils.isNotBlank(appName))
+            selector.put(this.appNameLabel, appName);
+        if(StringUtils.isNotBlank(version))
+            selector.put(this.appVersionLabel, version);
+        Object template = selectK8sObjectTemplate(selector, kind);
+        if(template != null){
+            logger.info(String.format("%s template for %s is : %s", kind.name, gson.toJson(selector), gson.toJson(template)));
+            return template;
+        }
+        logger.debug(String.format("not select %s template for %s", kind.name, gson.toJson(selector)));
+        if(selector.size() == 1)
+            throw new ParamException(errMsg);
+        if(StringUtils.isNotBlank(version))
+            selector.remove(this.appVersionLabel);
+        else if(StringUtils.isNotBlank(appName))
+            selector.remove(this.appNameLabel);
+        else
+            selector.remove(this.appTypeLabel);
+        template = selectK8sObjectTemplate(selector, kind);
+        if(template != null){
+            logger.info(String.format("%s template for %s is : %s", kind.name, gson.toJson(selector), gson.toJson(template)));
+            return template;
+        }
+        logger.debug(String.format("not select %s template for %s", kind.name, gson.toJson(selector)));
+        if(selector.size() == 1)
+            throw new ParamException(errMsg);
+        if(StringUtils.isNotBlank(appName))
+            selector.remove(this.appNameLabel);
+        else
+            selector.remove(this.appTypeLabel);
+        template = selectK8sObjectTemplate(selector, kind);
+        if(template != null){
+            logger.info(String.format("%s template for %s is : %s", kind.name, gson.toJson(selector), gson.toJson(template)));
+            return template;
+        }
+        logger.debug(String.format("not select %s template for %s", kind.name, gson.toJson(selector)));
+        if(selector.size() == 1)
+            throw new ParamException(errMsg);
+        selector.remove(this.appTypeLabel);
+        template = selectK8sObjectTemplate(selector, kind);
+        if(template != null){
+            logger.info(String.format("%s template for %s is : %s", kind.name, gson.toJson(selector), gson.toJson(template)));
+            return template;
+        }
+        throw new ParamException(errMsg);
+    }
+
+    private Object selectK8sObjectTemplate(Map<String, String> selector, K8sKind kind)
+    {
+        for(K8sObjectTemplatePo templatePo : this.objectTemplateList)
+        {
+            if(isMatch(selector, templatePo.getLabels()))
+            {
+                switch (kind)
+                {
+                    case ENDPOINTS:
+                        if(StringUtils.isNotBlank(templatePo.getEndpointsJson()))
+                            return gson.toJson(templatePo.getEndpointsJson(), V1Endpoints.class);
+                        break;
+                    case INGRESS:
+                        if(StringUtils.isNotBlank(templatePo.getIngressJson()))
+                            return gson.toJson(templatePo.getIngressJson(), ExtensionsV1beta1Ingress.class);
+                        break;
+                    case SERVICE:
+                        if(StringUtils.isNotBlank(templatePo.getServiceJson()))
+                            return gson.toJson(templatePo.getServiceJson(), V1Service.class);
+                        break;
+                    case DEPLOYMENT:
+                        if(StringUtils.isNotBlank(templatePo.getDeployJson()))
+                            return gson.toJson(templatePo.getDeployJson(), V1Deployment.class);
+                        break;
+                    case PVC:
+                        if(StringUtils.isNotBlank(templatePo.getPersistentVolumeClaimJson()))
+                            return gson.toJson(templatePo.getPersistentVolumeClaimJson(), V1PersistentVolumeClaim.class);
+                        break;
+                    case PV:
+                        if(StringUtils.isNotBlank(templatePo.getPersistentVolumeJson()))
+                            return gson.toJson(templatePo.getPersistentVolumeJson(), V1PersistentVolume.class);
+                        break;
+                    case NAMESPACE:
+                        if(StringUtils.isNotBlank(templatePo.getNamespaceJson()))
+                            return gson.toJson(templatePo.getNamespaceJson(), V1Namespace.class);
+                        break;
+                    case SECRET:
+                        if(StringUtils.isNotBlank(templatePo.getSecretJson()))
+                            return gson.toJson(templatePo.getSecretJson(), V1Secret.class);
+                        break;
+                }
+            }
+        }
+        return null;
     }
 }

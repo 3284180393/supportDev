@@ -25,16 +25,16 @@ public class K8sThreePartAppVo {
 
     private List<V1Service> services; //关联k8s的一组服务
 
-    private ExtensionsV1beta1Ingress ingress; //如果有关联的ingress，关联的ingress
+    private List<ExtensionsV1beta1Ingress> ingresses; //如果有关联的ingress，关联的ingress
 
-    public K8sThreePartAppVo(String appName, String alias, String version, V1Deployment deploy, List<V1Service> services, ExtensionsV1beta1Ingress ingress)
+    public K8sThreePartAppVo(String appName, String alias, String version, V1Deployment deploy, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses)
     {
         this.appName = appName;
         this.alias = alias;
         this.version = version;
         this.deploy = deploy;
         this.services = services;
-        this.ingress = ingress;
+        this.ingresses = ingresses;
     }
 
     public String getAppName() {
@@ -77,11 +77,11 @@ public class K8sThreePartAppVo {
         this.services = services;
     }
 
-    public ExtensionsV1beta1Ingress getIngress() {
-        return ingress;
+    public List<ExtensionsV1beta1Ingress> getIngresses() {
+        return ingresses;
     }
 
-    public void setIngress(ExtensionsV1beta1Ingress ingress) {
-        this.ingress = ingress;
+    public void setIngresses(List<ExtensionsV1beta1Ingress> ingresses) {
+        this.ingresses = ingresses;
     }
 }
