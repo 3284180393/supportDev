@@ -29,7 +29,7 @@ public class AppPo {
 
     private String deployPath; //应用程序/包相对basePath的路径
 
-    private String cfgCreateCmd; //配置创建命令
+    private String envLoadCmd; //配置创建命令
 
     private String initCmd; //初始化命令
 
@@ -79,6 +79,7 @@ public class AppPo {
         this.ccodVersion = moduleVo.getCcodVersion();
         this.basePath = moduleVo.getBasePath();
         this.deployPath = moduleVo.getDeployPath();
+        this.envLoadCmd = moduleVo.getEnvLoadCmd();
         this.initCmd = moduleVo.getInitCmd();
         this.startCmd = moduleVo.getStartCmd();
         this.logOutputCmd = moduleVo.getLogOutputCmd();
@@ -197,12 +198,12 @@ public class AppPo {
         this.versionControlUrl = versionControlUrl;
     }
 
-    public String getCfgCreateCmd() {
-        return cfgCreateCmd;
+    public String getEnvLoadCmd() {
+        return envLoadCmd;
     }
 
-    public void setCfgCreateCmd(String cfgCreateCmd) {
-        this.cfgCreateCmd = cfgCreateCmd;
+    public void setEnvLoadCmd(String envLoadCmd) {
+        this.envLoadCmd = envLoadCmd;
     }
 
     public String getAppNexusDirectory() {

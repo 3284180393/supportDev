@@ -9,7 +9,7 @@
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
-        <result column="cfg_create_cmd" property="initCmd" jdbcType="VARCHAR" />
+        <result column="env_load_cmd" property="initCmd" jdbcType="VARCHAR" />
         <result column="init_cmd" property="initCmd" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
         <result column="kernal" property="kernal" jdbcType="BOOLEAN" />
@@ -35,7 +35,7 @@
         a.ccod_version,
         a.base_path,
         a.deploy_path,
-        a.cfg_create_cmd,
+        a.env_load_cmd,
         a.init_cmd,
         a.start_cmd,
         a.kernal,
@@ -86,7 +86,7 @@
                         ccod_version,
                         base_path,
                         deploy_path,
-                        cfg_create_cmd,
+                        env_load_cmd,
                         init_cmd,
                         start_cmd,
                         log_output_cmd,
@@ -111,7 +111,7 @@
                     #{ccodVersion,jdbcType=VARCHAR},
                     #{basePath,jdbcType=VARCHAR},
                     #{deployPath,jdbcType=VARCHAR},
-                    #{cfgCreateCmd,jdbcType=VARCHAR},
+                    #{envLoadCmd,jdbcType=VARCHAR},
                     #{initCmd,jdbcType=VARCHAR},
                     #{startCmd,jdbcType=VARCHAR},
                     #{logOutputCmd,jdbcType=VARCHAR},
@@ -141,7 +141,7 @@
         ccod_version = #{ccodVersion,jdbcType=VARCHAR},
         base_path = #{basePath,jdbcType=VARCHAR},
         deploy_path = #{deployPath,jdbcType=VARCHAR},
-        cfg_create_cmd = #{cfgCreateCmd,jdbcType=VARCHAR},
+        env_load_cmd = #{envLoadCmd,jdbcType=VARCHAR},
         init_cmd = #{initCmd,jdbcType=VARCHAR},
         start_cmd = #{startCmd,jdbcType=VARCHAR},
         log_output_cmd = #{logOutputCmd,jdbcType=VARCHAR},

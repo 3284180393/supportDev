@@ -42,7 +42,7 @@ public class PlatformAppPo {
 
     private String deployPath; //部署路径
 
-    private String cfgCreateCmd; //配置创建命令
+    private String envLoadCmd; //配置创建命令
 
     private String initCmd; //初始化命令
 
@@ -246,12 +246,12 @@ public class PlatformAppPo {
         this.periodSeconds = periodSeconds;
     }
 
-    public String getCfgCreateCmd() {
-        return cfgCreateCmd;
+    public String getEnvLoadCmd() {
+        return envLoadCmd;
     }
 
-    public void setCfgCreateCmd(String cfgCreateCmd) {
-        this.cfgCreateCmd = cfgCreateCmd;
+    public void setEnvLoadCmd(String envLoadCmd) {
+        this.envLoadCmd = envLoadCmd;
     }
 
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {

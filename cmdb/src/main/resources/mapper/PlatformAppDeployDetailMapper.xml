@@ -26,7 +26,7 @@
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
-        <result column="cfg_create_cmd" property="cfgCreateCmd" jdbcType="VARCHAR" />
+        <result column="env_load_cmd" property="envLoadCmd" jdbcType="VARCHAR" />
         <result column="init_cmd" property="initCmd" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
         <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
@@ -77,7 +77,7 @@
 	    a.ccod_version,
 	    pa.base_path,
 	    pa.deploy_path,
-	    pa.cfg_create_cmd,
+	    pa.env_load_cmd,
 	    pa.start_cmd,
 	    pa.start_cmd,
 	    pa.log_output_cmd,

@@ -53,13 +53,10 @@ public class DomainUpdatePlanInfo {
 
     private List<AppFileNexusInfo> publicConfig; //用来存放域公共配置
 
-    @NotNull(message = "deployments can not be null")
     private List<V1Deployment> deployments;
 
-    @NotNull(message = "services can not be null")
     private List<V1Service> services;
 
-    @NotNull(message = "ingresses can not be null")
     private List<ExtensionsV1beta1Ingress> ingresses;
 
     public List<AppUpdateOperationInfo> getAppUpdateOperationList() {

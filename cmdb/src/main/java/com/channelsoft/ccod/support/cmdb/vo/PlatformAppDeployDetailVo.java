@@ -67,7 +67,7 @@ public class PlatformAppDeployDetailVo {
 
     private String deployPath; //应用程序/安装包部署路径
 
-    private String cfgCreateCmd; //配置创建命令
+    private String envLoadCmd; //配置创建命令
 
     private String initCmd; //初始化命令
 
@@ -458,12 +458,12 @@ public class PlatformAppDeployDetailVo {
         this.periodSeconds = periodSeconds;
     }
 
-    public String getCfgCreateCmd() {
-        return cfgCreateCmd;
+    public String getEnvLoadCmd() {
+        return envLoadCmd;
     }
 
-    public void setCfgCreateCmd(String cfgCreateCmd) {
-        this.cfgCreateCmd = cfgCreateCmd;
+    public void setEnvLoadCmd(String envLoadCmd) {
+        this.envLoadCmd = envLoadCmd;
     }
 
     public PlatformAppPo getPlatformApp()
@@ -474,7 +474,7 @@ public class PlatformAppDeployDetailVo {
         po.setDeployTime(this.deployTime);
         po.setBasePath(this.basePath);
         po.setDeployPath(this.deployPath);
-        po.setCfgCreateCmd(this.cfgCreateCmd);
+        po.setEnvLoadCmd(this.envLoadCmd);
         po.setInitCmd(this.initCmd);
         po.setStartCmd(this.startCmd);
         po.setLogOutputCmd(this.logOutputCmd);

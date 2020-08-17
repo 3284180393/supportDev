@@ -100,9 +100,6 @@ public class PlatformUpdateSchemaInfo {
 
     private List<K8sThreePartServiceVo> threePartServices;
 
-    private List<K8sOperationInfo> execSteps;
-
-
     public PlatformUpdateSchemaInfo() {}
 
     public PlatformUpdateSchemaInfo(PlatformPo platformPo, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
@@ -383,14 +380,6 @@ public class PlatformUpdateSchemaInfo {
 
     public void setK8sJob(V1Job k8sJob) {
         this.k8sJob = k8sJob;
-    }
-
-    public List<K8sOperationInfo> getExecSteps() {
-        return execSteps;
-    }
-
-    public void setExecSteps(List<K8sOperationInfo> execSteps) {
-        this.execSteps = execSteps;
     }
 
     public List<K8sThreePartServiceVo> getThreePartServices() {

@@ -1,10 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
-import com.channelsoft.ccod.support.cmdb.constant.AppType;
-import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
-import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
-import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
+import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
@@ -12,7 +9,6 @@ import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IK8sTemplateService;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -71,6 +67,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Value("${k8s.labels.app-version}")
     private String appVersionLabel;
 
+    @Value("${k8s.labels.service-type}")
+    private String serviceTypeLabel;
+
     @Value("${k8s.deployment.defaultCfgMountPath}")
     private String defaultCfgMountPath;
 
@@ -82,6 +81,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Value("${k8s.template-file-path}")
     private String templateSavePath;
+
+    @Value("${k8s.test-three-part-service-save-path}")
+    private String testThreePartServiceSavePath;
 
     @Value("${nexus.user}")
     private String nexusUserName;
@@ -115,6 +117,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     private final List<K8sObjectTemplatePo> objectTemplateList = new ArrayList<>();
 
+    private final List<K8sThreePartServiceVo> testThreePartServices = new ArrayList<>();
+
     protected String testK8sApiUrl = "https://10.130.41.218:6443";
 
     protected String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA";
@@ -125,10 +129,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //        List<K8sObjectTemplatePo> testList = generatePlatformObjectTemplate("test-by-wyf", "4.1", "ucds-cloud01", "cas-manage01", "dcms-manage01");
 //        this.objectTemplateList.addAll(testList);
 //        testList = generatePlatformObjectTemplate("jhkzx-1", "3.9", "ucds-cloud01", "cas-manage01", "dcmswebservice-manage01");
-//        this.objectTemplateList.addAll(testList);
+////        this.objectTemplateList.addAll(testList);
         List<K8sObjectTemplatePo> list = parseTemplateFromFile(this.templateSavePath);
         this.objectTemplateList.addAll(list);
-        logger.warn(String.format("test template=%s", gson.toJson(this.objectTemplateList)));
+        List<K8sThreePartServiceVo> threeSvcs = getThreePartServices("test-by-wyf", testK8sApiUrl, testAuthToken);
+        this.testThreePartServices.addAll(threeSvcs);
     }
 
     private List<K8sObjectTemplatePo> generatePlatformObjectTemplate(String srcPlatformId, String ccodVersion, String binaryApp, String tomcatApp, String resinApp) throws ApiException
@@ -614,8 +619,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             case RESIN_WEB_APP:
                 execParam = String.format("%s;mv /%s/%s /war/%s-%s.war", execParam, deployPath, packageFileName, alias, domainId);
         }
-        if(StringUtils.isNotBlank(optInfo.getCfgCreateCmd()))
-            execParam = String.format("%s;cd %s;%s", execParam, basePath, optInfo.getCfgCreateCmd());
+        if(StringUtils.isNotBlank(optInfo.getEnvLoadCmd()))
+            execParam = String.format("%s;cd %s;%s", execParam, basePath, optInfo.getEnvLoadCmd());
         commands.add(execParam.replaceAll("^;", "").replaceAll(";;", ";").replaceAll("//", "/"));
         logger.debug(String.format("command of init container is %s", String.join(";", commands)));
         return commands;
@@ -788,6 +793,16 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 "UTF-8"));
         String lineTxt = br.readLine();
         List<K8sObjectTemplatePo> list = this.gson.fromJson(lineTxt, new TypeToken<List<K8sObjectTemplatePo>>() {
+        }.getType());
+        return list;
+    }
+
+    private List<K8sThreePartServiceVo> parseTestThreePartServiceFromFile(String savePath) throws IOException
+    {
+        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(savePath)),
+                "UTF-8"));
+        String lineTxt = br.readLine();
+        List<K8sThreePartServiceVo> list = this.gson.fromJson(lineTxt, new TypeToken<List<K8sThreePartServiceVo>>() {
         }.getType());
         return list;
     }
@@ -1042,7 +1057,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Override
     public List<K8sOperationInfo> generatePlatformCreateSteps(
-            String platformId, String ccodVersion, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
+            String ccodVersion, String platformId, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
             V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps,
             List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl,
             String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException {
@@ -1051,7 +1066,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<K8sOperationInfo> steps = new ArrayList<>();
         if(namespace == null)
             namespace = generateNamespace(ccodVersion, platformId);
-        if(namespace.getMetadata().getName().equals(platformId))
+        if(!namespace.getMetadata().getName().equals(platformId))
             throw new ParamException(String.format("name of namespace should be %s not %s", platformId, namespace.getMetadata().getName()));
         K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, platformId, K8sOperation.CREATE, namespace);
         steps.add(step);
@@ -1098,12 +1113,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             threePartApps = new ArrayList<>();
         if(threePartApps.size() == 0)
         {
-            V1Deployment oraDep = generateThreeAppDeployment("oracle", "oracle", "32-xe-10g-1.0", platformId, ccodVersion);
-            V1Service oraSvc = generateThreeAppService("oracle", "oracle", "32-xe-10g-1.0", platformId, ccodVersion);
+            V1Deployment oraDep = generateThreeAppDeployment(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId);
+            V1Service oraSvc = generateThreeAppService(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId);
             K8sThreePartAppVo oracle = new K8sThreePartAppVo("oracle", "oracle", "32-xe-10g-1.0", oraDep, Arrays.asList(oraSvc), new ArrayList<>());
             threePartApps.add(oracle);
-            V1Deployment mysqlDep = generateThreeAppDeployment("mysql", "mysql", "5.7", platformId, ccodVersion);
-            V1Service mysqlSvc = generateThreeAppService("mysql", "mysql", "5.7", platformId, ccodVersion);
+            V1Deployment mysqlDep = generateThreeAppDeployment(ccodVersion,"mysql", "mysql", "5.7", platformId);
+            V1Service mysqlSvc = generateThreeAppService(ccodVersion, "mysql", "mysql", "5.7", platformId);
             K8sThreePartAppVo mysql = new K8sThreePartAppVo("mysql", "mysql", "5.7", mysqlDep, Arrays.asList(mysqlSvc), new ArrayList<>());
             threePartApps.add(mysql);
         }
@@ -1160,7 +1175,75 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 }
             }
         }
+        if(threePartServices == null || threePartServices.size() == 0)
+            threePartServices = this.generateTestThreePartServices(ccodVersion, platformId);
+        metaMap = threePartServices.stream().map(threeSvc->threeSvc.getEndpoints().getMetadata()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+        for(String name : metaMap.keySet())
+        {
+            if(metaMap.get(name).size() > 1)
+                throw new ParamException(String.format("endpoints %s of three part service multi define", name));
+        }
+        metaMap = threePartServices.stream().map(threeSvc->threeSvc.getService().getMetadata()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
+        for(String name : metaMap.keySet())
+        {
+            if(metaMap.get(name).size() > 1)
+                throw new ParamException(String.format("service %s of three part service multi define", name));
+        }
+        for(K8sThreePartServiceVo threePartSvc : threePartServices)
+        {
+            V1Endpoints endpoints = threePartSvc.getEndpoints();
+            if(!endpoints.getMetadata().getNamespace().equals(platformId))
+                throw new ParamException(String.format("namespace of endpoints %s is %s not %s",
+                        endpoints.getMetadata().getName(), endpoints.getMetadata().getNamespace(), platformId));
+            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.ENDPOINTS, endpoints.getMetadata().getName(), K8sOperation.CREATE, endpoints);
+            steps.add(step);
+            V1Service service = threePartSvc.getService();
+            if(!service.getMetadata().getNamespace().equals(platformId))
+                throw new ParamException(String.format("namespace of service %s is %s not %s",
+                        service.getMetadata().getName(), service.getMetadata().getNamespace(), platformId));
+            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.SERVICE, service.getMetadata().getName(), K8sOperation.CREATE, service);
+            steps.add(step);
+        }
         return steps;
+    }
+
+    @Override
+    public List<K8sThreePartServiceVo> generateTestThreePartServices(String ccodVersion, String platformId) throws ApiException, ParamException {
+        for(K8sThreePartServiceVo threePartService : this.testThreePartServices)
+        {
+            threePartService.getService().getMetadata().setLabels(new HashMap<>());
+            threePartService.getService().getMetadata().setNamespace(platformId);
+            threePartService.getService().getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.THREE_PART_SERVICE.name);
+            threePartService.getService().getMetadata().getLabels().put(this.appNameLabel, "umg");
+            threePartService.getEndpoints().getMetadata().setLabels(new HashMap<>());
+            threePartService.getEndpoints().getMetadata().setNamespace(platformId);
+            threePartService.getEndpoints().getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.THREE_PART_SERVICE.name);
+            threePartService.getEndpoints().getMetadata().getLabels().put(this.appNameLabel, "umg");
+        }
+        return testThreePartServices;
+    }
+
+    private List<K8sThreePartServiceVo> getThreePartServices(String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException
+    {
+        List<K8sThreePartServiceVo> list = new ArrayList<>();
+        String name = "umg41";
+        V1Endpoints endpoints = this.ik8sApiService.readNamespacedEndpoints(name, platformId, k8sApiUrl, k8sAuthToken);
+        V1Service service = this.ik8sApiService.readNamespacedService(name, platformId, k8sApiUrl, k8sAuthToken);
+        K8sThreePartServiceVo threeSvc = new K8sThreePartServiceVo(name, service, endpoints);
+        list.add(threeSvc);
+        name = "umg141";
+        endpoints = this.ik8sApiService.readNamespacedEndpoints(name, platformId, k8sApiUrl, k8sAuthToken);
+        service = this.ik8sApiService.readNamespacedService(name, platformId, k8sApiUrl, k8sAuthToken);
+        threeSvc = new K8sThreePartServiceVo(name, service, endpoints);
+        list.add(threeSvc);
+        name = "umg147";
+        endpoints = this.ik8sApiService.readNamespacedEndpoints(name, platformId, k8sApiUrl, k8sAuthToken);
+        service = this.ik8sApiService.readNamespacedService(name, platformId, k8sApiUrl, k8sAuthToken);
+        threeSvc = new K8sThreePartServiceVo(name, service, endpoints);
+        list.add(threeSvc);
+        return list;
     }
 
     private Object selectK8sObjectTemplate(String ccodVersion, AppType appType, String appName, String version, K8sKind kind) throws ParamException
@@ -1236,35 +1319,35 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 {
                     case ENDPOINTS:
                         if(StringUtils.isNotBlank(templatePo.getEndpointsJson()))
-                            return gson.toJson(templatePo.getEndpointsJson(), V1Endpoints.class);
+                            return gson.fromJson(templatePo.getEndpointsJson(), V1Endpoints.class);
                         break;
                     case INGRESS:
                         if(StringUtils.isNotBlank(templatePo.getIngressJson()))
-                            return gson.toJson(templatePo.getIngressJson(), ExtensionsV1beta1Ingress.class);
+                            return gson.fromJson(templatePo.getIngressJson(), ExtensionsV1beta1Ingress.class);
                         break;
                     case SERVICE:
                         if(StringUtils.isNotBlank(templatePo.getServiceJson()))
-                            return gson.toJson(templatePo.getServiceJson(), V1Service.class);
+                            return gson.fromJson(templatePo.getServiceJson(), V1Service.class);
                         break;
                     case DEPLOYMENT:
                         if(StringUtils.isNotBlank(templatePo.getDeployJson()))
-                            return gson.toJson(templatePo.getDeployJson(), V1Deployment.class);
+                            return gson.fromJson(templatePo.getDeployJson(), V1Deployment.class);
                         break;
                     case PVC:
                         if(StringUtils.isNotBlank(templatePo.getPersistentVolumeClaimJson()))
-                            return gson.toJson(templatePo.getPersistentVolumeClaimJson(), V1PersistentVolumeClaim.class);
+                            return gson.fromJson(templatePo.getPersistentVolumeClaimJson(), V1PersistentVolumeClaim.class);
                         break;
                     case PV:
                         if(StringUtils.isNotBlank(templatePo.getPersistentVolumeJson()))
-                            return gson.toJson(templatePo.getPersistentVolumeJson(), V1PersistentVolume.class);
+                            return gson.fromJson(templatePo.getPersistentVolumeJson(), V1PersistentVolume.class);
                         break;
                     case NAMESPACE:
                         if(StringUtils.isNotBlank(templatePo.getNamespaceJson()))
-                            return gson.toJson(templatePo.getNamespaceJson(), V1Namespace.class);
+                            return gson.fromJson(templatePo.getNamespaceJson(), V1Namespace.class);
                         break;
                     case SECRET:
                         if(StringUtils.isNotBlank(templatePo.getSecretJson()))
-                            return gson.toJson(templatePo.getSecretJson(), V1Secret.class);
+                            return gson.fromJson(templatePo.getSecretJson(), V1Secret.class);
                         break;
                 }
             }

@@ -8,15 +8,11 @@ import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
-import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
 import com.channelsoft.ccod.support.cmdb.vo.AppUpdateOperationInfo;
 import com.channelsoft.ccod.support.cmdb.vo.K8sOperationInfo;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
-import org.apache.ibatis.annotations.Param;
-import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.List;
@@ -186,8 +182,8 @@ public interface IK8sTemplateService {
 
     /**
      * 生成平台创建步骤
-     * @param platformId 平台id
      * @param ccodVersion 平台的ccod大版本号
+     * @param platformId 平台id
      * @param jobId 创建平台的任务id
      * @param job 创建平台需要预执行的job
      * @param namespace 创建平台的namespace信息，如果为空将根据现有模板自动创建
@@ -205,6 +201,17 @@ public interface IK8sTemplateService {
      * @throws IOException
      * @throws InterfaceCallException
      */
-    List<K8sOperationInfo> generatePlatformCreateSteps(String platformId, String ccodVersion, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps, List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException;
+    List<K8sOperationInfo> generatePlatformCreateSteps(String ccodVersion, String platformId, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps, List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException;
+
+
+    /**
+     * 生成一组用于测试的第三方服务
+     * @param ccodVersion 平台的ccod大版本
+     * @param platformId 平台id
+     * @return 用于测试的第三方服务
+     * @throws ApiException
+     * @throws ParamException
+     */
+    List<K8sThreePartServiceVo> generateTestThreePartServices(String ccodVersion, String platformId) throws ApiException, ParamException;
 
 }

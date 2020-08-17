@@ -353,6 +353,7 @@ k8s:
   deployment:
     defaultCfgMountPath: /cfg
   template-file-path: D:/tmp/template.txt
+  test-three-part-service-save-path: D:/tmp/threePartServices.txt
 
 
 windows: false

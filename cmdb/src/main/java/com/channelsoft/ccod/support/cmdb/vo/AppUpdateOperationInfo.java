@@ -52,7 +52,7 @@ public class AppUpdateOperationInfo {
 
     private String appRunner; //该应用的执行用户
 
-    private String cfgCreateCmd; //创建配置文件命令
+    private String envLoadCmd; //环境加载命令
 
     private String initCmd; //初始化命令
 
@@ -266,12 +266,12 @@ public class AppUpdateOperationInfo {
         this.periodSeconds = periodSeconds;
     }
 
-    public String getCfgCreateCmd() {
-        return cfgCreateCmd;
+    public String getEnvLoadCmd() {
+        return envLoadCmd;
     }
 
-    public void setCfgCreateCmd(String cfgCreateCmd) {
-        this.cfgCreateCmd = cfgCreateCmd;
+    public void setEnvLoadCmd(String envLoadCmd) {
+        this.envLoadCmd = envLoadCmd;
     }
 
     public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)
@@ -287,7 +287,7 @@ public class AppUpdateOperationInfo {
         po.setAppAlias(this.appAlias);
         po.setAppId(appId);
         po.setPlatformAppId(0);
-        po.setCfgCreateCmd(this.cfgCreateCmd);
+        po.setEnvLoadCmd(this.envLoadCmd);
         po.setInitCmd(this.initCmd);
         po.setStartCmd(this.startCmd);
         po.setLogOutputCmd(this.logOutputCmd);

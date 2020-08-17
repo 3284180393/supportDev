@@ -2071,6 +2071,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(rcd != null)
             throw new ParamException(String.format("schema id %s has been used", updateSchema.getSchemaId()));
         PlatformPo platformPo = platformMapper.selectByPrimaryKey(updateSchema.getPlatformId());
+        Map<String, Object> params = getParamFromSchema(updateSchema);
         if (platformPo == null) {
             if (!updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE)) {
                 logger.error(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
@@ -2084,17 +2085,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     platformPo.setApiUrl(updateSchema.getK8sApiUrl());
                     platformPo.setAuthToken(updateSchema.getK8sAuthToken());
                 }
-                if (StringUtils.isNotBlank(updateSchema.getCcodVersion())) {
-                    platformPo.setCcodVersion("CCOD4.1");
-                }
-                Map<String, Object> params = getParamFromSchema(updateSchema);
                 platformPo.setParams(params);
                 this.platformMapper.insert(platformPo);
             }
         }
         else
         {
-            Map<String, Object> params = getParamFromSchema(updateSchema);
             platformPo.setParams(params);
             this.platformMapper.update(platformPo);
         }
@@ -2103,6 +2099,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     platformPo.getPlatformId(), platformPo.getPlatformName(), updateSchema.getPlatformName()));
             throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
         }
+//        resetSchema(updateSchema);
+//        logger.warn(gson.toJson(updateSchema));
         List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
         Boolean hasImage = PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType()) ? true : null;
         List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(hasImage);
@@ -2119,13 +2117,32 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(updateSchema.getPlatformId(), null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
         makeupDomainIdAndAliasForSchema(updateSchema, domainList, platformDeployApps, clone);
-        Map<UpdateStatus, List<DomainUpdatePlanInfo>> statusPlanMap = updateSchema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getStatus));
+        UpdateStatus status = updateSchema.getStatus();
+        if (status.equals(UpdateStatus.EXEC) || status.equals(UpdateStatus.WAIT_EXEC))
+            execPlatformSchema(platformPo, updateSchema, platformDeployApps);
+
+        boolean closeSchema = status.equals(UpdateStatus.EXEC) && updateSchema.getDomainUpdatePlanList().size() == 0 ? true : false;
+        if (this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
+            this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+        this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
+        if(closeSchema)
+            platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+        else
+        {
+            PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+            schemaPo.setContext(gson.toJson(updateSchema).getBytes());
+            schemaPo.setPlatformId(updateSchema.getPlatformId());
+            this.platformUpdateSchemaMapper.insert(schemaPo);
+            this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
+            platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
+            this.platformMapper.update(platformPo);
+        }
+        this.platformMapper.update(platformPo);
         List<DomainUpdatePlanInfo> preparePlans = statusPlanMap.containsKey(UpdateStatus.WAIT_EXEC) ? statusPlanMap.get(UpdateStatus.WAIT_EXEC) : new ArrayList<>();
         if(preparePlans.size() > 0)
         {
             List<K8sOperationInfo> tryOptList = generateSchemaK8sExecStep(updateSchema, UpdateStatus.WAIT_EXEC, registerApps);
             logger.debug(String.format("schema need exec steps : %s", gson.toJson(tryOptList)));
-            updateSchema.setExecSteps(tryOptList);
 //            execPlatformUpdateSteps(tryOptList, updateSchema);
         }
         List<DomainUpdatePlanInfo> execPlans = statusPlanMap.containsKey(UpdateStatus.EXEC) ? statusPlanMap.get(UpdateStatus.EXEC) : new ArrayList<>();
@@ -2191,6 +2208,109 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
     }
 
+    private void execPlatformSchema(PlatformPo platformPo, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformDeployApps) throws ParamException, ApiException, InterfaceCallException, IOException, LJPaasException, NotSupportAppException
+    {
+        UpdateStatus status = schema.getStatus();
+        List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
+                filter(plan->plan.getStatus().equals(status)).collect(Collectors.toList());
+        PlatformUpdateTaskType taskType = schema.getTaskType();
+        boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) ? true : false;
+        if(plans.size() == 0)
+            throw new ParamException(String.format("status of schema is %s but there is not any domain plan status is %s",
+                    status.name, status.name));
+        else if(isNewPlatform && status.equals(UpdateStatus.EXEC)
+                && plans.size() != schema.getDomainUpdatePlanList().size())
+            throw new ParamException(String.format("status of new create platform is %s but there are %d domain plan status not %s",
+                    status.name, schema.getDomainUpdatePlanList().size()-plans.size(), status.name));
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        List<AppFileNexusInfo> platformCfg;
+        String platformId = platformPo.getPlatformId();
+        String ccodVersion = platformPo.getCcodVersion();
+        String jobId = schema.getSchemaId();
+        String k8sApiUrl = platformPo.getApiUrl();
+        String k8sAuthToken = platformPo.getAuthToken();
+        Map<String, List<AppFileNexusInfo>> domainCfgMap;
+        PlatformAppPo deployGls;
+        if(isNewPlatform) {
+            domainCfgMap = schema.getDomainUpdatePlanList().stream().filter(plan -> plan.getPublicConfig() != null && plan.getPublicConfig().size() > 0)
+                    .collect(Collectors.toMap(plan -> plan.getDomainId(), v -> v.getPublicConfig()));
+            platformCfg = schema.getPublicConfig();
+            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(ccodVersion,
+                    platformId, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
+                    null, null, schema.getThreePartApps(), schema.getThreePartServices(), platformCfg,
+                    k8sApiUrl, k8sAuthToken);
+            steps.addAll(platformCreateSteps);
+            Map<String, List<AppUpdateOperationInfo>> optMap = schema.getDomainUpdatePlanList().stream()
+                    .flatMap(plan->plan.getAppUpdateOperationList().stream()).collect(Collectors.toList())
+                    .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+            if(!optMap.containsKey("glsServer"))
+                throw new ParamException(String.format("new platform must has glsServer"));
+            else if(optMap.get("glsServer").size() > 0)
+                throw new ParamException(String.format("glsServer multi deploy"));
+            deployGls = optMap.get("glsServer").get(0).getPlatformApp();
+        }
+        else
+        {
+            domainCfgMap = new HashMap<>();
+            Map<String, List<DomainPublicConfigPo>> cfgMap = this.domainPublicConfigMapper.select(platformPo.getPlatformId(), null)
+                    .stream().collect(Collectors.groupingBy(DomainPublicConfigPo::getDomainId));
+            for(String domainId : cfgMap.keySet())
+                domainCfgMap.put(domainId, cfgMap.get(domainId).stream().collect(Collectors.toList()));
+            platformCfg = this.platformPublicConfigMapper.select(platformId).stream().collect(Collectors.toList());
+            deployGls = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName))
+                    .get("glsServer").get(0).getPlatformApp();
+        }
+        for(DomainUpdatePlanInfo plan : plans)
+        {
+            String domainId = plan.getDomainId();
+            List<AppFileNexusInfo> domainCfg = domainCfgMap.containsKey(domainId) ? domainCfgMap.get(domainId) : new ArrayList<>();
+            plan.setPublicConfig(domainCfg);
+            List<K8sOperationInfo> deploySteps = generateDomainDeploySteps(jobId, platformPo, platformCfg, plan, isNewPlatform);
+            steps.addAll(deploySteps);
+        }
+        if(!status.equals(UpdateStatus.EXEC))
+            return schema;
+        PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(platformPo, steps, schema, platformDeployApps, deployGls);
+        logger.info(String.format("platform schema execute result : %s", gson.toJson(execResultVo)));
+        if(!execResultVo.isSuccess())
+            throw new ParamException(String.format("schema execute fail : %s", execResultVo.getErrorMsg()));
+        this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
+        schema.setDomainUpdatePlanList(schema.getDomainUpdatePlanList().stream()
+                .filter(plan->!plan.getStatus().equals(UpdateStatus.EXEC)).collect(Collectors.toList()));
+    }
+
+    private void resetSchema(PlatformUpdateSchemaInfo schema)
+    {
+        schema.setNamespace(null);
+        schema.setK8sSecrets(null);
+        schema.setThreePartApps(null);
+        schema.setThreePartServices(null);
+        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(true).stream()
+            .collect(Collectors.groupingBy(AppModuleVo::getAppName));
+        for(DomainUpdatePlanInfo plan : schema.getDomainUpdatePlanList())
+        {
+            plan.setIngresses(null);
+            plan.setDeployments(null);
+            plan.setServices(null);
+            for(AppUpdateOperationInfo optInfo : plan.getAppUpdateOperationList())
+            {
+                AppModuleVo module = registerAppMap.get(optInfo.getAppName()).stream()
+                        .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getTargetVersion());
+                optInfo.setPeriodSeconds(module.getPeriodSeconds());
+                optInfo.setInitialDelaySeconds(module.getInitialDelaySeconds());
+                optInfo.setResources(module.getResources());
+                optInfo.setLogOutputCmd(module.getLogOutputCmd());
+                optInfo.setInitCmd(module.getInitCmd());
+                optInfo.setStartCmd(module.getStartCmd());
+                optInfo.setNodePorts(module.getNodePorts());
+                optInfo.setPorts(module.getPorts());
+                optInfo.setAssembleTag(String.format("%s-%s", optInfo.getAppAlias(), plan.getDomainId()));
+                String envLoadCmd = StringUtils.isNotBlank(module.getEnvLoadCmd()) ? module.getEnvLoadCmd() : String.format("echo \"hello, %s\"", optInfo.getAppAlias());
+                optInfo.setEnvLoadCmd(envLoadCmd);
+            }
+        }
+    }
+
     @Override
     public PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo)
             throws ParamException, ApiException, InterfaceCallException, IOException, NotSupportAppException, LJPaasException, NexusException {
@@ -2245,6 +2365,57 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return deployApp;
     }
 
+
+    private List<K8sOperationInfo> generateDomainDeploySteps(
+            String jobId, PlatformPo platformPo, List<AppFileNexusInfo> platformCfg, DomainUpdatePlanInfo plan, boolean isNewPlatform)
+            throws ParamException, ApiException, InterfaceCallException, IOException
+    {
+        String domainId = plan.getDomainId();
+        BizSetDefine setDefine = getBizSetForDomainId(domainId);
+        Map<String, Integer> appSortMap = new HashMap<>();
+        for(int i = 0; i < setDefine.getApps().size(); i++)
+            appSortMap.put(setDefine.getApps().get(i).getName(), i);
+        Comparator<AppUpdateOperationInfo> sort = new Comparator<AppUpdateOperationInfo>() {
+            @Override
+            public int compare(AppUpdateOperationInfo o1, AppUpdateOperationInfo o2) {
+                return appSortMap.get(o1.getAppName()) - appSortMap.get(o2.getAppName());
+            }
+        };
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        String platformId = platformPo.getPlatformId();
+        String k8sApiUrl = platformPo.getApiUrl();
+        String k8sAuthToken = platformPo.getAuthToken();
+        String hostUrl = platformPo.getHostUrl();
+        List<AppUpdateOperationInfo> deleteList = plan.getAppUpdateOperationList().stream()
+                .filter(opt->opt.getOperation().equals(AppUpdateOperation.DELETE)).sorted(sort.reversed())
+                .collect(Collectors.toList());
+        List<AppFileNexusInfo> domainCfg = plan.getPublicConfig();
+        for(AppUpdateOperationInfo optInfo : deleteList)
+        {
+            List<K8sOperationInfo> deleteSteps = this.k8sTemplateService.getDeletePlatformAppSteps(jobId, optInfo.getAppName(),
+                    optInfo.getAppAlias(), optInfo.getTargetVersion(), domainId, platformId, k8sApiUrl, k8sAuthToken);
+            steps.addAll(deleteSteps);
+        }
+        List<AppUpdateOperationInfo> addList = plan.getAppUpdateOperationList().stream()
+                .filter(opt->opt.getOperation().equals(AppUpdateOperation.ADD)).sorted(sort).collect(Collectors.toList());
+        for(AppUpdateOperationInfo optInfo : addList)
+        {
+            List<K8sOperationInfo> addSteps = this.k8sTemplateService.getAddPlatformAppSteps(jobId, optInfo, domainId,
+                    domainCfg, platformId, platformCfg, hostUrl, k8sApiUrl, k8sAuthToken, isNewPlatform);
+            steps.addAll(addSteps);
+        }
+        List<AppUpdateOperationInfo> updateList = plan.getAppUpdateOperationList().stream()
+                .filter(opt->opt.getOperation().equals(AppUpdateOperation.UPDATE)).sorted(sort).collect(Collectors.toList());
+        for(AppUpdateOperationInfo optInfo : updateList)
+        {
+            List<K8sOperationInfo> updateSteps = this.k8sTemplateService.getUpdatePlatformAppSteps(jobId, optInfo, domainId,
+                    domainCfg, platformId, platformCfg, hostUrl, k8sApiUrl, k8sAuthToken);
+            steps.addAll(updateSteps);
+        }
+        logger.info(String.format("deploy %s %d apps need %d steps", domainId, plan.getAppUpdateOperationList().size(), steps.size()));
+        return steps;
+    }
+
     private List<K8sOperationInfo> generateSchemaK8sExecStep(PlatformUpdateSchemaInfo schema, UpdateStatus planStatus, List<AppModuleVo> registerApps) throws K8sDataException, ParamException, ApiException, NotSupportAppException, IOException, InterfaceCallException
     {
         Map<UpdateStatus, List<DomainUpdatePlanInfo>> typePlanMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getStatus));
@@ -2267,8 +2438,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             if(this.k8sApiService.isNamespaceExist(platformId, apiUrl, authToken))
                 throw new ParamException(String.format("namespace %s exist at %s", platformId, apiUrl));
-            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(platformId,
-                    ccodVersion, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(), null, null,
+            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(ccodVersion,
+                    platformId, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(), null, null,
                     schema.getThreePartApps(), schema.getThreePartServices(), schema.getPublicConfig(), apiUrl, authToken);
             execSteps.addAll(platformCreateSteps);
         }
@@ -4122,238 +4293,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             return String.format("%s/%s", basePath, relativePath).replaceAll("//", "/");
     }
 
-    /**
-     * 将为容器挂载指定的配置文件信息
-     * @param configName 添加的configMap的名字
-     * @param cfgs       需要加载的配置文件
-     * @param basePath   部署配置文件的basePath
-     * @param deployPath 执行程序部署路径
-     * @param moduleVo   被挂载配置文件的ccod域模块定义
-     * @param mountPath  挂载路径
-     * @param isPublic   被挂载的配置文件是否是公共配置
-     * @param container  需要挂载configMap的容器
-     * @param deployment 容器所属的deployment
-     */
-    public void addModuleCfgToContainer(String configName, List<AppFileNexusInfo> cfgs, String basePath, String deployPath, AppModuleVo moduleVo, String mountPath, boolean isPublic, V1Container container, V1Deployment deployment) throws ParamException {
-        String volumeName = String.format("%s-volume", configName);
-        if (!deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).containsKey(volumeName)) {
-            V1ConfigMapVolumeSource source = new V1ConfigMapVolumeSource();
-            source.setItems(new ArrayList<>());
-            source.setName(configName);
-            for (AppFileNexusInfo cfg : cfgs) {
-                V1KeyToPath item = new V1KeyToPath();
-                item.setKey(cfg.getFileName());
-                item.setPath(cfg.getFileName());
-                source.getItems().add(item);
-            }
-            V1Volume volume = new V1Volume();
-            volume.setName(volumeName);
-            volume.setConfigMap(source);
-            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
-        }
-        V1VolumeMount mount = new V1VolumeMount();
-        mount.setName(volumeName);
-        AppType appType = moduleVo.getAppType();
-        mount.setMountPath(mountPath);
-        container.getVolumeMounts().add(mount);
-        String execParam = "";
-        if (appType.equals(AppType.BINARY_FILE) && !isPublic)
-            execParam = String.format("mkdir %s -p;mkdir %s/log -p;mv /opt/%s %s/%s", deployPath, basePath, moduleVo.getInstallPackage().getFileName(), deployPath, moduleVo.getInstallPackage().getFileName());
-        else if (appType.equals(AppType.RESIN_WEB_APP) && !isPublic)
-            execParam = String.format("mkdir %s -p;cd %s;mv /opt/%s %s/%s", deployPath, deployPath, moduleVo.getInstallPackage().getFileName(), deployPath, moduleVo.getInstallPackage().getFileName());
-        Map<String, List<AppFileNexusInfo>> deployPathCfgMap = cfgs.stream().collect(Collectors.groupingBy(AppFileNexusInfo::getDeployPath));
-        for (String cfgDeployPath : deployPathCfgMap.keySet()) {
-            String absolutePath = getAbsolutePath(basePath, cfgDeployPath);
-            execParam = String.format("%s;mkdir %s -p", execParam, absolutePath);
-            for (AppFileNexusInfo cfg : deployPathCfgMap.get(cfgDeployPath)) {
-                execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
-                if (appType.equals(AppType.RESIN_WEB_APP) && !isPublic)
-                    execParam = String.format("%s;jar uf %s %s/%s", execParam, moduleVo.getInstallPackage().getFileName(), absolutePath.replaceAll(String.format("^%s", deployPath), "").replaceAll("^/", ""), cfg.getFileName());
-            }
-        }
-        execParam = execParam.replaceAll("^;", "").replaceAll("//", "/");
-        if (isPublic) {
-            if (container.getArgs() == null || container.getArgs().size() == 0) {
-                container.setArgs(new ArrayList<>());
-                execParam = execParam.replaceAll("^;", "").replaceAll("//", "/");
-                container.getArgs().add(execParam);
-            } else {
-                execParam = String.format("%s;%s", execParam, container.getArgs().get(0));
-                execParam = execParam.replaceAll("^;", "").replaceAll("//", "/");
-                container.getArgs().set(0, execParam);
-            }
-        } else {
-            if (container.getCommand() == null) {
-                container.setCommand(new ArrayList<>());
-                container.getCommand().add("/bin/sh");
-                container.getCommand().add("-c");
-                container.getCommand().add("");
-            }
-            execParam = String.format("%s;%s", container.getCommand().get(2), execParam);
-            execParam = execParam.replaceAll("^;", "").replaceAll("//", "/");
-            container.getCommand().set(2, execParam);
-        }
-        if (container.getArgs() != null && container.getArgs().size() > 0) {
-            String[] arr = container.getArgs().get(0).split(";");
-            List<String> strList = new ArrayList<>();
-            for (String str : arr)
-                if (StringUtils.isNotBlank(str) && str.indexOf("wget") < 0)
-                    strList.add(str);
-            container.getArgs().set(0, String.join(";", strList));
-        }
-    }
-
-    /**
-     * 将为容器挂载指定的配置文件信息
-     * @param configName 添加的configMap的名字
-     * @param cfgs       需要加载的配置文件
-     * @param basePath   部署配置文件的basePath
-     * @param deployPath 执行程序部署路径
-     * @param configMap  需要被挂载的配置文件
-     * @param moduleVo   被挂载配置文件的ccod域模块定义
-     * @param mountPath  挂载路径
-     * @param isPublic   被挂载的配置文件是否是公共配置
-     * @param container  需要挂载configMap的容器
-     * @param deployment 容器所属的deployment
-     */
-    public void addModuleCfgToContainer(String configName, List<AppFileNexusInfo> cfgs, String basePath, String deployPath, V1ConfigMap configMap, AppModuleVo moduleVo, String mountPath, boolean isPublic, V1Container container, V1Deployment deployment) throws ParamException {
-        String volumeName = String.format("%s-volume", configName);
-        if (!deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity())).containsKey(volumeName)) {
-            V1ConfigMapVolumeSource source = new V1ConfigMapVolumeSource();
-            source.setItems(new ArrayList<>());
-            source.setName(configName);
-            for (String fileName : configMap.getData().keySet()) {
-                V1KeyToPath item = new V1KeyToPath();
-                item.setKey(fileName);
-                item.setPath(fileName);
-                source.getItems().add(item);
-            }
-            V1Volume volume = new V1Volume();
-            volume.setName(volumeName);
-            volume.setConfigMap(source);
-            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
-        }
-        V1VolumeMount mount = new V1VolumeMount();
-        mount.setName(volumeName);
-        AppType appType = moduleVo.getAppType();
-        mount.setMountPath(mountPath);
-        container.getVolumeMounts().add(mount);
-        String execParam = "";
-        Map<String, List<AppFileNexusInfo>> deployPathCfgMap = cfgs.stream().collect(Collectors.groupingBy(AppFileNexusInfo::getDeployPath));
-        if (appType.equals(AppType.BINARY_FILE) && !isPublic)
-            execParam = String.format("%s;mkdir %s -p;mkdir %s/log -p;mv /opt/%s %s/%s", execParam, deployPath, basePath, moduleVo.getInstallPackage().getFileName(), deployPath, moduleVo.getInstallPackage().getFileName());
-        else if (appType.equals(AppType.RESIN_WEB_APP) && !isPublic)
-            execParam = String.format("%s;cd %s", execParam, deployPath);
-        for (String cfgDeployPath : deployPathCfgMap.keySet()) {
-            String absolutePath = getAbsolutePath(basePath, cfgDeployPath);
-            execParam = String.format("%s;mkdir %s -p", execParam, absolutePath);
-            for (AppFileNexusInfo cfg : deployPathCfgMap.get(cfgDeployPath)) {
-                execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
-                if (appType.equals(AppType.RESIN_WEB_APP) && !isPublic)
-                    execParam = String.format("%s;jar uf %s %s/%s", execParam, moduleVo.getInstallPackage().getFileName(), absolutePath.replaceAll(String.format("^%s", deployPath), "").replaceAll("^/", ""), cfg.getFileName());
-            }
-        }
-        execParam = execParam.replaceAll("^;", "").replaceAll("//", "/");
-        if (isPublic) {
-            if (container.getArgs() == null || container.getArgs().size() == 0) {
-                container.setArgs(new ArrayList<>());
-                execParam = execParam.replaceAll("^;", "").replaceAll("//", "/");
-                container.getArgs().add(execParam);
-            } else {
-                execParam = String.format("%s;%s", execParam, container.getArgs().get(0));
-                execParam = execParam.replaceAll("^;", "").replaceAll("//", "/");
-                container.getArgs().set(0, execParam);
-            }
-        } else {
-            if (container.getCommand() == null) {
-                container.setCommand(new ArrayList<>());
-                container.getCommand().add("/bin/sh");
-                container.getCommand().add("-c");
-                container.getCommand().add("");
-            }
-            execParam = String.format("%s;%s", container.getCommand().get(2), execParam);
-            execParam = execParam.replaceAll("^;", "").replaceAll("//", "/");
-            container.getCommand().set(2, execParam);
-        }
-        if (container.getArgs() != null && container.getArgs().size() > 0) {
-            String[] arr = container.getArgs().get(0).split(";");
-            List<String> strList = new ArrayList<>();
-            for (String str : arr)
-                if (StringUtils.isNotBlank(str) && str.indexOf("wget") < 0)
-                    strList.add(str);
-            container.getArgs().set(0, String.join(";", strList));
-        }
-    }
-
-    private V1Deployment selectDeployTemplate(AppType appType, String appName) throws ApiException
-    {
-        String name = null;
-        switch (appType)
-        {
-            case BINARY_FILE:
-                name = "glsserver-public01";
-                break;
-            case RESIN_WEB_APP:
-                name = "dcms-manage01";
-                break;
-            case TOMCAT_WEB_APP:
-                name = "cas-manage01";
-                break;
-            case THREE_PART_APP:
-                name = appName;
-                break;
-        }
-        V1Deployment deploy = this.k8sApiService.readNamespacedDeployment(name, testPlatformId, testK8sApiUrl, testAuthToken);
-        deploy = this.templateParseGson.fromJson(this.templateParseGson.toJson(deploy), V1Deployment.class);
-        return deploy;
-    }
-
-    private V1Service selectServiceTemplate(AppType appType, String appName) throws ApiException
-    {
-        String name = null;
-        switch (appType)
-        {
-            case BINARY_FILE:
-                name = "glsserver-public01";
-                break;
-            case RESIN_WEB_APP:
-                name = "dcms-manage01";
-                break;
-            case TOMCAT_WEB_APP:
-                name = "cas-manage01";
-                break;
-            case THREE_PART_APP:
-                name = appName;
-                break;
-        }
-        V1Service service = this.k8sApiService.readNamespacedService(name, testPlatformId, testK8sApiUrl, testAuthToken);
-        service = this.templateParseGson.fromJson(this.templateParseGson.toJson(service), V1Service.class);
-        return service;
-    }
-
-    private ExtensionsV1beta1Ingress selectIngressTemplate(AppType appType, String appName) throws ApiException
-    {
-        String name = null;
-        switch (appType)
-        {
-            case BINARY_FILE:
-                name = "glsserver-public01";
-                break;
-            case RESIN_WEB_APP:
-                name = "dcms-manage01";
-                break;
-            case TOMCAT_WEB_APP:
-                name = "cas-manage01";
-                break;
-            case THREE_PART_APP:
-                name = appName;
-                break;
-        }
-        ExtensionsV1beta1Ingress ingress = this.k8sApiService.readNamespacedIngress(name, testPlatformId, testK8sApiUrl, testAuthToken);
-        ingress = this.templateParseGson.fromJson(this.templateParseGson.toJson(ingress), ExtensionsV1beta1Ingress.class);
-        return ingress;
-    }
-
     private List<K8sCollection> parseAppK8sCollection(String domainId, List<V1Deployment> deployments, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses, List<AppModuleVo> registerApps) throws ParamException, K8sDataException, NotSupportAppException
     {
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
@@ -4798,162 +4737,29 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResult;
     }
 
-    private List<K8sOperationPo> execCCODDomainAppDeploy(K8sCCODDomainAppVo app, K8sOperation operation, List<K8sOperationInfo> execSteps, PlatformPo platform, K8sCCODDomainAppVo glsserver, K8sDatabaseVo glsDB) throws ParamException, ApiException, SQLException, ClassNotFoundException
+    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps, PlatformAppPo deployGls) throws ParamException
     {
-        String appName = app.getAppName();
-        String platformId = platform.getPlatformId();
-        String k8sApiUrl = platform.getApiUrl();
-        String k8sAuthToken = platform.getAuthToken();
-        String deployTag = String.format("%s %s", operation.name, app.toString());
-        logger.debug(String.format("%s : estimated %d steps", deployTag, execSteps.size()));
-        List<K8sOperationPo> execResults = new ArrayList<>();
-        for(K8sOperationInfo step : execSteps)
-        {
-            K8sOperationPo execResult = execK8sOpt(step, platform.getPlatformId(), platform.getApiUrl(), platform.getAuthToken());
-            execResults.add(execResult);
-            if(!execResult.isSuccess())
-            {
-                logger.error(String.format("%s fail : %s", deployTag, execResult.getComment()));
-                return execResults;
-            }
-            if(step.getKind().equals(K8sKind.SERVICE))
-            {
-                V1Service service = (V1Service)step.getObj();
-                if(service.getKind().equals("NodePort") && appName.equals("UCDServer"))
-                {
-                    Connection connect = createOracleConnection(glsDB.getUser(), glsDB.getPwd(), glsDB.getIp(), glsDB.getPort(), glsDB.getSid());
-                    int ucdsPort = getNodePortFromK8sService(service);
-                    String updateSql = String.format("update \"CCOD\".\"GLS_SERVICE_UNIT\" set PARAM_UCDS_PORT=%d where NAME='ucds-cloud01'", ucdsPort);
-                    PreparedStatement ps = connect.prepareStatement(updateSql);
-                    logger.debug(String.format("begin to update ucds port : %s", updateSql));
-                    ps.executeUpdate();
-                    V1Deployment glsDeploy = templateParseGson.fromJson(templateParseGson.toJson(glsserver.getDeploy()), V1Deployment.class);
-                    Date now = new Date();
-                    SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHssmm");
-                    glsDeploy.getMetadata().getLabels().put("restart-time", sf.format(now));
-                    K8sOperationInfo optInfo = new K8sOperationInfo(step.getJobId(), platformId, glsserver.getDomainId(), K8sKind.DEPLOYMENT,
-                            glsDeploy.getMetadata().getName(), K8sOperation.REPLACE, glsDeploy);
-                    execResult = execK8sOpt(optInfo, platformId, k8sApiUrl, k8sAuthToken);
-                    execResults.add(execResult);
-                    if(!execResult.isSuccess())
-                    {
-                        logger.error(String.format("restart glsserver fail : %s", execResult.getComment()));
-                        return execResults;
-                    }
-                }
-            }
-        }
-        logger.info(String.format("%s success", deployTag));
-        return execResults;
-    }
-
-    private PlatformSchemaExecResultVo execPlatformUpdateSteps(List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps) throws ParamException
-    {
+        String jobId = schema.getSchemaId();
         Date startTime = new Date();
-        String platformId = schema.getPlatformId();
-        String k8sApiUrl = schema.getK8sApiUrl();
-        String k8sAuthToken = schema.getK8sAuthToken();
-        V1Deployment glsserver = null;
-        int oraclePort = 0;
-        List<K8sOperationPo> execResults = new ArrayList<>();
+        String platformId = platformPo.getPlatformId();
         List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
-        PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(schema.getSchemaId(), platformId, k8sOptList);
-        for(K8sOperationInfo k8sOpt : k8sOptList)
-        {
-            K8sOperationPo ret = execK8sOpt(k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
-            if(!ret.isSuccess())
-            {
-                logger.error(String.format("platform update schema exec fail : %s", ret.getComment()));
-                execResults.add(ret);
-                execResultVo.execFail(execResults, ret.getComment());
-                return execResultVo;
-            }
-            try
-            {
-                if(k8sOpt.getKind().equals(K8sKind.SERVICE) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
-                {
-                    V1Service service = (V1Service)gson.fromJson(ret.getRetJson(), V1Service.class);
-                    Map<String, String> labels = service.getMetadata().getLabels();
-                    if(labels == null || labels.size() == 0 || !labels.containsKey(this.serviceTypeLabel) || !labels.containsKey(this.appNameLabel))
-                        continue;
-                    if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name)
-                            && labels.get(this.appNameLabel).equals("oracle"))
-                    {
-                        oraclePort = getNodePortFromK8sService(service);
-                        boolean isConn = oracleConnectTest(schema.getGlsDBUser(), schema.getGlsDBPwd(), schema.getK8sHostIp(), oraclePort, "xe", 240);
-                        if(!isConn)
-                            throw new ApiException("create service for oracle fail");
-                    }
-                    else if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.DOMAIN_OUT_SERVICE.name) && labels.get(this.appNameLabel).equals("UCDServer"))
-                    {
-                        if(oraclePort == 0)
-                        {
-                            V1Service oracleService = k8sApiService.readNamespacedService("oracle", platformId, k8sApiUrl, k8sAuthToken);
-                            oraclePort = getNodePortFromK8sService(oracleService);
-                        }
-                        Connection connect = createOracleConnection(schema.getGlsDBUser(), schema.getGlsDBPwd(), schema.getK8sHostIp(), oraclePort, "xe");
-                        int ucdsPort = getNodePortFromK8sService(service);
-                        String updateSql = String.format("update \"CCOD\".\"GLS_SERVICE_UNIT\" set PARAM_UCDS_PORT=%d where NAME='ucds-cloud01'", ucdsPort);
-                        PreparedStatement ps = connect.prepareStatement(updateSql);
-                        logger.debug(String.format("begin to update ucds port : %s", updateSql));
-                        ps.executeUpdate();
-                        if(glsserver == null) {
-                            glsserver = this.k8sApiService.readNamespacedDeployment("glsserver-public01", platformId, k8sApiUrl, k8sAuthToken);
-                            glsserver = templateParseGson.fromJson(templateParseGson.toJson(glsserver), V1Deployment.class);
-                        }
-                        Date now = new Date();
-                        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-                        glsserver.getMetadata().getLabels().put("restart-time", sf.format(now));
-                        this.k8sApiService.replaceNamespacedDeployment(glsserver.getMetadata().getName(), platformId, glsserver, k8sApiUrl, k8sAuthToken);
-                        int timeUsage = 0;
-                        String glsserverName = glsserver.getMetadata().getName();
-                        while(timeUsage <= 30)
-                        {
-                            Thread.sleep(3000);
-                            logger.debug(String.format("wait deployment %s status to ACTIVE, timeUsage=%d", glsserverName, (timeUsage+3)));
-                            K8sStatus status = this.k8sApiService.readNamespacedDeploymentStatus(glsserverName, platformId, k8sApiUrl, k8sAuthToken);
-                            if(status.equals(K8sStatus.ACTIVE))
-                            {
-                                logger.debug(String.format("deployment %s status change to ACTIVE, timeUsage=%d", glsserverName, (timeUsage+3)));
-                                break;
-                            }
-                            timeUsage += 3;
-                        }
-                        if(timeUsage > 30)
-                            throw new ParamException(String.format("restart deployment %s timeout in %d seconds", glsserverName, timeUsage));
-                    }
-                }
-                else if(k8sOpt.getKind().equals(K8sKind.DEPLOYMENT) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
-                {
-                    V1Deployment deployment = gson.fromJson(ret.getRetJson(), V1Deployment.class);
-                    Map<String, String> labels = deployment.getMetadata().getLabels();
-                    if(labels.containsKey(this.deploymentTypeLabel) && labels.get(this.deploymentTypeLabel).equals(K8sDeploymentType.CCOD_DOMAIN_APP.name) && labels.containsKey("glsServer"))
-                        glsserver = (V1Deployment) k8sOpt.getObj();
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.error(String.format("exec %s fail", gson.toJson(k8sOpt)), ex);
-                ret.fail(ex.getMessage());
-                execResults.add(ret);
-                execResultVo.execFail(execResults, ex.getMessage());
-                return execResultVo;
-            }
-            execResults.add(ret);
-        }
-        logger.info(String.format("%s schema with jobId=%s execute success", platformId, schema.getSchemaId()));
-        execResultVo.execResult(execResults);
+        PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(jobId, platformId, k8sOptList);
+        List<K8sOperationPo> execResults = execK8sDeploySteps(platformPo, k8sOptList, deployGls);
+        boolean execSucc = execResults.get(execResults.size() - 1).isSuccess();
+        logger.info(String.format("%s schema with jobId=%s execute : %b", platformId, jobId, execSucc));
+        if(execSucc)
+            execResultVo.execResult(execResults);
+        else
+            execResultVo.execFail(execResults, execResults.get(execResults.size() - 1).getComment());
         for(K8sOperationPo stepResult : execResultVo.getExecResults())
-        {
             this.k8sOperationMapper.insert(stepResult);
-        }
-        String lastJobId = lastRecords.size() == 1 ? lastRecords.get(0).getJobId() : null;
+        String lastJobId = lastRecords.size() == 1 && execSucc ? lastRecords.get(0).getJobId() : null;
         PlatformUpdateRecordPo recordPo = new PlatformUpdateRecordPo();
-        recordPo.setResult(execResultVo.isSuccess());
-        recordPo.setLast(true);
+        recordPo.setResult(execSucc);
+        recordPo.setLast(execSucc);
         recordPo.setJobId(schema.getSchemaId());
         recordPo.setExecSchema(gson.toJson(schema).getBytes());
-        if(!execResultVo.isSuccess())
+        if(!execSucc)
             recordPo.setComment(execResultVo.getErrorMsg());
         recordPo.setPreUpdateJobId(lastJobId);
         recordPo.setPlatformId(platformId);
@@ -4961,22 +4767,20 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         recordPo.setPreDeployApps(gson.toJson(platformApps).getBytes());
         recordPo.setUpdateTime(startTime);
         recordPo.setTimeUsage((int)((new Date()).getTime() - startTime.getTime())/1000);
-        logger.error(String.format("record=%s", gson.toJson(recordPo)));
+        logger.debug(String.format("platform deploy record=%s", gson.toJson(recordPo)));
         this.platformUpdateRecordMapper.insert(recordPo);
-        for(PlatformUpdateRecordPo po : lastRecords)
-        {
+        for(PlatformUpdateRecordPo po : lastRecords) {
             po.setLast(false);
             this.platformUpdateRecordMapper.update(po);
         }
         return execResultVo;
     }
 
-    private List<K8sOperationPo> execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList) throws ParamException
+    private List<K8sOperationPo> execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, PlatformAppPo deployGls) throws ParamException
     {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getApiUrl();
         String k8sAuthToken = platform.getAuthToken();
-        V1Deployment glsserver = null;
         int oraclePort = 0;
         List<K8sOperationPo> execResults = new ArrayList<>();
         Map<String, Object> params = platform.getParams();
@@ -5000,28 +4804,34 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name)
                             && labels.get(this.appNameLabel).equals("oracle"))
                     {
-                        oraclePort = getNodePortFromK8sService(service);
+                        V1Service oraSvc = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        oraclePort = getNodePortFromK8sService(oraSvc);
                         boolean isConn = oracleConnectTest((String)params.get("gls_db_user"), (String)params.get("gls_db_pwd"), (String)params.get("k8s_host_ip"), oraclePort, "xe", 240);
                         if(!isConn)
                             throw new ApiException("create service for oracle fail");
+                        params.put("port", oraclePort);
                     }
                     else if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.DOMAIN_OUT_SERVICE.name) && labels.get(this.appNameLabel).equals("UCDServer"))
                     {
-                        if(oraclePort == 0)
-                        {
-                            V1Service oracleService = k8sApiService.readNamespacedService("oracle", platformId, k8sApiUrl, k8sAuthToken);
-                            oraclePort = getNodePortFromK8sService(oracleService);
-                        }
-                        Connection connect = createOracleConnection((String)params.get("gls_db_user"), (String)params.get("gls_db_pwd"), (String)params.get("k8s_host_ip"), oraclePort, "xe");
-                        int ucdsPort = getNodePortFromK8sService(service);
+                        Connection connect = createOracleConnection((String)params.get("gls_db_user"),
+                                (String)params.get("gls_db_pwd"), (String)params.get("k8s_host_ip"),
+                                (int)params.get("port"), "xe");
+                        V1Service ucdsOutService = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        int ucdsPort = getNodePortFromK8sService(ucdsOutService);
                         String updateSql = String.format("update \"CCOD\".\"GLS_SERVICE_UNIT\" set PARAM_UCDS_PORT=%d where NAME='ucds-cloud01'", ucdsPort);
                         PreparedStatement ps = connect.prepareStatement(updateSql);
                         logger.debug(String.format("begin to update ucds port : %s", updateSql));
                         ps.executeUpdate();
-                        if(glsserver == null) {
-                            glsserver = this.k8sApiService.readNamespacedDeployment("glsserver-public01", platformId, k8sApiUrl, k8sAuthToken);
-                            glsserver = templateParseGson.fromJson(templateParseGson.toJson(glsserver), V1Deployment.class);
-                        }
+                        Map<String, String> selector = new HashMap<>();
+                        selector.put(this.appTypeLabel, AppType.BINARY_FILE.name);
+                        selector.put(deployGls.getAppName(), deployGls.getAppAlias());
+                        List<V1Deployment> deploys = this.k8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
+                        if(deploys.size() == 0)
+                            throw new ParamException(String.format("can not find glsserver from %s", platformId));
+                        else if(deploys.size() > 1)
+                            throw new ParamException(String.format("glsserver multi deploy at %s ", platformId));
+                        V1Deployment glsserver = deploys.get(0);
+                        glsserver = templateParseGson.fromJson(templateParseGson.toJson(glsserver), V1Deployment.class);
                         Date now = new Date();
                         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
                         glsserver.getMetadata().getLabels().put("restart-time", sf.format(now));
@@ -5043,13 +4853,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         if(timeUsage > 30)
                             throw new ParamException(String.format("restart deployment %s timeout in %d seconds", glsserverName, timeUsage));
                     }
-                }
-                else if(k8sOpt.getKind().equals(K8sKind.DEPLOYMENT) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
-                {
-                    V1Deployment deployment = gson.fromJson(ret.getRetJson(), V1Deployment.class);
-                    Map<String, String> labels = deployment.getMetadata().getLabels();
-                    if(labels.containsKey(this.deploymentTypeLabel) && labels.get(this.deploymentTypeLabel).equals(K8sDeploymentType.CCOD_DOMAIN_APP.name) && labels.containsKey("glsServer"))
-                        glsserver = (V1Deployment) k8sOpt.getObj();
                 }
             }
             catch (Exception ex)

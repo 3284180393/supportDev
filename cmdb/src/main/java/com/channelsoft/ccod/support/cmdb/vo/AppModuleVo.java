@@ -41,6 +41,8 @@ public class AppModuleVo {
 
     private String deployPath; //应用程序/包相对basePath的路径
 
+    private String envLoadCmd; //环境加载命令
+
     private String initCmd; //初始话命令
 
     private String startCmd; //启动命令
@@ -88,6 +90,7 @@ public class AppModuleVo {
         this.versionControlUrl = app.getVersionControlUrl();
         this.basePath = app.getBasePath();
         this.deployPath = app.getDeployPath();
+        this.envLoadCmd = app.getEnvLoadCmd();
         this.initCmd = app.getInitCmd();
         this.startCmd = app.getStartCmd();
         this.logOutputCmd = app.getLogOutputCmd();
@@ -328,6 +331,14 @@ public class AppModuleVo {
         this.periodSeconds = periodSeconds;
     }
 
+    public String getEnvLoadCmd() {
+        return envLoadCmd;
+    }
+
+    public void setEnvLoadCmd(String envLoadCmd) {
+        this.envLoadCmd = envLoadCmd;
+    }
+
     public AppPo getApp()
     {
         AppPo po = new AppPo();
@@ -347,19 +358,17 @@ public class AppModuleVo {
             po.setVersionControl(null);
         po.setAppId(this.appId);
         po.setDeployPath(this.deployPath);
+        po.setEnvLoadCmd(this.envLoadCmd);
         po.setInitCmd(this.initCmd);
         po.setStartCmd(this.startCmd);
         po.setLogOutputCmd(this.getLogOutputCmd());
-        po.setLogOutputCmd(this.logOutputCmd);
         po.setTimeout(this.timeout);
         po.setResources(this.resources);
         po.setPorts(this.ports);
         po.setNodePorts(this.nodePorts);
         po.setResources(this.resources);
-
         po.setVersionControlUrl(this.versionControlUrl);
         po.setKernal(this.kernal);
-
         return po;
     }
 
