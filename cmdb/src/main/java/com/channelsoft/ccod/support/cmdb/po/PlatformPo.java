@@ -30,7 +30,7 @@ public class PlatformPo {
 
     private Date updateTime; //最后一次修改时间
 
-    private int status; //平台当前状态
+    private CCODPlatformStatus status; //平台当前状态
 
     private String ccodVersion; //该平台采用的ccod版本
 
@@ -64,7 +64,7 @@ public class PlatformPo {
         this.bkCloudId = bkCloudId;
         this.createTime = now;
         this.updateTime = now;
-        this.status = status.id;
+        this.status = status;
         this.ccodVersion = ccodVersion;
         this.comment = comment;
         this.type = type;
@@ -106,11 +106,11 @@ public class PlatformPo {
         this.updateTime = updateTime;
     }
 
-    public int getStatus() {
+    public CCODPlatformStatus getStatus() {
         return status;
     }
 
-    public void setStatus(int status) {
+    public void setStatus(CCODPlatformStatus status) {
         this.status = status;
     }
 

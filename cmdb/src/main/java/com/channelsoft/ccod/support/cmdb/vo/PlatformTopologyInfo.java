@@ -61,7 +61,7 @@ public class PlatformTopologyInfo {
         this.platformName = platform.getPlatformName();
         this.bkBizId = platform.getBkBizId();
         this.bkCloudId = platform.getBkCloudId();
-        this.status = CCODPlatformStatus.getEnumById(platform.getStatus());
+        this.status = platform.getStatus();
         this.setList = new ArrayList<>();
         this.idleHostList = new ArrayList<>();
         this.ccodVersion = platform.getCcodVersion();

@@ -224,7 +224,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
 //            updateRegisterAppModuleImageExist();
 //            List<AppModuleVo> list = queryAllHasImageAppModule();
-            updateRegisteredApps();
+//            updateRegisteredApps();
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }

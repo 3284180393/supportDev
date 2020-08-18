@@ -250,7 +250,7 @@ public class PlatformCreateParamVo implements Serializable {
             default:
                 desc = String.format("create by %s", createMethod.name);
         }
-        PlatformPo po = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
+        PlatformPo po = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE,
                 ccodVersion, desc, platformType, platformFunc, createMethod, hostUrl);
         if(PlatformType.K8S_CONTAINER.equals(platformType))
         {

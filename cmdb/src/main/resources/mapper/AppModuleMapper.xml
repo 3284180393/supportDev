@@ -15,7 +15,7 @@
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
         <result column="env_load_cmd" property="envLoadCmd" jdbcType="VARCHAR" />
-        <result column="init_cmd" property="startCmd" jdbcType="VARCHAR" />
+        <result column="init_cmd" property="initCmd" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
         <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
         <result column="kernal" property="kernal" jdbcType="BOOLEAN" />

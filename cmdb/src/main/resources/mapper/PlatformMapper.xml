@@ -8,7 +8,7 @@
         <result column="bk_cloud_id" property="bkCloudId" jdbcType="INTEGER" />
         <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
         <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
-        <result column="status" property="status" jdbcType="INTEGER" />
+        <result column="status" property="status" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="type" property="type" jdbcType="VARCHAR" />
         <result column="func" property="func" jdbcType="VARCHAR" />
@@ -57,7 +57,7 @@
         from platform pf
         where 1=1
         <if test="status!=null">
-            And pf.status=#{status,jdbcType=INTEGER}
+            And pf.status=#{status,jdbcType=VARCHAR}
         </if>
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformPo">
@@ -84,7 +84,7 @@
             #{bkCloudId,jdbcType=INTEGER},
             #{createTime,jdbcType=TIMESTAMP},
             #{updateTime,jdbcType=TIMESTAMP},
-            #{status,jdbcType=INTEGER},
+            #{status,jdbcType=VARCHAR},
             #{ccodVersion,jdbcType=VARCHAR},
             #{comment,jdbcType=VARCHAR},
             #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
@@ -104,7 +104,7 @@
             platform_name = #{platformName,jdbcType=VARCHAR},
             bk_biz_id = #{bkBizId,jdbcType=INTEGER},
             bk_cloud_id = #{bkCloudId,jdbcType=INTEGER},
-            status = #{status,jdbcType=INTEGER},
+            status = #{status,jdbcType=VARCHAR},
             ccod_version = #{ccodVersion,jdbcType=VARCHAR},
             comment = #{comment,jdbcType=VARCHAR},
             update_time = #{updateTime,jdbcType=TIMESTAMP},

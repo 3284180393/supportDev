@@ -17,13 +17,11 @@ public enum CCODPlatformStatus {
 
     STOP(3, "STOP", "下架"),
 
-    SCHEMA_CREATE_PLATFORM(4, "SCHEMA_CREATE_PLATFORM", "规划中的新建平台"),
+    SCHEMA_CREATE(4, "SCHEMA_CREATE", "规划中的新建平台"),
 
-    WAIT_SYNC_EXIST_PLATFORM_TO_PAAS(5, "WAIT_SYNC_EXIST_PLATFORM_TO_PAAS", "需要将已有的平台应用部署详情从cmdb同步到paas,cmdb有平台应用部署记录,paas已经创建biz有且仅有idle pool set并且没有分配任何空闲主机"),
+    WAIT_SYNC_TO_PAAS(5, "WAIT_SYNC_TO_PAAS", "需要将已有的平台应用部署详情从cmdb同步到paas,cmdb有平台应用部署记录,paas已经创建biz有且仅有idle pool set并且没有分配任何空闲主机"),
 
-    SCHEMA_UPDATE_PLATFORM(6, "SCHEMA_UPDATE_PLATFORM", "有升级计划的平台"),
-
-    PLANING(7, "PLANING", "规划中"),;
+    SCHEMA_UPDATE(6, "SCHEMA_UPDATE", "有升级计划的平台"),;
 
     public int id;
 

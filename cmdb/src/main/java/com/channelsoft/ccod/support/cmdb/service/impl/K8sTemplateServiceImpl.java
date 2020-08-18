@@ -132,7 +132,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 ////        this.objectTemplateList.addAll(testList);
         List<K8sObjectTemplatePo> list = parseTemplateFromFile(this.templateSavePath);
         this.objectTemplateList.addAll(list);
-        List<K8sThreePartServiceVo> threeSvcs = getThreePartServices("test-by-wyf", testK8sApiUrl, testAuthToken);
+//        List<K8sThreePartServiceVo> threeSvcs = getThreePartServices("test-by-wyf", testK8sApiUrl, testAuthToken);
+//        logger.warn(this.templateParseGson.toJson(threeSvcs));
+//        this.testThreePartServices.addAll(threeSvcs);
+        List<K8sThreePartServiceVo> threeSvcs = parseTestThreePartServiceFromFile(this.testThreePartServiceSavePath);
         this.testThreePartServices.addAll(threeSvcs);
     }
 
@@ -544,7 +547,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             execParam = String.format("%s;cd %s;%s", execParam, cwd, optInfo.getInitCmd());
         execParam = String.format("%s;cd %s;%s", execParam, cwd, optInfo.getStartCmd());
         if(StringUtils.isNotBlank(optInfo.getLogOutputCmd()))
-            execParam = String.format("%s;cd %s;%", execParam, cwd, optInfo.getLogOutputCmd());
+            execParam = String.format("%s;cd %s;%s", execParam, cwd, optInfo.getLogOutputCmd());
         commands.add(execParam.replaceAll("^;", "").replaceAll(";;", ";"));
         logger.debug(String.format("command for %s at %s is : %s", alias, domainId, String.join(";", commands)));
         return commands;
@@ -693,7 +696,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Deployment generateThreeAppDeployment(String ccodVersion, String appName, String alias, String version, String platformId) throws ParamException {
+    public V1Deployment generateThreeAppDeployment(String ccodVersion, String appName, String alias, String version, String platformId, String hostUrl) throws ParamException {
         Map<String, String> selector = getK8sTemplateSelector(ccodVersion, appName, version, AppType.THREE_PART_APP, K8sKind.DEPLOYMENT);
         V1Deployment deploy = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
@@ -716,6 +719,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
         deploy.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity()))
                 .get("sql").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId));
+        if(appName.equals("oracle"))
+            deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(0, String.format("/tmp/init.sh %s", hostUrl));
         logger.info(String.format("selected deployment for %s is %s", gson.toJson(selector), gson.toJson(deploy)));
         return deploy;
     }
@@ -851,8 +856,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         AppModuleVo module = modules.get(0);
         String ccodVersion = module.getCcodVersion();
         AppType appType = module.getAppType();
-        V1ConfigMap configMap = this.ik8sApiService.createConfigMapFromNexus(platformId, String.format("%s-%s", alias, domainId),
-                k8sApiUrl, k8sAuthToken, optInfo.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
+        V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, String.format("%s-%s", alias, domainId),
+                optInfo.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
         V1Deployment deploy = this.generateCCODDomainAppDeployment(optInfo, hostUrl, platformId, domainId, platformCfg, domainCfg);
         List<V1Service> services = new ArrayList<>();
@@ -934,6 +939,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         steps.add(step);
         step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
                 app.getDeploy().getMetadata().getName(), K8sOperation.CREATE, app.getDeploy());
+        if(module.isKernal()) {
+            step.setKernal(true);
+            step.setTimeout(module.getTimeout());
+        }
         steps.add(step);
         for(V1Service service : app.getServices())
         {
@@ -1057,7 +1066,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Override
     public List<K8sOperationInfo> generatePlatformCreateSteps(
-            String ccodVersion, String platformId, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
+            String ccodVersion, String platformId, String hostUrl, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
             V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps,
             List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl,
             String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException {
@@ -1089,35 +1098,36 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             step = new K8sOperationInfo(jobId, platformId, null, K8sKind.SECRET, secret.getMetadata().getName(), K8sOperation.CREATE, secret);
             steps.add(step);
         }
-        if(job != null)
-        {
-            if(!job.getMetadata().getNamespace().equals(platformId))
-                throw new ParamException(String.format("namespace of job should be %s not %s", platformId, namespace.getMetadata().getNamespace()));
-            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, job.getMetadata().getName(), K8sOperation.CREATE, job);
-            steps.add(step);
-        }
+//        if(job != null)
+//        {
+//            if(!job.getMetadata().getNamespace().equals(platformId))
+//                throw new ParamException(String.format("namespace of job should be %s not %s", platformId, namespace.getMetadata().getNamespace()));
+//            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, job.getMetadata().getName(), K8sOperation.CREATE, job);
+//            steps.add(step);
+//        }
         if(pv == null)
             pv = generatePersistentVolume(ccodVersion, platformId);
         step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PV, pv.getMetadata().getName(), K8sOperation.CREATE, pv);
         steps.add(step);
         if(pvc == null)
             pvc = generatePersistentVolumeClaim(ccodVersion, platformId);
-        step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pv);
+        step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pvc);
         steps.add(step);
         V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, platformId,
                 platformCfg.stream().map(cfg->cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
         K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP,
                 platformId, K8sOperation.CREATE, configMap);
+        steps.add(k8sOpt);
         if(threePartApps == null)
             threePartApps = new ArrayList<>();
         if(threePartApps.size() == 0)
         {
-            V1Deployment oraDep = generateThreeAppDeployment(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId);
+            V1Deployment oraDep = generateThreeAppDeployment(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId, hostUrl);
             V1Service oraSvc = generateThreeAppService(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId);
             K8sThreePartAppVo oracle = new K8sThreePartAppVo("oracle", "oracle", "32-xe-10g-1.0", oraDep, Arrays.asList(oraSvc), new ArrayList<>());
             threePartApps.add(oracle);
-            V1Deployment mysqlDep = generateThreeAppDeployment(ccodVersion,"mysql", "mysql", "5.7", platformId);
+            V1Deployment mysqlDep = generateThreeAppDeployment(ccodVersion,"mysql", "mysql", "5.7", platformId, hostUrl);
             V1Service mysqlSvc = generateThreeAppService(ccodVersion, "mysql", "mysql", "5.7", platformId);
             K8sThreePartAppVo mysql = new K8sThreePartAppVo("mysql", "mysql", "5.7", mysqlDep, Arrays.asList(mysqlSvc), new ArrayList<>());
             threePartApps.add(mysql);
@@ -1154,6 +1164,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 throw new ParamException(String.format("namespace of three part app deployment %s should be %s not %s",
                         threeApp.getDeploy().getMetadata().getName(), platformId, threeApp.getDeploy().getMetadata().getNamespace()));
             step = new K8sOperationInfo(jobId, platformId, null, K8sKind.DEPLOYMENT, threeApp.getDeploy().getMetadata().getName(), K8sOperation.CREATE, threeApp.getDeploy());
+            step.setKernal(true);
+            step.setTimeout(150);
             steps.add(step);
             for(V1Service svc : threeApp.getServices())
             {
@@ -1232,16 +1244,19 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Endpoints endpoints = this.ik8sApiService.readNamespacedEndpoints(name, platformId, k8sApiUrl, k8sAuthToken);
         V1Service service = this.ik8sApiService.readNamespacedService(name, platformId, k8sApiUrl, k8sAuthToken);
         K8sThreePartServiceVo threeSvc = new K8sThreePartServiceVo(name, service, endpoints);
+        threeSvc = this.templateParseGson.fromJson(this.templateParseGson.toJson(threeSvc), K8sThreePartServiceVo.class);
         list.add(threeSvc);
         name = "umg141";
         endpoints = this.ik8sApiService.readNamespacedEndpoints(name, platformId, k8sApiUrl, k8sAuthToken);
         service = this.ik8sApiService.readNamespacedService(name, platformId, k8sApiUrl, k8sAuthToken);
         threeSvc = new K8sThreePartServiceVo(name, service, endpoints);
+        threeSvc = this.templateParseGson.fromJson(this.templateParseGson.toJson(threeSvc), K8sThreePartServiceVo.class);
         list.add(threeSvc);
         name = "umg147";
         endpoints = this.ik8sApiService.readNamespacedEndpoints(name, platformId, k8sApiUrl, k8sAuthToken);
         service = this.ik8sApiService.readNamespacedService(name, platformId, k8sApiUrl, k8sAuthToken);
         threeSvc = new K8sThreePartServiceVo(name, service, endpoints);
+        threeSvc = this.templateParseGson.fromJson(this.templateParseGson.toJson(threeSvc), K8sThreePartServiceVo.class);
         list.add(threeSvc);
         return list;
     }

@@ -47,6 +47,12 @@ public class PlatformAppCfgFilePo extends AppFilePo {
         this.platformAppId = 0;
     }
 
+    public PlatformAppCfgFilePo(int appId, AppFileNexusInfo fileInfo, String nexusHostUrl)
+    {
+        super(appId, fileInfo.getDeployPath(), fileInfo.getNexusAssetInfo(nexusHostUrl));
+        this.platformAppId = 0;
+    }
+
     public int getCfgFileId() {
         return cfgFileId;
     }

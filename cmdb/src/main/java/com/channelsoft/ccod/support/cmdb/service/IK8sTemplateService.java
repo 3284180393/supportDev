@@ -37,14 +37,15 @@ public interface IK8sTemplateService {
 
     /**
      * 生成第三方应用的deployment
+     * @param ccodVersion 平台的ccod大版本
      * @param appName 第三方应用名
      * @param alias 第三方应用别名
      * @param version 版本号
      * @param platformId 平台id
-     * @param ccodVersion 平台的ccod大版本
+     * @param hostUrl 平台的访问域名
      * @return 第三方应用的deployment
      */
-    V1Deployment generateThreeAppDeployment(String ccodVersion, String appName, String alias, String version, String platformId) throws ParamException;
+    V1Deployment generateThreeAppDeployment(String ccodVersion, String appName, String alias, String version, String platformId, String hostUrl) throws ParamException;
 
     V1Namespace generateNamespace(String ccodVersion, String platformId) throws ParamException;
 
@@ -184,6 +185,7 @@ public interface IK8sTemplateService {
      * 生成平台创建步骤
      * @param ccodVersion 平台的ccod大版本号
      * @param platformId 平台id
+     * @param hostUrl 平台访问域名
      * @param jobId 创建平台的任务id
      * @param job 创建平台需要预执行的job
      * @param namespace 创建平台的namespace信息，如果为空将根据现有模板自动创建
@@ -201,7 +203,7 @@ public interface IK8sTemplateService {
      * @throws IOException
      * @throws InterfaceCallException
      */
-    List<K8sOperationInfo> generatePlatformCreateSteps(String ccodVersion, String platformId, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps, List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException;
+    List<K8sOperationInfo> generatePlatformCreateSteps(String ccodVersion, String platformId, String hostUrl, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps, List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException;
 
 
     /**

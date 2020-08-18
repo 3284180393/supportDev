@@ -375,9 +375,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 schema = null;
                 unconfirmedAppModuleList = unconfirmedAppModuleMapper.select(platformId);
                 break;
-            case SCHEMA_CREATE_PLATFORM:
-            case SCHEMA_UPDATE_PLATFORM:
-            case PLANING:
+            case SCHEMA_CREATE:
+            case SCHEMA_UPDATE:
                 if (!this.platformUpdateSchemaMap.containsKey(platformId)) {
                     logger.error(String.format("%s status is %s, but can not find its update schema",
                             platformId, topology.getStatus().name));
@@ -389,7 +388,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 idleHostList = this.paasService.queryBizIdleHost(platform.getBkBizId());
                 schema = this.platformUpdateSchemaMap.get(platformId);
                 break;
-            case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
+            case WAIT_SYNC_TO_PAAS:
                 if (this.platformUpdateSchemaMap.containsKey(platformId)) {
                     logger.error(String.format("%s status is %s, but it has an update schema",
                             platformId, topology.getStatus().name));
@@ -553,9 +552,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
             switch (topo.getStatus()) {
                 case RUNNING:
-                case WAIT_SYNC_EXIST_PLATFORM_TO_PAAS:
-                case SCHEMA_UPDATE_PLATFORM:
-                case SCHEMA_CREATE_PLATFORM:
+                case WAIT_SYNC_TO_PAAS:
+                case SCHEMA_CREATE:
+                case SCHEMA_UPDATE:
                     topoList.add(topo);
                     break;
                 default:
@@ -837,119 +836,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
     }
 
-    private void updateRegisterApp()
-    {
-        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
-        for(AppModuleVo moduleVo : registerApps) {
-            AppPo app = moduleVo.getApp();
-            if(app.getAppType().equals(AppType.BINARY_FILE.name))
-                app.setStartCmd(app.getStartCmd().replaceAll("tailf", "tail -F"));
-            else if(app.getAppType().equals(AppType.RESIN_WEB_APP.name))
-                app.setStartCmd(app.getStartCmd().replaceAll("tail -F ./log/jvm-default.log", "tail -F ./log/*.log"));
-            app.setInitCmd(null);
-            app.setTimeout(0);
-            app.setKernal(false);
-            app.setPorts(null);
-            app.setNodePorts(null);
-            app.setResources(null);
-            this.appMapper.update(app);
-        }
-    }
-
-    private void updateRegisterApp(List<AppUpdateOperationInfo> optList)
-    {
-        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
-        Map<String, List<AppUpdateOperationInfo>> optMap = optList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-        for(AppModuleVo moduleVo : registerApps)
-        {
-            AppPo app = moduleVo.getApp();
-            if(AppType.BINARY_FILE.equals(moduleVo.getAppType()))
-            {
-                app.setBasePath(String.format("/home/%s", app.getAppName().toLowerCase()));
-                app.setDeployPath("./bin");
-                app.setStartCmd(String.format("./%s", moduleVo.getInstallPackage().getFileName()));
-            }
-            else if(AppType.RESIN_WEB_APP.equals(moduleVo.getAppType()))
-            {
-                app.setBasePath("/root/resin-4.0.13");
-                app.setDeployPath("./webapps");
-                app.setStartCmd("keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/jre/lib/security/cacerts;./bin/resin.sh start;tail -F ./log/jvm-default.log");
-            }
-            else
-            {
-                app.setBasePath("/usr/local/tomcat");
-                app.setDeployPath("./webapps");
-                app.setStartCmd("keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/lib/security/cacerts;./bin/startup.sh;tail -F ./logs/catalina.out");
-            }
-            if(optMap.containsKey(app.getAppName()))
-            {
-                app.setBasePath(optMap.get(app.getAppName()).get(0).getBasePath());
-                app.setDeployPath(optMap.get(app.getAppName()).get(0).getDeployPath());
-                app.setStartCmd(optMap.get(app.getAppName()).get(0).getStartCmd());
-            }
-        }
-    }
-
-    private void updateRegisterAppCfgs(List<AppUpdateOperationInfo> optList)
-    {
-        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
-        Map<String, List<AppModuleVo>> appMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        for(AppUpdateOperationInfo optInfo : optList)
-        {
-            for(AppModuleVo module : appMap.get(optInfo.getAppName()))
-            {
-                Map<String, AppCfgFilePo> cfgMap = module.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
-                for(AppFileNexusInfo cfg : optInfo.getCfgs())
-                {
-                    if(cfgMap.containsKey(cfg.getFileName()))
-                    {
-                        AppCfgFilePo cfgFilePo = cfgMap.get(cfg.getFileName());
-                        cfgFilePo.setDeployPath(cfg.getDeployPath());
-                        this.appCfgFileMapper.update(cfgFilePo);
-                    }
-                    else
-                        logger.error(String.format("%s is not cfg file of %s with version %s", cfg.getFileName(), module.getAppName(), module.getVersion()));
-                }
-                Map<String, AppFileNexusInfo> existMap = optInfo.getCfgs().stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
-                for(AppCfgFilePo cfgFilePo : module.getCfgs())
-                {
-                    if(!existMap.containsKey(cfgFilePo.getFileName()))
-                        logger.error(String.format("deploy path of cfg file %s of %s(%s) is unconfirmed", cfgFilePo.getFileName(), module.getAppName(), module.getVersion()));
-                }
-            }
-        }
-        Map<String, List<AppUpdateOperationInfo>> optMap = optList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-        for(AppModuleVo moduleVo : registerApps)
-        {
-            AppPo app = moduleVo.getApp();
-            if(AppType.BINARY_FILE.equals(moduleVo.getAppType()))
-            {
-                app.setBasePath(String.format("/home/%s", app.getAppName().toLowerCase()));
-                app.setDeployPath("./bin");
-                app.setStartCmd(String.format("./%s", moduleVo.getInstallPackage().getFileName()));
-            }
-            else if(AppType.RESIN_WEB_APP.equals(moduleVo.getAppType()))
-            {
-                app.setBasePath("/root/resin-4.0.13");
-                app.setDeployPath("./webapps");
-                app.setStartCmd("keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/jre/lib/security/cacerts;./bin/resin.sh start;tail -F ./log/jvm-default.log");
-            }
-            else
-            {
-                app.setBasePath("/usr/local/tomcat");
-                app.setDeployPath("./webapps");
-                app.setStartCmd("keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/lib/security/cacerts;./bin/startup.sh;tail -F ./logs/catalina.out");
-            }
-            if(optMap.containsKey(app.getAppName()))
-            {
-                app.setBasePath(optMap.get(app.getAppName()).get(0).getBasePath());
-                app.setDeployPath(optMap.get(app.getAppName()).get(0).getDeployPath());
-                app.setStartCmd(optMap.get(app.getAppName()).get(0).getStartCmd());
-            }
-            this.appMapper.update(app);
-        }
-    }
-
     /**
      * 为指定域新加的应用生成别名，并且下载添加/更新的应用的配置文件到指定nexus路径
      *
@@ -1150,7 +1036,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.error(String.format("%s platform not exist", platformId));
             throw new ParamException(String.format("%s platform not exist", platformId));
         }
-        CCODPlatformStatus status = CCODPlatformStatus.getEnumById(platformPo.getStatus());
+        CCODPlatformStatus status = platformPo.getStatus();
         if (status == null) {
             logger.error(String.format("%s status value %d is unknown", platformId, platformPo.getStatus()));
             throw new ParamException(String.format("%s status value %d is unknown", platformId, platformPo.getStatus()));
@@ -1162,14 +1048,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         logger.debug(String.format("delete schema of %s from database", platformId));
         this.platformUpdateSchemaMapper.delete(platformId);
         switch (status) {
-            case SCHEMA_CREATE_PLATFORM:
+            case SCHEMA_CREATE:
                 logger.debug(String.format("%s status is %s, so it should be deleted", platformId, status.name));
                 platformMapper.delete(platformId);
                 break;
             default:
                 logger.debug(String.format("%s status is %s, so it should be updated to %s",
                         platformId, status.name, CCODPlatformStatus.RUNNING.name));
-                platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+                platformPo.setStatus(CCODPlatformStatus.RUNNING);
                 platformMapper.update(platformPo);
                 break;
         }
@@ -1289,7 +1175,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
             }
             this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformId, platformPo.getBkCloudId());
-            platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+            platformPo.setStatus(CCODPlatformStatus.RUNNING);
             this.platformMapper.update(platformPo);
             return modules.toArray(new PlatformAppModuleVo[0]);
         } finally {
@@ -1399,7 +1285,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         PlatformPo platform = new PlatformPo();
-        platform.setStatus(CCODPlatformStatus.RUNNING.id);
+        platform.setStatus(CCODPlatformStatus.RUNNING);
         platform.setPlatformId(platformId);
         platform.setPlatformName(platformName);
         platform.setBkCloudId(bkCloudId);
@@ -2060,13 +1946,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         if(!updateSchema.getPlatformId().matches(this.platformIdRegex))
             throw new ParamException(String.format("error platformId %s", updateSchema.getPlatformId()));
-//        updateRegisterAppCfgs(updateSchema.getDomainUpdatePlanList().stream().flatMap(plan -> plan.getAppUpdateOperationList().stream()).collect(Collectors.toList()));
-//        updateRegisterApp();
-//        updateRegisterAppCCODVersion(updateSchema.getDomainUpdatePlanList().stream().flatMap(plan -> plan.getAppUpdateOperationList().stream()).collect(Collectors.toList()), updateSchema.getCcodVersion());
-//        updatePlatformPublicConfig(updateSchema.getPublicConfig());
-//        List<PlatformPublicConfigPo> pubList = this.platformPublicConfigMapper.select("90t");
-//        updateDomainPublicConfig(updateSchema.getPublicConfig());
-//        List<DomainPublicConfigPo> domainPubList = this.domainPublicConfigMapper.select("pahj", null);
         PlatformUpdateRecordPo rcd = this.platformUpdateRecordMapper.selectByJobId(updateSchema.getSchemaId());
         if(rcd != null)
             throw new ParamException(String.format("schema id %s has been used", updateSchema.getSchemaId()));
@@ -2078,7 +1957,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException(String.format("%s platform %s not exist", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
             } else {
                 platformPo = new PlatformPo(updateSchema.getPlatformId(), updateSchema.getPlatformName(),
-                        updateSchema.getBkBizId(), updateSchema.getBkCloudId(), CCODPlatformStatus.SCHEMA_CREATE_PLATFORM,
+                        updateSchema.getBkBizId(), updateSchema.getBkCloudId(), CCODPlatformStatus.SCHEMA_CREATE,
                         updateSchema.getCcodVersion(), "create by platform create schema", updateSchema.getPlatformType(),
                         updateSchema.getPlatformFunc(), updateSchema.getCreateMethod(), updateSchema.getHostUrl());
                 if (PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType())) {
@@ -2104,7 +1983,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
         Boolean hasImage = PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType()) ? true : null;
         List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(hasImage);
-        boolean clone = PlatformCreateMethod.CLONE.equals(updateSchema.getCreateMethod()) ? true : false;
+        boolean clone = PlatformCreateMethod.CLONE.equals(updateSchema.getCreateMethod()) || PlatformCreateMethod.K8S_API_CLONE.equals(updateSchema.getCreateMethod())  ? true : false;
         List<PlatformAppDeployDetailVo> platformDeployApps = this.platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null);
         logger.debug("begin check param of schema");
         List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
@@ -2120,13 +1999,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         UpdateStatus status = updateSchema.getStatus();
         if (status.equals(UpdateStatus.EXEC) || status.equals(UpdateStatus.WAIT_EXEC))
             execPlatformSchema(platformPo, updateSchema, platformDeployApps);
-
         boolean closeSchema = status.equals(UpdateStatus.EXEC) && updateSchema.getDomainUpdatePlanList().size() == 0 ? true : false;
         if (this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
             this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
         this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
-        if(closeSchema)
-            platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+        if(closeSchema) {
+            logger.info(String.format("schema of %s has completed and status change to %s",
+                    platformPo.getPlatformId(), CCODPlatformStatus.RUNNING.name));
+            platformPo.setStatus(CCODPlatformStatus.RUNNING);
+        }
         else
         {
             PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
@@ -2134,85 +2015,33 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             schemaPo.setPlatformId(updateSchema.getPlatformId());
             this.platformUpdateSchemaMapper.insert(schemaPo);
             this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
-            platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
-            this.platformMapper.update(platformPo);
+            if(updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE))
+                platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE);
+            else
+                platformPo.setStatus(CCODPlatformStatus.SCHEMA_UPDATE);
         }
         this.platformMapper.update(platformPo);
-        List<DomainUpdatePlanInfo> preparePlans = statusPlanMap.containsKey(UpdateStatus.WAIT_EXEC) ? statusPlanMap.get(UpdateStatus.WAIT_EXEC) : new ArrayList<>();
-        if(preparePlans.size() > 0)
-        {
-            List<K8sOperationInfo> tryOptList = generateSchemaK8sExecStep(updateSchema, UpdateStatus.WAIT_EXEC, registerApps);
-            logger.debug(String.format("schema need exec steps : %s", gson.toJson(tryOptList)));
-//            execPlatformUpdateSteps(tryOptList, updateSchema);
-        }
-        List<DomainUpdatePlanInfo> execPlans = statusPlanMap.containsKey(UpdateStatus.EXEC) ? statusPlanMap.get(UpdateStatus.EXEC) : new ArrayList<>();
-        if(execPlans.size() > 0)
-        {
-            if(StringUtils.isBlank(updateSchema.getHostUrl()))
-                throw new ParamException(String.format("hostUrl of platform is blank"));
-            List<K8sOperationInfo> execSteps = generateSchemaK8sExecStep(updateSchema, UpdateStatus.EXEC, registerApps);
-            logger.debug(String.format("exec step is %s", gson.toJson(execSteps)));
-            PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(execSteps, updateSchema, platformDeployApps);
-            logger.info(String.format("platform schema execute result : %s", gson.toJson(execResultVo)));
-            if(!execResultVo.isSuccess())
-                throw new ParamException(String.format("schema execute fail : %s", execResultVo.getErrorMsg()));
-        }
-        Map<String, Map<String, List<NexusAssetInfo>>> domainCfgMap = new HashMap<>();
-        for (DomainUpdatePlanInfo plan : execPlans) {
-            String domainId = plan.getDomainId();
-            boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
-            DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(updateSchema.getPlatformId());
-            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-            logger.debug(String.format("preprocess %s %d apps with isCreate=%b and %d deployed apps",
-                    JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-            Map<String, List<NexusAssetInfo>> cfgMap = preprocessDomainApps(updateSchema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, registerApps, clone);
-            domainCfgMap.put(domainId, cfgMap);
-        }
-        for (DomainUpdatePlanInfo plan : execPlans) {
-            String domainId = plan.getDomainId();
-            boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
-            DomainPo domainPo = isCreate ? plan.getDomain(updateSchema.getPlatformId()) : domainMap.get(domainId);
-            if (isCreate)
-                this.domainMapper.insert(domainPo);
-            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-            List<AssemblePo> assembleList = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
-            logger.debug(String.format("handle %s %d apps with isCreate=%b and %d deployed apps",
-                    JSONObject.toJSONString(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-            handleDomainApps(updateSchema.getPlatformId(), domainPo, plan.getAppUpdateOperationList(), assembleList, domainAppList, registerApps, domainCfgMap.get(domainId));
-        }
-        if(statusPlanMap.containsKey(UpdateStatus.EXEC))
-            statusPlanMap.remove(UpdateStatus.EXEC);
-        updateSchema.setDomainUpdatePlanList(statusPlanMap.values().stream().flatMap(plans -> plans.stream()).collect(Collectors.toList()));
-        if (updateSchema.getDomainUpdatePlanList().size() == 0) {
-            logger.debug(String.format("%s(%s) platform complete deployment, so remove schema and set status to RUNNING", updateSchema.getPlatformName(), updateSchema.getPlatformId()));
-            if (this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
-                this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
-            this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
-            platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
-            this.platformMapper.update(platformPo);
-        } else {
-            logger.debug(String.format("%s(%s) platform not complete deployment, so update schema and set status to PLANING", updateSchema.getPlatformName(), updateSchema.getPlatformId()));
-            updateSchema.setDomainUpdatePlanList(statusPlanMap.values().stream().flatMap(plans -> plans.stream()).collect(Collectors.toList()));
-            PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
-            schemaPo.setContext(gson.toJson(updateSchema).getBytes());
-            schemaPo.setPlatformId(updateSchema.getPlatformId());
-            this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
-            this.platformUpdateSchemaMapper.insert(schemaPo);
-            this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
-            platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE_PLATFORM.id);
-            this.platformMapper.update(platformPo);
-        }
-        if (execPlans.size() > 0) {
-            logger.debug(String.format("%d domain complete deployment, so sync new platform topo to lj paas", execPlans.size()));
-            this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
-        }
+        logger.info(String.format("update %s schema success", updateSchema.getSchemaId()));
     }
 
     private void execPlatformSchema(PlatformPo platformPo, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformDeployApps) throws ParamException, ApiException, InterfaceCallException, IOException, LJPaasException, NotSupportAppException
     {
+        Map<String, Integer> setMap = new HashMap<>();
+        for(int i = 0; i < this.ccodBiz.getSet().size(); i++)
+            setMap.put(this.ccodBiz.getSet().get(i).getFixedDomainId(), i);
+        Comparator<DomainUpdatePlanInfo> sort = new Comparator<DomainUpdatePlanInfo>() {
+            @Override
+            public int compare(DomainUpdatePlanInfo o1, DomainUpdatePlanInfo o2) {
+                String id1 = o1.getDomainId().replaceAll("\\d*", "");
+                String id2 = o2.getDomainId().replaceAll("\\d*", "");
+                if(!id1.equals(id2))
+                    return setMap.get(id1) - setMap.get(id2);
+                return Integer.parseInt(o1.getDomainId().replaceAll(id2, "")) - Integer.parseInt(o2.getDomainId().replaceAll(id1, "")) ;
+            }
+        };
         UpdateStatus status = schema.getStatus();
         List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
-                filter(plan->plan.getStatus().equals(status)).collect(Collectors.toList());
+                filter(plan->plan.getStatus().equals(status)).sorted(sort).collect(Collectors.toList());
         PlatformUpdateTaskType taskType = schema.getTaskType();
         boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) ? true : false;
         if(plans.size() == 0)
@@ -2229,14 +2058,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String jobId = schema.getSchemaId();
         String k8sApiUrl = platformPo.getApiUrl();
         String k8sAuthToken = platformPo.getAuthToken();
+        String hostUrl = platformPo.getHostUrl();
         Map<String, List<AppFileNexusInfo>> domainCfgMap;
-        PlatformAppPo deployGls;
+        schema.getDomainUpdatePlanList().stream()
+                .forEach(plan -> plan.getAppUpdateOperationList().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
+        PlatformAppDeployDetailVo deployGls;
         if(isNewPlatform) {
             domainCfgMap = schema.getDomainUpdatePlanList().stream().filter(plan -> plan.getPublicConfig() != null && plan.getPublicConfig().size() > 0)
-                    .collect(Collectors.toMap(plan -> plan.getDomainId(), v -> v.getPublicConfig()));
+                    .collect(Collectors.toMap(plan->plan.getDomainId(), v->v.getPublicConfig()));
             platformCfg = schema.getPublicConfig();
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(ccodVersion,
-                    platformId, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
+                    platformId, hostUrl, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
                     null, null, schema.getThreePartApps(), schema.getThreePartServices(), platformCfg,
                     k8sApiUrl, k8sAuthToken);
             steps.addAll(platformCreateSteps);
@@ -2245,9 +2077,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
             if(!optMap.containsKey("glsServer"))
                 throw new ParamException(String.format("new platform must has glsServer"));
-            else if(optMap.get("glsServer").size() > 0)
+            else if(optMap.get("glsServer").size() > 1)
                 throw new ParamException(String.format("glsServer multi deploy"));
-            deployGls = optMap.get("glsServer").get(0).getPlatformApp();
+            deployGls = optMap.get("glsServer").get(0).getPlatformAppDetail(platformId, nexusHostUrl);
         }
         else
         {
@@ -2258,7 +2090,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 domainCfgMap.put(domainId, cfgMap.get(domainId).stream().collect(Collectors.toList()));
             platformCfg = this.platformPublicConfigMapper.select(platformId).stream().collect(Collectors.toList());
             deployGls = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName))
-                    .get("glsServer").get(0).getPlatformApp();
+                    .get("glsServer").get(0);
         }
         for(DomainUpdatePlanInfo plan : plans)
         {
@@ -2269,7 +2101,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             steps.addAll(deploySteps);
         }
         if(!status.equals(UpdateStatus.EXEC))
-            return schema;
+            return;
         PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(platformPo, steps, schema, platformDeployApps, deployGls);
         logger.info(String.format("platform schema execute result : %s", gson.toJson(execResultVo)));
         if(!execResultVo.isSuccess())
@@ -2434,12 +2266,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String platformId = schema.getPlatformId();
         String jobId = schema.getSchemaId();
         String ccodVersion = schema.getCcodVersion();
+        String hostUrl = schema.getHostUrl();
         if(schema.getTaskType().equals(PlatformUpdateTaskType.CREATE))
         {
             if(this.k8sApiService.isNamespaceExist(platformId, apiUrl, authToken))
                 throw new ParamException(String.format("namespace %s exist at %s", platformId, apiUrl));
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(ccodVersion,
-                    platformId, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(), null, null,
+                    platformId, hostUrl, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(), null, null,
                     schema.getThreePartApps(), schema.getThreePartServices(), schema.getPublicConfig(), apiUrl, authToken);
             execSteps.addAll(platformCreateSteps);
         }
@@ -3301,7 +3134,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
             }
             this.ljPaasService.syncClientCollectResultToPaas(bkBizId, platformId, bkCloudId);
-            platformPo.setStatus(CCODPlatformStatus.RUNNING.id);
+            platformPo.setStatus(CCODPlatformStatus.RUNNING);
             this.platformMapper.update(platformPo);
         } finally {
             this.isPlatformCheckOngoing = false;
@@ -4737,7 +4570,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResult;
     }
 
-    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps, PlatformAppPo deployGls) throws ParamException
+    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps, PlatformAppDeployDetailVo deployGls) throws ParamException
     {
         String jobId = schema.getSchemaId();
         Date startTime = new Date();
@@ -4776,7 +4609,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResultVo;
     }
 
-    private List<K8sOperationPo> execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, PlatformAppPo deployGls) throws ParamException
+    private List<K8sOperationPo> execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, PlatformAppDeployDetailVo deployGls) throws ParamException
     {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getApiUrl();
@@ -4824,7 +4657,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         ps.executeUpdate();
                         Map<String, String> selector = new HashMap<>();
                         selector.put(this.appTypeLabel, AppType.BINARY_FILE.name);
-                        selector.put(deployGls.getAppName(), deployGls.getAppAlias());
+                        selector.put("glsServer", deployGls.getAppAlias());
                         List<V1Deployment> deploys = this.k8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
                         if(deploys.size() == 0)
                             throw new ParamException(String.format("can not find glsserver from %s", platformId));

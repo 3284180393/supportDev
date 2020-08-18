@@ -4,12 +4,14 @@ import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @ClassName: AppUpdateOperationInfo
@@ -296,6 +298,31 @@ public class AppUpdateOperationInfo {
         po.setPeriodSeconds(this.periodSeconds);
         po.setDeployPath(this.deployPath);
         return po;
+    }
+
+    public PlatformAppDeployDetailVo getPlatformAppDetail(String platformId, String nexusHostUrl)
+    {
+        PlatformAppDeployDetailVo vo = new PlatformAppDeployDetailVo();
+        vo.setPlatformId(platformId);
+        vo.setOriginalAlias(this.originalAlias);
+        vo.setDomainId(domainId);
+        vo.setDeployTime(new Date());
+        vo.setBasePath(this.basePath);
+        vo.setAppRunner(this.appRunner);
+        vo.setHostIp(this.hostIp);
+        vo.setAppAlias(this.appAlias);
+        vo.setPlatformAppId(0);
+        vo.setEnvLoadCmd(this.envLoadCmd);
+        vo.setInitCmd(this.initCmd);
+        vo.setStartCmd(this.startCmd);
+        vo.setLogOutputCmd(this.logOutputCmd);
+        vo.setResources(this.resources);
+        vo.setInitialDelaySeconds(this.initialDelaySeconds);
+        vo.setPeriodSeconds(this.periodSeconds);
+        vo.setDeployPath(this.deployPath);
+        vo.setAppName(this.appName);
+        vo.setCfgs(this.cfgs.stream().map(cfg->new PlatformAppCfgFilePo(0, cfg, nexusHostUrl)).collect(Collectors.toList()));
+        return vo;
     }
 
     public PlatformAppPo getPlatformApp(int platformAppId, int appId, String platformId, String domainId)
