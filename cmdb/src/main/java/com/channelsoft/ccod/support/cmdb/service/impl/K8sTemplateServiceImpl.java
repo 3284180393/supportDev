@@ -270,6 +270,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String name = portType.equals(ServicePortType.NodePort) ? String.format("%s-%s-out", alias, domainId) : String.format("%s-%s", alias, domainId);
         service.getMetadata().setLabels(new HashMap<>());
         service.getMetadata().getLabels().put(this.domainIdLabel, domainId);
+        service.getMetadata().getLabels().put(this.appNameLabel, appName);
+        service.getMetadata().getLabels().put(this.serviceTypeLabel, portType.equals(ServicePortType.NodePort) ? K8sServiceType.DOMAIN_OUT_SERVICE.name : K8sServiceType.DOMAIN_SERVICE.name);
         service.getMetadata().getLabels().put(appName, alias);
         service.getMetadata().setName(name);
         service.getMetadata().setNamespace(platformId);
@@ -299,6 +301,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Service service = (V1Service)selectK8sObjectTemplate(ccodVersion, AppType.THREE_PART_APP, appName, version, K8sKind.SERVICE);
         service.getMetadata().setLabels(new HashMap<>());
         service.getMetadata().getLabels().put(appName, alias);
+        service.getMetadata().getLabels().put(this.appNameLabel, appName);
+        service.getMetadata().getLabels().put(this.serviceTypeLabel, K8sServiceType.THREE_PART_APP.name);
         service.getMetadata().setName(alias);
         service.getMetadata().setNamespace(platformId);
         service.getSpec().setSelector(new HashMap<>());
@@ -614,8 +618,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //                    execParam = String.format("%s;jar uf %s %s/%s", execParam, module.getInstallPackage().getFileName(), absolutePath.replaceAll(String.format("^%s", deployPath), "").replaceAll("^/", "").replaceAll(String.format("^%s/", theName), ""), cfg.getFileName());
             }
         }
-        if ("ucxserver".equals(appName))
-            execParam = String.format("%s;mv /opt/FlowMap.full /binary-file/cfg", execParam);
         switch (appType)
         {
             case TOMCAT_WEB_APP:
@@ -643,8 +645,17 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return containerPorts;
     }
 
-    private void generateProbeForRuntimeContainer(V1Container runtimeContainer, String alias, String domainId, AppType appType, String portStr) throws ParamException
+    private void generateProbeForRuntimeContainer(V1Container runtimeContainer, String alias, String domainId, AppType appType, String checkAt) throws ParamException
     {
+        String regex = "^CMD/.+$|^TCP/\\d+$|^HTTP/.*$";
+        if(!checkAt.matches(regex))
+            throw new ParamException(String.format("%s is not legal health check word", checkAt));
+        String checkType = checkAt.split("/")[0];
+        if(checkType.equals("HTTP"))
+        {
+            V1HTTPGetAction httpGet = new V1HTTPGetAction();
+
+        }
         List<PortVo> portList = parsePort(portStr, ServicePortType.ClusterIP, appType);
         int targetPort = portList.get(0).getTargetPort();
         logger.debug(String.format("monitor port is %d/TCP", targetPort));

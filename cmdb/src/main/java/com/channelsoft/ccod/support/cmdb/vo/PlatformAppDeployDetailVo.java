@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
@@ -13,6 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @ClassName: PlatformAppDeployDetailVo
@@ -78,6 +80,8 @@ public class PlatformAppDeployDetailVo {
     private String ports; //该应用使用的端口
 
     private String nodePorts; //该应用对外开放的端口
+
+    private String checkAt; //用来定义应用健康检查的端口以及协议
 
     private String resources; //启动该应用所需的资源
 
@@ -466,6 +470,14 @@ public class PlatformAppDeployDetailVo {
         this.envLoadCmd = envLoadCmd;
     }
 
+    public String getCheckAt() {
+        return checkAt;
+    }
+
+    public void setCheckAt(String checkAt) {
+        this.checkAt = checkAt;
+    }
+
     public PlatformAppPo getPlatformApp()
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -480,6 +492,7 @@ public class PlatformAppDeployDetailVo {
         po.setLogOutputCmd(this.logOutputCmd);
         po.setPort(this.port);
         po.setNodePorts(this.nodePorts);
+        po.setCheckAt(this.checkAt);
         po.setResources(this.resources);
         po.setInitialDelaySeconds(this.initialDelaySeconds);
         po.setPeriodSeconds(this.periodSeconds);
@@ -493,6 +506,45 @@ public class PlatformAppDeployDetailVo {
         po.setReplicas(this.replicas);
         po.setAvailableReplicas(this.availableReplicas);
         return po;
+    }
+
+    public AppUpdateOperationInfo getOperationInfo(AppUpdateOperation operation)
+    {
+        AppUpdateOperationInfo optInfo = new AppUpdateOperationInfo();
+        optInfo.setDomainId(this.domainId);
+        optInfo.setEnvLoadCmd(this.envLoadCmd);
+        optInfo.setAssembleTag(this.getAssembleTag());
+        optInfo.setPorts(this.ports);
+        optInfo.setNodePorts(this.nodePorts);
+        optInfo.setStartCmd(this.getStartCmd());
+        optInfo.setInitCmd(this.initCmd);
+        optInfo.setLogOutputCmd(this.logOutputCmd);
+        optInfo.setResources(this.resources);
+        optInfo.setInitialDelaySeconds(this.initialDelaySeconds);
+        optInfo.setHostIp(this.hostIp);
+        optInfo.setEnvLoadCmd(this.envLoadCmd);
+        optInfo.setPeriodSeconds(this.periodSeconds);
+        optInfo.setTargetVersion(this.version);
+        optInfo.setBasePath(this.basePath);
+        optInfo.setDeployPath(this.deployPath);
+        optInfo.setCfgs(this.getCfgs().stream().map(cfg->cfg.getAppFileNexusInfo()).collect(Collectors.toList()));
+        optInfo.setAppRunner(this.appRunner);
+        optInfo.setDomainName(this.domainName);
+        optInfo.setOperation(operation);
+        optInfo.setOriginalVersion(this.originalAlias);
+        optInfo.setOriginalAlias(this.originalAlias);
+        optInfo.setAppAlias(this.appAlias);
+        optInfo.setAppName(this.appName);
+        optInfo.setPlatformAppId(this.platformAppId);
+        optInfo.setCheckAt(this.checkAt);
+        return optInfo;
+    }
+
+    public AppUpdateOperationInfo getOperationInfo(AppUpdateOperation operation, String originalVersion)
+    {
+        AppUpdateOperationInfo optInfo = getOperationInfo(operation);
+        optInfo.setOriginalVersion(originalVersion);
+        return optInfo;
     }
 
     public String getCfgNexusDirectory(String tag)

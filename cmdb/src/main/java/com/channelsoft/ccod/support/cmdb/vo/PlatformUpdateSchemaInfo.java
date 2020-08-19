@@ -5,13 +5,12 @@ import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import io.kubernetes.client.openapi.models.*;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 /**
  * @ClassName: PlatformUpdateSchemaInfo
@@ -35,7 +34,6 @@ public class PlatformUpdateSchemaInfo {
 
     private String platformName; //该平台的平台名,需要同蓝鲸的对应的bizName一致
 
-    @NotNull(message = "platformType can not be null")
     private PlatformType platformType; //平台类型
 
     private PlatformFunction platformFunc; //平台用途
@@ -59,12 +57,6 @@ public class PlatformUpdateSchemaInfo {
 
     @NotNull(message = "comment can not be null")
     private String comment; //备注
-
-    private String deployScriptRepository; //平台升级计划部署脚本在nexus的存储仓库
-
-    private String deployScriptPath; //平台升级计划部署脚本的path
-
-    private String deployScriptMd5;  //平台升级计划的md5
 
     private String k8sHostIp; //运行平台的k8s主机ip
 
@@ -222,30 +214,6 @@ public class PlatformUpdateSchemaInfo {
         this.ccodVersion = ccodVersion;
     }
 
-    public String getDeployScriptRepository() {
-        return deployScriptRepository;
-    }
-
-    public void setDeployScriptRepository(String deployScriptRepository) {
-        this.deployScriptRepository = deployScriptRepository;
-    }
-
-    public String getDeployScriptPath() {
-        return deployScriptPath;
-    }
-
-    public void setDeployScriptPath(String deployScriptPath) {
-        this.deployScriptPath = deployScriptPath;
-    }
-
-    public String getDeployScriptMd5() {
-        return deployScriptMd5;
-    }
-
-    public void setDeployScriptMd5(String deployScriptMd5) {
-        this.deployScriptMd5 = deployScriptMd5;
-    }
-
     public DatabaseType getGlsDBType() {
         return glsDBType;
     }
@@ -396,5 +364,32 @@ public class PlatformUpdateSchemaInfo {
 
     public void setHostUrl(String hostUrl) {
         this.hostUrl = hostUrl;
+    }
+
+    public PlatformPo getCreatePlatform()
+    {
+        PlatformPo po = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE,
+                ccodVersion, comment, platformType, platformFunc, createMethod, hostUrl);
+        po.setAuthToken(k8sAuthToken);
+        po.setApiUrl(k8sApiUrl);
+        po.setHostUrl(hostUrl);
+        po.setParams(getPlatformParam());
+        return po;
+    }
+
+    public Map<String, Object> getPlatformParam()
+    {
+        Map<String, Object> params = new HashMap<>();
+        if(StringUtils.isNotBlank(this.k8sHostIp))
+            params.put("k8s_host_ip", this.k8sHostIp);
+        if(this.glsDBType != null)
+            params.put("gls_db_type", this.glsDBType.name);
+        if(StringUtils.isNotBlank(this.glsDBUser))
+            params.put("gls_db_user", this.glsDBUser);
+        if(StringUtils.isNotBlank(this.glsDBPwd))
+            params.put("gls_db_pwd", this.glsDBPwd);
+        if(this.glsDBType.equals(DatabaseType.ORACLE))
+            params.put("gls_db_sid", "xe");
+        return params;
     }
 }

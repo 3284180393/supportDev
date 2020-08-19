@@ -29,7 +29,6 @@ public class PlatformCreateParamVo implements Serializable {
     @NotNull(message = "platformName can not be null")
     private String platformName; //新建平台名
 
-    @NotNull(message = "platformType can not be null")
     private PlatformType platformType; //平台类型
 
     @NotNull(message = "platformFunc can not be null")
@@ -41,7 +40,6 @@ public class PlatformCreateParamVo implements Serializable {
     @NotNull(message = "bkCloudId can not be null")
     private Integer bkCloudId; //新建平台服务器所在的cloud id
 
-    @NotNull(message = "ccodVersion can not be null")
     private String ccodVersion; //ccod大版本号
 
     private String params; //同平台创建相关的参数
@@ -49,21 +47,17 @@ public class PlatformCreateParamVo implements Serializable {
     @NotNull(message = "k8sHostIp can not be null")
     private String k8sHostIp; //运行平台的k8s主机ip
 
-    @NotNull(message = "glsDBType can not be null")
-    private DatabaseType glsDBType; //ccod平台glsserver的数据库类型
+     private DatabaseType glsDBType; //ccod平台glsserver的数据库类型
 
-    @NotNull(message = "glsDBUser can not be null")
     private String glsDBUser; //gls数据库的db用户
 
-    @NotNull(message = "ccodVersion can not be null")
     private String glsDBPwd; //gls数据库的登录密码
 
     private String baseDataNexusRepository; //基础数据在nexus的存放仓库
 
     private String baseDataNexusPath; //基础数据在nexus的存放path
 
-    @NotNull(message = "publicConfig can not be null")
-    private List<AppFileNexusInfo> publicConfig; //平台公共配置
+     private List<AppFileNexusInfo> publicConfig; //平台公共配置
 
     private String k8sApiUrl; //如果平台是部署在k8s上，需要指明k8s api的url
 
@@ -252,11 +246,9 @@ public class PlatformCreateParamVo implements Serializable {
         }
         PlatformPo po = new PlatformPo(platformId, platformName, bkBizId, bkCloudId, CCODPlatformStatus.SCHEMA_CREATE,
                 ccodVersion, desc, platformType, platformFunc, createMethod, hostUrl);
-        if(PlatformType.K8S_CONTAINER.equals(platformType))
-        {
-            po.setAuthToken(k8sAuthToken);
-            po.setApiUrl(k8sApiUrl);
-        }
+        po.setAuthToken(k8sAuthToken);
+        po.setApiUrl(k8sApiUrl);
+        po.setHostUrl(hostUrl);
         return po;
     }
 

@@ -54,6 +54,8 @@ public class PlatformAppPo {
 
     private String nodePorts; //该应用对外开放的端口
 
+    private String checkAt; //用来定义应用健康检查的端口以及协议
+
     private String resources; //启动该应用所需的资源
 
     private int initialDelaySeconds; //应用预计启动时间
@@ -244,6 +246,14 @@ public class PlatformAppPo {
 
     public void setPeriodSeconds(int periodSeconds) {
         this.periodSeconds = periodSeconds;
+    }
+
+    public String getCheckAt() {
+        return checkAt;
+    }
+
+    public void setCheckAt(String checkAt) {
+        this.checkAt = checkAt;
     }
 
     public String getEnvLoadCmd() {

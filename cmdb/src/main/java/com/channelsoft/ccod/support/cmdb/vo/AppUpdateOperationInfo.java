@@ -66,6 +66,8 @@ public class AppUpdateOperationInfo {
 
     private String nodePorts; //该应用对外开放的端口
 
+    private String checkAt; //用来定义应用健康检查的端口以及协议
+
     private String resources; //启动该应用所需的资源
 
     private int initialDelaySeconds; //应用预计启动时间
@@ -276,6 +278,14 @@ public class AppUpdateOperationInfo {
         this.envLoadCmd = envLoadCmd;
     }
 
+    public String getCheckAt() {
+        return checkAt;
+    }
+
+    public void setCheckAt(String checkAt) {
+        this.checkAt = checkAt;
+    }
+
     public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)
     {
         PlatformAppPo po = new PlatformAppPo();
@@ -293,6 +303,9 @@ public class AppUpdateOperationInfo {
         po.setInitCmd(this.initCmd);
         po.setStartCmd(this.startCmd);
         po.setLogOutputCmd(this.logOutputCmd);
+        po.setPort(this.ports);
+        po.setNodePorts(this.nodePorts);
+        po.setCheckAt(this.checkAt);
         po.setResources(this.resources);
         po.setInitialDelaySeconds(this.initialDelaySeconds);
         po.setPeriodSeconds(this.periodSeconds);
@@ -316,6 +329,9 @@ public class AppUpdateOperationInfo {
         vo.setInitCmd(this.initCmd);
         vo.setStartCmd(this.startCmd);
         vo.setLogOutputCmd(this.logOutputCmd);
+        vo.setPort(this.ports);
+        vo.setNodePorts(this.nodePorts);
+        vo.setCheckAt(this.checkAt);
         vo.setResources(this.resources);
         vo.setInitialDelaySeconds(this.initialDelaySeconds);
         vo.setPeriodSeconds(this.periodSeconds);

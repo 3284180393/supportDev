@@ -31,7 +31,8 @@
         pf.func,
         pf.api_url,
         pf.auth_token,
-        pf.host_url
+        pf.host_url,
+        pf.params
     </sql>
     <select id="selectByPrimaryKey" resultMap="PlatformMap" parameterType="java.lang.String">
         select

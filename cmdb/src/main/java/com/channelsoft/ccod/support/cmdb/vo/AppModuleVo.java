@@ -57,6 +57,8 @@ public class AppModuleVo {
 
     private String nodePorts; //应用对外开放的端口
 
+    private String checkAt; //用来定义应用健康检查的端口以及协议
+
     private String resources; //启动该模块所需的资源
 
     private int initialDelaySeconds; //应用预计启动时间
@@ -98,6 +100,7 @@ public class AppModuleVo {
         this.timeout = app.getTimeout();
         this.ports = app.getPorts();
         this.nodePorts = app.getNodePorts();
+        this.checkAt = app.getCheckAt();
         this.resources = app.getResources();
         this.initialDelaySeconds = app.getInitialDelaySeconds();
         this.periodSeconds = app.getPeriodSeconds();
@@ -217,6 +220,14 @@ public class AppModuleVo {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public String getCheckAt() {
+        return checkAt;
+    }
+
+    public void setCheckAt(String checkAt) {
+        this.checkAt = checkAt;
     }
 
     public String getAppNexusDirectory() {
@@ -366,6 +377,7 @@ public class AppModuleVo {
         po.setResources(this.resources);
         po.setPorts(this.ports);
         po.setNodePorts(this.nodePorts);
+        po.setCheckAt(this.checkAt);
         po.setResources(this.resources);
         po.setVersionControlUrl(this.versionControlUrl);
         po.setKernal(this.kernal);
