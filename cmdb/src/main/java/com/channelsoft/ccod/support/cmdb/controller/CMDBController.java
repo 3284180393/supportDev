@@ -153,7 +153,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            AppModuleVo moduleVo = this.appManagerService.queryAppByVersion(appName, version);
+            AppModuleVo moduleVo = this.appManagerService.queryAppByVersion(appName, version, null);
             if(moduleVo != null)
             {
                 resultPo = new AjaxResultPo(true, "query SUCCESs", 1, moduleVo);
@@ -323,6 +323,26 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("query platform apps exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformApps/{platformId}/{domainId}", method = RequestMethod.PUT)
+    public AjaxResultPo debugApp(@RequestBody @Valid AppUpdateOperationInfo optInfo, @PathVariable String platformId, @PathVariable String domainId)
+    {
+        String uri = String.format("PUT %s/platformApps/%s/%s, params=%s", this.apiBasePath, platformId, domainId, gson.toJson(optInfo));
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo detail = this.platformManagerService.debugPlatformApp(platformId, domainId, optInfo);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, detail);
+            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("debug platform app exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;

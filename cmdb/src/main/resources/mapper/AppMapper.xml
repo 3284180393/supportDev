@@ -16,6 +16,7 @@
         <result column="time_out" property="timeout" jdbcType="INTEGER" />
         <result column="ports" property="ports" jdbcType="VARCHAR" />
         <result column="node_ports" property="nodePorts" jdbcType="VARCHAR" />
+        <result column="check_at" property="checkAt" jdbcType="VARCHAR" />
         <result column="resources" property="resources" jdbcType="VARCHAR" />
         <result column="initial_delay_seconds" property="initialDelaySeconds" jdbcType="INTEGER" />
         <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
@@ -42,6 +43,7 @@
         a.time_out,
         a.ports,
         a.node_ports,
+        a.check_at,
         a.resources,
         a.initial_delay_seconds,
         a.period_seconds,
@@ -94,6 +96,7 @@
                         time_out,
                         ports,
                         node_ports,
+                        check_at,
                         resources,
                         initial_delay_seconds,
                         period_seconds,
@@ -119,6 +122,7 @@
                     #{timeout,jdbcType=INTEGER},
                     #{ports,jdbcType=VARCHAR},
                     #{nodePorts,jdbcType=VARCHAR},
+                    #{checkAt,jdbcType=VARCHAR},
                     #{resources,jdbcType=VARCHAR},
                     #{initialDelaySeconds,jdbcType=INTEGER},
                     #{periodSeconds,jdbcType=INTEGER},
@@ -149,6 +153,7 @@
         time_out = #{timeout,jdbcType=INTEGER},
         ports = #{ports,jdbcType=VARCHAR},
         node_ports = #{nodePorts,jdbcType=VARCHAR},
+        check_at = #{checkAt,jdbcType=VARCHAR},
         resources = #{resources,jdbcType=VARCHAR},
         initial_delay_seconds = #{initialDelaySeconds,jdbcType=INTEGER},
         period_seconds = #{periodSeconds,jdbcType=INTEGER},

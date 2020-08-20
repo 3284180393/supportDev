@@ -61,7 +61,7 @@ public class K8sAppModuleDeployParamVo {
         this.domainId = domainId;
         this.assembleTag = assembleTag;
         this.operation = optInfo.getOperation();
-        this.alias = optInfo.getAppAlias();
+        this.alias = optInfo.getAlias();
         this.basePath = optInfo.getBasePath();
         this.deployPath = optInfo.getDeployPath();
         this.cfgs = optInfo.getCfgs();

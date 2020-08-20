@@ -56,7 +56,7 @@ public class CCODModuleInfo {
     {
         this.appId = deployApp.getAppId();
         this.moduleName = deployApp.getAppName();
-        this.moduleAlias = deployApp.getAppAlias();
+        this.moduleAlias = deployApp.getAlias();
         this.originalAlias = deployApp.getOriginalAlias();
         this.version = deployApp.getVersion();
         this.hostIp = deployApp.getHostIp();

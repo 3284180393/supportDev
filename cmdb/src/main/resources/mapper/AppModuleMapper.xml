@@ -22,7 +22,10 @@
         <result column="time_out" property="timeout" jdbcType="INTEGER" />
         <result column="ports" property="ports" jdbcType="VARCHAR" />
         <result column="node_ports" property="nodePorts" jdbcType="VARCHAR" />
+        <result column="check_at" property="checkAt" jdbcType="VARCHAR" />
         <result column="resources" property="resources" jdbcType="VARCHAR" />
+        <result column="initial_delay_seconds" property="initialDelaySeconds" jdbcType="INTEGER" />
+        <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
         <result column="comment" property="comment" jdbcType="VARCHAR" />
         <result column="has_image" property="hasImage" jdbcType="VARCHAR" />
         <association property="installPackage"
@@ -57,7 +60,10 @@
         a.time_out,
         a.ports,
         a.node_ports,
+        a.check_at,
         a.resources,
+        a.initial_delay_seconds,
+        a.period_seconds,
         a.`comment`,
         a.has_image,
         aip.app_id AS aip_app_id,

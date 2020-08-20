@@ -13,7 +13,7 @@
         <result column="assemble_tag" property="assembleTag" jdbcType="VARCHAR" />
         <result column="status" property="status" jdbcType="VARCHAR" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
-        <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
+        <result column="alias" property="alias" jdbcType="VARCHAR" />
         <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
         <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
@@ -32,6 +32,7 @@
         <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
         <result column="ports" property="ports" jdbcType="VARCHAR" />
         <result column="node_ports" property="nodePorts" jdbcType="VARCHAR" />
+        <result column="check_at" property="checkAt" jdbcType="VARCHAR" />
         <result column="resources" property="resources" jdbcType="VARCHAR" />
         <result column="initial_delay_seconds" property="initialDelaySeconds" jdbcType="INTEGER" />
         <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
@@ -68,7 +69,7 @@
 		asb.tag AS assemble_tag,
 		asb.status AS status,
 	    a.app_name,
-	    pa.app_alias AS app_alias,
+	    pa.alias AS alias,
 	    pa.original_alias AS original_alias,
 	    a.app_type,
 	    pa.host_ip AS host_ip,
@@ -83,6 +84,7 @@
 	    pa.log_output_cmd,
 	    pa.ports,
 	    pa.node_ports,
+	    pa.check_at,
 	    pa.resources,
 	    pa.initial_delay_seconds AS initial_delay_seconds,
 	    pa.period_seconds AS period_seconds,

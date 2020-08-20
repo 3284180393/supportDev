@@ -39,7 +39,7 @@ public interface PlatformAppMapper {
      * @param domainId 域id
      * @param hostIp 主机ip
      * @param appName 应用名
-     * @param appAlias 应用别名
+     * @param alias 应用别名
      * @param version 应用版本号
      * @return
      * @throws DataAccessException
@@ -48,7 +48,7 @@ public interface PlatformAppMapper {
                                @Param("domainId")String domainId,
                                @Param("hostIp")String hostIp,
                                @Param("appName")String appName,
-                               @Param("appAlias")String appAlias,
+                               @Param("alias")String alias,
                                @Param("version")String version)
             throws DataAccessException;
 

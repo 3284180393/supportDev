@@ -4,7 +4,7 @@
     <resultMap id="PlatformAppMap" type="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         <id column="platform_app_id" property="platformAppId" jdbcType="INTEGER" />
         <result column="app_id" property="appId" jdbcType="INTEGER" />
-        <result column="app_alias" property="appAlias" jdbcType="VARCHAR" />
+        <result column="alias" property="alias" jdbcType="VARCHAR" />
         <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
@@ -13,12 +13,13 @@
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
-        <result column="env_load_cmd" property="port" jdbcType="VARCHAR" />
-        <result column="init_cmd" property="port" jdbcType="VARCHAR" />
+        <result column="env_load_cmd" property="envLoadCmd" jdbcType="VARCHAR" />
+        <result column="init_cmd" property="initCmd" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
         <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
         <result column="ports" property="ports" jdbcType="VARCHAR" />
         <result column="node_ports" property="nodePorts" jdbcType="VARCHAR" />
+        <result column="check_at" property="checkAt" jdbcType="VARCHAR" />
         <result column="resources" property="resources" jdbcType="VARCHAR" />
         <result column="initial_delay_seconds" property="initialDelaySeconds" jdbcType="INTEGER" />
         <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
@@ -27,7 +28,7 @@
     <sql id="Base_Column_List" >
         	pa.platform_app_id AS platform_app_id,
 	        pa.app_id AS app_id,
-	        pa.app_alias AS app_alias,
+	        pa.alias AS alias,
 	        pa.original_alias AS original_alias,
 	        pa.platform_id AS platform_id,
 	        pa.domain_id AS domain_id,
@@ -42,6 +43,7 @@
 	        pa.log_output_cmd AS log_output_cmd,
 	        pa.ports AS ports,
 	        pa.node_ports AS node_ports,
+	        pa.check_at AS check_at,
 	        pa.resources AS resources,
 	        pa.initial_delay_seconds AS initial_delay_seconds,
 	        pa.period_seconds AS period_seconds,
@@ -74,8 +76,8 @@
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}
         </if>
-        <if test="appAlias!=null">
-            And a.app_alias=#{appAlias,jdbcType=VARCHAR}
+        <if test="alias!=null">
+            And a.alias=#{alias,jdbcType=VARCHAR}
         </if>
         <if test="version!=null">
             And a.version=#{version,jdbcType=VARCHAR}
@@ -86,7 +88,7 @@
         insert into platform_app
             (
                 app_id,
-                app_alias,
+                alias,
                 original_alias,
                 platform_id,
                 domain_id,
@@ -101,13 +103,14 @@
                 log_output_cmd,
                 ports,
                 node_ports,
+                check_at,
                 resources,
                 initial_delay_seconds,
                 period_seconds,
                 deploy_time)
         values (
                 #{appId,jdbcType=INTEGER},
-                #{appAlias,jdbcType=VARCHAR},
+                #{alias,jdbcType=VARCHAR},
                 #{originalAlias,jdbcType=VARCHAR},
                 #{platformId,jdbcType=VARCHAR},
                 #{domainId,jdbcType=VARCHAR},
@@ -122,6 +125,7 @@
                 #{logOutputCmd,jdbcType=VARCHAR},
                 #{ports,jdbcType=VARCHAR},
                 #{nodePorts,jdbcType=VARCHAR},
+                #{checkAt,jdbcType=VARCHAR},
                 #{resources,jdbcType=VARCHAR},
                 #{initialDelaySeconds,jdbcType=INTEGER},
                 #{periodSeconds,jdbcType=INTEGER},
@@ -155,6 +159,7 @@
             log_output_cmd = #{logOutputCmd,jdbcType=VARCHAR},
             ports = #{ports,jdbcType=VARCHAR},
             node_ports = #{nodePorts,jdbcType=VARCHAR},
+            check_at = #{checkAt,jdbcType=VARCHAR},
             resources = #{resources,jdbcType=VARCHAR},
             initial_delay_seconds = #{initialDelaySeconds,jdbcType=INTEGER},
             period_seconds = #{periodSeconds,jdbcType=INTEGER}

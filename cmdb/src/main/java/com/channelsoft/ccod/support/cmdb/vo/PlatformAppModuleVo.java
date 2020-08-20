@@ -298,7 +298,7 @@ public class PlatformAppModuleVo {
         po.setDeployTime(new Date());
         po.setAppRunner(this.loginUser);
         po.setHostIp(this.hostIp);
-        po.setAppAlias(this.alias);
+        po.setAlias(this.alias);
         po.setOriginalAlias(this.moduleAliasName);
         return po;
     }

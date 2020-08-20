@@ -15,17 +15,9 @@ import java.util.List;
  * @Date: 2019/11/14 14:34
  * @Version: 1.0
  */
-public class AppModuleVo {
+public class AppModuleVo extends AppBase{
 
     private int appId; //部署应用的id
-
-    private AppType appType; //应用类型
-
-    private String appName; //应用名
-
-    private String version; //应用版本
-
-    private String ccodVersion; //对应的ccod大版本
 
     private Date createTime; //创建时间
 
@@ -37,33 +29,9 @@ public class AppModuleVo {
 
     private String versionControlUrl; //版本控制的连接url
 
-    private String basePath; //应用的base path
-
-    private String deployPath; //应用程序/包相对basePath的路径
-
-    private String envLoadCmd; //环境加载命令
-
-    private String initCmd; //初始话命令
-
-    private String startCmd; //启动命令
-
-    private String logOutputCmd; //日志输出命令
-
     private boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
 
     private int timeout; //启动超时
-
-    private String ports; //应用使用的端口
-
-    private String nodePorts; //应用对外开放的端口
-
-    private String checkAt; //用来定义应用健康检查的端口以及协议
-
-    private String resources; //启动该模块所需的资源
-
-    private int initialDelaySeconds; //应用预计启动时间
-
-    private int periodSeconds; //应用健康检查周期
 
     private String comment; //备注
 
@@ -118,30 +86,6 @@ public class AppModuleVo {
         this.appId = appId;
     }
 
-    public AppType getAppType() {
-        return appType;
-    }
-
-    public void setAppType(AppType appType) {
-        this.appType = appType;
-    }
-
-    public String getAppName() {
-        return appName;
-    }
-
-    public void setAppName(String appName) {
-        this.appName = appName;
-    }
-
-    public String getVersion() {
-        return version;
-    }
-
-    public void setVersion(String version) {
-        this.version = version;
-    }
-
     public Date getCreateTime() {
         return createTime;
     }
@@ -166,14 +110,6 @@ public class AppModuleVo {
         this.versionControlUrl = versionControlUrl;
     }
 
-    public String getBasePath() {
-        return basePath;
-    }
-
-    public void setBasePath(String basePath) {
-        this.basePath = basePath;
-    }
-
     public AppInstallPackagePo getInstallPackage() {
         return installPackage;
     }
@@ -188,14 +124,6 @@ public class AppModuleVo {
 
     public void setCfgs(List<AppCfgFilePo> cfgs) {
         this.cfgs = cfgs;
-    }
-
-    public String getCcodVersion() {
-        return ccodVersion;
-    }
-
-    public void setCcodVersion(String ccodVersion) {
-        this.ccodVersion = ccodVersion;
     }
 
     public Date getUpdateTime() {
@@ -222,28 +150,9 @@ public class AppModuleVo {
         this.comment = comment;
     }
 
-    public String getCheckAt() {
-        return checkAt;
-    }
-
-    public void setCheckAt(String checkAt) {
-        this.checkAt = checkAt;
-    }
-
-    public String getAppNexusDirectory() {
-        String directory = String.format("%s/%s", this.appName, this.version);
-        return directory;
-    }
-
     public String getAppNexusUploadUrl(String nexusHostUrl, String repository) {
         String url = String.format("%s/service/rest/v1/components?repository=%s", nexusHostUrl, repository);
         return url;
-    }
-
-    public String getAppNexusGroup()
-    {
-        String group = String.format("/%s/%s", this.appName, this.version);
-        return group;
     }
 
     public boolean isHasImage() {
@@ -252,38 +161,6 @@ public class AppModuleVo {
 
     public void setHasImage(boolean hasImage) {
         this.hasImage = hasImage;
-    }
-
-    public String getDeployPath() {
-        return deployPath;
-    }
-
-    public void setDeployPath(String deployPath) {
-        this.deployPath = deployPath;
-    }
-
-    public String getStartCmd() {
-        return startCmd;
-    }
-
-    public void setStartCmd(String startCmd) {
-        this.startCmd = startCmd;
-    }
-
-    public String getPorts() {
-        return ports;
-    }
-
-    public void setPorts(String ports) {
-        this.ports = ports;
-    }
-
-    public String getNodePorts() {
-        return nodePorts;
-    }
-
-    public void setNodePorts(String nodePorts) {
-        this.nodePorts = nodePorts;
     }
 
     public boolean isKernal() {
@@ -300,54 +177,6 @@ public class AppModuleVo {
 
     public void setTimeout(int timeout) {
         this.timeout = timeout;
-    }
-
-    public String getInitCmd() {
-        return initCmd;
-    }
-
-    public void setInitCmd(String initCmd) {
-        this.initCmd = initCmd;
-    }
-
-    public String getResources() {
-        return resources;
-    }
-
-    public void setResources(String resources) {
-        this.resources = resources;
-    }
-
-    public String getLogOutputCmd() {
-        return logOutputCmd;
-    }
-
-    public void setLogOutputCmd(String logOutputCmd) {
-        this.logOutputCmd = logOutputCmd;
-    }
-
-    public int getInitialDelaySeconds() {
-        return initialDelaySeconds;
-    }
-
-    public void setInitialDelaySeconds(int initialDelaySeconds) {
-        this.initialDelaySeconds = initialDelaySeconds;
-    }
-
-    public int getPeriodSeconds() {
-        return periodSeconds;
-    }
-
-    public void setPeriodSeconds(int periodSeconds) {
-        this.periodSeconds = periodSeconds;
-    }
-
-    public String getEnvLoadCmd() {
-        return envLoadCmd;
-    }
-
-    public void setEnvLoadCmd(String envLoadCmd) {
-        this.envLoadCmd = envLoadCmd;
     }
 
     public AppPo getApp()

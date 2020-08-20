@@ -8,6 +8,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
+import com.channelsoft.ccod.support.cmdb.po.AppBase;
 import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IK8sTemplateService;
@@ -78,6 +79,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Value("${ccod.service-port-regex}")
     private String portRegex;
+
+    @Value("${ccod.health-check-at-regex}")
+    private String healthCheckRegex;
 
     @Value("${k8s.template-file-path}")
     private String templateSavePath;
@@ -311,10 +315,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Deployment generateCCODDomainAppDeployment(AppUpdateOperationInfo optInfo, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException {
-        String appName = optInfo.getAppName();
-        String version = optInfo.getTargetVersion();
-        String alias = optInfo.getAppAlias();
+    public V1Deployment generateCCODDomainAppDeployment(AppBase appBase, List<AppFileNexusInfo> appCfgs, String hostUrl, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException {
+        String appName = appBase.getAppName();
+        String alias = appBase.getAlias();
+        String version = appBase.getVersion();
         AppModuleVo module = this.appManagerService.queryAllRegisterAppModule(true).stream()
                 .collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName).stream()
                 .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
@@ -322,8 +326,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String ccodVersion = module.getCcodVersion();
         Map<String, String> selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.DEPLOYMENT);
         V1Deployment deploy = (V1Deployment)selectK8sObjectTemplate(ccodVersion, appType, appName, version, K8sKind.DEPLOYMENT);
-        String basePath = optInfo.getBasePath();
-        String deployPath = getAbsolutePath(optInfo.getBasePath(), optInfo.getDeployPath());
+        String basePath = appBase.getBasePath();
+        String deployPath = getAbsolutePath(appBase.getBasePath(), appBase.getDeployPath());
         deploy.getMetadata().setNamespace(platformId);
         deploy.getMetadata().setName(String.format("%s-%s", alias, domainId));
         deploy.getMetadata().setLabels(new HashMap<>());
@@ -336,7 +340,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
         deploy.getSpec().getTemplate().getMetadata().getLabels().put(this.domainIdLabel, domainId);
         deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
-        List<V1Volume> volumes = generateVolumeForDeployment(deploy, appType, alias, platformId, domainId, optInfo.getCfgs(), platformCfg, domainCfg);
+        List<V1Volume> volumes = generateVolumeForDeployment(deploy, appType, alias, platformId, domainId, appCfgs, platformCfg, domainCfg);
         deploy.getSpec().getTemplate().getSpec().setVolumes(volumes);
         V1Container initContainer = deploy.getSpec().getTemplate().getSpec().getInitContainers().get(0);
         logger.debug(String.format("set initContainer name : %s", alias));
@@ -349,35 +353,26 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Container runtimeContainer = deploy.getSpec().getTemplate().getSpec().getContainers().get(0);
         logger.debug(String.format("set container name to %s-runtime", alias));
         runtimeContainer.setName(String.format("%s-runtime", alias));
-        mounts = generateRuntimeContainerMount(runtimeContainer, optInfo, appType, platformId, domainId, platformCfg, domainCfg);
+        mounts = generateRuntimeContainerMount(runtimeContainer, appBase, platformId, domainId, platformCfg, domainCfg);
         runtimeContainer.setVolumeMounts(mounts);
         logger.debug(String.format("generate init container commands"));
-        List<String> commands = generateCmdForInitContainer(optInfo, module, domainId);
+        String packageFileName = module.getInstallPackage().getFileName();
+        List<String> commands = generateCmdForInitContainer(appBase, packageFileName, appCfgs, domainId);
         initContainer.setCommand(commands);
         initContainer.setArgs(new ArrayList<>());
         logger.debug(String.format("generate runtime container command"));
-        commands = generateCmdForRuntimeContainer(optInfo, appType, platformId, domainId, platformCfg, domainCfg);
+        commands = generateCmdForRuntimeContainer(appBase, platformId, domainId, platformCfg, domainCfg);
         runtimeContainer.setCommand(commands);
         runtimeContainer.setArgs(new ArrayList<>());
-        List<V1ContainerPort> containerPorts = generateContainerPortsForRuntimeContainer(optInfo.getPorts(), appType);
+        List<V1ContainerPort> containerPorts = generateContainerPortsForRuntimeContainer(appBase.getPorts(), appType);
         logger.debug(String.format("containerPorts of %s runtime container at %s is : %s", alias, domainId, gson.toJson(containerPorts)));
         runtimeContainer.setPorts(containerPorts);
-        generateProbeForRuntimeContainer(runtimeContainer, alias, domainId, appType, optInfo.getPorts());
+        generateProbeForRuntimeContainer(runtimeContainer, alias, domainId, appType, appBase.getPorts(),
+                appBase.getCheckAt(), appBase.getInitialDelaySeconds(), appBase.getPeriodSeconds());
         if(appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.TOMCAT_WEB_APP))
         {
             logger.debug(String.format("modify deployment hostnames of hostAliases to %s", hostUrl));
             deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).getHostnames().set(0, hostUrl);
-        }
-        if(optInfo.getInitialDelaySeconds() > 0){
-            logger.debug(String.format("change initialDelaySeconds of runtime container from %d to %d",
-                    runtimeContainer.getLivenessProbe().getInitialDelaySeconds(), optInfo.getInitialDelaySeconds()));
-            runtimeContainer.getLivenessProbe().setInitialDelaySeconds(optInfo.getInitialDelaySeconds());
-        }
-        if(optInfo.getPeriodSeconds() > 0)
-        {
-            logger.debug(String.format("change periodSeconds of runtime container from %d to %d",
-                    runtimeContainer.getLivenessProbe().getPeriodSeconds(), optInfo.getPeriodSeconds()));
-            runtimeContainer.getLivenessProbe().setPeriodSeconds(optInfo.getPeriodSeconds());
         }
         logger.info(String.format("selected deployment is %s for selector %s", gson.toJson(deploy), gson.toJson(selector)));
         return deploy;
@@ -412,12 +407,13 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return portList;
     }
 
-    private List<V1VolumeMount> generateRuntimeContainerMount(V1Container runtimeContainer, AppUpdateOperationInfo optInfo, AppType appType, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException
+    private List<V1VolumeMount> generateRuntimeContainerMount(V1Container runtimeContainer, AppBase appBase, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException
     {
         logger.debug(String.format("generate runtime container volume mount"));
-        String basePath = optInfo.getBasePath();
-        String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
-        String alias = optInfo.getAppAlias();
+        String basePath = appBase.getBasePath();
+        String deployPath = getAbsolutePath(basePath, appBase.getDeployPath());
+        String alias = appBase.getAlias();
+        AppType appType = appBase.getAppType();
         Map<String, V1VolumeMount> volumeMountMap = runtimeContainer.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()));
         String pkgPath = getAbsolutePath(basePath, deployPath).replaceAll("/$", "");
         String logPath = appType.equals(AppType.TOMCAT_WEB_APP) ? pkgPath.replaceAll("/[^/]+$", "/logs") : pkgPath.replaceAll("/[^/]+$", "/log");
@@ -513,14 +509,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return volume;
     }
 
-    private List<String> generateCmdForRuntimeContainer(AppUpdateOperationInfo optInfo, AppType appType, String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException
+    private List<String> generateCmdForRuntimeContainer(AppBase appBase,String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException
     {
+        String alias = appBase.getAlias();
         List<String> commands = new ArrayList<>();
         commands.add(0, "/bin/sh");
         commands.add(1, "-c");
-        String basePath = optInfo.getBasePath();
-        String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
-        String alias = optInfo.getAppAlias();
+        String basePath = appBase.getBasePath();
+        String deployPath = getAbsolutePath(basePath, appBase.getDeployPath());
         String execParam = "";
         if(platformCfg != null && platformCfg.size() > 0)
         {
@@ -546,35 +542,35 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 }
             }
         }
+        AppType appType = appBase.getAppType();
         String cwd = appType.equals(AppType.BINARY_FILE) ? deployPath:basePath;
-        if(StringUtils.isNotBlank(optInfo.getInitCmd()))
-            execParam = String.format("%s;cd %s;%s", execParam, cwd, optInfo.getInitCmd());
-        execParam = String.format("%s;cd %s;%s", execParam, cwd, optInfo.getStartCmd());
-        if(StringUtils.isNotBlank(optInfo.getLogOutputCmd()))
-            execParam = String.format("%s;cd %s;%s", execParam, cwd, optInfo.getLogOutputCmd());
+        if(StringUtils.isNotBlank(appBase.getInitCmd()))
+            execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getInitCmd());
+        execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getStartCmd());
+        if(StringUtils.isNotBlank(appBase.getLogOutputCmd()))
+            execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getLogOutputCmd());
         commands.add(execParam.replaceAll("^;", "").replaceAll(";;", ";"));
         logger.debug(String.format("command for %s at %s is : %s", alias, domainId, String.join(";", commands)));
         return commands;
     }
 
-    private List<String> generateCmdForInitContainer(AppUpdateOperationInfo optInfo, AppModuleVo module, String domainId) throws ParamException
+    private List<String> generateCmdForInitContainer(AppBase appBase, String packageFileName, List<AppFileNexusInfo> appCfgs, String domainId) throws ParamException
     {
+        String alias = appBase.getAlias();
         List<String> commands = new ArrayList<>();
         commands.add(0, "/bin/sh");
         commands.add(1, "-c");
-        AppType appType = module.getAppType();
-        String appName = optInfo.getAppName();
-        String alias = optInfo.getAppAlias();
-        String packageFileName = module.getInstallPackage().getFileName();
+        AppType appType = appBase.getAppType();
+        String appName = appBase.getAppName();
         String theName = packageFileName.replaceAll("\\.war$", "");
         String basePath = appType.equals(AppType.BINARY_FILE) ? "/binary-file" : "/opt";
-        String deployPath = getAbsolutePath(basePath, optInfo.getDeployPath());
+        String deployPath = getAbsolutePath(basePath, appBase.getDeployPath());
         String execParam = "";
         String mountPath = String.format("/cfg/%s-cfg", alias);
         switch (appType)
         {
             case BINARY_FILE:
-                execParam = String.format("mkdir %s -p;mkdir %s/log -p;mv /opt/%s %s/%s", deployPath, basePath, packageFileName, deployPath, module.getInstallPackage().getFileName());
+                execParam = String.format("mkdir %s -p;mkdir %s/log -p;mv /opt/%s %s/%s", deployPath, basePath, packageFileName, deployPath, packageFileName);
                 break;
             case TOMCAT_WEB_APP:
             case RESIN_WEB_APP:
@@ -583,7 +579,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             default:
                 throw new ParamException(String.format("error appType %s", appType.name));
         }
-        Map<String, List<AppFileNexusInfo>> deployPathCfgMap = optInfo.getCfgs().stream().collect(Collectors.groupingBy(AppFileNexusInfo::getDeployPath));
+        Map<String, List<AppFileNexusInfo>> deployPathCfgMap = appCfgs.stream().collect(Collectors.groupingBy(AppFileNexusInfo::getDeployPath));
         for (String cfgDeployPath : deployPathCfgMap.keySet()) {
             String absolutePath = getAbsolutePath(basePath, cfgDeployPath);
             switch (appType)
@@ -624,8 +620,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             case RESIN_WEB_APP:
                 execParam = String.format("%s;mv /%s/%s /war/%s-%s.war", execParam, deployPath, packageFileName, alias, domainId);
         }
-        if(StringUtils.isNotBlank(optInfo.getEnvLoadCmd()))
-            execParam = String.format("%s;cd %s;%s", execParam, basePath, optInfo.getEnvLoadCmd());
+        if(StringUtils.isNotBlank(appBase.getEnvLoadCmd()))
+            execParam = String.format("%s;cd %s;%s", execParam, basePath, appBase.getEnvLoadCmd());
         commands.add(execParam.replaceAll("^;", "").replaceAll(";;", ";").replaceAll("//", "/"));
         logger.debug(String.format("command of init container is %s", String.join(";", commands)));
         return commands;
@@ -645,36 +641,72 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return containerPorts;
     }
 
-    private void generateProbeForRuntimeContainer(V1Container runtimeContainer, String alias, String domainId, AppType appType, String checkAt) throws ParamException
+    private void generateProbeForRuntimeContainer(
+            V1Container runtimeContainer, String alias, String domainId, AppType appType, String portStr,
+            String checkAt, int initialDelaySeconds, int periodSeconds) throws ParamException
     {
-        String regex = "^CMD/.+$|^TCP/\\d+$|^HTTP/.*$";
-        if(!checkAt.matches(regex))
-            throw new ParamException(String.format("%s is not legal health check word", checkAt));
-        String checkType = checkAt.split("/")[0];
-        if(checkType.equals("HTTP"))
-        {
-            V1HTTPGetAction httpGet = new V1HTTPGetAction();
-
-        }
+        V1HTTPGetAction get = null;
+        V1TCPSocketAction tcp = null;
+        V1ExecAction exec = null;
         List<PortVo> portList = parsePort(portStr, ServicePortType.ClusterIP, appType);
-        int targetPort = portList.get(0).getTargetPort();
-        logger.debug(String.format("monitor port is %d/TCP", targetPort));
-        switch (appType) {
-            case BINARY_FILE:
-                runtimeContainer.getLivenessProbe().getTcpSocket().setPort(new IntOrString(targetPort));
-                runtimeContainer.getReadinessProbe().getTcpSocket().setPort(new IntOrString(targetPort));
-                break;
-            case TOMCAT_WEB_APP:
-            case RESIN_WEB_APP:
-                logger.debug(String.format("monitor port is %d/HTTPGet", targetPort));
-                runtimeContainer.getLivenessProbe().getHttpGet().setPort(new IntOrString(targetPort));
-                runtimeContainer.getLivenessProbe().getHttpGet().setPath(String.format("/%s-%s", alias, domainId));
-                runtimeContainer.getReadinessProbe().getHttpGet().setPort(new IntOrString(targetPort));
-                runtimeContainer.getReadinessProbe().getHttpGet().setPath(String.format("/%s-%s", alias, domainId));
-                break;
-            default:
-                throw new ParamException(String.format("can not handle probe for appType=%s", appType.name));
+        if(StringUtils.isNotBlank(checkAt))
+        {
+            if(!checkAt.matches(this.healthCheckRegex))
+                throw new ParamException(String.format("%s is not legal health check word", checkAt));
+            String[] arr = checkAt.split("/");
+            String[] typeArr = arr[arr.length - 1].split("\\:");
+            String checkType = typeArr[0];
+            if(checkType.equals("HTTP") || checkType.equals("HTTPS"))
+            {
+                get = new V1HTTPGetAction();
+                get.setPort(new IntOrString(Integer.parseInt(arr[0])));
+                String subPath = typeArr.length==1 ? "" : arr[arr.length-1].replaceAll("^%s\\:", "");
+                String path = String.format("/%s-%s/%s", alias, domainId, subPath).replaceAll("//", "/").replaceAll("/$", "");
+                get.setPath(path);
+                get.setScheme(checkType);
+            }
+            else if(checkType.equals("TCP"))
+            {
+                tcp = new V1TCPSocketAction();
+                tcp.setPort(new IntOrString(Integer.parseInt(arr[0])));
+            }
+            else
+            {
+                exec = new V1ExecAction();
+                exec.setCommand(Arrays.asList(checkAt.replaceAll(String.format("/%s$", arr[1]), "")));
+            }
         }
+        else
+        {
+            int targetPort = portList.get(0).getTargetPort();
+            switch (appType) {
+                case BINARY_FILE:
+                    logger.debug(String.format("monitor port is %d/TCP", targetPort));
+                    tcp = new V1TCPSocketAction();
+                    tcp.setPort(new IntOrString(targetPort));
+                    break;
+                case TOMCAT_WEB_APP:
+                case RESIN_WEB_APP:
+                    logger.debug(String.format("monitor port is %d/HTTPGet", targetPort));
+                    get = new V1HTTPGetAction();
+                    get.setPort(new IntOrString(targetPort));
+                    get.setPath(String.format("/%s-%s", alias, domainId));
+                    get.setScheme("HTTP");
+                    break;
+                default:
+                    throw new ParamException(String.format("can not handle probe for appType=%s", appType.name));
+            }
+        }
+        runtimeContainer.getLivenessProbe().setTcpSocket(tcp);
+        runtimeContainer.getLivenessProbe().setHttpGet(get);
+        runtimeContainer.getLivenessProbe().setExec(exec);
+        if(initialDelaySeconds > 0)
+            runtimeContainer.getLivenessProbe().setInitialDelaySeconds(initialDelaySeconds);
+        if(periodSeconds > 0)
+            runtimeContainer.getLivenessProbe().setPeriodSeconds(periodSeconds);
+        runtimeContainer.getReadinessProbe().setTcpSocket(tcp);
+        runtimeContainer.getReadinessProbe().setHttpGet(get);
+        runtimeContainer.getReadinessProbe().setExec(exec);
     }
 
     /**
@@ -856,26 +888,22 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public K8sCCODDomainAppVo getNewCCODDomainApp(AppUpdateOperationInfo optInfo, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException, InterfaceCallException, IOException{
-        String appName = optInfo.getAppName();
-        String alias = optInfo.getAppAlias();
-        String version = optInfo.getTargetVersion();
-        List<AppModuleVo> modules = this.appManagerService.queryAllRegisterAppModule(true).stream()
-                .filter(app->app.getAppName().equals(appName) && app.getVersion().equals(version)).collect(Collectors.toList());
-        if(modules.size() == 0)
-            throw new ParamException(String.format("%s(%s) has not register or not image", appName, version));
-        AppModuleVo module = modules.get(0);
+    public K8sCCODDomainAppVo generateNewCCODDomainApp(AppBase appBase, List<AppFileNexusInfo> appCfgs, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl) throws ParamException, InterfaceCallException, IOException{
+        String appName = appBase.getAppName();
+        String version = appBase.getVersion();
+        String alias = appBase.getAlias();
+        AppModuleVo module = this.appManagerService.queryAppByVersion(appName, version, true);
         String ccodVersion = module.getCcodVersion();
         AppType appType = module.getAppType();
         V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, String.format("%s-%s", alias, domainId),
-                optInfo.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
+                appCfgs.stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
-        V1Deployment deploy = this.generateCCODDomainAppDeployment(optInfo, hostUrl, platformId, domainId, platformCfg, domainCfg);
+        V1Deployment deploy = this.generateCCODDomainAppDeployment(appBase, appCfgs, hostUrl, platformId, domainId, platformCfg, domainCfg);
         List<V1Service> services = new ArrayList<>();
-        V1Service service = this.generateCCODDomainAppService(ccodVersion, appType, appName, alias, ServicePortType.ClusterIP, optInfo.getPorts(), platformId, domainId);
+        V1Service service = this.generateCCODDomainAppService(ccodVersion, appType, appName, alias, ServicePortType.ClusterIP, appBase.getPorts(), platformId, domainId);
         services.add(service);
-        if(StringUtils.isNotBlank(optInfo.getNodePorts())) {
-            service = this.generateCCODDomainAppService(ccodVersion, appType, appName, alias, ServicePortType.NodePort, optInfo.getNodePorts(), platformId, domainId);
+        if(StringUtils.isNotBlank(appBase.getNodePorts())) {
+            service = this.generateCCODDomainAppService(ccodVersion, appType, appName, alias, ServicePortType.NodePort, appBase.getNodePorts(), platformId, domainId);
             services.add(service);
         }
         ExtensionsV1beta1Ingress ingress = null;
@@ -912,11 +940,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public List<K8sOperationInfo> getAddPlatformAppSteps(String jobId, AppUpdateOperationInfo optInfo, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException {
-        logger.debug(String.format("generate step of add %s to %s", gson.toJson(optInfo), domainId));
-        String appName = optInfo.getAppName();
-        String alias = optInfo.getAppAlias();
-        String version = optInfo.getTargetVersion();
+    public List<K8sOperationInfo> generateAddPlatformAppSteps(String jobId, AppBase appBase, List<AppFileNexusInfo> appCfgs, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException {
+        logger.debug(String.format("generate step of add %s to %s", gson.toJson(appBase), domainId));
+        String appName = appBase.getAppName();
+        String alias = appBase.getAlias();
+        String version = appBase.getVersion();
         String name = String.format("%s-%s", alias, domainId);
         AppModuleVo module = this.appManagerService.queryAllRegisterAppModule(true).stream()
                 .filter(app->app.getAppName().equals(appName)&&app.getVersion().equals(version))
@@ -943,7 +971,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                  throw new ParamException(String.format("ingress %s exist at %s", name, platformId));
 
         }
-        K8sCCODDomainAppVo app = getNewCCODDomainApp(optInfo, domainId, domainCfg, platformId, platformCfg, hostUrl, k8sApiUrl, k8sAuthToken);
+        K8sCCODDomainAppVo app = generateNewCCODDomainApp(appBase, appCfgs, domainId, domainCfg, platformId, platformCfg, hostUrl);
         List<K8sOperationInfo> steps = new ArrayList<>();
         K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
                 app.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, app.getConfigMap());
@@ -971,13 +999,13 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public List<K8sOperationInfo> getUpdatePlatformAppSteps(String jobId, AppUpdateOperationInfo optInfo, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException, InterfaceCallException, IOException {
-        String alias = optInfo.getAppAlias();
-        String appName = optInfo.getAppName();
-        String version = optInfo.getTargetVersion();
+    public List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppBase appBase, List<AppFileNexusInfo> appCfgs, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException, InterfaceCallException, IOException {
+        String alias = appBase.getAlias();
+        String appName = appBase.getAppName();
+        String version = appBase.getVersion();
         logger.debug(String.format("generate update step for %s at %s", alias, domainId));
         K8sCCODDomainAppVo oriApp= getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
-        K8sCCODDomainAppVo updateApp = getNewCCODDomainApp(optInfo, domainId, domainCfg, platformId, platformCfg, hostUrl, k8sApiUrl, k8sAuthToken);
+        K8sCCODDomainAppVo updateApp = generateNewCCODDomainApp(appBase, appCfgs, domainId, domainCfg, platformId, platformCfg, hostUrl);
         List<K8sOperationInfo> steps = new ArrayList<>();
         K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
                 updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getConfigMap());
@@ -987,8 +1015,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         steps.add(step);
         for(V1Service service : updateApp.getServices())
         {
-            String portKind = service.getKind();
-            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getKind().equals(portKind)).collect(Collectors.toList());
+            String portKind = service.getSpec().getType();
+            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getSpec().getType().equals(portKind)).collect(Collectors.toList());
             boolean isChanged = this.ik8sApiService.isServicePortChanged(portKind, service, oriServices);
             if(isChanged)
             {
@@ -1008,8 +1036,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         steps.add(step);
         for(V1Service service : updateApp.getServices())
         {
-            String portKind = service.getKind();
-            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getKind().equals(portKind)).collect(Collectors.toList());
+            String portKind = service.getSpec().getType();
+            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getSpec().getType().equals(portKind)).collect(Collectors.toList());
             boolean isChanged = this.ik8sApiService.isServicePortChanged(portKind, service, oriServices);
             if(isChanged)
             {

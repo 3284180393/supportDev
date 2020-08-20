@@ -375,7 +375,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public AppModuleVo queryAppByVersion(String appName, String version) throws ParamException, DataAccessException {
+    public AppModuleVo queryAppByVersion(String appName, String version, Boolean hasImage) throws ParamException, DataAccessException {
         logger.debug(String.format("begin to query appName=%s and version=%s app module record", appName, version));
         this.appReadLock.readLock().lock();
         try
@@ -391,7 +391,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 logger.error(String.format("%s has not version %s", appName, version));
                 throw new ParamException(String.format("%s has not version %s", appName, version));
             }
-            return versionMap.get(version);
+            AppModuleVo moduleVo = versionMap.get(version);
+            if(hasImage != null && moduleVo.isHasImage() != hasImage)
+                throw new ParamException(String.format("%s(%s) not match hasImage=%s", appName, version, hasImage));
+            return moduleVo;
         }
         finally {
             this.appReadLock.readLock().unlock();
@@ -1259,7 +1262,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public String getAppCfgText(String appName, String version, String cfgFileName) throws ParamException, NexusException, InterfaceCallException , IOException{
         logger.debug("begin to get %s text of %s[%s]", cfgFileName, appName, version);
-        AppModuleVo moduleVo = queryAppByVersion(appName, version);
+        AppModuleVo moduleVo = queryAppByVersion(appName, version, null);
         if(moduleVo == null)
         {
             logger.error(String.format("%s[%] not exist", appName, version));
@@ -1387,28 +1390,28 @@ public class AppManagerServiceImpl implements IAppManagerService {
             String standAlias = this.setDefineMap.get(domainPo.getBizSetName()).getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity())).get(appName).getAlias();
             if(domainAppMap.containsKey(appName))
             {
-                usedAlias = new ArrayList<>(domainAppMap.get(appName).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAppAlias, Function.identity())).keySet());
+                usedAlias = new ArrayList<>(domainAppMap.get(appName).stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAlias, Function.identity())).keySet());
             }
             List<AppUpdateOperationInfo> needAliasList = new ArrayList<>();
             for(AppUpdateOperationInfo optInfo : addAppMap.get(appName))
             {
-                if(StringUtils.isBlank(optInfo.getAppAlias()) || !clone)
+                if(StringUtils.isBlank(optInfo.getAlias()) || !clone)
                     needAliasList.add(optInfo);
                 else
-                    usedAlias.add(optInfo.getAppAlias());
+                    usedAlias.add(optInfo.getAlias());
             }
             boolean onlyOne = usedAlias.size() == 0 && needAliasList.size() == 1 ? true : false;
             for(AppUpdateOperationInfo optInfo : needAliasList)
             {
                 String alias = autoGenerateAlias(standAlias, usedAlias, onlyOne);
-                optInfo.setAppAlias(alias);
+                optInfo.setAlias(alias);
                 usedAlias.add(alias);
             }
         }
         for(AppUpdateOperationInfo optInfo : addOptList)
         {
             if(StringUtils.isBlank(optInfo.getOriginalAlias()))
-                optInfo.setOriginalAlias(optInfo.getAppAlias());
+                optInfo.setOriginalAlias(optInfo.getAlias());
         }
     }
 

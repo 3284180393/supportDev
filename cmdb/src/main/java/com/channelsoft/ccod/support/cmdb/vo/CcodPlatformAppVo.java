@@ -76,11 +76,11 @@ public class CcodPlatformAppVo {
         this.appName = appName;
     }
 
-    public String getAppAlias() {
+    public String getAlias() {
         return appAlias;
     }
 
-    public void setAppAlias(String appAlias) {
+    public void setAlias(String appAlias) {
         this.appAlias = appAlias;
     }
 

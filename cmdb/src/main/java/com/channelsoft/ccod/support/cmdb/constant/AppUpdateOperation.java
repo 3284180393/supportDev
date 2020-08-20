@@ -13,7 +13,9 @@ public enum AppUpdateOperation {
 
     DELETE(2, "DELETE", "移除已有应用"),
 
-    UPDATE(3, "UPDATE", "升级已有应用"),;
+    UPDATE(3, "UPDATE", "升级已有应用"),
+
+    DEBUG(4, "DEBUG", "调试已经部署应用"),;
 
     public int id;
 

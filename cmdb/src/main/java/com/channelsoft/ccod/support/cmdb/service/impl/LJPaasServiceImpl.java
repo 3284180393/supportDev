@@ -730,7 +730,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
             for(PlatformAppDeployDetailVo deployApp : setAppMap.get(setName))
             {
                 int bkHostId = idleHostMap.get(deployApp.getHostIp()).getBkHostId();
-                int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, setInfo.getBkSetId(), bkHostId, setModuleList);
+                int bkModuleId = bindModuleToBkHost(deployApp.getAlias(), bkBizId, setInfo.getBkSetId(), bkHostId, setModuleList);
                 insertPlatformAppBkModule(deployApp.getPlatformAppId(), deployApp.getPlatformId(), deployApp.getDomainId(), bkBizId, setInfo.getBkSetId(), setInfo.getBkSetName(), bkModuleId, bkHostId);
             }
         }
@@ -843,7 +843,7 @@ public class LJPaasServiceImpl implements ILJPaasService {
                 .stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
         for(PlatformAppPo deployApp : deployAppList)
         {
-            int bkModuleId = bindModuleToBkHost(deployApp.getAppAlias(), bkBizId, bkSetId, hostMap.get(deployApp.getHostIp()).getBkHostId(), bkModuleList);
+            int bkModuleId = bindModuleToBkHost(deployApp.getAlias(), bkBizId, bkSetId, hostMap.get(deployApp.getHostIp()).getBkHostId(), bkModuleList);
             insertPlatformAppBkModule(deployApp.getPlatformAppId(), deployApp.getPlatformId(), deployApp.getDomainId(), bkBizId, bkSetId, bkSetName, bkModuleId, hostMap.get(deployApp.getHostIp()).getBkHostId());
         }
     }
@@ -874,17 +874,17 @@ public class LJPaasServiceImpl implements ILJPaasService {
 //                .stream().collect(Collectors.toMap(LJModuleInfo::getBkModuleName, Function.identity()));
 //        for(AppUpdateOperationInfo deployApp : deployAppList)
 //        {
-//            if(!moduleMap.containsKey(deployApp.getAppAlias()))
+//            if(!moduleMap.containsKey(deployApp.getAlias()))
 //            {
-//                LJModuleInfo moduleInfo = addNewBkModule(bkBizId, bkSet.getBkSetId(), deployApp.getAppAlias());
-//                moduleMap.put(deployApp.getAppAlias(), moduleInfo);
+//                LJModuleInfo moduleInfo = addNewBkModule(bkBizId, bkSet.getBkSetId(), deployApp.getAlias());
+//                moduleMap.put(deployApp.getAlias(), moduleInfo);
 //            }
 //            LJHostInfo bkHost = hostMap.get(deployApp.getHostIp());
 //            if(!transferAppMap.containsKey(bkHost.getBkHostId()))
 //            {
 //                transferAppMap.put(bkHost.getBkHostId(), new HashSet<>());
 //            }
-//            transferAppMap.get(bkHost.getBkHostId()).add(moduleMap.get(deployApp.getAppAlias()).getBkModuleId());
+//            transferAppMap.get(bkHost.getBkHostId()).add(moduleMap.get(deployApp.getAlias()).getBkModuleId());
 //        }
 //        for(Integer bkHostId : transferAppMap.keySet())
 //        {
@@ -903,13 +903,13 @@ public class LJPaasServiceImpl implements ILJPaasService {
 //        Map<String, List<AppPo>> appMap = appList.stream().collect(Collectors.groupingBy(AppPo::getAppName));
 //        for(AppUpdateOperationInfo deployApp : deployAppList)
 //        {
-//            AppPo appPo = appMap.get(deployApp.getAppName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity())).get(deployApp.getTargetVersion());
+//            AppPo appPo = appMap.get(deployApp.getAppName()).stream().collect(Collectors.toMap(AppPo::getVersion, Function.identity())).get(deployApp.getVersion());
 //            PlatformAppPo po = new PlatformAppPo();
 //            po.setAppId(appPo.getAppId());
 //            po.setDomainId(domainId);
 //            po.setBasePath(deployApp.getBasePath());
 //            po.setPlatformId(platformId);
-//            po.setAppAlias(deployApp.getAppAlias());
+//            po.setAlias(deployApp.getAlias());
 //            po.setAppRunner(deployApp.getAppRunner());
 //            platformAppMapper.insert(po);
 //        }

@@ -24,10 +24,11 @@ public interface IAppManagerService {
      * 查询指定版本的应用模块
      * @param appName 模块名
      * @param version 版本号
+     * @param hasImage 是否有镜像，如果为空忽略对镜像检查
      * @return 查询结果
      * @throws Exception
      */
-    AppModuleVo queryAppByVersion(String appName, String version) throws ParamException, DataAccessException;
+    AppModuleVo queryAppByVersion(String appName, String version, Boolean hasImage) throws ParamException, DataAccessException;
 
     /**
      * 查询指定应用信息,如果appName为空则查询所有的应用信息
