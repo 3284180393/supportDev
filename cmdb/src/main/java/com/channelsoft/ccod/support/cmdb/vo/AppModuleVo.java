@@ -37,8 +37,6 @@ public class AppModuleVo extends AppBase{
 
     private AppInstallPackagePo installPackage; //应用部署包
 
-    private List<AppCfgFilePo> cfgs; //应用配置文件
-
     private boolean hasImage; //是否有镜像
 
     public AppModuleVo()
@@ -74,7 +72,6 @@ public class AppModuleVo extends AppBase{
         this.periodSeconds = app.getPeriodSeconds();
         this.comment = app.getComment();
         this.installPackage = installPackage;
-        this.cfgs = cfgs;
         this.hasImage = app.isHasImage();
     }
 
@@ -116,14 +113,6 @@ public class AppModuleVo extends AppBase{
 
     public void setInstallPackage(AppInstallPackagePo installPackage) {
         this.installPackage = installPackage;
-    }
-
-    public List<AppCfgFilePo> getCfgs() {
-        return cfgs;
-    }
-
-    public void setCfgs(List<AppCfgFilePo> cfgs) {
-        this.cfgs = cfgs;
     }
 
     public Date getUpdateTime() {

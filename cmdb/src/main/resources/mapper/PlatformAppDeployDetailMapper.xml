@@ -40,25 +40,15 @@
         <result column="bk_set_id" property="bkSetId" jdbcType="INTEGER" />
         <result column="bk_module_id" property="bkModuleId" jdbcType="INTEGER" />
         <result column="bk_host_id" property="bkHostId" jdbcType="INTEGER" />
-
+        <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
         <association property="installPackage"
                      javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
                      resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"
                      columnPrefix="aip_">
         </association>
-        <collection property="srcCfgs"
-                    ofType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
-                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
-                    columnPrefix="acf_">
-        </collection>
-        <collection property="cfgs"
-                    ofType="com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo"
-                    resultMap="com.channelsoft.ccod.support.cmdb.dao.PlatformAppCfgFileMapper.PlatformAppCfgFileMap"
-                    columnPrefix="pacf_">
-        </collection>
     </resultMap>
     <sql id="Base_Column_List" >
-        pacf.platform_app_id AS platform_app_id,
+        pa.platform_app_id AS platform_app_id,
         a.app_id,
 	    pf.platform_name,
 	    pf.platform_id,
@@ -89,6 +79,7 @@
 	    pa.initial_delay_seconds AS initial_delay_seconds,
 	    pa.period_seconds AS period_seconds,
 	    pa.deploy_time,
+	    pa.cfgs,
 	    a.create_time,
 	    a.version_control,
 	    a.version_control_url,
@@ -112,16 +103,6 @@
 	    acf.nexus_directory AS acf_nexus_directory,
 	    acf.nexus_repository AS acf_nexus_repository,
 	    acf.cfg_file_id AS acf_cfg_file_id,
-	    pacf.platform_app_id AS pacf_platform_app_id,
-	    pacf.create_time AS pacf_create_time,
-	    pacf.deploy_path AS pacf_deploy_path,
-	    pacf.file_name AS pacf_file_name,
-	    pacf.ext AS pacf_ext,
-	    pacf.md5 AS pacf_md5,
-	    pacf.nexus_asset_id AS pacf_nexus_asset_id,
-	    pacf.nexus_directory AS pacf_nexus_directory,
-	    pacf.nexus_repository AS pacf_nexus_repository,
-	    pacf.cfg_file_id AS pacf_cfg_file_id,
 	    bakm.app_bk_module_id AS app_bk_module_id,
 	    bakm.bk_biz_id AS bk_biz_id,
 	    bakm.bk_set_id AS bk_set_id,
@@ -135,7 +116,6 @@
     INNER JOIN app a ON pa.app_id = a.app_id
     INNER JOIN app_install_package aip ON a.app_id = aip.app_id
     INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
-    INNER JOIN platform_app_cfg_file pacf ON pacf.platform_app_id = pa.platform_app_id
     LEFT OUTER JOIN platform_app_bk_module bakm ON bakm.platform_app_id = pa.platform_app_id
     INNER JOIN assemble asb ON pa.assemble_id=asb.assemble_id
     </sql>

@@ -49,6 +49,15 @@ public class DeployFileInfo {
         this.ext = filePo.getExt();
     }
 
+    public DeployFileInfo(AppFileNexusInfo filePo, String savePath)
+    {
+        this.fileMd5 = filePo.getMd5();
+        this.localSavePath = savePath;
+        this.deployPath = filePo.getDeployPath();
+        this.fileName = filePo.getFileName();
+        this.ext = filePo.getExt();
+    }
+
     public DeployFileInfo(NexusAssetInfo assetInfo, String savePath)
     {
         this.fileMd5 = assetInfo.getMd5();

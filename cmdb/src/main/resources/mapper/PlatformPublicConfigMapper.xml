@@ -6,7 +6,6 @@
         <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
         <result column="file_name" property="fileName" jdbcType="VARCHAR" />
         <result column="ext" property="ext" jdbcType="VARCHAR" />
-        <result column="file_size" property="fileSize" jdbcType="INTEGER" />
         <result column="md5" property="md5" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
         <result column="nexus_repository" property="nexusRepository" jdbcType="VARCHAR" />
@@ -18,7 +17,6 @@
         ppc.platform_id,
         ppc.file_name,
         ppc.ext,
-        ppc.file_size,
         ppc.md5,
         ppc.deploy_path,
         ppc.nexus_repository,
@@ -37,7 +35,6 @@
             platform_id,
             file_name,
             ext,
-            file_size,
             md5,
             deploy_path,
             nexus_repository,
@@ -47,7 +44,6 @@
             #{platformId,jdbcType=VARCHAR},
             #{fileName,jdbcType=VARCHAR},
             #{ext,jdbcType=VARCHAR},
-            #{fileSize,jdbcType=INTEGER},
             #{md5,jdbcType=VARCHAR},
             #{deployPath,jdbcType=VARCHAR},
             #{nexusRepository,jdbcType=VARCHAR},

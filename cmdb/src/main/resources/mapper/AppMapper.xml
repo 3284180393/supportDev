@@ -27,6 +27,7 @@
         <result column="version_control" property="versionControl" jdbcType="VARCHAR" />
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
         <result column="has_image" property="hasImage" jdbcType="BOOLEAN" />
+        <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
     </resultMap>
     <sql id="Base_Column_List" >
         a.app_id,
@@ -53,7 +54,8 @@
         a.`comment`,
         a.version_control,
         a.version_control_url,
-        a.has_image
+        a.has_image,
+        a.cfgs
     </sql>
     <select id="selectByPrimaryKey" resultMap="AppMap" parameterType="java.lang.Integer">
         select
@@ -106,7 +108,8 @@
                         `comment`,
                         version_control,
                         version_control_url,
-                        has_image)
+                        has_image,
+                        cfgs)
         values (
                     #{appName,jdbcType=VARCHAR},
                     #{appType,jdbcType=VARCHAR},
@@ -132,7 +135,9 @@
                     #{comment,jdbcType=VARCHAR},
                     #{versionControl,jdbcType=VARCHAR},
                     #{versionControlUrl,jdbcType=VARCHAR},
-                    #{hasImage,jdbcType=BOOLEAN})
+                    #{hasImage,jdbcType=BOOLEAN},
+                    #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
+                    )
     </insert>
     <delete id="delete" parameterType="java.lang.Integer">
         delete
@@ -161,7 +166,8 @@
         update_time = #{updateTime,jdbcType=TIMESTAMP},
         version_control = #{versionControl,jdbcType=VARCHAR},
         version_control_url = #{versionControlUrl,jdbcType=VARCHAR},
-        has_image = #{hasImage,jdbcType=BOOLEAN}
+        has_image = #{hasImage,jdbcType=BOOLEAN},
+        cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
     where app_id = #{appId,jdbcType=INTEGER}
   </update>
 </mapper>

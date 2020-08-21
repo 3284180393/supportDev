@@ -30,10 +30,6 @@ public class CCODModuleInfo {
 
     private String hostIp; //部署服务器ip
 
-    private String port; //模块的相关port
-
-    private String status; //模块的status
-
     private String basePath; //应用base path
 
     private String deployPath; //部署路径
@@ -44,7 +40,7 @@ public class CCODModuleInfo {
 
     private AppInstallPackagePo installPackage; //应用安装包
 
-    private List<PlatformAppCfgFilePo> cfgs; //应用部署后的配置文件
+    private List<AppFileNexusInfo> cfgs; //应用部署后的配置文件
 
     public CCODModuleInfo(LJModuleInfo moduleInfo)
     {
@@ -104,9 +100,6 @@ public class CCODModuleInfo {
         return installPackage;
     }
 
-    public List<PlatformAppCfgFilePo> getCfgs() {
-        return cfgs;
-    }
 
     public String getHostIp() {
         return hostIp;
@@ -144,7 +137,11 @@ public class CCODModuleInfo {
         this.installPackage = installPackage;
     }
 
-    public void setCfgs(List<PlatformAppCfgFilePo> cfgs) {
+    public List<AppFileNexusInfo> getCfgs() {
+        return cfgs;
+    }
+
+    public void setCfgs(List<AppFileNexusInfo> cfgs) {
         this.cfgs = cfgs;
     }
 

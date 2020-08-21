@@ -16,8 +16,6 @@ public class AppFileNexusInfo {
 
     protected String ext; //文件扩展
 
-    protected long fileSize; //文件大小
-
     protected String md5; //文件md5
 
     protected String deployPath; //文件部署路径
@@ -99,14 +97,6 @@ public class AppFileNexusInfo {
         this.nexusAssetId = nexusAssetId;
     }
 
-    public long getFileSize() {
-        return fileSize;
-    }
-
-    public void setFileSize(long fileSize) {
-        this.fileSize = fileSize;
-    }
-
     public String getFileNexusDownloadUrl(String nexusHostUrl)
     {
         String downloadUrl = String.format("%s/repository/%s/%s", nexusHostUrl, this.nexusRepository, this.nexusPath);
@@ -127,4 +117,16 @@ public class AppFileNexusInfo {
         return assetInfo;
     }
 
+    public AppFileNexusInfo getAppFileNexusInfo()
+    {
+        AppFileNexusInfo fileInfo = new AppFileNexusInfo();
+        fileInfo.fileName = fileName;
+        fileInfo.ext = ext;
+        fileInfo.md5 = md5;
+        fileInfo.deployPath = deployPath;
+        fileInfo.nexusRepository = nexusRepository;
+        fileInfo.nexusPath = nexusPath;
+        fileInfo.nexusAssetId = nexusAssetId;
+        return fileInfo;
+    }
 }

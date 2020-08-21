@@ -62,10 +62,6 @@ public class PlatformAppDeployDetailVo extends AppBase {
 
     private AppInstallPackagePo installPackage; //应用部署包
 
-    private List<AppCfgFilePo> srcCfgs; //原始配置文件
-
-    private List<PlatformAppCfgFilePo> cfgs; //应用部署后的配置文件
-
     private int bkBizId; //该应用在蓝鲸biz id
 
     private int bkSetId; //该应用在paas的set id
@@ -178,22 +174,6 @@ public class PlatformAppDeployDetailVo extends AppBase {
 
     public void setInstallPackage(AppInstallPackagePo installPackage) {
         this.installPackage = installPackage;
-    }
-
-    public List<AppCfgFilePo> getSrcCfgs() {
-        return srcCfgs;
-    }
-
-    public void setSrcCfgs(List<AppCfgFilePo> srcCfgs) {
-        this.srcCfgs = srcCfgs;
-    }
-
-    public List<PlatformAppCfgFilePo> getCfgs() {
-        return cfgs;
-    }
-
-    public void setCfgs(List<PlatformAppCfgFilePo> cfgs) {
-        this.cfgs = cfgs;
     }
 
     public String getAppRunner() {

@@ -28,16 +28,12 @@
         <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
         <result column="comment" property="comment" jdbcType="VARCHAR" />
         <result column="has_image" property="hasImage" jdbcType="VARCHAR" />
+        <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
         <association property="installPackage"
                     javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
                     resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"
                     columnPrefix="aip_">
         </association>
-        <collection property="cfgs"
-                    ofType="com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo"
-                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppCfgFileMapper.AppCfgFileMap"
-                    columnPrefix="acf_">
-        </collection>
     </resultMap>
     <sql id="Base_Column_List" >
         a.app_id,
@@ -66,6 +62,7 @@
         a.period_seconds,
         a.`comment`,
         a.has_image,
+        a.cfgs,
         aip.app_id AS aip_app_id,
         aip.create_time AS aip_create_time,
         aip.deploy_path AS aip_deploy_path,
@@ -75,21 +72,10 @@
         aip.nexus_asset_id AS aip_nexus_asset_id,
         aip.nexus_directory AS aip_nexus_directory,
         aip.nexus_repository AS aip_nexus_repository,
-        aip.package_id AS aip_package_id,
-        acf.app_id AS acf_app_id,
-        acf.create_time AS acf_create_time,
-        acf.deploy_path AS acf_deploy_path,
-        acf.file_name AS acf_file_name,
-        acf.ext AS acf_ext,
-        acf.md5 AS acf_md5,
-        acf.nexus_asset_id AS acf_nexus_asset_id,
-        acf.nexus_directory AS acf_nexus_directory,
-        acf.nexus_repository AS acf_nexus_repository,
-        acf.cfg_file_id AS acf_cfg_file_id
+        aip.package_id AS aip_package_id
         FROM
         app a
         INNER JOIN app_install_package aip ON a.app_id = aip.app_id
-        INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
         WHERE
         1 = 1
     </sql>

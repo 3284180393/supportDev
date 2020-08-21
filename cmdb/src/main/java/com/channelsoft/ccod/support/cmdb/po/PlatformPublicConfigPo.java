@@ -30,7 +30,6 @@ public class PlatformPublicConfigPo extends AppFileNexusInfo {
         this.nexusAssetId = fileInfo.getNexusAssetId();
         String[] arr = this.fileName.split("\\.");
         this.ext = arr.length == 1 ? null : arr[arr.length - 1];
-        this.fileSize = fileInfo.getFileSize();
     }
 
     public PlatformPublicConfigPo(String platformId, String deployPath, NexusAssetInfo assetInfo)

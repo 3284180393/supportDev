@@ -24,6 +24,7 @@
         <result column="initial_delay_seconds" property="initialDelaySeconds" jdbcType="INTEGER" />
         <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
         <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
+        <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
     </resultMap>
     <sql id="Base_Column_List" >
         	pa.platform_app_id AS platform_app_id,
@@ -47,7 +48,8 @@
 	        pa.resources AS resources,
 	        pa.initial_delay_seconds AS initial_delay_seconds,
 	        pa.period_seconds AS period_seconds,
-	        pa.deploy_time AS deploy_time
+	        pa.deploy_time AS deploy_time,
+	        pa.cfgs AS cfgs
     </sql>
     <select id="selectByPrimaryKey" resultMap="PlatformAppMap" parameterType="java.lang.Integer">
         SELECT
@@ -107,7 +109,8 @@
                 resources,
                 initial_delay_seconds,
                 period_seconds,
-                deploy_time)
+                deploy_time,
+                cfgs)
         values (
                 #{appId,jdbcType=INTEGER},
                 #{alias,jdbcType=VARCHAR},
@@ -129,8 +132,9 @@
                 #{resources,jdbcType=VARCHAR},
                 #{initialDelaySeconds,jdbcType=INTEGER},
                 #{periodSeconds,jdbcType=INTEGER},
-                #{deployTime,jdbcType=TIMESTAMP}
-            )
+                #{deployTime,jdbcType=TIMESTAMP},
+                #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
+                )
     </insert>
     <delete id="delete">
         delete
@@ -162,7 +166,8 @@
             check_at = #{checkAt,jdbcType=VARCHAR},
             resources = #{resources,jdbcType=VARCHAR},
             initial_delay_seconds = #{initialDelaySeconds,jdbcType=INTEGER},
-            period_seconds = #{periodSeconds,jdbcType=INTEGER}
+            period_seconds = #{periodSeconds,jdbcType=INTEGER},
+            cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
         where platform_app_id = #{platformAppId,jdbcType=VARCHAR}
     </update>
 </mapper>

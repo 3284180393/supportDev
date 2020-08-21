@@ -719,8 +719,8 @@ public class PlatformAppCollectionServiceImpl implements IPlatformAppCollectServ
                 resultMap.put("result", true);
                 resultMap.put("data", context);
                 AppModuleVo moduleVo = this.appManagerService.queryAppByVersion(paramVo.getAppName(), paramVo.getVersion(), null);
-                Map<String, AppCfgFilePo> cfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
-                resultMap.put("nexusPath", cfgMap.get(paramVo.getCfgFileName()).getNexusFileSavePath());
+                Map<String, AppFileNexusInfo> cfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
+                resultMap.put("nexusPath", cfgMap.get(paramVo.getCfgFileName()).getNexusPath());
                 resultMap.put("md5", cfgMap.get(paramVo.getCfgFileName()).getMd5());
             }
             catch(Exception ex)

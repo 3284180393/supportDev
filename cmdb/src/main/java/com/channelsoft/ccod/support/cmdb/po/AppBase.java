@@ -1,6 +1,9 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
+
+import java.util.List;
 
 /**
  * @ClassName: AppBase
@@ -45,6 +48,8 @@ public class AppBase {
 
     protected int periodSeconds; //应用健康检查周期
 
+    protected List<AppFileNexusInfo> cfgs; //应用配置文件
+
     public AppBase(){}
 
     public AppBase(AppBase appBase)
@@ -66,6 +71,7 @@ public class AppBase {
         this.ports = appBase.ports;
         this.resources = appBase.resources;
         this.startCmd = appBase.startCmd;
+        this.cfgs = appBase.cfgs;
     }
 
     public String getAppName() {
@@ -202,6 +208,38 @@ public class AppBase {
 
     public void setPeriodSeconds(int periodSeconds) {
         this.periodSeconds = periodSeconds;
+    }
+
+    public List<AppFileNexusInfo> getCfgs() {
+        return cfgs;
+    }
+
+    public void setCfgs(List<AppFileNexusInfo> cfgs) {
+        this.cfgs = cfgs;
+    }
+
+    public AppBase getAppBase()
+    {
+        AppBase appBase = new AppBase();
+        appBase.appName = appName;
+        appBase.alias = alias;
+        appBase.appType = appType;
+        appBase.version = version;
+        appBase.ccodVersion = ccodVersion;
+        appBase.basePath = basePath;
+        appBase.deployPath = deployPath;
+        appBase.envLoadCmd = envLoadCmd;
+        appBase.initCmd = initCmd;
+        appBase.startCmd = startCmd;
+        appBase.logOutputCmd = logOutputCmd;
+        appBase.ports = ports;
+        appBase.nodePorts = nodePorts;
+        appBase.checkAt = checkAt;
+        appBase.resources = resources;
+        appBase.initialDelaySeconds = initialDelaySeconds;
+        appBase.periodSeconds = periodSeconds;
+        appBase.cfgs = cfgs;
+        return appBase;
     }
 
     public String getAppNexusDirectory() {

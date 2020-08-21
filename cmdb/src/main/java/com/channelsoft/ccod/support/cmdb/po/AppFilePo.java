@@ -187,7 +187,6 @@ public class AppFilePo {
         nexusInfo.setNexusPath(getNexusFileSavePath());
         nexusInfo.setNexusAssetId(this.nexusAssetId);
         nexusInfo.setMd5(this.md5);
-        nexusInfo.setFileSize(0);
         nexusInfo.setFileName(this.fileName);
         nexusInfo.setExt(this.ext);
         return nexusInfo;

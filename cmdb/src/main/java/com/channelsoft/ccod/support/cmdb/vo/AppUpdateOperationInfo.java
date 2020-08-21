@@ -39,8 +39,6 @@ public class AppUpdateOperationInfo extends AppBase {
 
     private String appRunner; //该应用的执行用户
 
-    private List<AppFileNexusInfo> cfgs; //如果升级成功,需要返回升级后的应用配置在nexus中的存储信息
-
     public AppUpdateOperation getOperation() {
         return operation;
     }
@@ -154,7 +152,7 @@ public class AppUpdateOperationInfo extends AppBase {
         vo.setHostIp(this.hostIp);
         vo.setAlias(this.alias);
         vo.setPlatformAppId(0);
-        vo.setCfgs(this.cfgs.stream().map(cfg->new PlatformAppCfgFilePo(0, cfg, nexusHostUrl)).collect(Collectors.toList()));
+        vo.setCfgs(cfgs);
         return vo;
     }
 

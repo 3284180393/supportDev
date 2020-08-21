@@ -211,6 +211,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //        deleteNotUserData();
         try
         {
+//            updateRegisterAppCfgs();
             System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 //            List<LJBizInfo> bizList = paasService.queryAllBiz();
 //            for(LJBizInfo biz : bizList)
@@ -299,7 +300,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @throws NexusException nexus返回失败或是处理nexus返回信息失败
      * @throws IOException 保存文件失败
      */
-    private void transferModule(AppPo appPo, AppInstallPackagePo installPackagePo, List<AppCfgFilePo> cfgs, String targetRepository) throws InterfaceCallException, NexusException, IOException
+    private void transferModule(AppPo appPo, AppInstallPackagePo installPackagePo, List<AppFileNexusInfo> cfgs, String targetRepository) throws InterfaceCallException, NexusException, IOException
     {
         List<DeployFileInfo> fileList = new ArrayList<>();
         Date now = new Date();
@@ -321,7 +322,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             fileInfo.setFileName(installPackagePo.getFileName());
             fileList.add(fileInfo);
         }
-        for(AppCfgFilePo cfg : cfgs)
+        for(AppFileNexusInfo cfg : cfgs)
         {
             String downloadUrl = cfg.getFileNexusDownloadUrl(this.nexusHostUrl);
             logger.debug(String.format("download cfg from %s", downloadUrl));
@@ -343,13 +344,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         installPackagePo.setNexusRepository(targetRepository);
         logger.debug(String.format("update package"));
         this.appInstallPackageMapper.update(installPackagePo);
-        for(AppCfgFilePo cfg : cfgs)
-        {
-            cfg.setNexusDirectory(directory);
-            cfg.setNexusRepository(targetRepository);
-            logger.debug(String.format("update cfg"));
-            this.appCfgFileMapper.update(cfg);
-        }
     }
 
     @Override
@@ -603,7 +597,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         if(!this.appSetRelationMap.containsKey(appName) && !AppType.RESIN_WEB_APP.equals(appType)) {
             Map<String, DeployFileInfo> reportCfgMap = Arrays.stream(cfgs).collect(Collectors.toMap(DeployFileInfo::getFileName, Function.identity()));
-            Map<String, AppCfgFilePo> wantCfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
+            Map<String, AppFileNexusInfo> wantCfgMap = moduleVo.getCfgs().stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
             if (reportCfgMap.size() != wantCfgMap.size()) {
                 logger.error(String.format("%s[%s] want %d cfgs but report %d cfgs",
                         appName, appVersion, wantCfgMap.size(), reportCfgMap.size()));
@@ -674,57 +668,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         AppModuleVo moduleVo = addNewAppToDB(appPo, installPackage, cfgs);
         logger.info(String.format("%s[%s] add success", appName, version));
         return moduleVo;
-    }
-
-    /**
-     * 将安装包和配置文件和nexus存储的信息对比
-     * @param moduleVo 应用模块
-     * @param NexusFileList 该应用存储在nexus的文件信息
-     * @return 对比结果,如果完全符合返回""
-     */
-    private String compareAppFileWithNexusRecord(AppPo appPo, AppModuleVo moduleVo, List<NexusAssetInfo> NexusFileList)
-    {
-        String appName = moduleVo.getAppName();
-        String version = moduleVo.getVersion();
-        AppInstallPackagePo installPackage= moduleVo.getInstallPackage();
-        List<AppCfgFilePo> cfgs = moduleVo.getCfgs();
-        logger.debug(String.format("begin to compare appName=%s and version=%s installPackage and cfgs with nexus record",
-                appName, version));
-        Map<String, NexusAssetInfo> nexusFileMap = NexusFileList.stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
-        logger.debug(String.format("nexusFileMap=%s", String.join(",", nexusFileMap.keySet())));
-        StringBuffer sb = new StringBuffer();
-        String directory = appPo.getAppNexusDirectory();
-        String path = String.format("%s/%s", directory, installPackage.getFileName());
-        if(!nexusFileMap.containsKey(path))
-        {
-            sb.append(String.format("installPackageFile=%s not in nexus record,", installPackage.getFileName()));;
-        }
-        else if(!nexusFileMap.get(path).getMd5().equals(installPackage.getMd5()))
-        {
-            sb.append(String.format("installPackage=%s md5=%s is not equal with nexus md5=%s,"
-                    ,installPackage.getFileName(), installPackage.getMd5(), nexusFileMap.get(path).getMd5()));;
-        }
-        if(!this.notCheckCfgAppSet.contains(appName))
-        {
-            if(cfgs.size() != nexusFileMap.size() -1)
-            {
-                sb.append(String.format("cfg count is %d but nexus is %d,", cfgs.size(), nexusFileMap.size() -1));
-            }
-            else
-            {
-                for(AppCfgFilePo cfg : cfgs)
-                {
-                    path = String.format("%s/%s", directory, cfg.getFileName());
-                    if(!nexusFileMap.containsKey(path))
-                    {
-                        sb.append(String.format("cfg=%s not in nexus,", cfg.getFileName()));
-                    }
-                }
-            }
-        }
-        logger.info(String.format("the result of files of appName=%s with version=%s compare with nexus is : %s",
-                appName, version, sb.toString()));
-        return sb.toString().replaceAll(",$", "");
     }
 
     @Override
@@ -802,7 +745,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
             fileInfo.setLocalSavePath(savePth);
             fileInfo.setNexusRepository(this.appRepository);
             fileInfo.setNexusDirectory(directory);
-            fileInfo.setFileSize(cfg.getFileSize());
             fileInfo.setFileName(cfg.getFileName());
             fileList.add(fileInfo);
             PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
@@ -862,29 +804,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         logger.debug(String.format("remove %d apps from platformId=%s and domainId=%s SUCCESS",
                 removedAppBkModuleList.size(), domain.getPlatformId(), domain.getDomainId()));
-    }
-
-    private String cfgFileCompare(AppModuleVo app, List<AppFileNexusInfo> cfgs)
-    {
-        StringBuffer sb = new StringBuffer();
-        Map<String, AppCfgFilePo> appCfgMap = app.getCfgs().stream().collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
-        Map<String, AppFileNexusInfo> comparedCfgMap = cfgs.stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
-        for(String fileName : appCfgMap.keySet())
-        {
-            if(!comparedCfgMap.containsKey(fileName))
-            {
-                sb.append(String.format("cfg %s is not exist,", fileName));
-            }
-        }
-        for(String fileName : comparedCfgMap.keySet())
-        {
-            if(!appCfgMap.containsKey(fileName))
-            {
-                sb.append(String.format("%s is not wanted cfg,", fileName));
-            }
-        }
-        sb.toString().replaceAll(",$", "");
-        return sb.toString();
     }
 
     @Override
@@ -1004,7 +923,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                         appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
             }
             fileList.add(new DeployFileInfo(appModule.getInstallPackage(), savePth));
-            for(AppCfgFilePo cfg : appModule.getCfgs())
+            for(AppFileNexusInfo cfg : appModule.getCfgs())
             {
                 downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
                 logger.debug(String.format("download cfg from %s", downloadUrl));
@@ -1031,12 +950,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
             AppInstallPackagePo packagePo = new AppInstallPackagePo(appId, fileMap.get(appModule.getInstallPackage().getFileName()));
             logger.debug(String.format("insert package info [%s]", JSONObject.toJSONString(packagePo)));
             this.appInstallPackageMapper.insert(packagePo);
-            for(AppCfgFilePo cfg : appModule.getCfgs())
-            {
-                AppCfgFilePo cfgFilePo = new AppCfgFilePo(appId, fileMap.get(cfg.getFileName()));
-                logger.debug(String.format("insert cfg info [%s]", JSONObject.toJSONString(cfgFilePo)));
-                this.appCfgFileMapper.insert(cfgFilePo);
-            }
             AppModuleVo newModule = this.appModuleMapper.selectByNameAndVersion(appName, version);
             this.appReadLock.writeLock().lock();
             try
@@ -1079,8 +992,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             List<NexusAssetInfo> fileList = new ArrayList<>();
             fileList.add(appModule.getInstallPackage().getNexusAsset(this.nexusHostUrl));
-            for(AppCfgFilePo cfg : appModule.getCfgs())
-                fileList.add(cfg.getNexusAsset(this.nexusHostUrl));
+            for(AppFileNexusInfo cfg : appModule.getCfgs())
+                fileList.add(cfg.getNexusAssetInfo(this.nexusHostUrl));
             logger.debug(String.format("download package and cfgs and upload to %s", directory));
             Map<String, NexusAssetInfo> fileMap = this.nexusService.downloadAndUploadFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, false).stream().collect(Collectors.toMap(NexusAssetInfo::getNexusAssetFileName, Function.identity()));;
             AppModuleVo oldModuleVo = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
@@ -1092,11 +1005,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
             AppInstallPackagePo packagePo = new AppInstallPackagePo(oldModuleVo.getAppId(), appModule.getInstallPackage().getDeployPath(), fileMap.get(appModule.getInstallPackage().getFileName()));
             this.appInstallPackageMapper.insert(packagePo);
             logger.debug(String.format("add %d cfgs info", appModule.getCfgs().size()));
-            for(AppCfgFilePo cfg : appModule.getCfgs())
-            {
-                AppCfgFilePo cfgFilePo = new AppCfgFilePo(oldModuleVo.getAppId(), cfg.getDeployPath(), fileMap.get(cfg.getFileName()));
-                this.appCfgFileMapper.insert(cfgFilePo);
-            }
             logger.debug(String.format("flush register app map"));
             AppModuleVo newModule = this.appModuleMapper.selectByNameAndVersion(appName, version);
             this.appReadLock.writeLock().lock();
@@ -1268,8 +1176,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
             logger.error(String.format("%s[%] not exist", appName, version));
             throw new ParamException(String.format("%s[%] not exist", appName, version));
         }
-        Map<String, AppCfgFilePo> cfgMap = moduleVo.getCfgs().stream()
-                .collect(Collectors.toMap(AppCfgFilePo::getFileName, Function.identity()));
+        Map<String, AppFileNexusInfo> cfgMap = moduleVo.getCfgs().stream()
+                .collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
         if(!cfgMap.containsKey(cfgFileName))
         {
             logger.error(String.format("%s[%s] has not %s cfg", appName, version, cfgFileName));
@@ -1284,7 +1192,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             saveDir.mkdirs();
         }
-        AppCfgFilePo cfgFilePo = cfgMap.get(cfgFileName);
+        AppFileNexusInfo cfgFilePo = cfgMap.get(cfgFileName);
         String downloadUrl = cfgFilePo.getFileNexusDownloadUrl(this.nexusHostUrl);
         String savePath = this.nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfgFileName);
         savePath = savePath.replaceAll("\\\\", "/");
@@ -1484,6 +1392,26 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         finally {
             this.appReadLock.readLock().unlock();
+        }
+    }
+
+    private void updateRegisterAppCfgs()
+    {
+        this.appReadLock.writeLock().lock();
+        try{
+            List<AppPo> appList = this.appMapper.select(null, null);
+            for(AppPo appPo : appList)
+            {
+                List<AppFileNexusInfo> cfgs = this.appCfgFileMapper.select(appPo.getAppId()).stream()
+                        .map(cfg->cfg.getAppFileNexusInfo()).collect(Collectors.toList());
+                appPo.setCfgs(cfgs);
+                this.appMapper.update(appPo);
+            }
+            appList = this.appMapper.select(null, null);
+            System.out.println(JSONArray.toJSONString(appList));
+        }
+        finally {
+            this.appReadLock.writeLock().unlock();
         }
     }
 

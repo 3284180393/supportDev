@@ -4,10 +4,9 @@ import com.channelsoft.ccod.support.cmdb.constant.CCODPlatformStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformCreateMethod;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformType;
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @ClassName: PlatformPo
@@ -50,6 +49,8 @@ public class PlatformPo {
 
     private Map<String, Object> params; //其它同平台有关的参数，例如oracle、mango连接方式等
 
+    private List<AppFileNexusInfo> cfgs; //平台公共配置文件
+
     public PlatformPo()
     {
 
@@ -72,6 +73,7 @@ public class PlatformPo {
         this.createMethod = createMethod;
         this.hostUrl = hostUrl;
         this.params = new HashMap<>();
+        this.cfgs = new ArrayList<>();
     }
 
     public String getPlatformId() {
@@ -200,5 +202,13 @@ public class PlatformPo {
 
     public void setParams(Map<String, Object> params) {
         this.params = params;
+    }
+
+    public List<AppFileNexusInfo> getCfgs() {
+        return cfgs;
+    }
+
+    public void setCfgs(List<AppFileNexusInfo> cfgs) {
+        this.cfgs = cfgs;
     }
 }
