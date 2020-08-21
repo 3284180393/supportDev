@@ -31,9 +31,6 @@ public class AppUpdateOperationInfo extends AppBase {
 
     private String assembleTag; //应用所在assemble的标签
 
-    @NotNull(message = "appAlias can not be null")
-    private String appAlias; //应用别名
-
     private String originalAlias; //应用原始别名(用来被用户而不是被系统识别的别名)
 
     private String originalVersion; //操作前应用版本,如果是ADD操作，该属性为空
@@ -82,14 +79,6 @@ public class AppUpdateOperationInfo extends AppBase {
 
     public void setCfgs(List<AppFileNexusInfo> cfgs) {
         this.cfgs = cfgs;
-    }
-
-    public String getAlias() {
-        return appAlias;
-    }
-
-    public void setAlias(String appAlias) {
-        this.appAlias = appAlias;
     }
 
     public int getPlatformAppId() {
@@ -148,7 +137,7 @@ public class AppUpdateOperationInfo extends AppBase {
         po.setDeployTime(new Date());
         po.setAppRunner(this.appRunner);
         po.setHostIp(this.hostIp);
-        po.setAlias(this.appAlias);
+        po.setAlias(this.alias);
         po.setAppId(appId);
         po.setPlatformAppId(0);
         return po;
@@ -163,7 +152,7 @@ public class AppUpdateOperationInfo extends AppBase {
         vo.setDeployTime(new Date());
         vo.setAppRunner(this.appRunner);
         vo.setHostIp(this.hostIp);
-        vo.setAlias(this.appAlias);
+        vo.setAlias(this.alias);
         vo.setPlatformAppId(0);
         vo.setCfgs(this.cfgs.stream().map(cfg->new PlatformAppCfgFilePo(0, cfg, nexusHostUrl)).collect(Collectors.toList()));
         return vo;
@@ -179,7 +168,7 @@ public class AppUpdateOperationInfo extends AppBase {
     @Override
     public String toString()
     {
-        String tag = String.format("%s %s(%s)", operation.name, appAlias, appName);
+        String tag = String.format("%s %s(%s)", operation.name, alias, appName);
         String desc;
         switch (operation)
         {

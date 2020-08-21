@@ -869,14 +869,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             throw new ParamException(String.format("%s(%s) has not register or not image", appName, version));
         AppModuleVo module = modules.get(0);
         AppType appType = module.getAppType();
-        Map<String, String> selector = getCCODDomainAppSelector(appName, alias, version, appType, domainId);
         String name = String.format("%s-%s", alias, domainId);
         V1ConfigMap configMap = this.ik8sApiService.readNamespacedConfigMap(name, platformId, k8sApiUrl, k8sAuthToken);
+        Map<String, String> selector = getCCODDomainAppSelector(appName, alias, version, appType, domainId, K8sKind.DEPLOYMENT);
         List<V1Deployment> deploys = this.ik8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
         if(deploys.size() == 0)
             throw new ParamException(String.format("not select deployment for %s at %s from %s", gson.toJson(selector), platformId, k8sApiUrl));
         else if(deploys.size() > 1)
             throw new ParamException(String.format("select %d deployment for %s at %s from %s", deploys.size(), gson.toJson(selector), platformId, k8sApiUrl));
+        selector = getCCODDomainAppSelector(appName, alias, version, appType, domainId, K8sKind.SERVICE);
         List<V1Service> services = this.ik8sApiService.selectNamespacedService(platformId, selector, k8sApiUrl, k8sAuthToken);
         if(services.size() == 0)
             throw new ParamException(String.format("not select service for %s at %s", gson.toJson(selector), platformId));
@@ -952,9 +953,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         AppType appType = module.getAppType();
         if(!isNewPlatform)
         {
-            Map<String, String> selector = getCCODDomainAppSelector(appName, alias, version, appType, domainId);
             if(this.ik8sApiService.isNamespacedConfigMapExist(name, platformId, k8sApiUrl, k8sAuthToken))
                 throw new ParamException(String.format("configMap %s exist at %s", name, platformId));
+            Map<String, String> selector = getCCODDomainAppSelector(appName, alias, version, appType, domainId, K8sKind.DEPLOYMENT);
             if(this.ik8sApiService.isNamespacedDeploymentExist(name, platformId, k8sApiUrl, k8sAuthToken))
                 throw new ParamException(String.format("deployment %s exist at %s", name, platformId));
             List<V1Deployment> deploys = this.ik8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
@@ -964,12 +965,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 throw new ParamException(String.format("service %s exist at %s", name, platformId));
             if(this.ik8sApiService.isNamespacedServiceExist(String.format("%s-out", name), platformId, k8sApiUrl, k8sAuthToken))
                 throw new ParamException(String.format("service %s-out exist at %s", name, platformId));
+            selector = getCCODDomainAppSelector(appName, alias, version, appType, domainId, K8sKind.SERVICE);
             List<V1Service> services = this.ik8sApiService.selectNamespacedService(platformId, selector, k8sApiUrl, k8sAuthToken);
             if(services.size() > 0)
                 throw new ParamException(String.format("service for selector %s exist at %s", gson.toJson(selector), platformId));
              if(this.ik8sApiService.isNamespacedIngressExist(name, platformId, k8sApiUrl, k8sAuthToken))
                  throw new ParamException(String.format("ingress %s exist at %s", name, platformId));
-
         }
         K8sCCODDomainAppVo app = generateNewCCODDomainApp(appBase, appCfgs, domainId, domainCfg, platformId, platformCfg, hostUrl);
         List<K8sOperationInfo> steps = new ArrayList<>();
@@ -1050,6 +1051,43 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return steps;
     }
 
+    @Override
+    public List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, List<AppFileNexusInfo> appCfgs, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException, InterfaceCallException, IOException {
+        String alias = appBase.getAlias();
+        String appName = appBase.getAppName();
+        String version = appBase.getVersion();
+        if(!this.ik8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken))
+            throw new ParamException(String.format("namespace %s not exist at %s", platformId, k8sApiUrl));
+        String name = String.format("%s-%s", alias, domainId);
+        Map<String, String> selector = this.getCCODDomainAppSelector(appName, alias, version, appBase.getAppType(), domainId, K8sKind.DEPLOYMENT);;
+        List<V1Deployment> srcDeploys = this.ik8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
+        selector = this.getCCODDomainAppSelector(appName, alias, version, appBase.getAppType(), domainId, K8sKind.SERVICE);
+        List<V1Service> srcServices = this.ik8sApiService.selectNamespacedService(platformId, selector, k8sApiUrl, k8sAuthToken);
+        ExtensionsV1beta1Ingress srcIngress = null;
+        if(this.ik8sApiService.isNamespacedIngressExist(name, platformId, k8sApiUrl, k8sAuthToken))
+            srcIngress = this.ik8sApiService.readNamespacedIngress(name, platformId, k8sApiUrl, k8sAuthToken);
+        V1ConfigMap srcCm = null;
+        if(this.ik8sApiService.isNamespacedConfigMapExist(name, platformId, k8sApiUrl, k8sAuthToken))
+            srcCm = this.ik8sApiService.readNamespacedConfigMap(name, platformId, k8sApiUrl, k8sAuthToken);
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        if(srcIngress != null)
+            steps.add(new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS, name, K8sOperation.DELETE, srcIngress));
+        for(V1Service svc : srcServices)
+            steps.add(new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE, svc.getMetadata().getName(), K8sOperation.DELETE, svc));
+        for(V1Deployment deploy : srcDeploys)
+            steps.add(new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT, deploy.getMetadata().getName(), K8sOperation.DELETE, deploy));
+        if(srcCm != null)
+            steps.add(new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, name, K8sOperation.DELETE, srcCm));
+        List<K8sOperationInfo> addSteps = generateAddPlatformAppSteps(jobId, appBase, appCfgs, domainId, domainCfg, platformId,
+                platformCfg, hostUrl, k8sApiUrl, k8sAuthToken, true);
+        addSteps.forEach(v->{
+            if (v.getKind().equals(K8sKind.DEPLOYMENT) && v.getOperation().equals(K8sOperation.CREATE)) {
+                v.setKernal(true);v.setTimeout(150);
+            }});
+        steps.addAll(addSteps);
+        return steps;
+    }
+
     /**
      * 生成选择器用于选择k8s上的ccod域应用相关资源
      * @param appName 应用名
@@ -1057,10 +1095,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
      * @param version 应用版本
      * @param appType 应用类型
      * @param domainId 域id
+     * @param kind k8s资源类型
      * @return 生成的选择器
      */
     @Override
-    public Map<String, String> getCCODDomainAppSelector(String appName, String alias, String version, AppType appType, String domainId)
+    public Map<String, String> getCCODDomainAppSelector(String appName, String alias, String version, AppType appType, String domainId, K8sKind kind)
     {
         Map<String, String> selector = new HashMap<>();
         selector.put(this.domainIdLabel, domainId);

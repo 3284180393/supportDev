@@ -156,15 +156,34 @@ public interface IK8sTemplateService {
     List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppBase appBase, List<AppFileNexusInfo> appCfgs, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
+     * 生成修改ccod域应用的k8s调试步骤
+     * @param jobId 任务id
+     * @param appBase 应用相关基础信息
+     * @param appCfgs 应用配置文件信息
+     * @param domainId 域id
+     * @param domainCfg 域公共配置
+     * @param platformId 平台id
+     * @param platformCfg 平台公共配置
+     * @param hostUrl 平台访问域名
+     * @param k8sApiUrl k8s的api的url
+     * @param k8sAuthToken 访问k8s api的认证token
+     * @return 修改域应用的k8s调试步骤
+     * @throws ParamException
+     * @throws ApiException
+     */
+    List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, List<AppFileNexusInfo> appCfgs, String domainId, List<AppFileNexusInfo> domainCfg, String platformId, List<AppFileNexusInfo> platformCfg, String hostUrl, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException, InterfaceCallException, IOException;
+
+    /**
      * 生成选择器用于选择k8s上的ccod域应用相关资源
      * @param appName 应用名
      * @param alias 应用别名
      * @param version 应用版本
      * @param appType 应用类型
      * @param domainId 域id
+     * @param kind k8s资源类型
      * @return 生成的选择器
      */
-    Map<String, String> getCCODDomainAppSelector(String appName, String alias, String version, AppType appType, String domainId);
+    Map<String, String> getCCODDomainAppSelector(String appName, String alias, String version, AppType appType, String domainId, K8sKind kind);
 
     /**
      * 生成指定条件的k8s 模板选择器

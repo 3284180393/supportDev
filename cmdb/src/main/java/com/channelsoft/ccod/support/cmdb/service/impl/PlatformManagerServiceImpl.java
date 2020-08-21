@@ -2183,7 +2183,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String appName = optInfo.getAppName();
         String alias = optInfo.getAlias();
         String version = optInfo.getVersion();
-        boolean isNew = optInfo.getOperation().equals(AppUpdateOperation.ADD) ? true : false;
         if(StringUtils.isBlank(platformId))
             throw new ParamException("platformId can not be null");
         if(StringUtils.isBlank(domainId))
@@ -2217,21 +2216,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<V1Deployment> deploys = this.k8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
         List<AppFileNexusInfo> domainCfg = this.domainPublicConfigMapper.select(platformId, domainId).stream().collect(Collectors.toList());
         List<AppFileNexusInfo> platformCfg = this.platformPublicConfigMapper.select(platformId).stream().collect(Collectors.toList());
-        List<K8sOperationInfo> steps;
-        if(isNew) {
-            if(deploys.size() > 0)
-                throw new ParamException(String.format("%s(%s) has exist at domain %s", appName, alias, domainId));
-            steps = this.k8sTemplateService.generateAddPlatformAppSteps(jobId, optInfo, optInfo.getCfgs(), domainId,
-                    domainCfg, platformId, platformCfg, platform.getHostUrl(), k8sApiUrl, k8sAuthToken, false);
-        }
-        else{
-            if(deploys.size() == 0)
-                throw new ParamException(String.format("%s(%s) not exist at domain %s", appName, alias, domainId));
-            else if(deploys.size() > 1)
-                throw new ParamException(String.format("%s(%s) not unique at domain %s", appName, alias, domainId));
-            steps = this.k8sTemplateService.generateUpdatePlatformAppSteps(jobId, optInfo, optInfo.getCfgs(), domainId,
-                    domainCfg, platformId, platformCfg, platform.getHostUrl(), k8sApiUrl, k8sAuthToken);
-        }
+        List<K8sOperationInfo> steps = this.k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, optInfo.getCfgs(),
+                domainId, domainCfg, platformId, platformCfg, platform.getHostUrl(), k8sApiUrl, k8sAuthToken);;
         for(K8sOperationInfo step : steps)
         {
             K8sOperationPo execResult = execK8sOpt(step, platformId, platform.getApiUrl(), platform.getAuthToken());
