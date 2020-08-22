@@ -33,7 +33,6 @@ public class DomainUpdatePlanInfo {
 
     private String bkSetName; //域归属的set名
 
-    @NotNull(message = "appUpdateOperationList can not be null")
     @Valid
     private List<AppUpdateOperationInfo> appUpdateOperationList; //应用升级操作列表
 

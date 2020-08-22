@@ -912,8 +912,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String alias = appBase.getAlias();
         String version = appBase.getVersion();
         Map<String, List<AppModuleVo>> appMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        if(appMap.containsKey(appName))
+        if(!appMap.containsKey(appName))
             return String.format("%s %s not register;", operation.name, appName);
+        if(setDefine != null) {
+            Map<String, AppDefine> appDefineMap = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
+            if(!appDefineMap.containsKey(appName))
+                return String.format("set %s not support %s;", setDefine.getName(), appName);
+        }
         Map<String, PlatformAppDeployDetailVo> aliasMap = deployApps.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAlias, Function.identity()));
         switch (operation)
         {
@@ -1607,57 +1612,40 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         logger.debug(String.format("begin to update platform update schema : %s", gson.toJson(updateSchema)));
 //        resetSchema(updateSchema);
 //        logger.warn(gson.toJson(updateSchema));
-        if (StringUtils.isBlank(updateSchema.getPlatformId())) {
-            logger.error("platformId of schema is blank");
-            throw new ParamException("platformId of schema is blank");
-        }
-        if (StringUtils.isBlank(updateSchema.getPlatformName())) {
-            logger.error("platformName of schema is blank");
-            throw new ParamException("platformName of schema is blank");
-        }
-        LJBizInfo bkBiz = paasService.queryBizInfoById(updateSchema.getBkBizId());
-        if (bkBiz == null) {
-            logger.error(String.format("bkBizId=%d biz not exist", updateSchema.getBkBizId()));
-            throw new ParamException(String.format("bkBizId=%d biz not exist", updateSchema.getBkBizId()));
-        }
-        if (!updateSchema.getPlatformName().equals(bkBiz.getBkBizName())) {
-            logger.error(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
-            throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
-        }
-        if(!updateSchema.getPlatformId().matches(this.platformIdRegex))
-            throw new ParamException(String.format("error platformId %s", updateSchema.getPlatformId()));
+        if(StringUtils.isBlank(updateSchema.getSchemaId()))
+            throw new ParamException(String.format("schemaId of schema is blank"));
         PlatformUpdateRecordPo rcd = this.platformUpdateRecordMapper.selectByJobId(updateSchema.getSchemaId());
         if(rcd != null)
             throw new ParamException(String.format("schema id %s has been used", updateSchema.getSchemaId()));
+        if(!updateSchema.getPlatformId().matches(this.platformIdRegex))
+            throw new ParamException(String.format("error platformId %s", updateSchema.getPlatformId()));
+        PlatformUpdateTaskType taskType = updateSchema.getTaskType();
         PlatformPo platformPo = platformMapper.selectByPrimaryKey(updateSchema.getPlatformId());
-        Map<String, Object> params = getParamFromSchema(updateSchema);
-        if (platformPo == null) {
-            if (!updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE)) {
-                logger.error(String.format("%s platform %s not exist", updateSchema.getStatus().name, updateSchema.getPlatformId()));
-                throw new ParamException(String.format("%s platform %s not exist", updateSchema.getTaskType().name, updateSchema.getPlatformId()));
-            } else {
-                platformPo = new PlatformPo(updateSchema.getPlatformId(), updateSchema.getPlatformName(),
-                        updateSchema.getBkBizId(), updateSchema.getBkCloudId(), CCODPlatformStatus.SCHEMA_CREATE,
-                        updateSchema.getCcodVersion(), "create by platform create schema", updateSchema.getPlatformType(),
-                        updateSchema.getPlatformFunc(), updateSchema.getCreateMethod(), updateSchema.getHostUrl());
-                if (PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType())) {
-                    platformPo.setApiUrl(updateSchema.getK8sApiUrl());
-                    platformPo.setAuthToken(updateSchema.getK8sAuthToken());
-                }
-                platformPo.setParams(params);
-                platformPo.setCfgs(updateSchema.getPublicConfig());
-                this.platformMapper.insert(platformPo);
-            }
-        }
-        else
+        if(!taskType.equals(PlatformUpdateTaskType.CREATE) && platformPo == null)
+            throw new ParamException(String.format("%s platform %s not exist", taskType.name, platformPo.getPlatformId()));
+        else if(taskType.equals(PlatformUpdateTaskType.CREATE))
         {
-            platformPo.setParams(params);
-            this.platformMapper.update(platformPo);
-        }
-        if (!platformPo.getPlatformName().equals(updateSchema.getPlatformName())) {
-            logger.error(String.format("platformName of %s is %s, not %s",
-                    platformPo.getPlatformId(), platformPo.getPlatformName(), updateSchema.getPlatformName()));
-            throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
+            if (StringUtils.isBlank(updateSchema.getPlatformName()))
+                throw new ParamException("platformName of schema is blank");
+            if(updateSchema.getBkBizId() <= 0)
+                throw new ParamException("bkBizId of schema not define");
+            LJBizInfo bkBiz = paasService.queryBizInfoById(updateSchema.getBkBizId());
+            if (bkBiz == null)
+                throw new ParamException(String.format("bkBizId=%d biz not exist", updateSchema.getBkBizId()));
+            if (!updateSchema.getPlatformName().equals(bkBiz.getBkBizName()))
+                throw new ParamException(String.format("bkBizName of bizBkId is %s, not %s", updateSchema.getBkBizId(), bkBiz.getBkBizName(), updateSchema.getPlatformName()));
+            if (platformPo == null) {
+                if(this.platformMapper.selectByNameBizId(updateSchema.getPlatformName(), null) != null)
+                    throw new ParamException(String.format("platform %s has exist", updateSchema.getPlatformName()));
+            }
+            else {
+                if(!platformPo.getPlatformName().equals(updateSchema.getPlatformName()))
+                    throw new ParamException(String.format("platform %s exist and name is %s not %s",
+                            updateSchema.getPlatformId(), platformPo.getPlatformName(), updateSchema.getPlatformName()));
+                if(!platformPo.getStatus().equals(CCODPlatformStatus.SCHEMA_CREATE))
+                    throw new ParamException(String.format("%s(%s) exist and status is %s not SCHEMA_CREATE",
+                            updateSchema.getPlatformName(), updateSchema.getPlatformId(), platformPo.getStatus().name));
+            }
         }
         List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
         Boolean hasImage = PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType()) ? true : null;
@@ -1666,11 +1654,20 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<PlatformAppDeployDetailVo> platformDeployApps = this.platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null);
         logger.debug("begin check param of schema");
         List<LJHostInfo> bkHostList = this.paasService.queryBKHost(updateSchema.getBkBizId(), null, null, null, null);
-        String platformCheckResult = checkPlatformUpdateSchema(updateSchema, domainList, platformDeployApps, bkHostList, registerApps);
-        if(StringUtils.isBlank(platformCheckResult))
-            logger.debug("schema param check success");
-        else
+        String ccodVersion = platformPo == null ? updateSchema.getCcodVersion() : platformPo.getCcodVersion();
+        String platformCheckResult = checkPlatformUpdateSchema(ccodVersion, updateSchema, domainList, platformDeployApps, bkHostList, registerApps);
+        if(StringUtils.isNotBlank(platformCheckResult))
             throw new ParamException(String.format("schema check fail : %s", platformCheckResult));
+        logger.debug("schema param check success");
+        if(taskType.equals(PlatformUpdateTaskType.CREATE))
+        {
+            boolean needInsert = platformPo == null ? true : false;
+            platformPo = updateSchema.getCreatePlatform();
+            if(needInsert)
+                this.platformMapper.insert(platformPo);
+            else
+                this.platformMapper.update(platformPo);
+        }
         List<AssemblePo> assembleList = this.assembleMapper.select(updateSchema.getPlatformId(), null);
         makeupDomainIdAndAliasForSchema(updateSchema, domainList, platformDeployApps, clone);
         UpdateStatus status = updateSchema.getStatus();
@@ -1724,13 +1721,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
                 filter(plan->plan.getStatus().equals(status)).sorted(sort).collect(Collectors.toList());
         boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) ? true : false;
-        if(plans.size() == 0)
-            throw new ParamException(String.format("status of schema is %s but there is not any domain plan status is %s",
-                    status.name, status.name));
-        else if(isNewPlatform && status.equals(UpdateStatus.EXEC)
-                && plans.size() != schema.getDomainUpdatePlanList().size())
-            throw new ParamException(String.format("status of new create platform is %s but there are %d domain plan status not %s",
-                    status.name, schema.getDomainUpdatePlanList().size()-plans.size(), status.name));
         List<K8sOperationInfo> steps = new ArrayList<>();
         List<AppFileNexusInfo> platformCfg;
         String platformId = platformPo.getPlatformId();
@@ -2216,11 +2206,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     /**
      * 检查平台升级相关参数
-     * @param updateSchema    平台升级计划
+     * @param ccodVersion 该平台的ccod大版本
+     * @param updateSchema 平台升级计划
      * @param existDomainList 该平台已经有的域
-     * @throws ParamException 平台升级计划参数异常
+     * @param deployApps 该平台已经部署应用
+     * @param hostList 该平台所属主机列表
+     * @param registerApps cmdb已经注册的应用列表
+     * @return 检查结果
      */
-    private String checkPlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> deployApps, List<LJHostInfo> hostList, List<AppModuleVo> registerApps) {
+    private String checkPlatformUpdateSchema(String ccodVersion, PlatformUpdateSchemaInfo updateSchema, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> deployApps, List<LJHostInfo> hostList, List<AppModuleVo> registerApps) {
         StringBuffer sb = new StringBuffer();
         PlatformUpdateTaskType taskType = updateSchema.getTaskType();
         if (StringUtils.isBlank(updateSchema.getPlatformId()))
@@ -2229,7 +2223,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             if (StringUtils.isBlank(updateSchema.getPlatformName()))
                 sb.append("platformName is blank;");
             if(StringUtils.isBlank(updateSchema.getCcodVersion()))
-                sb.append(String.format("ccodVersion is blank;"))
+                sb.append(String.format("ccodVersion is blank;"));
             if(updateSchema.getPublicConfig() == null || updateSchema.getPublicConfig().size() == 0)
                 sb.append("publicConfig is empty;");
             if(StringUtils.isBlank(updateSchema.getSchemaId()))
@@ -2259,20 +2253,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     sb.append(String.format("k8sAuthToken is blank;"));
             }
         }
-        if (StringUtils.isNotBlank(sb.toString()))
-            return sb.toString();
-        Map<String, List<LJHostInfo>> hostMap = hostList.stream().collect(Collectors.groupingBy(LJHostInfo::getHostInnerIp));
-        for(String hostIp : hostMap.keySet())
-        {
-            if(hostMap.get(hostIp).size() > 1)
-                sb.append(String.format("ip %s is indistinct;", hostIp));
-        }
+        hostList.stream().collect(Collectors.groupingBy(LJHostInfo::getHostInnerIp))
+                .forEach((k,v) -> {if(v.size()>1)sb.append(String.format("%s is not unique at paas;", k));});
         if(StringUtils.isNotBlank(sb.toString()))
             return sb.toString();
+        Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         Map<String, DomainPo> domainIdMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<String, DomainPo> domainNameMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
         Map<DomainUpdateType, List<DomainUpdatePlanInfo>> typePlanMap = updateSchema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getUpdateType));
         List<DomainUpdatePlanInfo> deleteList = typePlanMap.containsKey(DomainUpdateType.DELETE) ? typePlanMap.get(DomainUpdateType.DELETE) : new ArrayList<>();
+        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
         for(DomainUpdatePlanInfo planInfo : deleteList)
         {
             String domainId = planInfo.getDomainId();
@@ -2280,18 +2270,41 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 sb.append("domainId of DELETE domain is blank;");
             else if(!domainIdMap.containsKey(domainId))
                 sb.append(String.format("DELETE domain %s not exist;", domainId));
+            else if(planInfo.getAppUpdateOperationList() != null && planInfo.getAppUpdateOperationList().size() > 0)
+                sb.append(String.format("appUpdateOperationList of DELETED domain %s should be empty;", domainId));
         }
         List<DomainUpdatePlanInfo> addList = typePlanMap.containsKey(DomainUpdateType.ADD) ? typePlanMap.get(DomainUpdateType.ADD) : new ArrayList<>();
         for(DomainUpdatePlanInfo planInfo : addList)
         {
             String domainName = planInfo.getDomainName();
+            String bkSetName = planInfo.getBkSetName();
             if(StringUtils.isBlank(domainName))
                 sb.append("domainName of ADD domain is blank;");
             else if(domainNameMap.containsKey(domainName))
                 sb.append(String.format("ADD domain %s has exist;", domainName));
-            else if(StringUtils.isBlank(planInfo.getBkSetName()))
-                sb.append(String.format("bkSetName of ADD domain %s is blank", domainName));
+            else if(StringUtils.isBlank(bkSetName))
+                sb.append(String.format("bkSetName of ADD domain %s is blank;", domainName));
+            else if(!setDefineMap.containsKey(bkSetName))
+                sb.append(String.format("bkSetName %s of %s is illegal;", bkSetName, domainName));
+            else if(planInfo.getAppUpdateOperationList().stream().filter(opt->!opt.getOperation().equals(AppUpdateOperation.ADD))
+                    .collect(Collectors.toList()).size() > 0)
+                sb.append(String.format("app operation of CREATED domain %s should be ADD;", domainName));
+            else {
+                BizSetDefine setDefine = setDefineMap.get(bkSetName);
+                for(AppUpdateOperationInfo opt : planInfo.getAppUpdateOperationList()) {
+                    String optCheckResult = checkAppBase(ccodVersion, opt, opt.getOperation(), setDefine, new ArrayList<>(), registerApps);
+                    if(StringUtils.isBlank(optCheckResult)) {
+                        if(StringUtils.isBlank(opt.getHostIp()))
+                            sb.append(String.format("hostIp of %s is blank;", opt.toString()));
+                        else if(!hostMap.containsKey(opt.getHostIp()))
+                            sb.append(String.format("hostIp of %s not exist;", opt.toString()));
+                    }
+                    else
+                        sb.append(optCheckResult);
+                }
+            }
         }
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         List<DomainUpdatePlanInfo> updateList = typePlanMap.containsKey(DomainUpdateType.UPDATE) ? typePlanMap.get(DomainUpdateType.UPDATE) : new ArrayList<>();
         for(DomainUpdatePlanInfo planInfo : updateList)
         {
@@ -2300,46 +2313,36 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 sb.append("domainId of UPDATE domain is blank;");
             else if(!domainIdMap.containsKey(domainId))
                 sb.append(String.format("UPDATE domain %s not exist;", domainId));
+            else {
+                BizSetDefine setDefine = setDefineMap.get(domainIdMap.get(domainId).getBizSetName());
+                List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
+                planInfo.getAppUpdateOperationList()
+                        .forEach(opt->sb.append(checkAppBase(ccodVersion, opt, opt.getOperation(), setDefine, domainApps, registerApps)));
+            }
         }
         if(StringUtils.isNotBlank(sb.toString()))
             return sb.toString();
-        Map<String, List<DomainUpdatePlanInfo>> deleteMap = deleteList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId));
-        for(String domainId : deleteMap.keySet())
-        {
-            if(deleteMap.get(domainId).size() > 1)
-                sb.append(String.format("DELETE Domain %S duplicate;", domainId));
-        }
-        Map<String, List<DomainUpdatePlanInfo>> updateMap = updateList.stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId));
-        for(String domainId : updateMap.keySet())
-        {
-            if(updateMap.get(domainId).size() > 1)
-                sb.append(String.format("UPDATE Domain %S duplicate;", domainId));
-        }
-        for(String domainId : deleteMap.keySet())
-        {
-            if(deleteMap.containsKey(domainId))
-                sb.append(String.format(" domain %s has been DELETED and UPDATE at the same time;", domainId));
-        }
+        updateSchema.getDomainUpdatePlanList().stream().filter(plan -> StringUtils.isNotBlank(plan.getDomainId()))
+                .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId))
+                .forEach((k,v)->{if(v.size()>1)sb.append(String.format("update plan of %s multi define;", k));});
+        updateSchema.getDomainUpdatePlanList().stream().filter(plan -> StringUtils.isNotBlank(plan.getDomainName()))
+                .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainName))
+                .forEach((k,v)->{if(v.size()>1)sb.append(String.format("update plan of %s multi define;", k));});
         if(StringUtils.isNotBlank(sb.toString()))
             return sb.toString();
-        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
-        for(DomainUpdatePlanInfo planInfo : deleteList)
-        {
-            List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(planInfo.getDomainId()) ? domainAppMap.get(planInfo.getDomainId()) : new ArrayList<>();
-            String planCheckResult = checkDomainPlan(planInfo, domainApps, hostList, registerApps);
-            sb.append(planCheckResult);
-        }
-        for(DomainUpdatePlanInfo planInfo : addList)
-        {
-            String planCheckResult = checkDomainPlan(planInfo, new ArrayList<>(), hostList, registerApps);
-            sb.append(planCheckResult);
-        }
-        for(DomainUpdatePlanInfo planInfo : updateList)
-        {
-            List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(planInfo.getDomainId()) ? domainAppMap.get(planInfo.getDomainId()) : new ArrayList<>();
-            String planCheckResult = checkDomainPlan(planInfo, domainApps, hostList, registerApps);
-            sb.append(planCheckResult);
-        }
+        UpdateStatus status = updateSchema.getStatus();
+        if(status.equals(UpdateStatus.EXEC) || status.equals(UpdateStatus.WAIT_EXEC))
+            return "";
+        List<DomainUpdatePlanInfo> plans = updateSchema.getDomainUpdatePlanList().stream().
+                filter(plan->plan.getStatus().equals(status)).collect(Collectors.toList());
+        boolean isNewPlatform = updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE) ? true : false;
+        if(plans.size() == 0)
+            sb.append(String.format("status of schema is %s but there is not any domain plan status is %s",
+                    status.name, status.name));
+        else if(isNewPlatform && status.equals(UpdateStatus.EXEC)
+                && plans.size() != updateSchema.getDomainUpdatePlanList().size())
+            sb.append(String.format("status of new create platform is %s but there are %d domain plan status not %s",
+                    status.name, updateSchema.getDomainUpdatePlanList().size()-plans.size(), status.name));
         return sb.toString();
     }
 

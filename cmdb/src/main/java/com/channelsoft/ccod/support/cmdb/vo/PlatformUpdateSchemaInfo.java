@@ -62,20 +62,16 @@ public class PlatformUpdateSchemaInfo {
 
     private String hostUrl; //平台的域名
 
-    @NotNull(message = "glsDBType can not be null")
     private DatabaseType glsDBType; //ccod平台glsserver的数据库类型
 
-    @NotNull(message = "glsDBUser can not be null")
     private String glsDBUser; //gls数据库的db用户
 
-    @NotNull(message = "glsDBPwd can not be null")
     private String glsDBPwd; //gls数据库的登录密码
 
     private String baseDataNexusRepository; //基础数据在nexus的存放仓库
 
     private String baseDataNexusPath; //基础数据在nexus的存放path
 
-    @NotNull(message = "publicConfig can not be null")
     private List<AppFileNexusInfo> publicConfig; //用来存放平台公共配置
 
     private String k8sApiUrl; //k8s api的url地址
@@ -374,6 +370,7 @@ public class PlatformUpdateSchemaInfo {
         po.setApiUrl(k8sApiUrl);
         po.setHostUrl(hostUrl);
         po.setParams(getPlatformParam());
+        po.setCfgs(publicConfig);
         return po;
     }
 
