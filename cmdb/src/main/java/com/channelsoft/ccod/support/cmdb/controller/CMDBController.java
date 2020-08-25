@@ -715,14 +715,14 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            switch (schema.getPlatformType())
+            switch (schema.getType())
             {
                 case K8S_CONTAINER:
                 case PHYSICAL_MACHINE:
                     platformManagerService.updatePlatformUpdateSchema(schema);
                     break;
                 default:
-                    throw new Exception(String.format("%s type platform not support", schema.getPlatformType()));
+                    throw new Exception(String.format("%s type platform not support", schema.getType()));
             }
 
             resultPo = new AjaxResultPo(true, "update schema success", 1, null);

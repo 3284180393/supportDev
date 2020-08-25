@@ -951,8 +951,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String version = appBase.getVersion();
         String name = String.format("%s-%s", alias, domainId);
         String platformId = platform.getPlatformId();
-        String k8sApiUrl = platform.getApiUrl();
-        String k8sAuthToken = platform.getAuthToken();
+        String k8sApiUrl = platform.getK8sApiUrl();
+        String k8sAuthToken = platform.getK8sAuthToken();
         AppModuleVo module = this.appManagerService.queryAllRegisterAppModule(true).stream()
                 .filter(app->app.getAppName().equals(appName)&&app.getVersion().equals(version))
                 .collect(Collectors.toList()).get(0);
@@ -1012,8 +1012,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String version = appBase.getVersion();
         logger.debug(String.format("generate update step for %s at %s", alias, domainId));
         String platformId = platform.getPlatformId();
-        String k8sApiUrl = platform.getApiUrl();
-        String k8sAuthToken = platform.getAuthToken();
+        String k8sApiUrl = platform.getK8sApiUrl();
+        String k8sAuthToken = platform.getK8sAuthToken();
         K8sCCODDomainAppVo oriApp= getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
         K8sCCODDomainAppVo updateApp = generateNewCCODDomainApp(appBase, domainId, domainCfg, platform);
         List<K8sOperationInfo> steps = new ArrayList<>();
@@ -1066,8 +1066,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String appName = appBase.getAppName();
         String version = appBase.getVersion();
         String platformId = platform.getPlatformId();
-        String k8sApiUrl = platform.getApiUrl();
-        String k8sAuthToken = platform.getAuthToken();
+        String k8sApiUrl = platform.getK8sApiUrl();
+        String k8sAuthToken = platform.getK8sAuthToken();
         if(!this.ik8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken))
             throw new ParamException(String.format("namespace %s not exist at %s", platformId, k8sApiUrl));
         String name = String.format("%s-%s", alias, domainId);

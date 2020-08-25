@@ -160,4 +160,17 @@ public class DeployFileInfo {
     public void setTransferFailReason(String transferFailReason) {
         this.transferFailReason = transferFailReason;
     }
+
+    public AppFileNexusInfo getFileNexusInfo()
+    {
+        AppFileNexusInfo nexusInfo = new AppFileNexusInfo();
+        nexusInfo.setExt(this.ext);
+        nexusInfo.setFileName(this.fileName);
+        nexusInfo.setMd5(this.fileMd5);
+        nexusInfo.setNexusAssetId(this.nexusAssetId);
+        nexusInfo.setNexusPath(String.format("%s/%s", this.nexusDirectory, this.fileName));
+        nexusInfo.setNexusRepository(this.nexusRepository);
+        nexusInfo.setDeployPath(this.deployPath);
+        return nexusInfo;
+    }
 }

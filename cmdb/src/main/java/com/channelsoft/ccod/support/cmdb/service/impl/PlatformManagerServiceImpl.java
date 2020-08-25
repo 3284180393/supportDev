@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.PostConstruct;
@@ -245,6 +246,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     @Value("${ccod.health-check-at-regex}")
     private String healthCheckRegex;
+
+    @Value("${ccod.service-port-regex}")
+    private String portRegex;
 
     private final Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
 
@@ -904,6 +908,60 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
     }
 
+    private void checkPlatformBase(PlatformBase platformBase, PlatformUpdateTaskType taskType, List<DomainUpdatePlanInfo> plans, UpdateStatus status)
+    {
+        String platformId = platformBase.getPlatformId();
+        Assert.notNull(platformId, "platformId can not be null");
+        Assert.isTrue(!platformId.matches(this.platformIdRegex), String.format("%s is illegal platformId", platformBase.getPlatformId()));
+        switch (taskType)
+        {
+            case CREATE:
+                Assert.notNull(platformBase.getPlatformName(), "platformName can not be null");
+                Assert.notNull(platformBase.getCcodVersion(), "ccodVersion can not be null");
+                Assert.notNull(platformBase.getType(), "type can not be null");
+                Assert.isTrue(!platformBase.getType().equals(PlatformType.K8S_CONTAINER), "current version only support k8s deploy");
+                Assert.isTrue(platformBase.getBkBizId() > 0, "bkBizId should be assigned");
+                Assert.notNull(platformBase.getCreateMethod(), "create method can not be null");
+                Assert.notNull(platformBase.getFunc(), "func can not be null");
+                Assert.notNull(platformBase.getHostUrl(), "hostUrl can not be null");
+                Assert.notNull(platformBase.getK8sHostIp(), "k8sHostIp can not be null");
+                Assert.notNull(platformBase.getK8sApiUrl(), "k8sApiUrl can not be null");
+                Assert.notNull(platformBase.getK8sAuthToken(), "k8sAuthToken can not be null");
+                boolean clone = platformBase.getCreateMethod().equals(PlatformCreateMethod.CLONE) || platformBase.getCreateMethod().equals(PlatformCreateMethod.K8S_API_CLONE) ? true : false;
+                if(clone) {
+                    Assert.notNull(platformBase.getPlatformParam(), "params can not be null for cloned platform");
+                }
+                else {
+                    Assert.notNull(platformBase.getBaseDataNexusRepository(), "baseDataNexusRepository can not be null");
+                    Assert.notNull(platformBase.getBaseDataNexusPath(), "baseDataNexusPath can not be null");
+                    Assert.notNull(platformBase.getGlsDBType(), "glsDBType cannot be null");
+                    Assert.notNull(platformBase.getGlsDBUser(), "glsDBUser can not be null");
+                    Assert.notNull(platformBase.getGlsDBPwd(), "glsDBPwd can not be null");
+                    Assert.notNull(platformBase.getCfgs(), "cfgs of platform can not be null");
+                    Assert.notEmpty(platformBase.getCfgs(), "cfgs of platform can not be empty");
+                }
+                List<DomainUpdatePlanInfo> notAddList = plans==null ? new ArrayList<>() : plans.stream().filter(p->!p.getUpdateType().equals(DomainUpdateType.ADD)).collect(Collectors.toList());
+                Assert.isTrue(notAddList.size()==0, String.format("%d domain is not ADD for new CREATE platform", notAddList.size()));
+                break;
+            case DELETE:
+                Assert.isTrue(plans==null || plans.size()==0, "not need assign plan for DELETE platform");
+                break;
+            case UPDATE:
+                break;
+        }
+        switch (status)
+        {
+            case EXEC:
+            case WAIT_EXEC:
+                Assert.notNull(plans, String.format("status is %s, but plans of domain is null", status.name));
+                Assert.notEmpty(plans, String.format("status is %s, but plans of domain is empty", status.name));
+                List<DomainUpdatePlanInfo> targetPlans = plans.stream().filter(p->p.getStatus().equals(status)).collect(Collectors.toList());
+                Assert.notEmpty(targetPlans, String.format("status of platform is %s but not status of domain is %s", status.name, status.name));
+                if(status.equals(UpdateStatus.EXEC) && taskType.equals(PlatformUpdateTaskType.CREATE))
+                    Assert.isTrue(targetPlans.size() == plans.size(), String.format("status of new CREATE platform is EXEC, but %d domain plans status is not EXEC", plans.size()-targetPlans.size()));
+        }
+    }
+
     private String checkAppBase(String ccodVersion, AppBase appBase, AppUpdateOperation operation, BizSetDefine setDefine, List<PlatformAppDeployDetailVo> deployApps, List<AppModuleVo> registerApps)
     {
         String appName = appBase.getAppName();
@@ -961,6 +1019,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             sb.append(String.format("logOutputCmd for %s is blank;", tag));
         if(StringUtils.isBlank(appBase.getPorts()))
             sb.append(String.format("ports is blank for %s;", tag));
+        else if(appBase.getPorts().matches(this.portRegex))
+            sb.append(String.format("%s is illegal ports for %s;", appBase.getPorts(), tag));
         if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
             sb.append(String.format("cfgs of %s is empty;", tag));
         return sb.toString();
@@ -1233,8 +1293,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         platform.setCreateTime(now);
         platform.setComment("create by k8s api");
         platform.setCcodVersion(ccodVersion);
-        platform.setApiUrl(k8sApiUrl);
-        platform.setAuthToken(k8sAuthToken);
+        platform.setK8sApiUrl(k8sApiUrl);
+        platform.setK8sAuthToken(k8sAuthToken);
         platform.setType(PlatformType.K8S_CONTAINER);
         platform.setFunc(func);
         platformMapper.insert(platform);
@@ -1586,12 +1646,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException(String.format("cfg %s of %s at %s multi defile", fileName, alias, domainId));
         }
         PlatformPo platform = getK8sPlatform(platformId);
-        V1ConfigMap oldConfigMap = this.k8sApiService.readNamespacedConfigMap(configMapName, platformId, platform.getApiUrl(), platform.getAuthToken());
+        V1ConfigMap oldConfigMap = this.k8sApiService.readNamespacedConfigMap(configMapName, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
 
         V1ConfigMap newConfigMap = this.k8sApiService.getConfigMapFromNexus(platformId, configMapName,
                 newCfgs.stream().map(cfg -> cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
-        List<V1Deployment> deployments = this.k8sApiService.listNamespacedDeployment(platformId, platform.getApiUrl(), platform.getAuthToken());
+        List<V1Deployment> deployments = this.k8sApiService.listNamespacedDeployment(platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
         for(V1Deployment deployment : deployments)
         {
             if(!deployment.getSpec().getSelector().getMatchLabels().containsKey(this.domainIdLabel)
@@ -1601,7 +1661,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
 
         logger.debug(String.format("modify config %s from %s to %s", configMapName, gson.toJson(oldConfigMap), gson.toJson(newConfigMap)));
-        this.k8sApiService.replaceNamespacedConfigMap(configMapName, platformId, newConfigMap, platform.getApiUrl(), platform.getAuthToken());
+        this.k8sApiService.replaceNamespacedConfigMap(configMapName, platformId, newConfigMap, platform.getK8sApiUrl(), platform.getK8sAuthToken());
 
 
 
@@ -1612,23 +1672,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         logger.debug(String.format("begin to update platform update schema : %s", gson.toJson(updateSchema)));
 //        resetSchema(updateSchema);
 //        logger.warn(gson.toJson(updateSchema));
-        if(StringUtils.isBlank(updateSchema.getSchemaId()))
-            throw new ParamException(String.format("schemaId of schema is blank"));
+        PlatformUpdateTaskType taskType = updateSchema.getTaskType();
+        UpdateStatus status = updateSchema.getStatus();
+        checkPlatformBase(updateSchema, taskType, updateSchema.getDomainUpdatePlanList(), status);
         PlatformUpdateRecordPo rcd = this.platformUpdateRecordMapper.selectByJobId(updateSchema.getSchemaId());
         if(rcd != null)
             throw new ParamException(String.format("schema id %s has been used", updateSchema.getSchemaId()));
-        if(!updateSchema.getPlatformId().matches(this.platformIdRegex))
-            throw new ParamException(String.format("error platformId %s", updateSchema.getPlatformId()));
-        PlatformUpdateTaskType taskType = updateSchema.getTaskType();
         PlatformPo platformPo = platformMapper.selectByPrimaryKey(updateSchema.getPlatformId());
         if(!taskType.equals(PlatformUpdateTaskType.CREATE) && platformPo == null)
             throw new ParamException(String.format("%s platform %s not exist", taskType.name, platformPo.getPlatformId()));
         else if(taskType.equals(PlatformUpdateTaskType.CREATE))
         {
-            if (StringUtils.isBlank(updateSchema.getPlatformName()))
-                throw new ParamException("platformName of schema is blank");
-            if(updateSchema.getBkBizId() <= 0)
-                throw new ParamException("bkBizId of schema not define");
             LJBizInfo bkBiz = paasService.queryBizInfoById(updateSchema.getBkBizId());
             if (bkBiz == null)
                 throw new ParamException(String.format("bkBizId=%d biz not exist", updateSchema.getBkBizId()));
@@ -1648,7 +1702,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         List<DomainPo> domainList = this.domainMapper.select(updateSchema.getPlatformId(), null);
-        Boolean hasImage = PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType()) ? true : null;
+        Boolean hasImage = PlatformType.K8S_CONTAINER.equals(updateSchema.getType()) ? true : null;
         List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(hasImage);
         boolean clone = PlatformCreateMethod.CLONE.equals(updateSchema.getCreateMethod()) || PlatformCreateMethod.K8S_API_CLONE.equals(updateSchema.getCreateMethod())  ? true : false;
         List<PlatformAppDeployDetailVo> platformDeployApps = this.platformAppDeployDetailMapper.selectPlatformApps(updateSchema.getPlatformId(), null, null);
@@ -1662,7 +1716,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(taskType.equals(PlatformUpdateTaskType.CREATE))
         {
             boolean needInsert = platformPo == null ? true : false;
-            platformPo = updateSchema.getCreatePlatform();
+            platformPo = updateSchema.getCreatePlatform(updateSchema.getComment());
             if(needInsert)
                 this.platformMapper.insert(platformPo);
             else
@@ -1670,7 +1724,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         List<AssemblePo> assembleList = this.assembleMapper.select(updateSchema.getPlatformId(), null);
         makeupDomainIdAndAliasForSchema(updateSchema, domainList, platformDeployApps, clone);
-        UpdateStatus status = updateSchema.getStatus();
         if (status.equals(UpdateStatus.EXEC) || status.equals(UpdateStatus.WAIT_EXEC))
             execPlatformSchema(platformPo, updateSchema, domainList, assembleList, platformDeployApps, registerApps);
         boolean closeSchema = status.equals(UpdateStatus.EXEC) && updateSchema.getDomainUpdatePlanList().size() == 0 ? true : false;
@@ -1726,8 +1779,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String platformId = platformPo.getPlatformId();
         String ccodVersion = platformPo.getCcodVersion();
         String jobId = schema.getSchemaId();
-        String k8sApiUrl = platformPo.getApiUrl();
-        String k8sAuthToken = platformPo.getAuthToken();
+        String k8sApiUrl = platformPo.getK8sApiUrl();
+        String k8sAuthToken = platformPo.getK8sAuthToken();
         String hostUrl = platformPo.getHostUrl();
         Map<String, List<AppFileNexusInfo>> domainPubCfgMap;
         boolean clone = PlatformCreateMethod.CLONE.equals(schema.getCreateMethod()) ? true : false;
@@ -1737,7 +1790,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(isNewPlatform) {
             domainPubCfgMap = schema.getDomainUpdatePlanList().stream().filter(plan -> plan.getPublicConfig() != null && plan.getPublicConfig().size() > 0)
                     .collect(Collectors.toMap(plan->plan.getDomainId(), v->v.getPublicConfig()));
-            platformCfg = schema.getPublicConfig();
+            platformCfg = schema.getCfgs();
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(ccodVersion,
                     platformId, hostUrl, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
                     null, null, schema.getThreePartApps(), schema.getThreePartServices(), platformCfg,
@@ -1862,8 +1915,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(version == null)
             throw new ParamException(String.format("version can not be null"));
         PlatformPo platform = getK8sPlatform(platformId);
-        String k8sApiUrl = platform.getApiUrl();
-        String k8sAuthToken = platform.getAuthToken();
+        String k8sApiUrl = platform.getK8sApiUrl();
+        String k8sAuthToken = platform.getK8sAuthToken();
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String jobId = DigestUtils.md5DigestAsHex(sf.format(now).getBytes());
@@ -1885,7 +1938,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<K8sOperationInfo> steps = this.k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform);;
         for(K8sOperationInfo step : steps)
         {
-            K8sOperationPo execResult = execK8sOpt(step, platformId, platform.getApiUrl(), platform.getAuthToken());
+            K8sOperationPo execResult = execK8sOpt(step, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
             if(!execResult.isSuccess())
                 throw new ParamException(String.format("debug fail : %s", execResult.getComment()));
         }
@@ -1913,8 +1966,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         };
         List<K8sOperationInfo> steps = new ArrayList<>();
         String platformId = platformPo.getPlatformId();
-        String k8sApiUrl = platformPo.getApiUrl();
-        String k8sAuthToken = platformPo.getAuthToken();
+        String k8sApiUrl = platformPo.getK8sApiUrl();
+        String k8sAuthToken = platformPo.getK8sAuthToken();
         String hostUrl = platformPo.getHostUrl();
         List<AppFileNexusInfo> domainCfg = plan.getPublicConfig();
         if(!isNewPlatform && domainCfg != null && domainCfg.size() > 0)
@@ -1994,7 +2047,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException(String.format("namespace %s exist at %s", platformId, apiUrl));
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(ccodVersion,
                     platformId, hostUrl, jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(), null, null,
-                    schema.getThreePartApps(), schema.getThreePartServices(), schema.getPublicConfig(), apiUrl, authToken);
+                    schema.getThreePartApps(), schema.getThreePartServices(), schema.getCfgs(), apiUrl, authToken);
             execSteps.addAll(platformCreateSteps);
         }
         Map<String, Integer> setMap = new HashMap<>();
@@ -2031,7 +2084,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             List<V1ConfigMap> domainConfigs = getDomainServiceConfigMap(domainId, allConfigs);
             BizSetDefine setDefine = getBizSetForDomainId(domainId);
             List<K8sCollection> existDomainCollects = parseAppK8sCollection(domainId, domainDeploys, domainServices, domainIngresses, registerApps);
-            List<K8sOperationInfo> optList = generateDomainK8sOperation(jobId, platformId, domainId, plan, existDomainCollects, domainConfigs, schema.getPublicConfig(), plan.getPublicConfig(), setDefine, registerApps);
+            List<K8sOperationInfo> optList = generateDomainK8sOperation(jobId, platformId, domainId, plan, existDomainCollects, domainConfigs, schema.getCfgs(), plan.getPublicConfig(), setDefine, registerApps);
             execSteps.addAll(optList);
         }
         Map<K8sKind, List<K8sOperationInfo>> operationMap = execSteps.stream().collect(Collectors.groupingBy(K8sOperationInfo::getKind));
@@ -2216,47 +2269,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      */
     private String checkPlatformUpdateSchema(String ccodVersion, PlatformUpdateSchemaInfo updateSchema, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> deployApps, List<LJHostInfo> hostList, List<AppModuleVo> registerApps) {
         StringBuffer sb = new StringBuffer();
-        PlatformUpdateTaskType taskType = updateSchema.getTaskType();
-        if (StringUtils.isBlank(updateSchema.getPlatformId()))
-            sb.append("platformId is blank;");
-        if(PlatformUpdateTaskType.CREATE.equals(taskType)) {
-            if (StringUtils.isBlank(updateSchema.getPlatformName()))
-                sb.append("platformName is blank;");
-            if(StringUtils.isBlank(updateSchema.getCcodVersion()))
-                sb.append(String.format("ccodVersion is blank;"));
-            if(updateSchema.getPublicConfig() == null || updateSchema.getPublicConfig().size() == 0)
-                sb.append("publicConfig is empty;");
-            if(StringUtils.isBlank(updateSchema.getSchemaId()))
-                sb.append("schemaId is blank;");
-            if(updateSchema.getCreateMethod() == null)
-                sb.append("createMethod is blank;");
-            if(updateSchema.getPlatformFunc() == null)
-                sb.append("platformFunc is blank;");
-            if (updateSchema.getBkBizId() <= 0)
-                sb.append("bkBizId of schema not define;");
-            if(updateSchema.getGlsDBType() == null)
-                sb.append(String.format("glsDBType is blank;"));
-            else if (!updateSchema.getGlsDBType().equals(DatabaseType.ORACLE))
-                sb.append(String.format("this version not support glsserver with database %s;", updateSchema.getGlsDBType().name));
-            if(StringUtils.isBlank(updateSchema.getGlsDBUser()))
-                sb.append(String.format("glsDBUser is blank;"));
-            if(StringUtils.isBlank(updateSchema.getGlsDBPwd()))
-                sb.append(String.format("glsDBPwd is blank;"));
-            if(PlatformType.K8S_CONTAINER.equals(updateSchema.getPlatformType())) {
-                if(StringUtils.isBlank(updateSchema.getK8sHostIp()))
-                    sb.append(String.format("k8sHostIp is blank;"));
-                if(StringUtils.isBlank(updateSchema.getHostUrl()))
-                    sb.append(String.format("hostUrl is blank;"));
-                if(StringUtils.isBlank(updateSchema.getK8sApiUrl()))
-                    sb.append(String.format("k8sApiUrl is blank;"));
-                if(StringUtils.isBlank(updateSchema.getK8sAuthToken()))
-                    sb.append(String.format("k8sAuthToken is blank;"));
-            }
-        }
         hostList.stream().collect(Collectors.groupingBy(LJHostInfo::getHostInnerIp))
                 .forEach((k,v) -> {if(v.size()>1)sb.append(String.format("%s is not unique at paas;", k));});
-        if(StringUtils.isNotBlank(sb.toString()))
-            return sb.toString();
         Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         Map<String, DomainPo> domainIdMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<String, DomainPo> domainNameMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
@@ -2328,21 +2342,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         updateSchema.getDomainUpdatePlanList().stream().filter(plan -> StringUtils.isNotBlank(plan.getDomainName()))
                 .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainName))
                 .forEach((k,v)->{if(v.size()>1)sb.append(String.format("update plan of %s multi define;", k));});
-        if(StringUtils.isNotBlank(sb.toString()))
-            return sb.toString();
-        UpdateStatus status = updateSchema.getStatus();
-        if(status.equals(UpdateStatus.EXEC) || status.equals(UpdateStatus.WAIT_EXEC))
-            return "";
-        List<DomainUpdatePlanInfo> plans = updateSchema.getDomainUpdatePlanList().stream().
-                filter(plan->plan.getStatus().equals(status)).collect(Collectors.toList());
-        boolean isNewPlatform = updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE) ? true : false;
-        if(plans.size() == 0)
-            sb.append(String.format("status of schema is %s but there is not any domain plan status is %s",
-                    status.name, status.name));
-        else if(isNewPlatform && status.equals(UpdateStatus.EXEC)
-                && plans.size() != updateSchema.getDomainUpdatePlanList().size())
-            sb.append(String.format("status of new create platform is %s but there are %d domain plan status not %s",
-                    status.name, updateSchema.getDomainUpdatePlanList().size()-plans.size(), status.name));
         return sb.toString();
     }
 
@@ -2473,7 +2472,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String platformId = paramVo.getPlatformId();
         switch (paramVo.getCreateMethod()) {
             case MANUAL:
-                if(paramVo.getPlatformType() == null)
+                if(paramVo.getType() == null)
                     throw new ParamException(String.format("platform type of new platform is null"));
                 schemaInfo = paramVo.getPlatformCreateSchema(new ArrayList<>());
                 break;
@@ -2497,7 +2496,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 throw new ParamException(String.format("current version not support %s create", paramVo.getCreateMethod().name));
         }
         Map<String, Object> params = getParamFromSchema(schemaInfo);
-        PlatformPo platform = schemaInfo.getCreatePlatform();
+        PlatformPo platform = schemaInfo.getCreatePlatform(schemaInfo.getComment());
         platformMapper.insert(platform);
         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
         schemaPo.setPlatformId(platformId);
@@ -2510,7 +2509,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private void checkPlatformCreateParam(PlatformCreateParamVo param) throws ParamException, InterfaceCallException, LJPaasException {
         StringBuffer sb = new StringBuffer();
-        if (PlatformType.K8S_CONTAINER.equals(param.getPlatformType())) {
+        if (PlatformType.K8S_CONTAINER.equals(param.getType())) {
             if (StringUtils.isBlank(param.getK8sApiUrl()))
                 sb.append("k8sApiUrl is blank;");
             if (StringUtils.isBlank(param.getK8sAuthToken()))
@@ -2659,7 +2658,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<PlatformAppDeployDetailVo> clonedApps = this.platformAppDeployDetailMapper.selectPlatformApps(paramVo.getParams(), null, null);
         if(clonedApps.size() == 0)
             throw new ParamException(String.format("deployed apps of cloned platform %s is 0", paramVo.getParams()));
-        if(paramVo.getPlatformFunc() == null)
+        if(paramVo.getFunc() == null)
             throw new ParamException(String.format("function of new platform is blank"));
         Map<String, List<PlatformAppDeployDetailVo>> hostAppMap = clonedApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getHostIp));
         if (hostList.size() < hostAppMap.size())
@@ -2698,8 +2697,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             i++;
         }
         PlatformUpdateSchemaInfo schema = paramVo.getPlatformCreateSchema(new ArrayList<>(planMap.values()));
-        schema.setPlatformType(clonedPlatform.getType());
-        schema.setPublicConfig(platformCfg);
+        schema.setType(clonedPlatform.getType());
+        schema.setCfgs(platformCfg);
         schema.setCcodVersion(clonedPlatform.getCcodVersion());
         schema.setGlsDBType(DatabaseType.getEnum((String)clonedPlatform.getParams().get("gls_db_type")));
         if(schema.getGlsDBType().equals(DatabaseType.ORACLE))
@@ -3067,42 +3066,42 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Namespace queryPlatformK8sNamespace(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s namespace of %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.readNamespace(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.readNamespace(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public List<V1Pod> queryPlatformAllK8sPods(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s pods of %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.listNamespacedPod(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.listNamespacedPod(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1Pod queryPlatformK8sPodByName(String platformId, String podName) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s pod %s of %s", podName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.readNamespacedPod(podName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.readNamespacedPod(podName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public List<V1Service> queryPlatformAllK8sServices(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s services of %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.listNamespacedService(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.listNamespacedService(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1Service queryPlatformK8sServiceByName(String platformId, String serviceName) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s service %s of %s", serviceName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.readNamespacedService(serviceName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.readNamespacedService(serviceName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1Service createK8sPlatformService(String platformId, V1Service service) throws ParamException, ApiException {
         logger.debug(String.format("create new Service for platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Service create = this.k8sApiService.createNamespacedService(platformId, service, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Service create = this.k8sApiService.createNamespacedService(platformId, service, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return create;
     }
 
@@ -3110,14 +3109,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public void deleteK8sPlatformService(String platformId, String serviceName) throws ParamException, ApiException {
         logger.debug(String.format("delete Service %s from platform %s"));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        this.k8sApiService.deleteNamespacedEndpoints(serviceName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        this.k8sApiService.deleteNamespacedEndpoints(serviceName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1Service replaceK8sPlatformService(String platformId, String serviceName, V1Service service) throws ParamException, ApiException {
         logger.debug(String.format("replace Service %s of platform %s", serviceName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Service replace = this.k8sApiService.replaceNamespacedService(serviceName, platformId, service, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Service replace = this.k8sApiService.replaceNamespacedService(serviceName, platformId, service, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return replace;
     }
 
@@ -3125,14 +3124,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public List<V1ConfigMap> queryPlatformAllK8sConfigMaps(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s configMap of %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.listNamespacedConfigMap(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.listNamespacedConfigMap(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1ConfigMap queryPlatformK8sConfigMapByName(String platformId, String configMapName) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s configMap %s of %s", configMapName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.readNamespacedConfigMap(platformId, configMapName, platformPo.getApiUrl(), platformPo.getAuthToken());
+        return this.k8sApiService.readNamespacedConfigMap(platformId, configMapName, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     private PlatformPo getK8sPlatform(String platformId) throws ParamException {
@@ -3143,11 +3142,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             logger.error(String.format("platform %s type is %s not %s", platformId, platformPo.getType().name, PlatformType.K8S_CONTAINER.name));
             throw new ParamException(String.format("%s is not %s platform", platformId, PlatformType.K8S_CONTAINER.name));
         }
-        if (StringUtils.isBlank(platformPo.getApiUrl())) {
+        if (StringUtils.isBlank(platformPo.getK8sApiUrl())) {
             logger.error(String.format("k8s api url of %s is blank", platformId));
             throw new ParamException(String.format("k8s api url of %s is blank", platformId));
         }
-        if (StringUtils.isBlank(platformPo.getAuthToken())) {
+        if (StringUtils.isBlank(platformPo.getK8sAuthToken())) {
             logger.error(String.format("k8s auth token of %s is blank", platformId));
             throw new ParamException(String.format("k8s auth token of %s is blank", platformId));
         }
@@ -3158,7 +3157,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public List<V1Deployment> queryPlatformAllK8sDeployment(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all deployment of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<V1Deployment> list = this.k8sApiService.listNamespacedDeployment(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1Deployment> list = this.k8sApiService.listNamespacedDeployment(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return list;
     }
 
@@ -3166,7 +3165,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Deployment queryPlatformK8sDeploymentByName(String platformId, String deploymentName) throws ParamException, ApiException {
         logger.debug(String.format("query deployment %s at platform %s", deploymentName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Deployment deployment = this.k8sApiService.readNamespacedDeployment(deploymentName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Deployment deployment = this.k8sApiService.readNamespacedDeployment(deploymentName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return deployment;
     }
 
@@ -3174,7 +3173,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Deployment createK8sPlatformDeployment(String platformId, V1Deployment deployment) throws ParamException, ApiException {
         logger.debug(String.format("create new Deployment for platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Deployment create = this.k8sApiService.createNamespacedDeployment(platformId, deployment, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Deployment create = this.k8sApiService.createNamespacedDeployment(platformId, deployment, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return create;
     }
 
@@ -3182,14 +3181,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public void deleteK8sPlatformDeployment(String platformId, String deploymentName) throws ParamException, ApiException {
         logger.debug(String.format("delete Deployment %s from platform %s"));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        this.k8sApiService.deleteNamespacedEndpoints(deploymentName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        this.k8sApiService.deleteNamespacedEndpoints(deploymentName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1Deployment replaceK8sPlatformDeployment(String platformId, String deploymentName, V1Deployment deployment) throws ParamException, ApiException {
         logger.debug(String.format("replace Deployment %s of platform %s", deploymentName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Deployment replace = this.k8sApiService.replaceNamespacedDeployment(deploymentName, platformId, deployment, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Deployment replace = this.k8sApiService.replaceNamespacedDeployment(deploymentName, platformId, deployment, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return replace;
     }
 
@@ -3197,7 +3196,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public ExtensionsV1beta1Ingress queryPlatformK8sIngressByName(String platformId, String ingressName) throws ParamException, ApiException {
         logger.debug(String.format("query ingress %s at platform %s", ingressName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        ExtensionsV1beta1Ingress ingress = this.k8sApiService.readNamespacedIngress(ingressName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        ExtensionsV1beta1Ingress ingress = this.k8sApiService.readNamespacedIngress(ingressName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return ingress;
     }
 
@@ -3205,7 +3204,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public List<ExtensionsV1beta1Ingress> queryPlatformAllK8sIngress(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all ingress of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<ExtensionsV1beta1Ingress> list = this.k8sApiService.listNamespacedIngress(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<ExtensionsV1beta1Ingress> list = this.k8sApiService.listNamespacedIngress(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return list;
     }
 
@@ -3213,7 +3212,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public ExtensionsV1beta1Ingress createK8sPlatformIngress(String platformId, ExtensionsV1beta1Ingress ingress) throws ParamException, ApiException {
         logger.debug(String.format("create new Ingress for platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        ExtensionsV1beta1Ingress create = this.k8sApiService.createNamespacedIngress(platformId, ingress, platformPo.getApiUrl(), platformPo.getAuthToken());
+        ExtensionsV1beta1Ingress create = this.k8sApiService.createNamespacedIngress(platformId, ingress, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return create;
     }
 
@@ -3221,14 +3220,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public void deleteK8sPlatformIngress(String platformId, String ingressName) throws ParamException, ApiException {
         logger.debug(String.format("delete Ingress %s from platform %s"));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        this.k8sApiService.deleteNamespacedIngress(ingressName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        this.k8sApiService.deleteNamespacedIngress(ingressName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public ExtensionsV1beta1Ingress replaceK8sPlatformIngress(String platformId, String ingressName, ExtensionsV1beta1Ingress ingress) throws ParamException, ApiException {
         logger.debug(String.format("replace Ingress %s of platform %s", ingressName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        ExtensionsV1beta1Ingress replace = this.k8sApiService.replaceNamespacedIngress(ingressName, platformId, ingress, platformPo.getApiUrl(), platformPo.getAuthToken());
+        ExtensionsV1beta1Ingress replace = this.k8sApiService.replaceNamespacedIngress(ingressName, platformId, ingress, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return replace;
     }
 
@@ -3236,7 +3235,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public List<V1Endpoints> queryPlatformAllK8sEndpoints(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all endpoints of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<V1Endpoints> list = this.k8sApiService.listNamespacedEndpoints(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1Endpoints> list = this.k8sApiService.listNamespacedEndpoints(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return list;
     }
 
@@ -3244,7 +3243,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Endpoints queryPlatformK8sEndpointsByName(String platformId, String endpointsName) throws ParamException, ApiException {
         logger.debug(String.format("query endpoints %s at platform %s", endpointsName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Endpoints endpoints = this.k8sApiService.readNamespacedEndpoints(endpointsName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Endpoints endpoints = this.k8sApiService.readNamespacedEndpoints(endpointsName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return endpoints;
     }
 
@@ -3252,7 +3251,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Endpoints createK8sPlatformEndpoints(String platformId, V1Endpoints endpoints) throws ParamException, ApiException {
         logger.debug(String.format("create new Endpoints for platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Endpoints create = this.k8sApiService.createNamespacedEndpoints(platformId, endpoints, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Endpoints create = this.k8sApiService.createNamespacedEndpoints(platformId, endpoints, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return create;
     }
 
@@ -3260,14 +3259,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public void deleteK8sPlatformEndpoints(String platformId, String endpointsName) throws ParamException, ApiException {
         logger.debug(String.format("delete Endpoints %s from platform %s"));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        this.k8sApiService.deleteNamespacedEndpoints(endpointsName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        this.k8sApiService.deleteNamespacedEndpoints(endpointsName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1Endpoints replaceK8sPlatformEndpoints(String platformId, String endpointName, V1Endpoints endpoints) throws ParamException, ApiException {
         logger.debug(String.format("replace Endpoints %s of platform %s", endpointName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Endpoints replace = this.k8sApiService.replaceNamespacedEndpoints(endpointName, platformId, endpoints, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Endpoints replace = this.k8sApiService.replaceNamespacedEndpoints(endpointName, platformId, endpoints, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return replace;
     }
 
@@ -3275,7 +3274,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public List<V1Secret> queryPlatformAllK8sSecret(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all endpoints of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<V1Secret> list = this.k8sApiService.listNamespacedSecret(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1Secret> list = this.k8sApiService.listNamespacedSecret(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return list;
     }
 
@@ -3283,7 +3282,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Secret queryPlatformK8sSecretByName(String platformId, String secretName) throws ParamException, ApiException {
         logger.debug(String.format("query secretName %s at platform %s", secretName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Secret secret = this.k8sApiService.readNamespacedSecret(secretName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Secret secret = this.k8sApiService.readNamespacedSecret(secretName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return secret;
     }
 
@@ -3291,7 +3290,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1Secret createK8sPlatformSecret(String platformId, V1Secret secret) throws ParamException, ApiException {
         logger.debug(String.format("create new Secret for platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Secret create = this.k8sApiService.createNamespacedSecret(platformId, secret, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Secret create = this.k8sApiService.createNamespacedSecret(platformId, secret, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return create;
     }
 
@@ -3299,14 +3298,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public void deleteK8sPlatformSecret(String platformId, String secretName) throws ParamException, ApiException {
         logger.debug(String.format("delete Secret %s from platform %s"));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        this.k8sApiService.deleteNamespacedSecret(secretName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        this.k8sApiService.deleteNamespacedSecret(secretName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1Secret replaceK8sPlatformSecret(String platformId, String secretName, V1Secret secret) throws ParamException, ApiException {
         logger.debug(String.format("replace Secret %s of platform %s", secretName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1Secret replace = this.k8sApiService.replaceNamespacedSecret(secretName, platformId, secret, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1Secret replace = this.k8sApiService.replaceNamespacedSecret(secretName, platformId, secret, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return replace;
     }
 
@@ -3314,7 +3313,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public List<V1PersistentVolumeClaim> queryPlatformAllK8sPersistentVolumeClaim(String platformId) throws ParamException, ApiException {
         logger.debug(String.format("query all PersistentVolumeClaim of platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        List<V1PersistentVolumeClaim> list = this.k8sApiService.listNamespacedPersistentVolumeClaim(platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        List<V1PersistentVolumeClaim> list = this.k8sApiService.listNamespacedPersistentVolumeClaim(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return list;
     }
 
@@ -3322,7 +3321,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1PersistentVolumeClaim queryPlatformK8sPersistentVolumeClaimByName(String platformId, String persistentVolumeClaimName) throws ParamException, ApiException {
         logger.debug(String.format("query PersistentVolumeClaim %s at platform %s", persistentVolumeClaimName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1PersistentVolumeClaim claim = this.k8sApiService.readNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1PersistentVolumeClaim claim = this.k8sApiService.readNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return claim;
     }
 
@@ -3330,7 +3329,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1PersistentVolumeClaim createK8sPlatformPersistentVolumeClaim(String platformId, V1PersistentVolumeClaim persistentVolumeClaim) throws ParamException, ApiException {
         logger.debug(String.format("create new PersistentVolumeClaim for platform %s", platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1PersistentVolumeClaim create = this.k8sApiService.createNamespacedPersistentVolumeClaim(platformId, persistentVolumeClaim, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1PersistentVolumeClaim create = this.k8sApiService.createNamespacedPersistentVolumeClaim(platformId, persistentVolumeClaim, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return create;
     }
 
@@ -3338,14 +3337,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public void deleteK8sPlatformPersistentVolumeClaim(String platformId, String persistentVolumeClaimName) throws ParamException, ApiException {
         logger.debug(String.format("delete PersistentVolumeClaim %s from platform %s"));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        this.k8sApiService.deleteNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, platformPo.getApiUrl(), platformPo.getAuthToken());
+        this.k8sApiService.deleteNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     @Override
     public V1PersistentVolumeClaim replaceK8sPlatformPersistentVolumeClaim(String platformId, String persistentVolumeClaimName, V1PersistentVolumeClaim persistentVolumeClaim) throws ParamException, ApiException {
         logger.debug(String.format("replace PersistentVolumeClaim %s of platform %s", persistentVolumeClaim, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        V1PersistentVolumeClaim replace = this.k8sApiService.replaceNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, persistentVolumeClaim, platformPo.getApiUrl(), platformPo.getAuthToken());
+        V1PersistentVolumeClaim replace = this.k8sApiService.replaceNamespacedPersistentVolumeClaim(persistentVolumeClaimName, platformId, persistentVolumeClaim, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
         return replace;
     }
 
@@ -4111,8 +4110,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private List<K8sOperationPo> execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, PlatformAppDeployDetailVo deployGls) throws ParamException
     {
         String platformId = platform.getPlatformId();
-        String k8sApiUrl = platform.getApiUrl();
-        String k8sAuthToken = platform.getAuthToken();
+        String k8sApiUrl = platform.getK8sApiUrl();
+        String k8sAuthToken = platform.getK8sAuthToken();
         int oraclePort = 0;
         List<K8sOperationPo> execResults = new ArrayList<>();
         Map<String, Object> params = platform.getParams();
@@ -4202,7 +4201,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public PlatformUpdateRecordVo rollbackPlatform(String platformId, List<String> domainIds) throws ParamException, ApiException {
         logger.debug(String.format("rollback domain %s of %s to previous status", platformId, String.join(",", domainIds)));
         PlatformPo platform = getK8sPlatform(platformId);
-        List<V1Service> existServices = this.k8sApiService.listNamespacedService(platformId, platform.getApiUrl(), platform.getAuthToken());
+        List<V1Service> existServices = this.k8sApiService.listNamespacedService(platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
         List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
         if(lastRecords.size() == 0)
             throw new ParamException(String.format("platform %s can not find any record to rollback", platformId));
@@ -4280,7 +4279,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         boolean isSuccess = true;
         for(K8sOperationInfo optInfo : optList)
         {
-            K8sOperationPo execResult = execK8sOpt(optInfo, platformId, platform.getApiUrl(), platform.getAuthToken());
+            K8sOperationPo execResult = execK8sOpt(optInfo, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
             rollbackResults.add(execResult);
             if(!execResult.isSuccess()) {
                 logger.error(String.format("rollback step exec fail : %s", gson.toJson(execResult)));

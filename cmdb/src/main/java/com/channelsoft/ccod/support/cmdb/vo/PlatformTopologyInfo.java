@@ -66,8 +66,8 @@ public class PlatformTopologyInfo {
         this.idleHostList = new ArrayList<>();
         this.ccodVersion = platform.getCcodVersion();
         this.type = platform.getType();
-        this.apiUrl = platform.getApiUrl();
-        this.authToken = platform.getAuthToken();
+        this.apiUrl = platform.getK8sApiUrl();
+        this.authToken = platform.getK8sAuthToken();
         this.threePartAppList = new ArrayList<>();
         this.threePartServiceList = new ArrayList<>();
         this.func = platform.getFunc();

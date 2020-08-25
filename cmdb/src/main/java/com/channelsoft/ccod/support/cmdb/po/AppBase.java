@@ -12,7 +12,7 @@ import java.util.List;
  * @Date: 2020/8/20 15:49
  * @Version: 1.0
  */
-public class AppBase {
+public abstract class AppBase {
 
     protected String appName; //应用名
 
@@ -216,30 +216,6 @@ public class AppBase {
 
     public void setCfgs(List<AppFileNexusInfo> cfgs) {
         this.cfgs = cfgs;
-    }
-
-    public AppBase getAppBase()
-    {
-        AppBase appBase = new AppBase();
-        appBase.appName = appName;
-        appBase.alias = alias;
-        appBase.appType = appType;
-        appBase.version = version;
-        appBase.ccodVersion = ccodVersion;
-        appBase.basePath = basePath;
-        appBase.deployPath = deployPath;
-        appBase.envLoadCmd = envLoadCmd;
-        appBase.initCmd = initCmd;
-        appBase.startCmd = startCmd;
-        appBase.logOutputCmd = logOutputCmd;
-        appBase.ports = ports;
-        appBase.nodePorts = nodePorts;
-        appBase.checkAt = checkAt;
-        appBase.resources = resources;
-        appBase.initialDelaySeconds = initialDelaySeconds;
-        appBase.periodSeconds = periodSeconds;
-        appBase.cfgs = cfgs;
-        return appBase;
     }
 
     public String getAppNexusDirectory() {

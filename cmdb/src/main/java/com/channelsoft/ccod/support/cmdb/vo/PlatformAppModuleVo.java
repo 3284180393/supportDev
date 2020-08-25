@@ -5,10 +5,8 @@ import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @ClassName: PlatformAppModuleVo
@@ -261,16 +259,19 @@ public class PlatformAppModuleVo {
 
     public PlatformPo getPlatform()
     {
-        PlatformPo po = new PlatformPo(this.platformId, this.platformName, 0, 0,
-                CCODPlatformStatus.RUNNING, this.ccodVersion, "create by auto data collected", PlatformType.PHYSICAL_MACHINE,
-                PlatformFunction.ONLINE, PlatformCreateMethod.ONLINE_MANAGER_COLLECT, String.format("%s.ccod.com", platformId));
-//        po.setCcodVersion(this.ccodVersion);
-//        po.setComment("");
-//        po.setCreateTime(this.checkTime);
-//        po.setPlatformId(this.platformId);
-//        po.setPlatformName(this.platformName);
-//        po.setStatus(1);
-//        po.setUpdateTime(new Date());
+        Date now = new Date();
+        PlatformPo po = new PlatformPo();
+        po.setPlatformId(platformId);
+        po.setPlatformName(platformName);
+        po.setCfgs(Arrays.stream(cfgs).map(file->file.getFileNexusInfo()).collect(Collectors.toList()));
+        po.setUpdateTime(now);
+        po.setCreateTime(now);
+        po.setFunc(PlatformFunction.ONLINE);
+        po.setType(PlatformType.PHYSICAL_MACHINE);
+        po.setCcodVersion(ccodVersion);
+        po.setStatus(CCODPlatformStatus.RUNNING);
+        po.setComment("create by onlinemanager collected data");
+        po.setCreateMethod(PlatformCreateMethod.ONLINE_MANAGER_COLLECT);
         return po;
     }
 
