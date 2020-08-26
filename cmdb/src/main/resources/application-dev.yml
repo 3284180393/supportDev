@@ -18,28 +18,28 @@ ccod:
   notCheckCfgApps:
     - cmsserver
   platform-deploy-template: platform_deploy.py
-set[0]:
-  name: 公共组件
-  id: publicModules
-  isBasic: 1
-  fixedDomainName: 公共组件
-  fixedDomainId: public
-  apps[0]:
-    name: LicenseServer
-    alias: licenseserver
-  apps[1]:
-    name: configserver
-    alias: configserver
-  apps[2]:
-    name: glsServer
-    alias: glsserver
-    delay: 30
-  apps[3]:
-    name: RMServer
-  apps[4]:
-    name: dcmsCntLimit
-  apps[5]:
-    name: DataKeeper
+  set[0]:
+    name: 公共组件
+    id: publicModules
+    isBasic: 1
+    fixedDomainName: 公共组件
+    fixedDomainId: public
+    apps[0]:
+      name: LicenseServer
+      alias: licenseserver
+    apps[1]:
+      name: configserver
+      alias: configserver
+    apps[2]:
+      name: glsServer
+      alias: glsserver
+      delay: 30
+    apps[3]:
+      name: RMServer
+    apps[4]:
+      name: dcmsCntLimit
+    apps[5]:
+      name: DataKeeper
   set[1]:
     name: 运营门户
     id: supportPortal
@@ -250,6 +250,16 @@ set[0]:
       name: dcmsDialerWS
     apps[4]:
       name: dcmsDialerRQ
+  key:
+    glsDBType: glsDBType
+    glsDBUser: glsDBUser
+    glsDBPwd: glsDBPwd
+    glsDBSid: glsDBSid
+    k8sHostIpKey: k8sHostIp
+    baseDataNexusRepository: baseDataNexusRepository
+    baseDataNexusPath: baseDataNexusPath
+    k8sHostIp: k8sHostIp
+    dbPort: dbPort
   startChains:
     chains[0]:
       name: glsServer

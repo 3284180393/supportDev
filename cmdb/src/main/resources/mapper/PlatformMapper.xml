@@ -12,8 +12,8 @@
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="type" property="type" jdbcType="VARCHAR" />
         <result column="func" property="func" jdbcType="VARCHAR" />
-        <result column="api_url" property="apiUrl" jdbcType="VARCHAR" />
-        <result column="auth_token" property="authToken" jdbcType="VARCHAR" />
+        <result column="api_url" property="k8sApiUrl" jdbcType="VARCHAR" />
+        <result column="auth_token" property="k8sAuthToken" jdbcType="VARCHAR" />
         <result column="host_url" property="hostUrl" jdbcType="VARCHAR" />
         <result column="params" property="params" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
@@ -93,8 +93,8 @@
             #{comment,jdbcType=VARCHAR},
             #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
             #{func,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
-            #{apiUrl,jdbcType=VARCHAR},
-            #{authToken,jdbcType=VARCHAR},
+            #{k8sApiUrl,jdbcType=VARCHAR},
+            #{k8sAuthToken,jdbcType=VARCHAR},
             #{hostUrl,jdbcType=VARCHAR},
             #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
             #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler})
@@ -115,8 +115,8 @@
             update_time = #{updateTime,jdbcType=TIMESTAMP},
             `type` = #{type,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
             func = #{func,typeHandler=org.apache.ibatis.type.EnumTypeHandler},
-            api_url = #{apiUrl,jdbcType=VARCHAR},
-            auth_token = #{authToken,jdbcType=VARCHAR},
+            api_url = #{k8sApiUrl,jdbcType=VARCHAR},
+            auth_token = #{k8sAuthToken,jdbcType=VARCHAR},
             host_url = #{hostUrl,jdbcType=VARCHAR},
             params = #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
             cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}

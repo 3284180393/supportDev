@@ -1,28 +1,54 @@
 api:
 http://cmdbUrl/cmdb/api/platformTopologies
 调用方式: POST
-实例:
+实例,通过手动生成空的平台创建计划，以下项为必填:
 {
-    "schemaId": "12345666778991",
-    "createMethod": "CLONE",
-    "platformType": "K8S_CONTAINER",
-    "platformFunc": "TEST",
-    "platformId": "test90",
-    "platformName": "test90",
-    "ccodVersion" : "4.1",
-    "bkBizId": 36,
-    "bkCloudId": 8,
-    "params": "123456-wuph",
-    "k8sHostIp": "10.130.41.218",
-    "glsDBType": "ORACLE",
-    "glsDBUser": "ccod",
-    "glsDBPwd": "ccod",
-    "baseDataNexusRepository": "platform_base_data",
-    "baseDataNexusPath": "ccod/4.1/baseVolume.zip",
-    "publicConfig":[
-    ],
-    "k8sApiUrl": "https://10.130.41.218:6443",
-    "k8sAuthToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA"
+	"schemaId": "78a78p62p",
+	"platformId": "90t",
+	"platformName": "test90",
+	"type": "K8S_CONTAINER",
+	"func": "TEST",
+	"createMethod": "MANUAL",
+	"bkBizId": 36,
+	"bkCloudId": 16,
+	"ccodVersion": "4.1",
+	"taskType": "CREATE",
+	"title": "test90[90t]新建计划",
+	"comment": "create by MANUAL",
+	"k8sHostIp": "10.130.41.218",
+	"hostUrl": "90t.ccod.com",
+	"glsDBType": "ORACLE",
+	"glsDBUser": "ccod",
+	"glsDBPwd": "ccod",
+	"baseDataNexusRepository": "platform_base_data",
+	"baseDataNexusPath": "oracle\u003doracle-sql-20200729.gz,mysql\u003dmysql-sql-20200729.gz,slee\u003dslee.gz",
+	"cfgs": [{
+		"fileName": "local_datasource.xml",
+		"fileSize": 0,
+		"md5": "112940181aeb983baa9d7fd2733f194f",
+		"deployPath": "/root/resin-4.0.13/conf",
+		"nexusRepository": "tmp",
+		"nexusPath": "/configText/202005-test/publicConfig/local_datasource.xml",
+		"nexusAssetId": "dG1wOmQ0ODExNzU0MWRjYjg5ZWNmNmE4MWY3MWI3MmJlY2Ji"
+	}, {
+		"fileName": "local_jvm.xml",
+		"fileSize": 0,
+		"md5": "d172a5321944aba5bc19c35d00950afc",
+		"deployPath": "/root/resin-4.0.13/conf",
+		"nexusRepository": "tmp",
+		"nexusPath": "/configText/202005-test/publicConfig/local_jvm.xml",
+		"nexusAssetId": "dG1wOjEzYjI5ZTQ0OWYwZTNiOGRjMWQyMTIwNWRmYmY1MDM0"
+	}, {
+		"fileName": "tnsnames.ora",
+		"fileSize": 0,
+		"md5": "811f7f9472d5f6e733d732619a17ac77",
+		"deployPath": "/usr/local/lib",
+		"nexusRepository": "tmp",
+		"nexusPath": "/configText/202005-test/publicConfig/tnsnames.ora",
+		"nexusAssetId": "dG1wOjBhYjgwYTc0MzkyMWU0MjY0NzFkOTU3MGMyODRjMGJm"
+	}],
+	"k8sApiUrl": "https://10.130.41.218:6443",
+	"k8sAuthToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA"
 }
 
 参数说明:
@@ -30,18 +56,18 @@ schemaId : 平台升级计划id，用来唯一标识该计划的id,必填
 createMethod：平台创建方式,可选值MANUAL（手动创建空升级计划）,CLONE(通过克隆方式创建),PREDEFINE(通过脚本预定义创建)，必填
 platformId：新建平台id，必填
 platformName：新建平台名，必填
-platformType：平台类型，可选值PHYSICAL_MACHINE（物理实体机平台），K8S_CONTAINER（k8s容器平台），必填
-platformFunc：平台用途，可选值ONLINE（在线运营平台），TEST（测试平台），PROTOTYPE（原型平台），必填
+type：平台类型，可选值PHYSICAL_MACHINE（物理实体机平台），K8S_CONTAINER（k8s容器平台），必填,目前只支持K8S_CONTAINER
+func：平台用途，可选值ONLINE（在线运营平台），TEST（测试平台），PROTOTYPE（原型平台），必填
 bkBizId：新建平台对应蓝鲸paas的biz id，必填
 bkCloudId：新建平台服务器所在蓝鲸paas的cloud id，必填
 ccodVersion：ccod大版本号，必填
 params：同createMethod关联使用，如果createMethod为CLONE，此值为被克隆平台id，PREDEFINE，此值为预定义的平台创建脚本，选填
 k8sHostIp： 运行平台的k8s主机ip，如果platformType为K8S_CONTAINER则要填，否则可以不填
-glsDBType：ccod平台glsserver的数据库类型，可选值MYSQL、ORACLE、MONGODB，必填
-glsDBUser：gls数据库的db用户，必填
-glsDBPwd： gls数据库的登录密码，必填
-baseDataNexusRepository：gls数据库基础数据在nexus的存放仓库，必填
-baseDataNexusPath：gls数据库的基础数据在nexus的存放path，必填
-publicConfig：平台公共配置，必填
-k8sApiUrl：如果平台是部署在k8s上，需要指明k8s api的url
-k8sAuthToken：如果平台是部署在k8s上，需要指明访问k8s api的认证token
+k8sApiUrl：如果平台是部署在k8s上，需要指明k8s api的url,K8S_CONTAINER平台必填
+k8sAuthToken：如果平台是部署在k8s上，需要指明访问k8s api的认证token，K8S_CONTAINER平台必填
+cfgs：平台公共配置，非克隆方式必填
+glsDBType：ccod平台glsserver的数据库类型，可选值MYSQL、ORACLE、MONGODB，非克隆方式必填
+glsDBUser：gls数据库的db用户，非克隆方式必填
+glsDBPwd： gls数据库的登录密码，非克隆方式必填
+baseDataNexusRepository：gls数据库基础数据在nexus的存放仓库，非克隆方式必填
+baseDataNexusPath：gls数据库的基础数据在nexus的存放path，非克隆方式必填

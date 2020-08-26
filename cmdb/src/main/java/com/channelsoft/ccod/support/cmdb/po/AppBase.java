@@ -1,9 +1,14 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.constant.DatabaseType;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @ClassName: AppBase
@@ -228,4 +233,5 @@ public abstract class AppBase {
         String group = String.format("/%s/%s", this.appName, this.version);
         return group;
     }
+
 }

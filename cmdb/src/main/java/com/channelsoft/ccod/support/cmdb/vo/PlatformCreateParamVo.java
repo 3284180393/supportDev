@@ -6,7 +6,8 @@ import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
-import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
 /**
@@ -56,9 +57,16 @@ public class PlatformCreateParamVo extends PlatformBase implements Serializable 
 
     public PlatformUpdateSchemaInfo getPlatformCreateSchema(List<DomainUpdatePlanInfo> domainPlanList)
     {
+        Map<String, Object> params = new HashMap<>();
+        return getPlatformCreateSchema(params, domainPlanList);
+    }
+
+    public PlatformUpdateSchemaInfo getPlatformCreateSchema(Map<String, Object> params, List<DomainUpdatePlanInfo> domainPlanList)
+    {
         String title = String.format("%s[%s]新建计划", platformName, platformId);
         String comment = PlatformCreateMethod.CLONE.equals(createMethod) ? String.format("create by %s %s", createMethod.name, params) : String.format("create by %s", createMethod.name);
-        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(this, PlatformUpdateTaskType.CREATE, UpdateStatus.CREATE, title, comment);
+        PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(this, params, PlatformUpdateTaskType.CREATE, UpdateStatus.CREATE, title, comment);
+        schema.setSchemaId(schemaId);
         schema.setDomainUpdatePlanList(domainPlanList);
         return schema;
     }

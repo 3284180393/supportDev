@@ -3,7 +3,9 @@ package com.channelsoft.ccod.support.cmdb.po;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,27 @@ import java.util.Map;
  */
 public abstract class PlatformBase {
 
+    @Value("${ccod.key.glsDBType}")
+    protected String glsDBTypeKey;
+
+    @Value("${ccod.key.glsDBUser}")
+    protected String glsDBUserKey;
+
+    @Value("${ccod.key.glsDBPwd}")
+    protected String glsDBPwdKey;
+
+    @Value("${ccod.key.glsDBSid}")
+    protected String glsDBSidKey;
+
+    @Value("${ccod.key.k8sHostIpKey}")
+    protected String k8sHostIpKey;
+
+    @Value("${ccod.key.baseDataNexusRepository}")
+    protected String baseDataNexusRepositoryKey;
+
+    @Value("${ccod.key.baseDataNexusPath}")
+    protected String baseDataNexusPathKey;
+    
     protected String platformId; //平台id
 
     protected String platformName; //该平台的平台名,需要同蓝鲸的对应的bizName一致
@@ -72,6 +95,28 @@ public abstract class PlatformBase {
         this.glsDBPwd = platformBase.glsDBPwd;
         this.baseDataNexusRepository = platformBase.baseDataNexusRepository;
         this.baseDataNexusPath = platformBase.baseDataNexusPath;
+        this.k8sHostIp = platformBase.k8sHostIp;
+        this.k8sApiUrl = platformBase.k8sApiUrl;
+        this.k8sAuthToken = platformBase.k8sAuthToken;
+    }
+
+    public PlatformBase(PlatformBase platformBase, Map<String, Object> params)
+    {
+        this.platformId = platformBase.platformId;
+        this.platformName = platformBase.platformName;
+        this.type = platformBase.type;
+        this.createMethod = platformBase.createMethod;
+        this.func = platformBase.func;
+        this.bkBizId = platformBase.bkBizId;
+        this.bkCloudId = platformBase.bkCloudId;
+        this.ccodVersion = platformBase.ccodVersion;
+        this.cfgs = platformBase.cfgs;
+        this.hostUrl = platformBase.hostUrl;
+        this.glsDBType = params.containsKey(this.glsDBTypeKey) ? DatabaseType.getEnum((String)params.get(this.glsDBTypeKey)) : platformBase.glsDBType;
+        this.glsDBUser = params.containsKey(this.glsDBUserKey) ? (String)params.get(this.glsDBUserKey) : platformBase.getGlsDBUser();
+        this.glsDBPwd = params.containsKey(this.glsDBPwdKey) ? (String)params.get(this.glsDBPwdKey) : platformBase.glsDBPwd;
+        this.baseDataNexusRepository = params.containsKey(this.baseDataNexusRepositoryKey) ? (String)params.get(this.baseDataNexusRepositoryKey) : platformBase.baseDataNexusRepository;
+        this.baseDataNexusPath = params.containsKey(this.baseDataNexusPathKey) ? (String)params.get(this.baseDataNexusPathKey) : platformBase.baseDataNexusPath;
         this.k8sHostIp = platformBase.k8sHostIp;
         this.k8sApiUrl = platformBase.k8sApiUrl;
         this.k8sAuthToken = platformBase.k8sAuthToken;
@@ -224,6 +269,9 @@ public abstract class PlatformBase {
     public PlatformPo getCreatePlatform(String comment)
     {
         PlatformPo po = new PlatformPo(this, CCODPlatformStatus.SCHEMA_CREATE, comment);
+        Date now = new Date();
+        po.setCreateTime(now);
+        po.setUpdateTime(now);
         po.setParams(getPlatformParam());
         return po;
     }
@@ -231,16 +279,18 @@ public abstract class PlatformBase {
     public Map<String, Object> getPlatformParam()
     {
         Map<String, Object> params = new HashMap<>();
-        if(StringUtils.isNotBlank(this.k8sHostIp))
-            params.put("k8s_host_ip", this.k8sHostIp);
         if(this.glsDBType != null)
-            params.put("gls_db_type", this.glsDBType.name);
+            params.put(this.glsDBTypeKey, this.glsDBType.name);
         if(StringUtils.isNotBlank(this.glsDBUser))
-            params.put("gls_db_user", this.glsDBUser);
+            params.put(this.glsDBUserKey, this.glsDBUser);
         if(StringUtils.isNotBlank(this.glsDBPwd))
-            params.put("gls_db_pwd", this.glsDBPwd);
+            params.put(this.glsDBPwdKey, this.glsDBPwd);
         if(this.glsDBType.equals(DatabaseType.ORACLE))
-            params.put("gls_db_sid", "xe");
+            params.put(this.glsDBSidKey, "xe");
+        params.put(this.baseDataNexusPathKey, this.baseDataNexusPath);
+        params.put(this.baseDataNexusRepositoryKey, this.baseDataNexusRepository);
+        if(type.equals(PlatformType.K8S_CONTAINER))
+            params.put(this.k8sHostIpKey, this.k8sHostIp);
         return params;
     }
 }

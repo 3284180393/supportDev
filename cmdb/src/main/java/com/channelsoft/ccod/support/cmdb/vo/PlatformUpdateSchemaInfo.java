@@ -4,7 +4,6 @@ import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformBase;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import io.kubernetes.client.openapi.models.*;
 import org.springframework.validation.annotation.Validated;
 
@@ -55,6 +54,17 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
     public PlatformUpdateSchemaInfo(PlatformBase platformBase, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
     {
         super(platformBase);
+        this.taskType = taskType;
+        this.title = title;
+        this.comment = comment;
+        this.status = status;
+        this.domainUpdatePlanList = new ArrayList<>();
+        this.threePartApps = new ArrayList<>();
+    }
+
+    public PlatformUpdateSchemaInfo(PlatformBase platformBase, Map<String, Object> params, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
+    {
+        super(platformBase, params);
         this.taskType = taskType;
         this.title = title;
         this.comment = comment;
