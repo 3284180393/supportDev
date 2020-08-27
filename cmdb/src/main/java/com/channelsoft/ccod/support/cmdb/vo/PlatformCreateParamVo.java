@@ -58,11 +58,12 @@ public class PlatformCreateParamVo extends PlatformBase implements Serializable 
     public PlatformUpdateSchemaInfo getPlatformCreateSchema(List<DomainUpdatePlanInfo> domainPlanList)
     {
         Map<String, Object> params = new HashMap<>();
-        return getPlatformCreateSchema(params, domainPlanList);
+        return getPlatformCreateSchema(this.cfgs, params, domainPlanList);
     }
 
-    public PlatformUpdateSchemaInfo getPlatformCreateSchema(Map<String, Object> params, List<DomainUpdatePlanInfo> domainPlanList)
+    public PlatformUpdateSchemaInfo getPlatformCreateSchema(List<AppFileNexusInfo> cfgs, Map<String, Object> params, List<DomainUpdatePlanInfo> domainPlanList)
     {
+        this.cfgs = cfgs;
         String title = String.format("%s[%s]新建计划", platformName, platformId);
         String comment = PlatformCreateMethod.CLONE.equals(createMethod) ? String.format("create by %s %s", createMethod.name, params) : String.format("create by %s", createMethod.name);
         PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(this, params, PlatformUpdateTaskType.CREATE, UpdateStatus.CREATE, title, comment);

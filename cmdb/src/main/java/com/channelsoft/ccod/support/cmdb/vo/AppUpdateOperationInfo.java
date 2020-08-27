@@ -39,6 +39,15 @@ public class AppUpdateOperationInfo extends AppBase {
 
     private String appRunner; //该应用的执行用户
 
+    private List<AppFileNexusInfo> domainCfg;  //域公共配置，该字段主要用于调试应用
+
+    public AppUpdateOperationInfo(AppBase appBase)
+    {
+        super(appBase);
+    }
+
+    public AppUpdateOperationInfo(){}
+
     public AppUpdateOperation getOperation() {
         return operation;
     }
@@ -119,11 +128,12 @@ public class AppUpdateOperationInfo extends AppBase {
         this.domainName = domainName;
     }
 
-    public AppUpdateOperationInfo(){}
+    public List<AppFileNexusInfo> getDomainCfg() {
+        return domainCfg;
+    }
 
-    public AppUpdateOperationInfo(AppBase appBase)
-    {
-        super(appBase);
+    public void setDomainCfg(List<AppFileNexusInfo> domainCfg) {
+        this.domainCfg = domainCfg;
     }
 
     public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)

@@ -35,6 +35,9 @@ public class LJHostInfo {
 
     private String osVersion; //操作系统版本
 
+    private LJCloudInfo[] clouds; //服务器归属的云
+
+
 //    private LJBKInfo bizInfo; //host所在biz的信息
 //
 //    private List<LJSetInfo> sets; //host归属的set
@@ -148,5 +151,14 @@ public class LJHostInfo {
     @JSONField(name = "bk_os_version")
     public void setOsVersion(String osVersion) {
         this.osVersion = osVersion;
+    }
+
+    public LJCloudInfo[] getClouds() {
+        return clouds;
+    }
+
+    @JSONField(name = "bk_cloud_id")
+    public void setClouds(LJCloudInfo[] clouds) {
+        this.clouds = clouds;
     }
 }

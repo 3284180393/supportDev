@@ -250,16 +250,6 @@ ccod:
       name: dcmsDialerWS
     apps[4]:
       name: dcmsDialerRQ
-  key:
-    glsDBType: glsDBType
-    glsDBUser: glsDBUser
-    glsDBPwd: glsDBPwd
-    glsDBSid: glsDBSid
-    k8sHostIpKey: k8sHostIp
-    baseDataNexusRepository: baseDataNexusRepository
-    baseDataNexusPath: baseDataNexusPath
-    k8sHostIp: k8sHostIp
-    dbPort: dbPort
   startChains:
     chains[0]:
       name: glsServer

@@ -71,6 +71,7 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
         this.status = status;
         this.domainUpdatePlanList = new ArrayList<>();
         this.threePartApps = new ArrayList<>();
+        this.threePartServices = new ArrayList<>();
     }
 
     public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {

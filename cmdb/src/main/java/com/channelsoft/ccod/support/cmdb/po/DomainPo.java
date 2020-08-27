@@ -2,8 +2,11 @@ package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.DomainStatus;
 import com.channelsoft.ccod.support.cmdb.constant.DomainType;
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * @ClassName: DomainPo
@@ -38,10 +41,9 @@ public class DomainPo {
 
     private String tags; //域的标签,例如:入呼叫、外呼、自动外拨
 
-    public DomainPo()
-    {
+    private List<AppFileNexusInfo> cfgs; //域公共配置
 
-    }
+    public DomainPo() {}
 
     public DomainPo(String domainId, String domainName, String platformId, DomainStatus status, String comment,
                     String bizSetName, int occurs, int maxOccurs, String tags)
@@ -58,6 +60,7 @@ public class DomainPo {
         this.occurs = occurs;
         this.maxOccurs = maxOccurs;
         this.tags = tags;
+        this.cfgs = new ArrayList<>();
     }
 
     public String getDomainId() {
@@ -154,5 +157,13 @@ public class DomainPo {
 
     public void setType(DomainType type) {
         this.type = type;
+    }
+
+    public List<AppFileNexusInfo> getCfgs() {
+        return cfgs;
+    }
+
+    public void setCfgs(List<AppFileNexusInfo> cfgs) {
+        this.cfgs = cfgs;
     }
 }

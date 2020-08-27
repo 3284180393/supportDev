@@ -19,27 +19,20 @@ import java.util.Map;
  */
 public abstract class PlatformBase {
 
-    @Value("${ccod.key.glsDBType}")
-    protected String glsDBTypeKey;
+    protected String glsDBTypeKey = "glsDBType";
 
-    @Value("${ccod.key.glsDBUser}")
-    protected String glsDBUserKey;
+    protected String glsDBUserKey = "glsDBUser";
 
-    @Value("${ccod.key.glsDBPwd}")
-    protected String glsDBPwdKey;
+    protected String glsDBPwdKey = "glsDBPwd";
 
-    @Value("${ccod.key.glsDBSid}")
-    protected String glsDBSidKey;
+    protected String glsDBSidKey = "glsDBSid";
 
-    @Value("${ccod.key.k8sHostIpKey}")
-    protected String k8sHostIpKey;
+    protected String k8sHostIpKey = "k8sHostIp";
 
-    @Value("${ccod.key.baseDataNexusRepository}")
-    protected String baseDataNexusRepositoryKey;
+    protected String baseDataNexusRepositoryKey = "baseDataNexusRepository";
 
-    @Value("${ccod.key.baseDataNexusPath}")
-    protected String baseDataNexusPathKey;
-    
+    protected String baseDataNexusPathKey = "baseDataNexusPath";
+
     protected String platformId; //平台id
 
     protected String platformName; //该平台的平台名,需要同蓝鲸的对应的bizName一致
@@ -112,11 +105,11 @@ public abstract class PlatformBase {
         this.ccodVersion = platformBase.ccodVersion;
         this.cfgs = platformBase.cfgs;
         this.hostUrl = platformBase.hostUrl;
-        this.glsDBType = params.containsKey(this.glsDBTypeKey) ? DatabaseType.getEnum((String)params.get(this.glsDBTypeKey)) : platformBase.glsDBType;
-        this.glsDBUser = params.containsKey(this.glsDBUserKey) ? (String)params.get(this.glsDBUserKey) : platformBase.getGlsDBUser();
-        this.glsDBPwd = params.containsKey(this.glsDBPwdKey) ? (String)params.get(this.glsDBPwdKey) : platformBase.glsDBPwd;
-        this.baseDataNexusRepository = params.containsKey(this.baseDataNexusRepositoryKey) ? (String)params.get(this.baseDataNexusRepositoryKey) : platformBase.baseDataNexusRepository;
-        this.baseDataNexusPath = params.containsKey(this.baseDataNexusPathKey) ? (String)params.get(this.baseDataNexusPathKey) : platformBase.baseDataNexusPath;
+        this.glsDBType = platformBase.glsDBType != null ? platformBase.glsDBType : DatabaseType.getEnum((String)params.get(this.glsDBTypeKey));
+        this.glsDBUser = StringUtils.isNotBlank(platformBase.glsDBUser) ? platformBase.glsDBUser : (String)params.get(this.glsDBUserKey);
+        this.glsDBPwd = StringUtils.isNotBlank(platformBase.glsDBPwd) ? platformBase.glsDBPwd : (String)params.get(this.glsDBPwdKey);
+        this.baseDataNexusRepository = StringUtils.isNotBlank(platformBase.baseDataNexusRepository) ? platformBase.baseDataNexusRepository : (String)params.get(this.baseDataNexusRepositoryKey);
+        this.baseDataNexusPath = StringUtils.isNotBlank(platformBase.baseDataNexusPath) ? platformBase.baseDataNexusPath : (String)params.get(this.baseDataNexusPathKey);
         this.k8sHostIp = platformBase.k8sHostIp;
         this.k8sApiUrl = platformBase.k8sApiUrl;
         this.k8sAuthToken = platformBase.k8sAuthToken;

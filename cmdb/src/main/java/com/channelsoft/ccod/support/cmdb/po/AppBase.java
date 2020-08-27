@@ -6,6 +6,7 @@ import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -234,4 +235,39 @@ public abstract class AppBase {
         return group;
     }
 
+    public void makeup(AppBase appBase)
+    {
+        this.version = StringUtils.isNotBlank(appBase.version) ? appBase.version : this.version;
+        this.basePath = StringUtils.isNotBlank(appBase.basePath) ? appBase.basePath : this.basePath;
+        this.checkAt = StringUtils.isNotBlank(appBase.checkAt) ? appBase.checkAt : this.checkAt;
+        this.deployPath = StringUtils.isNotBlank(appBase.deployPath) ? appBase.deployPath : this.deployPath;
+        this.envLoadCmd = StringUtils.isNotBlank(appBase.envLoadCmd) ? appBase.envLoadCmd : this.envLoadCmd;
+        this.initCmd = StringUtils.isNotBlank(appBase.initCmd) ? appBase.initCmd : this.initCmd;
+        this.initialDelaySeconds = appBase.initialDelaySeconds > 0 ? appBase.initialDelaySeconds : this.initialDelaySeconds;
+        this.logOutputCmd = StringUtils.isNotBlank(appBase.logOutputCmd) ? appBase.logOutputCmd : this.logOutputCmd;
+        this.nodePorts = StringUtils.isNotBlank(appBase.nodePorts) ? appBase.nodePorts : this.nodePorts;
+        this.periodSeconds = appBase.periodSeconds > 0 ? appBase.periodSeconds : this.periodSeconds;
+        this.ports = StringUtils.isNotBlank(appBase.ports) ? appBase.ports : this.ports;
+        this.resources = StringUtils.isNotBlank(appBase.resources) ? appBase.resources : this.resources;
+        this.startCmd = StringUtils.isNotBlank(appBase.startCmd) ? appBase.startCmd : this.startCmd;
+        this.cfgs = appBase.cfgs != null && appBase.cfgs.size() > 0 ? appBase.cfgs : this.cfgs;
+    }
+
+    public void fill(AppBase appBase)
+    {
+        this.version = StringUtils.isBlank(this.version) ? appBase.version : this.version;
+        this.basePath = StringUtils.isBlank(this.basePath) ? appBase.basePath : this.basePath;
+        this.checkAt = StringUtils.isBlank(this.checkAt) ? appBase.checkAt : this.checkAt;
+        this.deployPath = StringUtils.isBlank(this.deployPath) ? appBase.deployPath : this.deployPath;
+        this.envLoadCmd = StringUtils.isBlank(this.envLoadCmd) ? appBase.envLoadCmd : this.envLoadCmd;
+        this.initCmd = StringUtils.isBlank(this.initCmd) ? appBase.initCmd : this.initCmd;
+        this.initialDelaySeconds = this.initialDelaySeconds <= 0 ? appBase.initialDelaySeconds : this.initialDelaySeconds;
+        this.logOutputCmd = StringUtils.isBlank(this.logOutputCmd) ? appBase.logOutputCmd : this.logOutputCmd;
+        this.nodePorts = StringUtils.isBlank(this.nodePorts) ? appBase.nodePorts : this.nodePorts;
+        this.periodSeconds = this.periodSeconds <= 0 ? appBase.periodSeconds : this.periodSeconds;
+        this.ports = StringUtils.isBlank(this.ports) ? appBase.ports : this.ports;
+        this.resources = StringUtils.isBlank(this.resources) ? appBase.resources : this.resources;
+        this.startCmd = StringUtils.isBlank(this.startCmd) ? appBase.startCmd : this.startCmd;
+        this.cfgs = this.cfgs == null || this.cfgs.size() == 0 ? appBase.cfgs : this.cfgs;
+    }
 }
