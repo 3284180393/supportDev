@@ -682,7 +682,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
                     .collect(Collectors.toMap(port->port.getPort(), v->v.getTargetPort()));
             Map<Integer, IntOrString> oriPortMap = oriServices.stream().flatMap(svc->svc.getSpec().getPorts().stream())
                     .collect(Collectors.toList()).stream().collect(Collectors.toMap(port->port.getPort(), v->v.getTargetPort()));
-            if(portMap != oriPortMap)
+            if(portMap.size() != oriPortMap.size())
                 return true;
             for(int port : portMap.keySet())
             {

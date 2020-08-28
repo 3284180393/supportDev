@@ -18,8 +18,6 @@ public class PlatformAppPo extends AppBase{
 
     private int appId; //应用id,外键app的appId
 
-    private String alias; //应用别名,例如在服务器上部署两个cms,appName=cmsserver,两个cms的别名可以分别取cms1和cms2用来区分
-
     private String originalAlias; //应用原始别名，客户端提交的未被标准化处理的应用别名
 
     private String platformId; //平台id

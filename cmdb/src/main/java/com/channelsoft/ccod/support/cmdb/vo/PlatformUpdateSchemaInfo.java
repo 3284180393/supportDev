@@ -33,10 +33,8 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
     @NotNull(message = "status can not be null")
     private UpdateStatus status; //任务当前状态,由PlatformUpdateTaskStatus枚举定义
 
-    @NotNull(message = "title can not be null")
     private String title; //升级任务标题
 
-    @NotNull(message = "comment can not be null")
     private String comment; //备注
 
     private V1Namespace namespace; //命名空间

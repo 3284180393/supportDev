@@ -1052,7 +1052,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             if(isChanged)
             {
                 step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
-                        service.getMetadata().getName(), K8sOperation.DELETE, service);
+                        service.getMetadata().getName(), K8sOperation.CREATE, service);
                 steps.add(step);
             }
         }
