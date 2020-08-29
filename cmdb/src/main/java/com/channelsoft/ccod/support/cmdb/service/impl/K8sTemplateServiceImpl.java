@@ -923,8 +923,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         K8sCCODDomainAppVo app = getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
         String name = String.format("%s-%s", alias, domainId);
         List<K8sOperationInfo> steps = new ArrayList<>();
-        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, name, K8sOperation.DELETE, app.getConfigMap());
-        steps.add(step);
+        K8sOperationInfo step;
         if(app.getIngress() != null)
         {
             step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.INGRESS, name, K8sOperation.DELETE, app.getIngress());
@@ -1017,12 +1016,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         K8sCCODDomainAppVo oriApp= getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
         K8sCCODDomainAppVo updateApp = generateNewCCODDomainApp(appBase, domainId, domainCfg, platform);
         List<K8sOperationInfo> steps = new ArrayList<>();
-        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
-                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getConfigMap());
-        steps.add(step);
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
-                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getDeploy());
-        steps.add(step);
+        K8sOperationInfo step;
         for(V1Service service : updateApp.getServices())
         {
             String portKind = service.getSpec().getType();
@@ -1038,6 +1032,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 }
             }
         }
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getDeploy());
+        steps.add(step);
+        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getConfigMap());
+        steps.add(step);
         step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
                 updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getConfigMap());
         steps.add(step);

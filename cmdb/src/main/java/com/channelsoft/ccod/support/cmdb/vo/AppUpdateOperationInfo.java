@@ -20,8 +20,6 @@ import java.util.stream.Collectors;
 @Validated
 public class AppUpdateOperationInfo extends AppBase {
 
-    private int platformAppId; //平台应用id,如果操作是ADD为0,否则是被操作的平台应用id
-
     @NotNull(message = "operation can not be null")
     private AppUpdateOperation operation; //应用升级类型,由AppUpdateType枚举定义
 
@@ -88,14 +86,6 @@ public class AppUpdateOperationInfo extends AppBase {
         this.cfgs = cfgs;
     }
 
-    public int getPlatformAppId() {
-        return platformAppId;
-    }
-
-    public void setPlatformAppId(int platformAppId) {
-        this.platformAppId = platformAppId;
-    }
-
     public String getDomainId() {
         return domainId;
     }
@@ -136,18 +126,9 @@ public class AppUpdateOperationInfo extends AppBase {
         this.domainCfg = domainCfg;
     }
 
-    public PlatformAppPo getPlatformApp(int appId, String platformId, String domainId)
+    public PlatformAppPo getPlatformApp(int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId)
     {
-        PlatformAppPo po = new PlatformAppPo(this);
-        po.setPlatformId(platformId);
-        po.setOriginalAlias(this.originalAlias);
-        po.setDomainId(domainId);
-        po.setDeployTime(new Date());
-        po.setAppRunner(this.appRunner);
-        po.setHostIp(this.hostIp);
-        po.setAlias(this.alias);
-        po.setAppId(appId);
-        po.setPlatformAppId(0);
+        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner);
         return po;
     }
 
@@ -164,13 +145,6 @@ public class AppUpdateOperationInfo extends AppBase {
         vo.setPlatformAppId(0);
         vo.setCfgs(cfgs);
         return vo;
-    }
-
-    public PlatformAppPo getPlatformApp(int platformAppId, int appId, String platformId, String domainId)
-    {
-        PlatformAppPo po = getPlatformApp(appId, platformId, domainId);
-        po.setPlatformAppId(platformAppId);
-        return po;
     }
 
     @Override

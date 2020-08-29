@@ -235,7 +235,7 @@ public abstract class AppBase {
         return group;
     }
 
-    public void makeup(AppBase appBase)
+    public void changeTo(AppBase appBase)
     {
         this.version = StringUtils.isNotBlank(appBase.version) ? appBase.version : this.version;
         this.basePath = StringUtils.isNotBlank(appBase.basePath) ? appBase.basePath : this.basePath;

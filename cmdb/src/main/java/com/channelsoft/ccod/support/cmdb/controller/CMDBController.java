@@ -852,7 +852,7 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/platformRollBack/{platformId}", method = RequestMethod.POST)
+    @RequestMapping(value = "/platformRollBack/{platformId}", method = RequestMethod.PUT)
     public AjaxResultPo rollbackPlatform(@PathVariable String platformId, @RequestBody @Valid PlatformRollbackParamVo paramVo)
     {
         String uri = String.format("POST %s/platformRollBack/%s, param=%s", this.apiBasePath, platformId, gson.toJson(paramVo));

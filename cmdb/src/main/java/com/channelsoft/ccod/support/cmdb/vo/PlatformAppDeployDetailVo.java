@@ -282,18 +282,8 @@ public class PlatformAppDeployDetailVo extends AppBase {
 
     public PlatformAppPo getPlatformApp()
     {
-        PlatformAppPo po = new PlatformAppPo(this);
-        po.setOriginalAlias(this.originalAlias);
-        po.setDomainId(this.domainId);
-        po.setDeployTime(this.deployTime);
-        po.setPlatformId(this.platformId);
-        po.setAppId(this.appId);
-        po.setAppRunner(this.appRunner);
-        po.setHostIp(this.hostIp);
+        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner);
         po.setPlatformAppId(this.platformAppId);
-        po.setAssembleId(this.assembleId);
-        po.setReplicas(this.replicas);
-        po.setAvailableReplicas(this.availableReplicas);
         return po;
     }
 
@@ -309,7 +299,6 @@ public class PlatformAppDeployDetailVo extends AppBase {
         optInfo.setOperation(operation);
         optInfo.setOriginalVersion(this.originalAlias);
         optInfo.setOriginalAlias(this.originalAlias);
-        optInfo.setPlatformAppId(this.platformAppId);
         return optInfo;
     }
 

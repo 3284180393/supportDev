@@ -1,0 +1,65 @@
+一下实例升级ops01域的gls4的同时添加一个新的gls5
+{
+	"schemaId": "12346tr65568991",
+	"domainUpdatePlanList": [{
+		"domainId": "ops01",
+		"appUpdateOperationList": [{
+			"operation": "ADD",
+			"hostIp": "10.130.41.41",
+			"appName": "gls",
+			"version": "10309",
+			"basePath": "/root/resin-4.0.13",
+			"deployPath": "./webapps",
+			"envLoadCmd": "echo \"hello, gls\"",
+			"initCmd": null,
+			"startCmd": "./bin/resin.sh start",
+			"logOutputCmd": "tail -F ./log/*.log",
+			"ports": "80/TCP",
+			"nodePorts": null,
+			"checkAt": "8080/HTTP",
+			"resources": null,
+			"initialDelaySeconds": 55,
+			"periodSeconds": 10,
+			"cfgs": [{
+				"fileName": "Param-Config.xml",
+				"ext": "xml",
+				"md5": "1da62c81dacf6d7ee21fca3384f134c5",
+				"deployPath": "./webapps/WEB-INF/classes/",
+				"nexusRepository": "tmp",
+				"nexusPath": "configText/test-by-wyf/ops01_gls/Param-Config.xml",
+				"nexusAssetId": "dG1wOmQ0ODExNzU0MWRjYjg5ZWNjNmQyZWE4NTdmMGViMTdm"
+			}]
+		}, {
+			"operation": "UPDATE",,
+			"appName": "gls",
+			"alias":"gls4",
+			"version": "10309",
+			"basePath": "/root/resin-4.0.13",
+			"deployPath": "./webapps",
+			"envLoadCmd": "echo \"hello, gls\"",
+			"initCmd": null,
+			"startCmd": "./bin/resin.sh start",
+			"logOutputCmd": "tail -F ./log/*.log",
+			"ports": "80/TCP",
+			"nodePorts": null,
+			"checkAt": "8080/HTTP",
+			"initialDelaySeconds": 55,
+			"resources": null,
+			"periodSeconds": 10,
+			"cfgs": [{
+				"fileName": "Param-Config.xml",
+				"ext": "xml",
+				"md5": "1da62c81dacf6d7ee21fca3384f134c5",
+				"deployPath": "./webapps/WEB-INF/classes/",
+				"nexusRepository": "tmp",
+				"nexusPath": "configText/test-by-wyf/ops01_gls/Param-Config.xml",
+				"nexusAssetId": "dG1wOmQ0ODExNzU0MWRjYjg5ZWNjNmQyZWE4NTdmMGViMTdm"
+			}]
+		}],
+		"updateType": "UPDATE",
+		"status": "EXEC"
+	}],
+	"taskType": "UPDATE",
+	"status": "EXEC",
+	"platformId": "202005-test"
+}

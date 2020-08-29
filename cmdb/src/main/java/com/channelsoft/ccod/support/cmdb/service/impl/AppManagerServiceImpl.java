@@ -773,39 +773,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.info(String.format("handle %s cfgs SUCCESS", directory));
     }
 
-    /**
-     * 将指定域的一组应用删除
-     * @param domain 指定删除应用的域
-     * @param bkSet 该域归属的蓝鲸paas的set
-     * @param deleteOperationList 需要移除的应用操作列表
-     * @param appBkModuleList 被移除的应用对应的蓝鲸模块关系列表
-     * @throws ParamException
-     * @throws InterfaceCallException 调用蓝鲸api失败
-     * @throws LJPaasException 蓝鲸api返回调用失败或是解析蓝鲸api返回结果失败
-     */
-    private void removeAppsFromDomainHost(DomainPo domain, LJSetInfo bkSet, List<AppUpdateOperationInfo> deleteOperationList, List<PlatformAppBkModulePo> appBkModuleList)
-            throws ParamException, InterfaceCallException, LJPaasException
-    {
-        logger.debug(String.format("begin to remove %d apps from platformId=%s and domainId=%s",
-                deleteOperationList.size(), domain.getPlatformId(), domain.getDomainId()));
-        List<PlatformAppBkModulePo> removedAppBkModuleList = new ArrayList<>();
-        Map<Integer, PlatformAppBkModulePo> appBkModuleMap = appBkModuleList.stream().collect(Collectors.toMap(PlatformAppBkModulePo::getPlatformAppId, Function.identity()));
-        for(AppUpdateOperationInfo deleteOperationInfo : deleteOperationList)
-        {
-            removedAppBkModuleList.add(appBkModuleMap.get(deleteOperationInfo.getPlatformAppId()));
-        }
-        this.paasService.disBindDeployAppsToBizSet(bkSet.getBkBizId(), bkSet.getBkSetId(), removedAppBkModuleList);
-        for(AppUpdateOperationInfo deleteOperationInfo : deleteOperationList)
-        {
-            logger.debug(String.format("delete id=%d platform app cfg record", deleteOperationInfo.getPlatformAppId()));
-            platformAppCfgFileMapper.delete(null, deleteOperationInfo.getPlatformAppId());
-            logger.debug(String.format("delete id=%d platform app record", deleteOperationInfo.getPlatformAppId()));
-            platformAppMapper.delete(deleteOperationInfo.getPlatformAppId(), null, null);
-        }
-        logger.debug(String.format("remove %d apps from platformId=%s and domainId=%s SUCCESS",
-                removedAppBkModuleList.size(), domain.getPlatformId(), domain.getDomainId()));
-    }
-
     @Override
     public boolean hasImage(String appName, String version) throws ParamException {
         logger.debug(String.format("check image of %s[%s] exist", appName, version));
@@ -1061,13 +1028,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
      * @return
      */
     @Override
-    public List<NexusAssetInfo> downloadAndUploadAppFiles(String srcNexusHostUrl, String srcNexusUser, String srcPwd, List<AppFilePo> srcFileList, String dstRepository, String dstDirectory) throws ParamException, InterfaceCallException, NexusException, IOException
+    public List<AppFileNexusInfo> downloadAndUploadAppFiles(String srcNexusHostUrl, String srcNexusUser, String srcPwd, List<AppFileNexusInfo> srcFileList, String dstRepository, String dstDirectory) throws ParamException, InterfaceCallException, NexusException, IOException
     {
         List<DeployFileInfo> fileList = new ArrayList<>();
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(String.format("%s;%s", dstDirectory, sf.format(now)).getBytes()));
-        for(AppFilePo filePo : srcFileList)
+        for(AppFileNexusInfo filePo : srcFileList)
         {
             String downloadUrl = filePo.getFileNexusDownloadUrl(srcNexusHostUrl);
             logger.debug(String.format("download cfg from %s", downloadUrl));
@@ -1084,7 +1051,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             fileList.add(new DeployFileInfo(filePo, savePth));
         }
-        return this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, dstRepository, dstDirectory, fileList.toArray(new DeployFileInfo[0]));
+        Map<String, AppFileNexusInfo> srcMap = srcFileList.stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
+        List<NexusAssetInfo> assets = this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName,
+                this.nexusPassword, dstRepository, dstDirectory, fileList.toArray(new DeployFileInfo[0]));
+        return assets.stream().map(a->new AppFileNexusInfo(a, srcMap.get(a.getNexusAssetFileName()).getDeployPath()))
+                .collect(Collectors.toList());
     }
 
     /**

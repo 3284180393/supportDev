@@ -3,8 +3,8 @@ http://cmdbUrl/cmdb/api/platformTopologies
 调用方式: POST
 实例,通过手动生成空的平台创建计划，以下项为必填:
 {
-	"schemaId": "78a78p62p",
-	"platformId": "90t",
+	"schemaId": "78a99p62p",
+	"platformId": "202005-test",
 	"platformName": "test90",
 	"type": "K8S_CONTAINER",
 	"func": "TEST",

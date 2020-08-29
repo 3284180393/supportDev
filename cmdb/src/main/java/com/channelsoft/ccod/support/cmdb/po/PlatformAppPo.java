@@ -1,9 +1,12 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
+import com.channelsoft.ccod.support.cmdb.vo.AppUpdateOperationInfo;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 /**
  * @ClassName: PlatformAppPo
@@ -14,33 +17,47 @@ import java.util.Date;
  */
 public class PlatformAppPo extends AppBase{
 
-    private int platformAppId; //平台app部署id,数据库唯一生成
+    protected int platformAppId; //平台app部署id,数据库唯一生成
 
-    private int appId; //应用id,外键app的appId
+    protected int appId; //应用id,外键app的appId
 
-    private String originalAlias; //应用原始别名，客户端提交的未被标准化处理的应用别名
+    protected String originalAlias; //应用原始别名，客户端提交的未被标准化处理的应用别名
 
-    private String platformId; //平台id
+    protected String platformId; //平台id
 
-    private String domainId; //应用所在的域id,外键domain的domain_id
+    protected String domainId; //应用所在的域id,外键domain的domain_id
 
-    private int assembleId; //应用所在的assemble的id
+    protected int assembleId; //应用所在的assemble的id
 
-    private String hostIp; //应用所在服务器的主机ip
+    protected String hostIp; //应用所在服务器的主机ip
 
-    private int replicas; //运行副本数目
+    protected String appRunner; //应用运行用户
 
-    private int availableReplicas; //可用副本数目
-
-    private String appRunner; //应用运行用户
-
-    private Date deployTime; //该应用的部署路径
+    protected Date deployTime; //该应用的部署路径
 
     public PlatformAppPo(){}
 
-    public PlatformAppPo(AppBase appBase)
+    public PlatformAppPo(AppBase appBase, int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId, String originalAlias,
+                         String hostIp, String appRunner)
     {
         super(appBase);
+        this.cfgs = cfgs;
+        this.appId = appId;
+        this.platformId = platformId;
+        this.domainId = domainId;
+        this.originalAlias = originalAlias;
+        this.assembleId = assembleId;
+        this.hostIp = hostIp;
+        this.appRunner = appRunner;
+        this.deployTime = new Date();
+    }
+
+    public void update(AppBase appBase, int appId, List<AppFileNexusInfo> cfgs, String hostIp)
+    {
+        changeTo(appBase);
+        this.cfgs = cfgs;
+        this.appId = appId;
+        this.hostIp = hostIp;
     }
 
     public int getPlatformAppId() {
@@ -113,22 +130,6 @@ public class PlatformAppPo extends AppBase{
 
     public void setOriginalAlias(String originalAlias) {
         this.originalAlias = originalAlias;
-    }
-
-    public int getReplicas() {
-        return replicas;
-    }
-
-    public void setReplicas(int replicas) {
-        this.replicas = replicas;
-    }
-
-    public int getAvailableReplicas() {
-        return availableReplicas;
-    }
-
-    public void setAvailableReplicas(int availableReplicas) {
-        this.availableReplicas = availableReplicas;
     }
 
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {
