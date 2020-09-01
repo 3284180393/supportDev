@@ -2392,19 +2392,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             case CLONE:
                 schemaInfo = cloneExistPlatform(paramVo, hostList);
                 break;
-            case PREDEFINE:
-                if (StringUtils.isBlank(paramVo.getParams())) {
-                    logger.error(String.format("apps of pre define is blank"));
-                    throw new ParamException(String.format("apps of pre define is blank"));
-                }
-                List<String> planAppList = new ArrayList<>();
-                String[] planApps = paramVo.getParams().split("\n");
-                for (String planApp : planApps) {
-                    if (StringUtils.isNotBlank(planApp))
-                        planAppList.add(planApp);
-                }
-                schemaInfo = createDemoNewPlatform(paramVo, planAppList, hostList);
-                break;
             default:
                 throw new ParamException(String.format("current version not support %s create", paramVo.getCreateMethod().name));
         }
@@ -2446,102 +2433,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             throw new ParamException(String.format("bizId=%d biz not exist", param.getBkBizId()));
         if (!bizInfo.getBkBizName().equals(param.getPlatformName()))
             throw new ParamException(String.format("bizId=%d biz name is %s not %s", param.getBkBizId(), bizInfo.getBkBizName(), param.getPlatformName()));
-    }
-
-    /**
-     * 创建demo新平台
-     *
-     * @param planAppList 新建平台计划部署的应用
-     * @return 创建的平台
-     * @throws ParamException         计划的参数异常
-     * @throws InterfaceCallException 处理计划时调用蓝鲸api或是nexus api失败
-     * @throws LJPaasException        调用蓝鲸api返回调用失败或是解析蓝鲸api结果失败
-     */
-    public PlatformUpdateSchemaInfo createDemoNewPlatform(PlatformCreateParamVo paramVo, List<String> planAppList, List<LJHostInfo> hostList) throws ParamException, InterfaceCallException, LJPaasException {
-        logger.debug(String.format("begin to create new empty platform : %s", gson.toJson(paramVo)));
-        Date now = new Date();
-        Map<String, List<String>> planAppMap = new HashMap<>();
-        for (String planApp : planAppList) {
-            String[] arr = planApp.split("##");
-            if (!planAppMap.containsKey(arr[0])) {
-                planAppMap.put(arr[0], new ArrayList<>());
-            }
-            planAppMap.get(arr[0]).add(planApp);
-        }
-        List<DomainUpdatePlanInfo> planList = new ArrayList<>();
-        Set<String> ipSet = new HashSet<>();
-        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(null).stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        for (BizSetDefine setDefine : this.setDefineMap.values()) {
-            if (setDefine.getApps().size() == 0)
-                continue;
-            DomainUpdatePlanInfo planInfo = new DomainUpdatePlanInfo();
-            planInfo.setUpdateType(DomainUpdateType.ADD);
-            planInfo.setStatus(UpdateStatus.CREATE);
-            planInfo.setComment("由程序自动生成的新建域");
-            String domainId = setDefine.getFixedDomainId();
-            String domainName = setDefine.getFixedDomainName();
-            if (StringUtils.isBlank(domainId)) {
-                domainId = "new-create-test-domain";
-                domainName = "新建测试域";
-            }
-            planInfo.setDomainId(domainId);
-            planInfo.setDomainName(domainName);
-            planInfo.setAppUpdateOperationList(new ArrayList<>());
-            planInfo.setBkSetName(setDefine.getName());
-            for (AppDefine appDefine : setDefine.getApps()) {
-                String appName = appDefine.getName();
-                if (planAppMap.containsKey(appName)) {
-                    for (String planApp : planAppMap.get(appName)) {
-                        String[] arr = planApp.split("##");
-                        String appAlias = arr[1];
-                        String version = arr[2];
-                        String hostIp = arr[3].split("@")[1];
-                        ipSet.add(hostIp);
-                        String[] pathArr = arr[3].split("@")[0].replaceAll("^/", "").split("/");
-                        pathArr[1] = appAlias;
-                        String basePath = String.format("/%s", String.join("/", pathArr));
-                        Map<String, AppModuleVo> versionMap = registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
-                        if (!versionMap.containsKey(version)) {
-                            logger.error(String.format("create demo platform create schema FAIL : %s has not version=%s",
-                                    appName, version));
-                            throw new ParamException(String.format("create demo platform create schema FAIL : %s has not version=%s",
-                                    appName, version));
-                        }
-                        AppModuleVo appModuleVo = versionMap.get(version);
-                        AppUpdateOperationInfo addOperationInfo = new AppUpdateOperationInfo();
-                        addOperationInfo.setHostIp(hostIp);
-                        addOperationInfo.setOperation(AppUpdateOperation.ADD);
-                        addOperationInfo.setCfgs(new ArrayList<>());
-                        for (AppFileNexusInfo appCfgFilePo : appModuleVo.getCfgs()) {
-                            AppFileNexusInfo info = new AppFileNexusInfo();
-                            info.setDeployPath(appCfgFilePo.getDeployPath());
-                            info.setExt(appCfgFilePo.getExt());
-                            info.setFileName(appCfgFilePo.getFileName());
-                            info.setMd5(appCfgFilePo.getMd5());
-                            info.setNexusAssetId(appCfgFilePo.getNexusAssetId());
-                            info.setNexusPath(appCfgFilePo.getNexusPath());
-                            info.setNexusRepository(appCfgFilePo.getNexusRepository());
-                            addOperationInfo.getCfgs().add(info);
-                        }
-                        addOperationInfo.setBasePath(basePath);
-                        addOperationInfo.setAppRunner(appAlias);
-                        addOperationInfo.setAlias(appAlias);
-                        addOperationInfo.setAppName(appName);
-                        addOperationInfo.setVersion(version);
-                        planInfo.getAppUpdateOperationList().add(addOperationInfo);
-                    }
-                }
-
-            }
-            planList.add(planInfo);
-        }
-        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
-        for (String hostIp : ipSet) {
-            if (!hostMap.containsKey(hostIp))
-                throw new LJPaasException(String.format("%s has not %s host", paramVo.getPlatformName(), hostIp));
-        }
-        PlatformUpdateSchemaInfo schema = paramVo.getPlatformCreateSchema(planList);
-        return schema;
     }
 
     /**

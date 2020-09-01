@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
-import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
 import com.channelsoft.ccod.support.cmdb.po.AppFileAttribute;
 import com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo;
 import com.channelsoft.ccod.support.cmdb.service.IActiveMQService;

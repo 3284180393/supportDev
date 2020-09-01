@@ -28,6 +28,7 @@
         <result column="version_control_url" property="versionControlUrl" jdbcType="VARCHAR" />
         <result column="has_image" property="hasImage" jdbcType="BOOLEAN" />
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
+        <result column="install_package" property="installPackage" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler"/>
     </resultMap>
     <sql id="Base_Column_List" >
         a.app_id,
@@ -55,7 +56,8 @@
         a.version_control,
         a.version_control_url,
         a.has_image,
-        a.cfgs
+        a.cfgs,
+        a.install_package
     </sql>
     <select id="selectByPrimaryKey" resultMap="AppMap" parameterType="java.lang.Integer">
         select
@@ -109,7 +111,8 @@
                         version_control,
                         version_control_url,
                         has_image,
-                        cfgs)
+                        cfgs,
+                        install_package)
         values (
                     #{appName,jdbcType=VARCHAR},
                     #{appType,jdbcType=VARCHAR},
@@ -136,7 +139,8 @@
                     #{versionControl,jdbcType=VARCHAR},
                     #{versionControlUrl,jdbcType=VARCHAR},
                     #{hasImage,jdbcType=BOOLEAN},
-                    #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
+                    #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler},
+                    #{installPackage,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler}
                     )
     </insert>
     <delete id="delete" parameterType="java.lang.Integer">
@@ -167,7 +171,8 @@
         version_control = #{versionControl,jdbcType=VARCHAR},
         version_control_url = #{versionControlUrl,jdbcType=VARCHAR},
         has_image = #{hasImage,jdbcType=BOOLEAN},
-        cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
+        cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler},
+        install_package = #{installPackage,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler}
     where app_id = #{appId,jdbcType=INTEGER}
   </update>
 </mapper>

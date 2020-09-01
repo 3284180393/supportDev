@@ -1,10 +1,5 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
-import com.channelsoft.ccod.support.cmdb.po.AppCfgFilePo;
-import com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformAppCfgFilePo;
-
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -38,7 +33,7 @@ public class CCODModuleInfo {
 
     private String appRunner; //应用运行用户
 
-    private AppInstallPackagePo installPackage; //应用安装包
+    private AppFileNexusInfo installPackage; //应用安装包
 
     private List<AppFileNexusInfo> cfgs; //应用部署后的配置文件
 
@@ -96,10 +91,6 @@ public class CCODModuleInfo {
         this.version = version;
     }
 
-    public AppInstallPackagePo getInstallPackage() {
-        return installPackage;
-    }
-
 
     public String getHostIp() {
         return hostIp;
@@ -133,7 +124,11 @@ public class CCODModuleInfo {
         this.appRunner = appRunner;
     }
 
-    public void setInstallPackage(AppInstallPackagePo installPackage) {
+    public AppFileNexusInfo getInstallPackage() {
+        return installPackage;
+    }
+
+    public void setInstallPackage(AppFileNexusInfo installPackage) {
         this.installPackage = installPackage;
     }
 

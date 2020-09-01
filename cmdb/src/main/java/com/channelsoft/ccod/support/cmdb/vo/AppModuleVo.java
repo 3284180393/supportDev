@@ -35,7 +35,7 @@ public class AppModuleVo extends AppBase{
 
     private String comment; //备注
 
-    private AppInstallPackagePo installPackage; //应用部署包
+    private AppFileNexusInfo installPackage; //应用部署包
 
     private boolean hasImage; //是否有镜像
 
@@ -44,7 +44,7 @@ public class AppModuleVo extends AppBase{
 
     }
 
-    public AppModuleVo(AppPo app, AppInstallPackagePo installPackage, List<AppCfgFilePo> cfgs)
+    public AppModuleVo(AppPo app)
     {
         this.appId = app.getAppId();
         this.appType = app.getAppType();
@@ -71,7 +71,8 @@ public class AppModuleVo extends AppBase{
         this.initialDelaySeconds = app.getInitialDelaySeconds();
         this.periodSeconds = app.getPeriodSeconds();
         this.comment = app.getComment();
-        this.installPackage = installPackage;
+        this.installPackage = app.getInstallPackage();
+        this.cfgs = app.getCfgs();
         this.hasImage = app.isHasImage();
     }
 
@@ -107,11 +108,11 @@ public class AppModuleVo extends AppBase{
         this.versionControlUrl = versionControlUrl;
     }
 
-    public AppInstallPackagePo getInstallPackage() {
+    public AppFileNexusInfo getInstallPackage() {
         return installPackage;
     }
 
-    public void setInstallPackage(AppInstallPackagePo installPackage) {
+    public void setInstallPackage(AppFileNexusInfo installPackage) {
         this.installPackage = installPackage;
     }
 
@@ -199,6 +200,13 @@ public class AppModuleVo extends AppBase{
         po.setResources(this.resources);
         po.setVersionControlUrl(this.versionControlUrl);
         po.setKernal(this.kernal);
+        return po;
+    }
+
+    public AppPo getApp(int appId)
+    {
+        AppPo po = getApp();
+        po.setAppId(appId);
         return po;
     }
 

@@ -60,7 +60,7 @@ public class PlatformAppDeployDetailVo extends AppBase {
 
     private String versionControlUrl; //版本控制的连接url
 
-    private AppInstallPackagePo installPackage; //应用部署包
+    private AppFileNexusInfo installPackage; //应用部署包
 
     private int bkBizId; //该应用在蓝鲸biz id
 
@@ -168,11 +168,11 @@ public class PlatformAppDeployDetailVo extends AppBase {
         this.versionControlUrl = versionControlUrl;
     }
 
-    public AppInstallPackagePo getInstallPackage() {
+    public AppFileNexusInfo getInstallPackage() {
         return installPackage;
     }
 
-    public void setInstallPackage(AppInstallPackagePo installPackage) {
+    public void setInstallPackage(AppFileNexusInfo installPackage) {
         this.installPackage = installPackage;
     }
 

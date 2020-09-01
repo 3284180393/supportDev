@@ -29,11 +29,7 @@
         <result column="comment" property="comment" jdbcType="VARCHAR" />
         <result column="has_image" property="hasImage" jdbcType="VARCHAR" />
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
-        <association property="installPackage"
-                    javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
-                    resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"
-                    columnPrefix="aip_">
-        </association>
+        <result column="install_package" property="installPackage" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler"/>
     </resultMap>
     <sql id="Base_Column_List" >
         a.app_id,
@@ -63,16 +59,7 @@
         a.`comment`,
         a.has_image,
         a.cfgs,
-        aip.app_id AS aip_app_id,
-        aip.create_time AS aip_create_time,
-        aip.deploy_path AS aip_deploy_path,
-        aip.file_name AS aip_file_name,
-        aip.ext AS aip_ext,
-        aip.md5 AS aip_md5,
-        aip.nexus_asset_id AS aip_nexus_asset_id,
-        aip.nexus_directory AS aip_nexus_directory,
-        aip.nexus_repository AS aip_nexus_repository,
-        aip.package_id AS aip_package_id
+        a.install_package
         FROM
         app a
         INNER JOIN app_install_package aip ON a.app_id = aip.app_id

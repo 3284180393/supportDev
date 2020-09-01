@@ -350,58 +350,6 @@ public class PlatformAppModuleVo {
         return po;
     }
 
-    public AppInstallPackagePo getAppInstallPackage()
-    {
-        AppInstallPackagePo packagePo = new AppInstallPackagePo();
-        packagePo.setNexusRepository(installPackage.getNexusRepository());
-        packagePo.setNexusAssetId(installPackage.getNexusAssetId());
-        packagePo.setMd5(installPackage.getFileMd5());
-        packagePo.setFileName(installPackage.getFileName());
-        packagePo.setDeployPath(installPackage.getDeployPath());
-        packagePo.setCreateTime(new Date());
-        packagePo.setExt(installPackage.getExt());
-        packagePo.setNexusDirectory(installPackage.getNexusDirectory());
-        return packagePo;
-    }
-
-    public AppCfgFilePo[] getAppCfgs()
-    {
-        List<AppCfgFilePo> list = new ArrayList<>();
-        for(DeployFileInfo cfg : this.cfgs)
-        {
-            AppCfgFilePo cfgFilePo = new AppCfgFilePo();
-            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
-            cfgFilePo.setMd5(cfg.getFileMd5());
-            cfgFilePo.setFileName(cfg.getFileName());
-            cfgFilePo.setDeployPath(cfg.getDeployPath());
-            cfgFilePo.setCreateTime(new Date());
-            cfgFilePo.setExt(cfg.getExt());
-            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
-            list.add(cfgFilePo);
-        }
-        return list.toArray(new AppCfgFilePo[0]);
-    }
-
-
-    public PlatformAppCfgFilePo[] getPlatformAppCfgFiles()
-    {
-        List<PlatformAppCfgFilePo> list = new ArrayList<>();
-        for(DeployFileInfo cfg : this.cfgs)
-        {
-            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
-            cfgFilePo.setNexusAssetId(cfg.getNexusAssetId());
-            cfgFilePo.setMd5(cfg.getFileMd5());
-            cfgFilePo.setFileName(cfg.getFileName());
-            cfgFilePo.setDeployPath(cfg.getDeployPath());
-            cfgFilePo.setCreateTime(new Date());
-            cfgFilePo.setExt(cfg.getExt());
-            cfgFilePo.setNexusDirectory(cfg.getNexusDirectory());
-            cfgFilePo.setNexusRepository(cfg.getNexusRepository());
-            list.add(cfgFilePo);
-        }
-        return list.toArray(new PlatformAppCfgFilePo[0]);
-    }
-
     public boolean isOk(String platformId, String platformName, Map<String, List<BizSetDefine>>appSetRelation)
     {
         boolean ok =  false;

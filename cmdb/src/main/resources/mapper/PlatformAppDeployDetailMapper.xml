@@ -41,11 +41,7 @@
         <result column="bk_module_id" property="bkModuleId" jdbcType="INTEGER" />
         <result column="bk_host_id" property="bkHostId" jdbcType="INTEGER" />
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
-        <association property="installPackage"
-                     javaType="com.channelsoft.ccod.support.cmdb.po.AppInstallPackagePo"
-                     resultMap="com.channelsoft.ccod.support.cmdb.dao.AppInstallPackageMapper.AppInstallPackageMap"
-                     columnPrefix="aip_">
-        </association>
+        <result column="install_package" property="installPackage" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler"/>
     </resultMap>
     <sql id="Base_Column_List" >
         pa.platform_app_id AS platform_app_id,
@@ -83,26 +79,7 @@
 	    a.create_time,
 	    a.version_control,
 	    a.version_control_url,
-	    aip.app_id AS aip_app_id,
-	    aip.create_time AS aip_create_time,
-	    aip.deploy_path AS aip_deploy_path,
-	    aip.file_name AS aip_file_name,
-	    aip.ext AS aip_ext,
-	    aip.md5 AS aip_md5,
-	    aip.nexus_asset_id AS aip_nexus_asset_id,
-	    aip.nexus_directory AS aip_nexus_directory,
-	    aip.nexus_repository AS aip_nexus_repository,
-	    aip.package_id AS aip_package_id,
-	    acf.app_id AS acf_app_id,
-	    acf.create_time AS acf_create_time,
-	    acf.deploy_path AS acf_deploy_path,
-	    acf.file_name AS acf_file_name,
-	    acf.ext AS acf_ext,
-	    acf.md5 AS acf_md5,
-	    acf.nexus_asset_id AS acf_nexus_asset_id,
-	    acf.nexus_directory AS acf_nexus_directory,
-	    acf.nexus_repository AS acf_nexus_repository,
-	    acf.cfg_file_id AS acf_cfg_file_id,
+	    a.install_package,
 	    bakm.app_bk_module_id AS app_bk_module_id,
 	    bakm.bk_biz_id AS bk_biz_id,
 	    bakm.bk_set_id AS bk_set_id,
@@ -114,8 +91,6 @@
     INNER JOIN platform pf ON pa.platform_id = pf.platform_id
     INNER JOIN domain dm ON dm.platform_id=pf.platform_id and pa.domain_id = dm.domain_id
     INNER JOIN app a ON pa.app_id = a.app_id
-    INNER JOIN app_install_package aip ON a.app_id = aip.app_id
-    INNER JOIN app_cfg_file acf ON a.app_id = acf.app_id
     LEFT OUTER JOIN platform_app_bk_module bakm ON bakm.platform_app_id = pa.platform_app_id
     INNER JOIN assemble asb ON pa.assemble_id=asb.assemble_id
     </sql>

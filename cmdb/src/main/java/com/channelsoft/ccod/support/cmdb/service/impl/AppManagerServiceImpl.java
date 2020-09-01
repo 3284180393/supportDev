@@ -115,12 +115,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
     AppMapper appMapper;
 
     @Autowired
-    AppCfgFileMapper appCfgFileMapper;
-
-    @Autowired
-    AppInstallPackageMapper appInstallPackageMapper;
-
-    @Autowired
     ServerMapper serverMapper;
 
     @Autowired
@@ -225,7 +219,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
 //            updateRegisterAppModuleImageExist();
 //            List<AppModuleVo> list = queryAllHasImageAppModule();
-//            updateRegisteredApps();
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
         }
@@ -267,83 +260,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         finally {
             this.appReadLock.readLock().unlock();
         }
-    }
-
-    @Override
-    public void appDataTransfer(String targetRepository) {
-        List<AppModuleVo> moduleList = this.appModuleMapper.select(null, null, null, null);
-        Map<Integer, AppPo> appMap = this.appMapper.select(null, null).stream().collect(Collectors.toMap(AppPo::getAppId, Function.identity()));
-        for(AppModuleVo vo : moduleList)
-        {
-            logger.debug(String.format("begin to transfer %s", vo.getAppNexusDirectory()));
-            try
-            {
-                transferModule(appMap.get(vo.getAppId()), vo.getInstallPackage(), vo.getCfgs(), targetRepository);
-            }
-            catch (Exception ex)
-            {
-                logger.error(String.format("transfer %s exception", vo.getAppNexusDirectory()), ex);
-                ex.printStackTrace();
-            }
-
-        }
-    }
-
-    /**
-     * 迁移数据模块到指定的nexus仓库并修改数据库
-     * 处理流程:首先下载程序包和配置文件,其次将下载的配置文件按一定格式上传到nexus指定仓库去，最后修改数据库记录
-     * @param appPo 该平台应用对应的app详情
-     * @param installPackagePo 程序包
-     * @param cfgs 配置文件信息
-     * @param targetRepository 目标仓库
-     * @throws InterfaceCallException 接口调用失败
-     * @throws NexusException nexus返回失败或是处理nexus返回信息失败
-     * @throws IOException 保存文件失败
-     */
-    private void transferModule(AppPo appPo, AppInstallPackagePo installPackagePo, List<AppFileNexusInfo> cfgs, String targetRepository) throws InterfaceCallException, NexusException, IOException
-    {
-        List<DeployFileInfo> fileList = new ArrayList<>();
-        Date now = new Date();
-        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-        String directory = appPo.getAppNexusDirectory();
-        logger.debug(String.format("begin to handle %s cfgs", directory));
-        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(String.format("%s/%s", directory, sf.format(now)).getBytes()));
-        {
-            String downloadUrl = installPackagePo.getFileNexusDownloadUrl(this.nexusHostUrl);
-            logger.debug(String.format("download install package from %s", downloadUrl));
-            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, installPackagePo.getFileName());
-            DeployFileInfo fileInfo = new DeployFileInfo();
-            fileInfo.setExt(installPackagePo.getExt());
-            fileInfo.setFileMd5(installPackagePo.getMd5());
-            fileInfo.setLocalSavePath(savePth);
-            fileInfo.setNexusRepository(this.appRepository);
-            fileInfo.setNexusDirectory(directory);
-            fileInfo.setFileSize(0);
-            fileInfo.setFileName(installPackagePo.getFileName());
-            fileList.add(fileInfo);
-        }
-        for(AppFileNexusInfo cfg : cfgs)
-        {
-            String downloadUrl = cfg.getFileNexusDownloadUrl(this.nexusHostUrl);
-            logger.debug(String.format("download cfg from %s", downloadUrl));
-            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
-            DeployFileInfo fileInfo = new DeployFileInfo();
-            fileInfo.setExt(cfg.getExt());
-            fileInfo.setFileMd5(cfg.getMd5());
-            fileInfo.setLocalSavePath(savePth);
-            fileInfo.setNexusRepository(this.appRepository);
-            fileInfo.setNexusDirectory(directory);
-            fileInfo.setFileSize(0);
-            fileInfo.setFileName(cfg.getFileName());
-            fileList.add(fileInfo);
-        }
-        directory = String.format("%s/%s", appPo.getAppName(),  appPo.getVersion());
-        logger.debug(String.format("upload app package and cfgs to %s/%s/%s", nexusHostUrl, targetRepository, directory));
-        nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, targetRepository, directory, fileList.toArray(new DeployFileInfo[0]));
-        installPackagePo.setNexusDirectory(directory);
-        installPackagePo.setNexusRepository(targetRepository);
-        logger.debug(String.format("update package"));
-        this.appInstallPackageMapper.update(installPackagePo);
     }
 
     @Override
@@ -633,15 +549,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 app.setCcodVersion("4.5");
         }
         this.appMapper.insert(app);
-        AppInstallPackagePo instPkgPo = new AppInstallPackagePo(app.getAppId(), installPackage);
-        this.appInstallPackageMapper.insert(instPkgPo);
-        List<AppCfgFilePo> cfgList = new ArrayList<>();
-        for(DeployFileInfo cfg : cfgs)
-        {
-            AppCfgFilePo cfgFilePo = new AppCfgFilePo(app.getAppId(), cfg);
-            this.appCfgFileMapper.insert(cfgFilePo);
-            cfgList.add(cfgFilePo);
-        }
         return this.appModuleMapper.selectByNameAndVersion(app.getAppName(), app.getVersion());
     }
 
@@ -913,10 +820,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
             appPo.setUpdateTime(now);
             logger.debug(String.format("insert app info [%s]", JSONObject.toJSONString(appPo)));
             this.appMapper.insert(appPo);
-            int appId = appPo.getAppId();
-            AppInstallPackagePo packagePo = new AppInstallPackagePo(appId, fileMap.get(appModule.getInstallPackage().getFileName()));
-            logger.debug(String.format("insert package info [%s]", JSONObject.toJSONString(packagePo)));
-            this.appInstallPackageMapper.insert(packagePo);
             AppModuleVo newModule = this.appModuleMapper.selectByNameAndVersion(appName, version);
             this.appReadLock.writeLock().lock();
             try
@@ -958,20 +861,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 throw new ParamException(String.format("%s version %s has not registered", appName, version));
             }
             List<NexusAssetInfo> fileList = new ArrayList<>();
-            fileList.add(appModule.getInstallPackage().getNexusAsset(this.nexusHostUrl));
+            fileList.add(appModule.getInstallPackage().getNexusAssetInfo(this.nexusHostUrl));
             for(AppFileNexusInfo cfg : appModule.getCfgs())
                 fileList.add(cfg.getNexusAssetInfo(this.nexusHostUrl));
             logger.debug(String.format("download package and cfgs and upload to %s", directory));
             Map<String, NexusAssetInfo> fileMap = this.nexusService.downloadAndUploadFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, false).stream().collect(Collectors.toMap(NexusAssetInfo::getNexusAssetFileName, Function.identity()));;
             AppModuleVo oldModuleVo = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
-            logger.debug(String.format("delete old version install package"));
-            this.appInstallPackageMapper.delete(oldModuleVo.getInstallPackage().getPackageId(), oldModuleVo.getAppId());
-            logger.debug(String.format("delete old version cfgs"));
-            this.appCfgFileMapper.delete(null, oldModuleVo.getAppId());
-            logger.debug(String.format("add package info"));
-            AppInstallPackagePo packagePo = new AppInstallPackagePo(oldModuleVo.getAppId(), appModule.getInstallPackage().getDeployPath(), fileMap.get(appModule.getInstallPackage().getFileName()));
-            this.appInstallPackageMapper.insert(packagePo);
-            logger.debug(String.format("add %d cfgs info", appModule.getCfgs().size()));
+            this.appMapper.update(appModule.getApp(oldModuleVo.getAppId()));
             logger.debug(String.format("flush register app map"));
             AppModuleVo newModule = this.appModuleMapper.selectByNameAndVersion(appName, version);
             this.appReadLock.writeLock().lock();
@@ -1366,65 +1262,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
-    private void updateRegisterAppCfgs()
-    {
-        this.appReadLock.writeLock().lock();
-        try{
-            List<AppPo> appList = this.appMapper.select(null, null);
-            for(AppPo appPo : appList)
-            {
-                List<AppFileNexusInfo> cfgs = this.appCfgFileMapper.select(appPo.getAppId()).stream()
-                        .map(cfg->cfg.getAppFileNexusInfo()).collect(Collectors.toList());
-                appPo.setCfgs(cfgs);
-                this.appMapper.update(appPo);
-            }
-            appList = this.appMapper.select(null, null);
-            System.out.println(JSONArray.toJSONString(appList));
-        }
-        finally {
-            this.appReadLock.writeLock().unlock();
-        }
-    }
-
     private void updateRegisteredApps()
     {
         this.appReadLock.writeLock().lock();
         try
         {
             List<AppModuleVo> apps = this.appModuleMapper.select(null, null, null, null);
-            Map<String, String> portMap = apps.stream().filter(app->StringUtils.isNotBlank(app.getPorts())).collect(Collectors.toList())
-                    .stream().collect(Collectors.toMap(app->app.getAppName(), v->v.getPorts(), (v1,v2)->v1));
-            Map<String, String> nodePortMap = apps.stream().filter(app->StringUtils.isNotBlank(app.getNodePorts())).collect(Collectors.toList())
-                    .stream().collect(Collectors.toMap(app->app.getAppName(), v->v.getNodePorts(), (v1,v2)->v1));
-            Map<String, String> cmdMap = apps.stream().filter(app->StringUtils.isNotBlank(app.getStartCmd())).collect(Collectors.toList())
-                    .stream().collect(Collectors.toMap(app->app.getAppName(), v->v.getStartCmd(), (v1,v2)->v1));
             for(AppModuleVo module : apps) {
                 AppPo app = module.getApp();
-                String appName = app.getAppName();
-                AppType appType = app.getAppType();
-                String ports = StringUtils.isBlank(app.getPorts()) && portMap.containsKey(appName) ? portMap.get(appName) : app.getPorts();
-                String nodePorts = StringUtils.isBlank(app.getNodePorts()) && nodePortMap.containsKey(appName) ? nodePortMap.get(appName) : app.getNodePorts();
-                String cmd = StringUtils.isBlank(app.getStartCmd()) && cmdMap.containsKey(appName) ? cmdMap.get(appName) : app.getStartCmd();
-                app.setPorts(ports);
-                app.setNodePorts(nodePorts);
-                String regex = String.format("(^|;)[^;]*%s[^;]*($|;)", appType.equals(AppType.BINARY_FILE) ? module.getInstallPackage().getFileName() : "(start.sh|resin.sh)");
-                if (StringUtils.isNotBlank(cmd)) {
-                    cmd = cmd.replaceAll("^;", "").replaceAll(";$", "").replaceAll("\\s+;", ";");
-                    Pattern pattern = Pattern.compile(regex);
-                    Matcher matcher = pattern.matcher(cmd);
-                    if (matcher.find()) {
-                        String startCmd = matcher.group().replaceAll("^;", "").replaceAll(";$", "");
-                        String[] arr = cmd.split(startCmd);
-                        String initCmd = cmd.matches(String.format("^%s.*", startCmd)) ? null : arr[0].replaceAll("^\\s*;", "");
-                        String logOutputCmd = cmd.matches(String.format(".*%s$", startCmd)) ? null : arr[arr.length - 1].replaceAll("^\\s*;", "");
-                        ;
-                        app.setInitCmd(initCmd);
-                        app.setStartCmd(startCmd);
-                        app.setLogOutputCmd(logOutputCmd);
-                    }
-                }
-                app.setInitialDelaySeconds(20);
-                app.setPeriodSeconds(10);
+                app.setInstallPackage(module.getInstallPackage().getAppFileNexusInfo());
                 this.appMapper.update(app);
             }
         }

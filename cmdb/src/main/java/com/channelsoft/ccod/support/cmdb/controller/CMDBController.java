@@ -726,24 +726,6 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/dataTransfer", method = RequestMethod.POST)
-    public AjaxResultPo transferAppData(@RequestBody String targetRepository) {
-        String uri = String.format("POST %s/dataTransfer", this.apiBasePath);
-        logger.debug(String.format("enter %s controller, targetRepository=%s", uri, targetRepository));
-        AjaxResultPo resultPo;
-        try
-        {
-            appManagerService.appDataTransfer(targetRepository);
-            resultPo = new AjaxResultPo(true, "transfer app data success", 1, null);
-        }
-        catch (Exception e)
-        {
-            logger.error(String.format("transfer app data exception"), e);
-            resultPo = new AjaxResultPo(false, e.getMessage());
-        }
-        return resultPo;
-    }
-
     @RequestMapping(value = "/platformData", method = RequestMethod.POST)
     public AjaxResultPo collectPlatformData(@RequestBody PlatformDataCollectParamVo param)
     {

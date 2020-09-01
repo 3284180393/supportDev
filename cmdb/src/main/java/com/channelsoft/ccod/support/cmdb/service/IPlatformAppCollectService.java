@@ -1,7 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.po.UnconfirmedAppModulePo;
-import com.channelsoft.ccod.support.cmdb.vo.CcodPlatformAppVo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 
 import java.util.List;

@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
 
 import java.util.Date;
@@ -34,6 +35,8 @@ public class AppPo extends AppBase{
     private String versionControlUrl; //版本控制的连接url
 
     private boolean hasImage; //是否有镜像
+
+    private AppFileNexusInfo installPackage; //部署安装包
 
     public AppPo()
     {
@@ -158,4 +161,11 @@ public class AppPo extends AppBase{
         this.timeout = timeout;
     }
 
+    public AppFileNexusInfo getInstallPackage() {
+        return installPackage;
+    }
+
+    public void setInstallPackage(AppFileNexusInfo installPackage) {
+        this.installPackage = installPackage;
+    }
 }

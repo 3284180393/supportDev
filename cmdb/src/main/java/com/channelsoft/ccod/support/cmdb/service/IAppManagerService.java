@@ -126,13 +126,6 @@ public interface IAppManagerService {
     List<BizSetDefine> queryCCODBizSetWithImage(String ccodVersion, Boolean hasImage);
 
     /**
-     * 将应用从指定仓库迁移到目标仓库
-     * @param targetRepository 目标仓库
-     */
-    void appDataTransfer(String targetRepository);
-
-
-    /**
      * 获得app和set之间的关系
      * @return app和set之间的关系
      */
