@@ -35,8 +35,6 @@ public class AppModuleVo extends AppBase{
 
     private String comment; //备注
 
-    private AppFileNexusInfo installPackage; //应用部署包
-
     private boolean hasImage; //是否有镜像
 
     public AppModuleVo()
@@ -106,14 +104,6 @@ public class AppModuleVo extends AppBase{
 
     public void setVersionControlUrl(String versionControlUrl) {
         this.versionControlUrl = versionControlUrl;
-    }
-
-    public AppFileNexusInfo getInstallPackage() {
-        return installPackage;
-    }
-
-    public void setInstallPackage(AppFileNexusInfo installPackage) {
-        this.installPackage = installPackage;
     }
 
     public Date getUpdateTime() {
@@ -200,6 +190,8 @@ public class AppModuleVo extends AppBase{
         po.setResources(this.resources);
         po.setVersionControlUrl(this.versionControlUrl);
         po.setKernal(this.kernal);
+        po.setCfgs(this.cfgs);
+        po.setInstallPackage(this.getInstallPackage());
         return po;
     }
 

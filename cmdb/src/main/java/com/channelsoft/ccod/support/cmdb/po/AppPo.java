@@ -36,8 +36,6 @@ public class AppPo extends AppBase{
 
     private boolean hasImage; //是否有镜像
 
-    private AppFileNexusInfo installPackage; //部署安装包
-
     public AppPo()
     {
 
@@ -74,6 +72,8 @@ public class AppPo extends AppBase{
             this.versionControl = null;
         this.versionControlUrl = moduleVo.getVersionControlUrl();
         this.hasImage = hasImage;
+        this.cfgs = moduleVo.getCfgs();
+        this.installPackage = moduleVo.getInstallPackage();
     }
 
     public int getAppId() {
@@ -161,11 +161,4 @@ public class AppPo extends AppBase{
         this.timeout = timeout;
     }
 
-    public AppFileNexusInfo getInstallPackage() {
-        return installPackage;
-    }
-
-    public void setInstallPackage(AppFileNexusInfo installPackage) {
-        this.installPackage = installPackage;
-    }
 }

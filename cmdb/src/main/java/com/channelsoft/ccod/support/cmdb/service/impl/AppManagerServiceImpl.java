@@ -27,6 +27,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 import org.springframework.util.DigestUtils;
 
 import javax.annotation.PostConstruct;
@@ -130,9 +131,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
     PlatformAppMapper platformAppMapper;
 
     @Autowired
-    PlatformAppCfgFileMapper platformAppCfgFileMapper;
-
-    @Autowired
     AppModuleMapper appModuleMapper;
 
     @Autowired
@@ -167,6 +165,12 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Autowired
     private ImageCfg imageCfg;
+
+    @Value("${ccod.health-check-at-regex}")
+    private String healthCheckRegex;
+
+    @Value("${ccod.service-port-regex}")
+    private String portRegex;
 
     private Map<String, List<BizSetDefine>> appSetRelationMap;
 
@@ -622,64 +626,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         executor.shutdown();
     }
 
-    /**
-     * 处理平台应用配置文件
-     * 处理流程:首先下载配置文件,其次将下载的配置文件按一定格式上传到nexus去，最后入库
-     * @param platformAppPo 平台应用
-     * @param appPo 该平台应用对应的app详情
-     * @param cfgs 配置文件信息
-     * @throws InterfaceCallException 接口调用失败
-     * @throws NexusException nexus返回失败或是处理nexus返回信息失败
-     * @throws IOException 保存文件失败
-     */
-    private void handlePlatformAppCfgs(PlatformAppPo platformAppPo, AppModuleVo appPo, List<AppFileNexusInfo> cfgs) throws InterfaceCallException, NexusException, IOException
-    {
-        List<DeployFileInfo> fileList = new ArrayList<>();
-        List<PlatformAppCfgFilePo> cfgFileList = new ArrayList<>();
-        Date now = new Date();
-        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-        String directory = platformAppPo.getPlatformAppDirectory(appPo.getAppName(), appPo.getVersion(), platformAppPo);
-        logger.debug(String.format("begin to handle %s cfgs", directory));
-        String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
-        for(AppFileNexusInfo cfg : cfgs)
-        {
-            String downloadUrl = cfg.getFileNexusDownloadUrl(this.nexusHostUrl);
-            logger.debug(String.format("download cfg from %s", downloadUrl));
-            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
-            DeployFileInfo fileInfo = new DeployFileInfo();
-            fileInfo.setExt(cfg.getExt());
-            fileInfo.setFileMd5(cfg.getMd5());
-            fileInfo.setLocalSavePath(savePth);
-            fileInfo.setNexusRepository(this.appRepository);
-            fileInfo.setNexusDirectory(directory);
-            fileInfo.setFileName(cfg.getFileName());
-            fileList.add(fileInfo);
-            PlatformAppCfgFilePo cfgFilePo = new PlatformAppCfgFilePo();
-            cfgFilePo.setMd5(cfg.getMd5());
-            cfgFilePo.setFileName(cfg.getFileName());
-            cfgFilePo.setExt(cfg.getExt());
-            cfgFilePo.setPlatformAppId(platformAppPo.getPlatformAppId());
-            cfgFilePo.setCreateTime(now);
-            cfgFilePo.setDeployPath(cfg.getDeployPath());
-            cfgFilePo.setNexusDirectory(directory);
-            cfgFilePo.setNexusRepository(this.platformAppCfgRepository);
-            cfgFileList.add(cfgFilePo);
-        }
-        logger.debug(String.format("upload platform app cfgs to %s/%s/%s", nexusHostUrl, this.platformAppCfgRepository, directory));
-        Map<String, NexusAssetInfo> assetMap = nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.platformAppCfgRepository, directory, fileList.toArray(new DeployFileInfo[0]))
-                .stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
-        logger.debug(String.format("delete platformAppId=%d record from platform_app_cfg_file", platformAppPo.getPlatformAppId()));
-        platformAppCfgFileMapper.delete(null, platformAppPo.getPlatformAppId());
-        for(PlatformAppCfgFilePo cfgFilePo : cfgFileList)
-        {
-            String path = String.format("%s/%s", directory, cfgFilePo.getFileName());
-            cfgFilePo.setNexusAssetId(assetMap.get(path).getId());
-            logger.debug(String.format("insert %s cfg into platform_app_cfg_file", path));
-            this.platformAppCfgFileMapper.insert(cfgFilePo);
-        }
-        logger.info(String.format("handle %s cfgs SUCCESS", directory));
-    }
-
     @Override
     public boolean hasImage(String appName, String version) throws ParamException {
         logger.debug(String.format("check image of %s[%s] exist", appName, version));
@@ -712,6 +658,80 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         logger.info(String.format("%s[%s] image exist : %b", appName, version, imageExist));
         return imageExist;
+    }
+
+    @Override
+    public String checkAppBaseProperties(AppBase appBase, AppUpdateOperation operation)
+    {
+        String appName = appBase.getAppName();
+        if(StringUtils.isBlank(appName))
+            return String.format("appName of %s is blank;", operation.name);
+        String alias = appBase.getAlias();
+        if(operation.equals(AppUpdateOperation.DELETE)) {
+            if(StringUtils.isBlank(alias))
+                return String.format("alias of %s %s is blank;", operation.name, appName);
+            return "";
+        }
+        String version = appBase.getVersion();
+        if(!this.registerAppMap.containsKey(appName))
+            return String.format("%s %s not register;", operation.name, appName);
+        else if(StringUtils.isBlank(version))
+           return String.format("version of %s for %s is blank;", appName, operation.name);
+        AppModuleVo registeredApp = this.registerAppMap.containsKey(appName) ?
+                this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version) : null;
+        if(operation.equals(AppUpdateOperation.REGISTER)){
+            if(registeredApp != null)
+                return String.format("%s version %s has registered", appName, version);
+        }
+        else if(registeredApp == null)
+            return String.format("%s version %s has not registered", appName, version);
+        switch (operation)
+        {
+            case UPDATE:
+            case DEBUG:
+                if(StringUtils.isBlank(alias))
+                    return String.format("alias of %s for %s is blank;", appName, operation.name);
+            case ADD:
+                if(!registeredApp.isHasImage())
+                    return String.format("%s version %s has not image for %s", appName, version, operation.name);
+                appBase.setAppType(registeredApp.getAppType());
+                appBase.setCcodVersion(registeredApp.getCcodVersion());
+                break;
+            case REGISTER:
+            case MODIFY_REGISTER:
+                if(StringUtils.isBlank(appBase.getCcodVersion()))
+                    return String.format("ccodVersion is blank for %s", operation.name);
+                else if(appBase.getAppType() == null)
+                    return String.format("appType is null for %s", operation.name);
+                else if(appBase.getInstallPackage() == null)
+                    return String.format("installPackage of %s is null", appName);
+                break;
+            default:
+                return String.format("not support %s operation;", operation.name);
+        }
+        StringBuffer sb = new StringBuffer();
+        String tag = String.format("%s %s(%s)", operation.name, alias, appName);
+        if(operation.equals(AppUpdateOperation.ADD) || operation.equals(AppUpdateOperation.REGISTER) || operation.equals(AppUpdateOperation.MODIFY_REGISTER))
+            tag = String.format("%s %s", operation.name, appName);
+        if(StringUtils.isBlank(appBase.getBasePath()))
+            sb.append(String.format("basePath of %s is blank;", tag));
+        if(StringUtils.isBlank(appBase.getDeployPath()))
+            sb.append(String.format("deployPath of %s is blank;", tag));
+        if(StringUtils.isNotBlank(appBase.getCheckAt()) && !appBase.getCheckAt().matches(this.healthCheckRegex))
+            sb.append(String.format("%s is illegal health check word for %s;", appBase.getCheckAt(), tag));
+        if(StringUtils.isBlank(appBase.getStartCmd()))
+            sb.append(String.format("startCmd is blank for %s;", tag));
+        if(StringUtils.isBlank(appBase.getLogOutputCmd()))
+            sb.append(String.format("logOutputCmd for %s is blank;", tag));
+        if(StringUtils.isBlank(appBase.getPorts()))
+            sb.append(String.format("ports is blank for %s;", tag));
+        else if(!appBase.getPorts().matches(this.portRegex))
+            sb.append(String.format("%s is illegal ports for %s;", appBase.getPorts(), tag));
+        if(StringUtils.isNotBlank(appBase.getNodePorts()) && !appBase.getNodePorts().matches(this.portRegex))
+            sb.append(String.format("%s is illegal nodePorts for %s;", appBase.getNodePorts(), tag));
+        if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
+            sb.append(String.format("cfgs of %s is empty;", tag));
+        return sb.toString();
     }
 
     void updateRegisterAppModuleImageExist() throws Exception
@@ -759,29 +779,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to register app=[%s] into cmdb", JSONObject.toJSONString(appModule)));
+        String checkResult = this.checkAppBaseProperties(appModule, AppUpdateOperation.REGISTER);
+        Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
         this.appWriteLock.writeLock().lock();
         try
         {
             String appName = appModule.getAppName();
             String version = appModule.getVersion();
-            if (!this.appSetRelationMap.containsKey(appName)) {
-                logger.error(String.format("app %s is not supported by cmdb", appName));
-                throw new NotSupportAppException(String.format("app %s is not supported by cmdb", appName));
-            }
-            String moduleCheckResult = checkModuleParam(appModule);
-            if (StringUtils.isNotBlank(moduleCheckResult)) {
-                logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
-                throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
-            }
-            if(this.registerAppMap.containsKey(appName))
-            {
-                Map<String, AppModuleVo> versionMap = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
-                if(versionMap.containsKey(version))
-                {
-                    logger.error(String.format("%s(%s) has registered", appName, version));
-                    throw new ParamException(String.format("%s(%s) has registered", appName, version));
-                }
-            }
             String directory = appModule.getAppNexusDirectory();
             String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
             List<DeployFileInfo> fileList = new ArrayList<>();
@@ -815,6 +819,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
             this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
             Map<String, DeployFileInfo> fileMap = fileList.stream().collect(Collectors.toMap(DeployFileInfo::getFileName, Function.identity()));
             AppPo appPo = new AppPo(appModule, false);
+            appPo.setInstallPackage(fileMap.get(appModule.getInstallPackage().getFileName()).getFileNexusInfo());
+            fileMap.remove(appModule.getInstallPackage().getFileName());
+            appPo.setCfgs(fileMap.values().stream().map(f->f.getFileNexusInfo()).collect(Collectors.toList()));
             Date now = new Date();
             appPo.setCreateTime(now);
             appPo.setUpdateTime(now);

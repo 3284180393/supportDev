@@ -56,6 +56,8 @@ public abstract class AppBase {
 
     protected List<AppFileNexusInfo> cfgs; //应用配置文件
 
+    protected AppFileNexusInfo installPackage; //应用安装包
+
     public AppBase(){}
 
     public AppBase(AppBase appBase)
@@ -78,6 +80,7 @@ public abstract class AppBase {
         this.resources = appBase.resources;
         this.startCmd = appBase.startCmd;
         this.cfgs = appBase.cfgs;
+        this.installPackage = appBase.installPackage;
     }
 
     public String getAppName() {
@@ -224,6 +227,14 @@ public abstract class AppBase {
         this.cfgs = cfgs;
     }
 
+    public AppFileNexusInfo getInstallPackage() {
+        return installPackage;
+    }
+
+    public void setInstallPackage(AppFileNexusInfo installPackage) {
+        this.installPackage = installPackage;
+    }
+
     public String getAppNexusDirectory() {
         String directory = String.format("%s/%s", this.appName, this.version);
         return directory;
@@ -251,6 +262,7 @@ public abstract class AppBase {
         this.resources = StringUtils.isNotBlank(appBase.resources) ? appBase.resources : this.resources;
         this.startCmd = StringUtils.isNotBlank(appBase.startCmd) ? appBase.startCmd : this.startCmd;
         this.cfgs = appBase.cfgs != null && appBase.cfgs.size() > 0 ? appBase.cfgs : this.cfgs;
+        this.installPackage = appBase.installPackage != null ? appBase.installPackage : this.installPackage;
     }
 
     public void fill(AppBase appBase)
@@ -269,5 +281,6 @@ public abstract class AppBase {
         this.resources = StringUtils.isBlank(this.resources) ? appBase.resources : this.resources;
         this.startCmd = StringUtils.isBlank(this.startCmd) ? appBase.startCmd : this.startCmd;
         this.cfgs = this.cfgs == null || this.cfgs.size() == 0 ? appBase.cfgs : this.cfgs;
+        this.installPackage = this.installPackage == null ? appBase.installPackage : this.installPackage;
     }
 }

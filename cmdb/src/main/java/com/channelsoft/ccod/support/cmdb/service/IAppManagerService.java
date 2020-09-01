@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -86,6 +87,14 @@ public interface IAppManagerService {
      * @throws IOException
      */
     void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException;
+
+    /**
+     * 检查应用的基础属性
+     * @param appBase 应用基础数据集合
+     * @param operation 对应用的相关操作
+     * @return 检查结果，如果检查通过返回"",否则返回检查出来的问题描述
+     */
+    String checkAppBaseProperties(AppBase appBase, AppUpdateOperation operation);
 
     /**
      * 更新已有的应用模块

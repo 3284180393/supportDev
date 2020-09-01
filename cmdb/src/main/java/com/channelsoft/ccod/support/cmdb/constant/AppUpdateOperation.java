@@ -15,7 +15,11 @@ public enum AppUpdateOperation {
 
     UPDATE(3, "UPDATE", "升级已有应用"),
 
-    DEBUG(4, "DEBUG", "调试已经部署应用"),;
+    DEBUG(4, "DEBUG", "调试已经部署应用"),
+
+    REGISTER(5, "REGISTER", "注册应用"),
+
+    MODIFY_REGISTER(6, "MODIFY_REGISTER", "修改应用注册信息"),;
 
     public int id;
 

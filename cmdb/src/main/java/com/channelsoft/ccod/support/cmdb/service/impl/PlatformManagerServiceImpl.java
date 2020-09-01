@@ -136,9 +136,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     PlatformAppDeployDetailMapper platformAppDeployDetailMapper;
 
     @Autowired
-    PlatformPublicConfigMapper platformPublicConfigMapper;
-
-    @Autowired
     AppMapper appMapper;
 
     @Autowired
@@ -933,73 +930,33 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return sb.toString();
     }
 
-    private String checkAppBase(String ccodVersion, AppBase appBase, AppUpdateOperation operation, BizSetDefine setDefine, List<PlatformAppDeployDetailVo> deployApps, List<AppModuleVo> registerApps)
+    private String checkAppOperationParam(String ccodVersion, AppUpdateOperationInfo optInfo, BizSetDefine setDefine, List<PlatformAppDeployDetailVo> deployApps)
     {
-        String appName = appBase.getAppName();
-        if(StringUtils.isBlank(appName))
-            return String.format("appName of %s is blank;", operation.name);
-        String alias = appBase.getAlias();
-        String version = appBase.getVersion();
-        Map<String, List<AppModuleVo>> appMap = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        if(!appMap.containsKey(appName))
-            return String.format("%s %s not register;", operation.name, appName);
-        if(setDefine != null) {
-            Map<String, AppDefine> appDefineMap = setDefine.getApps().stream().collect(Collectors.toMap(AppDefine::getName, Function.identity()));
-            if(!appDefineMap.containsKey(appName))
-                return String.format("set %s not support %s;", setDefine.getName(), appName);
-        }
-        Map<String, PlatformAppDeployDetailVo> aliasMap = deployApps.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAlias, Function.identity()));
-        switch (operation)
+        String checkResult = this.appManagerService.checkAppBaseProperties(optInfo, optInfo.getOperation());
+        if(StringUtils.isNotBlank(checkResult))
+            return checkResult;
+        Set<String> appSet = setDefine.getApps().stream().map(a->a.getName()).collect(Collectors.toSet());
+        Set<String> aliasSet = deployApps.stream().map(d->d.getAlias()).collect(Collectors.toSet());
+        switch (optInfo.getOperation())
         {
-            case DELETE:
-                if(StringUtils.isBlank(alias))
-                    return String.format("alias of %s %s is blank;", operation.name, appName);
-                else if(!aliasMap.containsKey(alias) || !aliasMap.get(alias).getAppName().equals(appName))
-                    return String.format("%s(%s) for %s not exist;", alias, appName, operation.name);
-                return "";
-            case UPDATE:
-                if(StringUtils.isBlank(alias))
-                    return String.format("alias of %s for %s is blank;", appName, operation.name);
-                else if(!aliasMap.containsKey(alias) || !aliasMap.get(alias).getAppName().equals(appName))
-                    return String.format("%s(%s) for %s not exist;", alias, appName, operation.name);
-                appBase.setAppType(aliasMap.get(alias).getAppType());
             case ADD:
             case DEBUG:
-                if(StringUtils.isBlank(version))
-                    return String.format("version of %s for %s is blank;", appName, operation.name);
-                Map<String, AppModuleVo> versionMap = appMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
-                if(!versionMap.containsKey(version))
-                    return String.format("%s(%s) not register or not image;", appName, version);
-                else if(!versionMap.get(version).getCcodVersion().equals(ccodVersion))
-                    return String.format("%s(%s) not support ccod %s", appName, version, ccodVersion);
-                appBase.setAppType(versionMap.get(version).getAppType());
+                if(!appSet.contains(optInfo.getAppName()))
+                    return String.format("%s not support %s", setDefine.getName(), optInfo.getAppName());
+                else if(!optInfo.getCcodVersion().equals(ccodVersion))
+                    return String.format("%s version %s not support ccod %s for %s", optInfo.getAppName(), optInfo.getVersion(), ccodVersion, optInfo.getOperation().name);
+                break;
+            case UPDATE:
+                if(!optInfo.getCcodVersion().equals(ccodVersion))
+                    return String.format("%s version %s not support ccod %s for %s", optInfo.getAppName(), optInfo.getVersion(), ccodVersion, optInfo.getOperation().name);
+            case DELETE:
+                if(!aliasSet.contains(optInfo.getAlias()))
+                    return String.format("%s not exist for %s", optInfo.getAlias(), optInfo.getOperation().name);
                 break;
             default:
-                return String.format("not support %s operation;", operation.name);
+                return String.format("%s operation not been support", optInfo.getOperation().name);
         }
-        StringBuffer sb = new StringBuffer();
-        String tag = String.format("%s %s(%s)", operation.name, alias, appName);
-        if(operation.equals(AppUpdateOperation.ADD))
-            tag = String.format("%s %s", operation.name, appName);
-        if(StringUtils.isBlank(appBase.getBasePath()))
-            sb.append(String.format("basePath of %s is blank;", tag));
-        if(StringUtils.isBlank(appBase.getDeployPath()))
-            sb.append(String.format("deployPath of %s is blank;", tag));
-        if(StringUtils.isNotBlank(appBase.getCheckAt()) && !appBase.getCheckAt().matches(this.healthCheckRegex))
-            sb.append(String.format("%s is illegal health check word for %s;", appBase.getCheckAt(), tag));
-        if(StringUtils.isBlank(appBase.getStartCmd()))
-            sb.append(String.format("startCmd is blank for %s;", tag));
-        if(StringUtils.isBlank(appBase.getLogOutputCmd()))
-            sb.append(String.format("logOutputCmd for %s is blank;", tag));
-        if(StringUtils.isBlank(appBase.getPorts()))
-            sb.append(String.format("ports is blank for %s;", tag));
-        else if(!appBase.getPorts().matches(this.portRegex))
-            sb.append(String.format("%s is illegal ports for %s;", appBase.getPorts(), tag));
-        if(StringUtils.isNotBlank(appBase.getNodePorts()) && !appBase.getNodePorts().matches(this.portRegex))
-            sb.append(String.format("%s is illegal nodePorts for %s;", appBase.getNodePorts(), tag));
-        if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
-            sb.append(String.format("cfgs of %s is empty;", tag));
-        return sb.toString();
+        return "";
     }
 
     @Override
@@ -1915,7 +1872,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             optInfo.fill(deployAppMap.get(alias));
         List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(true);
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
-        String checkResult = checkAppBase(platform.getCcodVersion(), optInfo, AppUpdateOperation.ADD, setDefine, new ArrayList<>(), registerApps);
+        String checkResult = checkAppOperationParam(platform.getCcodVersion(), optInfo, setDefine, new ArrayList<>());
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
@@ -2210,7 +2167,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             else {
                 BizSetDefine setDefine = setDefineMap.get(bkSetName);
                 for(AppUpdateOperationInfo opt : planInfo.getAppUpdateOperationList()) {
-                    String optCheckResult = checkAppBase(ccodVersion, opt, opt.getOperation(), setDefine, new ArrayList<>(), registerApps);
+                    String optCheckResult = checkAppOperationParam(ccodVersion, opt, setDefine, new ArrayList<>());
                     if(StringUtils.isBlank(optCheckResult)) {
                         if(StringUtils.isBlank(opt.getHostIp()))
                             sb.append(String.format("hostIp of %s is blank;", opt.toString()));
@@ -2235,7 +2192,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 BizSetDefine setDefine = setDefineMap.get(domainIdMap.get(domainId).getBizSetName());
                 List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
                 planInfo.getAppUpdateOperationList()
-                        .forEach(opt->sb.append(checkAppBase(ccodVersion, opt, opt.getOperation(), setDefine, domainApps, registerApps)));
+                        .forEach(opt->sb.append(checkAppOperationParam(ccodVersion, opt, setDefine, domainApps)));
             }
         }
         if(StringUtils.isNotBlank(sb.toString()))
@@ -2781,30 +2738,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             po.setCfgDownloadUrl(String.join(",", fileUrlMap.values()));
         }
         return po;
-    }
-
-    private void updatePlatformPublicConfig(List<AppFileNexusInfo> platformCfg)
-    {
-        try
-        {
-            List<PlatformPo> platforms = this.platformMapper.select(null);
-            for(PlatformPo platform : platforms)
-            {
-                if(!platform.getType().equals(PlatformType.K8S_CONTAINER))
-                    continue;
-                for(AppFileNexusInfo cfg : platformCfg)
-                {
-                    PlatformPublicConfigPo configPo = new PlatformPublicConfigPo(platform.getPlatformId(), cfg);
-                    if(platform.getCcodVersion().equals("3.9"))
-                        configPo.setDeployPath(configPo.getDeployPath().replaceAll("^/root/", "/opt/"));
-                    this.platformPublicConfigMapper.insert(configPo);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            ex.printStackTrace();
-        }
     }
 
     @Override
