@@ -663,75 +663,81 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public String checkAppBaseProperties(AppBase appBase, AppUpdateOperation operation)
     {
-        String appName = appBase.getAppName();
-        if(StringUtils.isBlank(appName))
-            return String.format("appName of %s is blank;", operation.name);
-        String alias = appBase.getAlias();
-        if(operation.equals(AppUpdateOperation.DELETE)) {
-            if(StringUtils.isBlank(alias))
-                return String.format("alias of %s %s is blank;", operation.name, appName);
-            return "";
-        }
-        String version = appBase.getVersion();
-        if(!this.registerAppMap.containsKey(appName))
-            return String.format("%s %s not register;", operation.name, appName);
-        else if(StringUtils.isBlank(version))
-           return String.format("version of %s for %s is blank;", appName, operation.name);
-        AppModuleVo registeredApp = this.registerAppMap.containsKey(appName) ?
-                this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version) : null;
-        if(operation.equals(AppUpdateOperation.REGISTER)){
-            if(registeredApp != null)
-                return String.format("%s version %s has registered", appName, version);
-        }
-        else if(registeredApp == null)
-            return String.format("%s version %s has not registered", appName, version);
-        switch (operation)
-        {
-            case UPDATE:
-            case DEBUG:
+        this.appReadLock.readLock().lock();
+        try {
+            String appName = appBase.getAppName();
+            if(StringUtils.isBlank(appName))
+                return String.format("appName of %s is blank;", operation.name);
+            String alias = appBase.getAlias();
+            if(operation.equals(AppUpdateOperation.DELETE)) {
                 if(StringUtils.isBlank(alias))
-                    return String.format("alias of %s for %s is blank;", appName, operation.name);
-            case ADD:
-                if(!registeredApp.isHasImage())
-                    return String.format("%s version %s has not image for %s", appName, version, operation.name);
-                appBase.setAppType(registeredApp.getAppType());
-                appBase.setCcodVersion(registeredApp.getCcodVersion());
-                break;
-            case REGISTER:
-            case MODIFY_REGISTER:
-                if(StringUtils.isBlank(appBase.getCcodVersion()))
-                    return String.format("ccodVersion is blank for %s", operation.name);
-                else if(appBase.getAppType() == null)
-                    return String.format("appType is null for %s", operation.name);
-                else if(appBase.getInstallPackage() == null)
-                    return String.format("installPackage of %s is null", appName);
-                break;
-            default:
-                return String.format("not support %s operation;", operation.name);
+                    return String.format("alias of %s %s is blank;", operation.name, appName);
+                return "";
+            }
+            String version = appBase.getVersion();
+            if(!this.registerAppMap.containsKey(appName))
+                return String.format("%s %s not register;", operation.name, appName);
+            else if(StringUtils.isBlank(version))
+                return String.format("version of %s for %s is blank;", appName, operation.name);
+            AppModuleVo registeredApp = this.registerAppMap.containsKey(appName) ?
+                    this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version) : null;
+            if(operation.equals(AppUpdateOperation.REGISTER)){
+                if(registeredApp != null)
+                    return String.format("%s version %s has registered", appName, version);
+            }
+            else if(registeredApp == null)
+                return String.format("%s version %s has not registered", appName, version);
+            switch (operation)
+            {
+                case UPDATE:
+                case DEBUG:
+                    if(StringUtils.isBlank(alias))
+                        return String.format("alias of %s for %s is blank;", appName, operation.name);
+                case ADD:
+                    if(!registeredApp.isHasImage())
+                        return String.format("%s version %s has not image for %s", appName, version, operation.name);
+                    appBase.setAppType(registeredApp.getAppType());
+                    appBase.setCcodVersion(registeredApp.getCcodVersion());
+                    break;
+                case REGISTER:
+                case MODIFY_REGISTER:
+                    if(StringUtils.isBlank(appBase.getCcodVersion()))
+                        return String.format("ccodVersion is blank for %s", operation.name);
+                    else if(appBase.getAppType() == null)
+                        return String.format("appType is null for %s", operation.name);
+                    else if(appBase.getInstallPackage() == null)
+                        return String.format("installPackage of %s is null", appName);
+                    break;
+                default:
+                    return String.format("not support %s operation;", operation.name);
+            }
+            StringBuffer sb = new StringBuffer();
+            String tag = String.format("%s %s(%s)", operation.name, alias, appName);
+            if(operation.equals(AppUpdateOperation.ADD) || operation.equals(AppUpdateOperation.REGISTER) || operation.equals(AppUpdateOperation.MODIFY_REGISTER))
+                tag = String.format("%s %s", operation.name, appName);
+            if(StringUtils.isBlank(appBase.getBasePath()))
+                sb.append(String.format("basePath of %s is blank;", tag));
+            if(StringUtils.isBlank(appBase.getDeployPath()))
+                sb.append(String.format("deployPath of %s is blank;", tag));
+            if(StringUtils.isNotBlank(appBase.getCheckAt()) && !appBase.getCheckAt().matches(this.healthCheckRegex))
+                sb.append(String.format("%s is illegal health check word for %s;", appBase.getCheckAt(), tag));
+            if(StringUtils.isBlank(appBase.getStartCmd()))
+                sb.append(String.format("startCmd is blank for %s;", tag));
+            if(StringUtils.isBlank(appBase.getLogOutputCmd()))
+                sb.append(String.format("logOutputCmd for %s is blank;", tag));
+            if(StringUtils.isBlank(appBase.getPorts()))
+                sb.append(String.format("ports is blank for %s;", tag));
+            else if(!appBase.getPorts().matches(this.portRegex))
+                sb.append(String.format("%s is illegal ports for %s;", appBase.getPorts(), tag));
+            if(StringUtils.isNotBlank(appBase.getNodePorts()) && !appBase.getNodePorts().matches(this.portRegex))
+                sb.append(String.format("%s is illegal nodePorts for %s;", appBase.getNodePorts(), tag));
+            if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
+                sb.append(String.format("cfgs of %s is empty;", tag));
+            return sb.toString();
         }
-        StringBuffer sb = new StringBuffer();
-        String tag = String.format("%s %s(%s)", operation.name, alias, appName);
-        if(operation.equals(AppUpdateOperation.ADD) || operation.equals(AppUpdateOperation.REGISTER) || operation.equals(AppUpdateOperation.MODIFY_REGISTER))
-            tag = String.format("%s %s", operation.name, appName);
-        if(StringUtils.isBlank(appBase.getBasePath()))
-            sb.append(String.format("basePath of %s is blank;", tag));
-        if(StringUtils.isBlank(appBase.getDeployPath()))
-            sb.append(String.format("deployPath of %s is blank;", tag));
-        if(StringUtils.isNotBlank(appBase.getCheckAt()) && !appBase.getCheckAt().matches(this.healthCheckRegex))
-            sb.append(String.format("%s is illegal health check word for %s;", appBase.getCheckAt(), tag));
-        if(StringUtils.isBlank(appBase.getStartCmd()))
-            sb.append(String.format("startCmd is blank for %s;", tag));
-        if(StringUtils.isBlank(appBase.getLogOutputCmd()))
-            sb.append(String.format("logOutputCmd for %s is blank;", tag));
-        if(StringUtils.isBlank(appBase.getPorts()))
-            sb.append(String.format("ports is blank for %s;", tag));
-        else if(!appBase.getPorts().matches(this.portRegex))
-            sb.append(String.format("%s is illegal ports for %s;", appBase.getPorts(), tag));
-        if(StringUtils.isNotBlank(appBase.getNodePorts()) && !appBase.getNodePorts().matches(this.portRegex))
-            sb.append(String.format("%s is illegal nodePorts for %s;", appBase.getNodePorts(), tag));
-        if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
-            sb.append(String.format("cfgs of %s is empty;", tag));
-        return sb.toString();
+        finally {
+            this.appReadLock.readLock().unlock();
+        }
     }
 
     void updateRegisterAppModuleImageExist() throws Exception
@@ -781,56 +787,21 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.debug(String.format("begin to register app=[%s] into cmdb", JSONObject.toJSONString(appModule)));
         String checkResult = this.checkAppBaseProperties(appModule, AppUpdateOperation.REGISTER);
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
+        String appName = appModule.getAppName();
+        String version = appModule.getVersion();
+        if(appModule.isHasImage()) {
+            boolean hasImage = hasImage(appName, version);
+            Assert.isTrue(hasImage, String.format("not find image for %s version %s at nexus", appName, version));
+        }
         this.appWriteLock.writeLock().lock();
         try
         {
-            String appName = appModule.getAppName();
-            String version = appModule.getVersion();
-            String directory = appModule.getAppNexusDirectory();
-            String tmpSaveDir = getTempSaveDir(DigestUtils.md5DigestAsHex(directory.getBytes()));
-            List<DeployFileInfo> fileList = new ArrayList<>();
-            String downloadUrl = appModule.getInstallPackage().getFileNexusDownloadUrl(this.publishNexusHostUrl);
-            logger.debug(String.format("download package from %s", downloadUrl));
-            String savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, appModule.getInstallPackage().getFileName());
-            String md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
-            if(!md5.equals(appModule.getInstallPackage().getMd5()))
-            {
-                logger.error(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
-                        appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
-                throw new ParamException(String.format("install package %s verify md5 FAIL : report=%s and download=%s",
-                        appModule.getInstallPackage().getFileName(), appModule.getInstallPackage().getMd5(), md5));
-            }
-            fileList.add(new DeployFileInfo(appModule.getInstallPackage(), savePth));
-            for(AppFileNexusInfo cfg : appModule.getCfgs())
-            {
-                downloadUrl = cfg.getFileNexusDownloadUrl(this.publishNexusHostUrl);
-                logger.debug(String.format("download cfg from %s", downloadUrl));
-                savePth = nexusService.downloadFile(this.nexusUserName, this.nexusPassword, downloadUrl, tmpSaveDir, cfg.getFileName());
-                md5 = DigestUtils.md5DigestAsHex(new FileInputStream(savePth));
-                if(!md5.equals(cfg.getMd5()))
-                {
-                    logger.error(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
-                            cfg.getFileName(), cfg.getMd5(), md5));
-                    throw new ParamException(String.format("cfg %s verify md5 FAIL : report=%s and download=%s",
-                            cfg.getFileName(), cfg.getMd5(), md5));
-                }
-                fileList.add(new DeployFileInfo(cfg, savePth));
-            }
-            this.nexusService.uploadRawComponent(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, fileList.toArray(new DeployFileInfo[0])).stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
-            Map<String, DeployFileInfo> fileMap = fileList.stream().collect(Collectors.toMap(DeployFileInfo::getFileName, Function.identity()));
-            AppPo appPo = new AppPo(appModule, false);
-            appPo.setInstallPackage(fileMap.get(appModule.getInstallPackage().getFileName()).getFileNexusInfo());
-            fileMap.remove(appModule.getInstallPackage().getFileName());
-            appPo.setCfgs(fileMap.values().stream().map(f->f.getFileNexusInfo()).collect(Collectors.toList()));
-            Date now = new Date();
-            appPo.setCreateTime(now);
-            appPo.setUpdateTime(now);
+            AppPo appPo = getAppFromModule(appModule, true);
             logger.debug(String.format("insert app info [%s]", JSONObject.toJSONString(appPo)));
             this.appMapper.insert(appPo);
             AppModuleVo newModule = this.appModuleMapper.selectByNameAndVersion(appName, version);
             this.appReadLock.writeLock().lock();
-            try
-            {
+            try {
                 if(!this.registerAppMap.containsKey(appName))
                     this.registerAppMap.put(appName, new ArrayList<>());
                 this.registerAppMap.get(appName).add(newModule);
@@ -849,32 +820,18 @@ public class AppManagerServiceImpl implements IAppManagerService {
         logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", JSONObject.toJSONString(appModule)));
         String appName = appModule.getAppName();
         String version = appModule.getVersion();
-        if (!this.appSetRelationMap.containsKey(appName)) {
-            logger.error(String.format("app %s is not supported by cmdb", appName));
-            throw new NotSupportAppException(String.format("app %s is not supported by cmdb", appName));
-        }
-        String moduleCheckResult = checkModuleParam(appModule);
-        if (StringUtils.isNotBlank(moduleCheckResult)) {
-            logger.error(String.format("app module params check FAIL %s", moduleCheckResult));
-            throw new ParamException(String.format("app module params check FAIL %s", moduleCheckResult));
+        String checkResult = checkAppBaseProperties(appModule, AppUpdateOperation.MODIFY_REGISTER);
+        Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
+        if(appModule.isHasImage()) {
+            boolean hasImage = hasImage(appName, version);
+            Assert.isTrue(hasImage, String.format("not find image for %s version %s at nexus", appName, version));
         }
         this.appWriteLock.writeLock().lock();
         try
         {
-            String directory = appModule.getAppNexusDirectory();
-            if (!this.registerAppMap.containsKey(appName) || !this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version))
-            {
-                logger.error(String.format("%s version %s has not registered", appName, version));
-                throw new ParamException(String.format("%s version %s has not registered", appName, version));
-            }
-            List<NexusAssetInfo> fileList = new ArrayList<>();
-            fileList.add(appModule.getInstallPackage().getNexusAssetInfo(this.nexusHostUrl));
-            for(AppFileNexusInfo cfg : appModule.getCfgs())
-                fileList.add(cfg.getNexusAssetInfo(this.nexusHostUrl));
-            logger.debug(String.format("download package and cfgs and upload to %s", directory));
-            Map<String, NexusAssetInfo> fileMap = this.nexusService.downloadAndUploadFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, fileList, this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository, directory, false).stream().collect(Collectors.toMap(NexusAssetInfo::getNexusAssetFileName, Function.identity()));;
-            AppModuleVo oldModuleVo = this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
-            this.appMapper.update(appModule.getApp(oldModuleVo.getAppId()));
+            AppPo appPo = getAppFromModule(appModule, false);
+            logger.debug(String.format("update app to %s", JSONObject.toJSONString(appPo)));
+            this.appMapper.update(appPo);
             logger.debug(String.format("flush register app map"));
             AppModuleVo newModule = this.appModuleMapper.selectByNameAndVersion(appName, version);
             this.appReadLock.writeLock().lock();
@@ -894,30 +851,33 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     }
 
-    private String checkModuleParam(AppModuleVo appModuleVo)
+
+    private AppPo getAppFromModule(AppModuleVo appModule, boolean isNew) throws ParamException, InterfaceCallException, NexusException, IOException
     {
-        StringBuffer sb = new StringBuffer();
-        if(StringUtils.isBlank(appModuleVo.getAppName()))
-        {
-            sb.append("appName is blank,");
+        String directory = appModule.getAppNexusDirectory();
+        List<AppFileNexusInfo> srcFiles = new ArrayList<>();
+        srcFiles.add(appModule.getInstallPackage());
+        srcFiles.addAll(appModule.getCfgs());
+        Map<String, AppFileNexusInfo> fileMap = this.nexusService.downloadAndUploadAppFiles(this.nexusHostUrl, this.nexusUserName,
+                this.nexusPassword, srcFiles, this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository,
+                directory, true).stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
+        AppPo appPo = new AppPo(appModule, false);
+        appPo.setInstallPackage(fileMap.get(appModule.getInstallPackage().getFileName()));
+        fileMap.remove(appModule.getInstallPackage().getFileName());
+        appPo.setCfgs(new ArrayList<>(fileMap.values()));
+        Date now = new Date();
+        appPo.setUpdateTime(now);
+        if(!isNew) {
+            AppModuleVo registered = this.registerAppMap.get(appModule.getAppName()).stream()
+                    .collect(Collectors.toMap(AppModuleVo::getAppName, Function.identity())).get(appModule.getVersion());
+            appPo.setAppId(registered.getAppId());
+            appPo.setCreateTime(registered.getCreateTime());
         }
-        if(StringUtils.isBlank(appModuleVo.getVersion()))
-        {
-            sb.append("appVersion is blank,");
+        else {
+            appPo.setAppId(0);
+            appPo.setCreateTime(now);
         }
-        if(StringUtils.isBlank(appModuleVo.getBasePath()))
-        {
-            sb.append("default base path is blank,");
-        }
-        if(appModuleVo.getInstallPackage() == null)
-        {
-            sb.append("install package is null,");
-        }
-        if(appModuleVo.getCfgs() == null || appModuleVo.getCfgs().size() == 0)
-        {
-            sb.append("cfg is null,");
-        }
-        return sb.toString().replaceAll(",$", "");
+        return appPo;
     }
 
     /**

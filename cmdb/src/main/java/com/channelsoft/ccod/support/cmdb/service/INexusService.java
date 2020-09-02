@@ -5,6 +5,7 @@ import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import com.channelsoft.ccod.support.cmdb.vo.PlatformAppModuleVo;
 
@@ -164,5 +165,25 @@ public interface INexusService {
      * @throws IOException
      */
     List<NexusAssetInfo> downloadAndUploadFiles(String srcNexusHostUrl, String srcNexusUser, String srcPwd, List<NexusAssetInfo> srcFileList, String dstNexusHostUrl, String dstNexusUser, String dstNexusPwd, String dstRepository, String dstDirectory, boolean isClearTargetDirectory) throws ParamException, InterfaceCallException, NexusException, IOException;
+
+    /**
+     * 从源nexus下载应用相关文件并上传到目的nexus的指定仓库的指定路径下
+     * @param srcNexusHostUrl 源nexus的host url
+     * @param srcNexusUser 源nexus的用户
+     * @param srcPwd 源nexus的用户登录密码
+     * @param srcFileList 需要下载并上传的文件
+     * @param dstNexusHostUrl 目的nexus的host url
+     * @param dstNexusUser 目的nexus的登录用户
+     * @param dstNexusPwd 目的nexus的用户登录密码
+     * @param dstRepository 上传文件的仓库
+     * @param dstDirectory 上传文件的路径
+     * @param isClearTargetDirectory 上传之前是否清除原来路径下的文件
+     * @return 上传后应用文件存储在nexus的信息
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws NexusException
+     * @throws IOException
+     */
+    List<AppFileNexusInfo> downloadAndUploadAppFiles(String srcNexusHostUrl, String srcNexusUser, String srcPwd, List<AppFileNexusInfo> srcFileList, String dstNexusHostUrl, String dstNexusUser, String dstNexusPwd, String dstRepository, String dstDirectory, boolean isClearTargetDirectory) throws ParamException, InterfaceCallException, NexusException, IOException;
 
 }

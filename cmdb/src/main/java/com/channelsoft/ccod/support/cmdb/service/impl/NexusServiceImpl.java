@@ -10,6 +10,7 @@ import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.po.NexusComponentPo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
+import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.DeployFileInfo;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -404,10 +405,7 @@ public class NexusServiceImpl implements INexusService {
             FileInputStream is = new FileInputStream(savePth);
             String md5 = DigestUtils.md5DigestAsHex(is);
             is.close();
-            if(!md5.equals(filePo.getMd5()))
-            {
-                logger.error(String.format("file %s verify md5 FAIL : report=%s and download=%s",
-                        filePo.getNexusAssetFileName(), filePo.getMd5(), md5));
+            if(!md5.equals(filePo.getMd5())) {
                 throw new ParamException(String.format("file %s verify md5 FAIL : report=%s and download=%s",
                         filePo.getNexusAssetFileName(), filePo.getMd5(), md5));
             }
@@ -418,274 +416,14 @@ public class NexusServiceImpl implements INexusService {
         return uploadRawComponent(dstNexusHostUrl, dstNexusUser, dstNexusPwd, dstRepository, dstDirectory, fileList.toArray(new DeployFileInfo[0]));
     }
 
-    //    private String downloadFileByAssetId(String nexusAssetId, String nexusUrl, String userName, String password) throws InterfaceCallException, NexusException
-//    {
-//        String url = String.format(this.queryAssetUrlFmt, nexusUrl, nexusAssetId);
-//        CloseableHttpClient client = getBasicHttpClient(userName, password);
-//        HttpClient httpclient = getBasicHttpClient(userName, password);
-//        HttpGet httpGet = new HttpGet(url);
-//        httpGet.addHeader("Authorization", getBasicAuthPropValue(userName, password));
-//        HttpResponse response = httpclient.execute(httpGet);
-//        if (response.getStatusLine().getStatusCode() == 404)
-//        {
-//            logger.error(String.format("nexusAssetId=%s asset not exist at nexus=%s", nexusAssetId, nexusUrl));
-//            throw new Exception(String.format("nexusAssetId=%s not exist at nexus=%s", nexusAssetId, nexusUrl));
-//        }
-//        else if (response.getStatusLine().getStatusCode() != 200)
-//        {
-//            logger.error(String.format("query assetId=%s from nexus=%s FAIL : server return %d code",
-//                    nexusAssetId, nexusUrl, response.getStatusLine().getStatusCode()));
-//            throw new Exception(String.format("query assetId=%s from nexus=%s FAIL : server return %d code",
-//                    nexusAssetId, nexusUrl, response.getStatusLine().getStatusCode()));
-//        }
-//        String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-//        JSONObject jsonObject = JSONObject.parseObject(conResult);
-//        List<NexusComponentPo> components = JSONArray.parseArray(jsonObject.get("items").toString(), NexusComponentPo.class);
-//        logger.info(String.format("repository=%s has %d components", nexusAssetId, components.size()));
-//        return null;
-//    }
-
-//    private void downloadAsset(String nexusHostUrl, String userName, String password, NexusAssetInfo assetInfo, String savePath) throws InterfaceCallException, NexusException
-//    {
-//        BufferedInputStream bis = null;
-//        BufferedOutputStream bos = null;
-//        HttpURLConnection uc = null;
-//        try
-//        {
-//            String downloadUrl = String.format(this.downloadUrlFmt, nexusHostUrl, assetInfo.getRepository(), assetInfo.getPath()).replace("//", "/");
-//            String[] arr = downloadUrl.split("/");
-//            String fileName = arr[arr.length - 1];
-//            String savedFullPath = savePath;
-//            if(isWindows)
-//            {
-//                savedFullPath = "/" + savedFullPath.replace("\\", "/");
-//            }
-//            savedFullPath += savedFullPath + "/" + fileName;
-//            URL url = new URL(downloadUrl);
-//            uc = (HttpURLConnection) url.openConnection();
-//            uc.setRequestProperty("Authorization", getBasicAuthPropValue(userName, password));
-////            uc.connect();
-//            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
-//            uc.connect();
-//            String message = uc.getHeaderField(0);
-//            if (message != null && !"".equals(message.trim())
-//                    && message.startsWith("HTTP/1.1 404"))
-//            {
-//                logger.error("查询到的录音" + downloadUrl + "不存在");
-//
-//                throw new Exception("录音文件不存在");
-//            }
-//            File file = new File(savedFullPath);// 创建新文件
-//            if (file != null && !file.exists())
-//            {
-//                file.createNewFile();
-//            }
-//            long fileSize = uc.getContentLength();
-//            logger.info(downloadUrl + "录音文件长度:" + uc.getContentLength());// 打印文件长度
-//            // 读取文件
-//            bis = new BufferedInputStream(uc.getInputStream());
-//            bos = new BufferedOutputStream(new FileOutputStream(file));
-//            int len = 2048;
-//            byte[] b = new byte[len];
-//            while ((len = bis.read(b)) != -1)
-//            {
-//                bos.write(b, 0, len);
-//            }
-//            logger.info("下载保存成功");
-//            bos.flush();
-//        }
-//        finally {
-//            if(uc != null)
-//            {
-//                uc.disconnect();
-//            }
-//            if(bis != null)
-//            {
-//                bis.close();
-//            }
-//            if(bos != null)
-//            {
-//                bos.close();
-//            }
-//        }
-//
-//    }
-
-
-//    @Test
-//    public void nexusHttpTest()
-//    {
-//        try
-//        {
-//            String url = "http://10.130.41.216:8081/service/rest/v1/components?repository=ccod_modules";
-//            CloseableHttpClient httpclient = HttpRequestTools.getCloseableHttpClient();
-//            HttpGet httpGet = new HttpGet(url);
-//            httpGet.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
-////            httpGet.addHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS ***");
-//            HttpResponse response = httpclient.execute(httpGet);
-//            System.out.println(response.getStatusLine().getStatusCode());
-//            String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-//            System.out.println(conResult);
-//            JSONObject jsonObject = JSONObject.parseObject(conResult);
-//
-//            List<NexusComponentPo> components = JSONArray.parseArray(jsonObject.get("items").toString(), NexusComponentPo.class);
-//            System.out.println(JSONObject.toJSONString(components));
-//        }
-//        catch (Exception ex)
-//        {
-//            ex.printStackTrace();
-//        }
-//    }
-
-//    @Test
-//    public void uploadTest()
-//    {
-//        try {
-//            String url = "http://10.130.41.216:8081/service/rest/v1/components?repository=CCOD";
-//            CloseableHttpClient httpclient = HttpRequestTools.getCloseableHttpClient();
-//            HttpPost httpPost = new HttpPost(url);
-//            httpPost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
-////            httpPost.addHeader("X-Content-Type-Options", "nosniff");
-////            httpPost.addHeader("Content-Type", "application/json; charset=utf-8");
-////            httpPost.addHeader("content-type", "multipart/form-data; boundary=----------------------------e3407fbc6f02");
-//            String directory = "/CCOD/MONITOR_MODULE/ivr/1.0.0.0/";
-//            List<NameValuePair> nvps = new ArrayList<NameValuePair>();
-//            nvps.add(new BasicNameValuePair("raw.directory", directory));
-//            nvps.add(new BasicNameValuePair("raw.asset1", "@D:\\temp\\ivr.jar"));
-//            nvps.add(new BasicNameValuePair("raw.asset1.filename", "cfg1.ini"));
-////            nvps.add(new BasicNameValuePair("raw.asset1", "D:\\My Work\\Java\\idea\\supportDev\\downloads\\9ae8046f6b55f4114d8337bed35660b7\\config.ucx"));
-////            nvps.add(new BasicNameValuePair("raw.asset1.filename", "cfg1.ini"));
-////            nvps.add(new BasicNameValuePair("raw.asset2", "D:\\My Work\\Java\\idea\\supportDev\\downloads\\9ae8046f6b55f4114d8337bed35660b7\\config.ucx"));
-////            nvps.add(new BasicNameValuePair("raw.asset2.filename", "cfg2.ini"));
-////            nvps.add(new BasicNameValuePair("raw.asset3", "D:\\My Work\\Java\\idea\\supportDev\\downloads\\9ae8046f6b55f4114d8337bed35660b7\\config.ucx"));
-////            nvps.add(new BasicNameValuePair("raw.asset3.filename", "ucx.zip"));
-////            UrlEncodedFormEntity refe = new UrlEncodedFormEntity(nvps, Consts.UTF_8);
-////            System.out.println(JSONObject.toJSONString(refe));
-////            JSONObject postData = new JSONObject();
-////            postData.put("raw.directory", directory);
-////            postData.put("raw.asset1", "@D:\\temp\\ivr.jar");
-////            postData.put("raw.asset1.filename", "cfg1.ini");
-////            httpPost.setEntity(refe);
-//            MultipartEntity httpEntity = new MultipartEntity();
-//            httpEntity.addPart("raw.directory", new StringBody(directory, Charset.forName("UTF-8")));
-//            httpEntity.addPart("raw.asset1", new FileBody(new File("D:\\temp\\ivr.jar")));
-//            httpEntity.addPart("raw.asset1.filename", new StringBody("cfg1.ini", Charset.forName("UTF-8")));
-////            System.out.println(JSONObject.toJSONString(new StringEntity(postData.toString())));
-////            StringEntity paramEntity = new StringEntity(postData.toString(), "UTF-8");
-////            paramEntity.setContentType("application/json; charset=utf-8");;
-////            httpPost.setEntity(paramEntity);
-//            httpPost.setEntity(httpEntity);
-////            System.out.println(JSONObject.toJSONString(httpPost.getEntity()));
-//            HttpResponse response = httpclient.execute(httpPost);
-////            String conResult = EntityUtils.toString(response.getEntity(), "utf8");
-//            System.out.println(response.getStatusLine().getStatusCode());
-////            System.out.println(conResult);
-//        }
-//        catch (Exception ex)
-//        {
-//            ex.printStackTrace();
-//        }
-//    }
-//
-//    @Test
-//    public void uploadTest45()
-//    {
-//        try
-//        {
-//            String directory = "/CCOD/MONITOR_MODULE/ivr/3.0.0.0/";
-//            String url = "http://10.130.41.216:8081/service/rest/v1/components?repository=CCOD";
-//            CloseableHttpClient httpclient = HttpRequestTools.getCloseableHttpClient();
-//            HttpPost httpPost = new HttpPost(url);
-//            httpPost.addHeader("Authorization", "Basic YWRtaW46MTIzNDU2");
-//            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-//            builder.setCharset(java.nio.charset.Charset.forName("UTF-8"));
-//            builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
-//            builder.addTextBody("raw.directory", directory);
-//            builder.addTextBody("raw.asset1.filename", "test1.ini");
-//            builder.addBinaryBody("raw.asset1", new File("D:\\temp\\ivr.jar"));
-//            builder.addTextBody("raw.asset2.filename", "ivr.zip");
-//            builder.addBinaryBody("raw.asset2", new File("D:\\temp\\temp.zip"));
-//            builder.addTextBody("raw.asset3.filename", "test2.xml");
-//            builder.addBinaryBody("raw.asset3", new File("D:\\temp\\config.xml"));
-//            HttpEntity entity = builder.build();
-//            httpPost.setEntity(entity);
-//            HttpResponse response = httpclient.execute(httpPost);
-//            System.out.println(response.getStatusLine().getStatusCode());
-//
-//        }
-//        catch (Exception ex)
-//        {
-//            ex.printStackTrace();
-//        }
-//    }
-//
-//    @Test
-//    public void downloadTest()
-//    {
-//        BufferedInputStream bis = null;
-//        BufferedOutputStream bos = null;
-//        HttpURLConnection uc = null;
-//        String downloadUrl = "http://10.130.41.216:8081/repository/CCOD/CCOD/MONITOR_MODULE/ivr/3.0.0.0/ivr1.zip";
-//        String savedFullPath = "d:\\temp\\helloTest.zip";
-//        try
-//        {
-//            URL url = new URL(downloadUrl);
-//            uc = (HttpURLConnection) url.openConnection();
-//            String username = "admin";
-//            String password = "123456";
-//            String input = username + ":" + password;
-//            String encoding = new sun.misc.BASE64Encoder().encode(input.getBytes());
-//            uc.setRequestProperty("Authorization", "Basic " + encoding);
-////            uc.connect();
-//            uc.setDoInput(true);// 设置是否要从 URL 连接读取数据,默认为true
-//            uc.connect();
-//            String message = uc.getHeaderField(0);
-//            if (message != null && !"".equals(message.trim())
-//                    && message.startsWith("HTTP/1.1 404"))
-//            {
-//                logger.error("查询到的录音" + downloadUrl + "不存在");
-//
-//                throw new Exception("录音文件不存在");
-//            }
-//            File file = new File(savedFullPath);// 创建新文件
-//            if (file != null && !file.exists())
-//            {
-//                file.createNewFile();
-//            }
-//            long fileSize = uc.getContentLength();
-//            logger.info(downloadUrl + "录音文件长度:" + uc.getContentLength());// 打印文件长度
-//            // 读取文件
-//            bis = new BufferedInputStream(uc.getInputStream());
-//            bos = new BufferedOutputStream(new FileOutputStream(file));
-//            int len = 2048;
-//            byte[] b = new byte[len];
-//            while ((len = bis.read(b)) != -1)
-//            {
-//                bos.write(b, 0, len);
-//            }
-//            logger.info("下载保存成功");
-//            bos.flush();
-//        }
-//        catch (Exception ex)
-//        {
-//            ex.printStackTrace();
-//        }
-//    }
-//
-//    @Test
-//    public void queryMapTest()
-//    {
-//        try
-//        {
-//            String repository = "ccod_modules";
-////            this.nexusHostUrl = "http://10.130.41.216:8081";
-////            this.userName = "admin";
-////            this.password = "123456";
-////            this.queryRepositoryAssetRelationMap(repository);
-//        }
-//        catch (Exception ex)
-//        {
-//            ex.printStackTrace();
-//        }
-//    }
+    @Override
+    public List<AppFileNexusInfo> downloadAndUploadAppFiles(String srcNexusHostUrl, String srcNexusUser, String srcPwd, List<AppFileNexusInfo> srcFileList, String dstNexusHostUrl, String dstNexusUser, String dstNexusPwd, String dstRepository, String dstDirectory, boolean isClearTargetDirectory) throws ParamException, InterfaceCallException, NexusException, IOException {
+        List<NexusAssetInfo> assets = downloadAndUploadFiles(srcNexusHostUrl, srcNexusUser, srcPwd,
+                srcFileList.stream().map(f->f.getNexusAssetInfo(srcNexusHostUrl)).collect(Collectors.toList()), dstNexusHostUrl,
+                dstNexusUser, dstNexusPwd, dstRepository, dstRepository, isClearTargetDirectory);
+        Map<String, String> fileDeployPathMap = srcFileList.stream()
+                .collect(Collectors.toMap(a->a.getFileName(), v->v.getDeployPath()));
+        return assets.stream().map(a->new AppFileNexusInfo(a, fileDeployPathMap.get(a.getNexusAssetFileName())))
+                .collect(Collectors.toList());
+    }
 }

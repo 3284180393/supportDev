@@ -1,15 +1,12 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
-import com.channelsoft.ccod.support.cmdb.constant.DatabaseType;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Value;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @ClassName: AppBase
@@ -60,8 +57,7 @@ public abstract class AppBase {
 
     public AppBase(){}
 
-    public AppBase(AppBase appBase)
-    {
+    public AppBase(AppBase appBase) {
         this.appName = appBase.appName;
         this.alias = appBase.alias;
         this.version = appBase.version;
@@ -240,14 +236,12 @@ public abstract class AppBase {
         return directory;
     }
 
-    public String getAppNexusGroup()
-    {
+    public String getAppNexusGroup() {
         String group = String.format("/%s/%s", this.appName, this.version);
         return group;
     }
 
-    public void changeTo(AppBase appBase)
-    {
+    public void changeTo(AppBase appBase) {
         this.version = StringUtils.isNotBlank(appBase.version) ? appBase.version : this.version;
         this.basePath = StringUtils.isNotBlank(appBase.basePath) ? appBase.basePath : this.basePath;
         this.checkAt = StringUtils.isNotBlank(appBase.checkAt) ? appBase.checkAt : this.checkAt;
@@ -265,8 +259,7 @@ public abstract class AppBase {
         this.installPackage = appBase.installPackage != null ? appBase.installPackage : this.installPackage;
     }
 
-    public void fill(AppBase appBase)
-    {
+    public void fill(AppBase appBase) {
         this.version = StringUtils.isBlank(this.version) ? appBase.version : this.version;
         this.basePath = StringUtils.isBlank(this.basePath) ? appBase.basePath : this.basePath;
         this.checkAt = StringUtils.isBlank(this.checkAt) ? appBase.checkAt : this.checkAt;
@@ -282,5 +275,13 @@ public abstract class AppBase {
         this.startCmd = StringUtils.isBlank(this.startCmd) ? appBase.startCmd : this.startCmd;
         this.cfgs = this.cfgs == null || this.cfgs.size() == 0 ? appBase.cfgs : this.cfgs;
         this.installPackage = this.installPackage == null ? appBase.installPackage : this.installPackage;
+    }
+
+    public String getPlatformAppCfgDirectory(Date date, String platformId, String domainId)
+    {
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String directory = String.format("%s/%s/%s/%s/%s/%s", platformId, sf.format(date), domainId,
+                this.appName, this.alias, this.version);
+        return directory;
     }
 }
