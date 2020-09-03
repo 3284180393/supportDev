@@ -851,7 +851,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         appPo.setUpdateTime(now);
         if(!isNew) {
             AppModuleVo registered = this.registerAppMap.get(appModule.getAppName()).stream()
-                    .collect(Collectors.toMap(AppModuleVo::getAppName, Function.identity())).get(appModule.getVersion());
+                    .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(appModule.getVersion());
             appPo.setAppId(registered.getAppId());
             appPo.setCreateTime(registered.getCreateTime());
         }

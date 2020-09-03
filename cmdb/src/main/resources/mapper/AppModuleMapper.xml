@@ -62,7 +62,6 @@
         a.install_package
         FROM
         app a
-        INNER JOIN app_install_package aip ON a.app_id = aip.app_id
         WHERE
         1 = 1
     </sql>

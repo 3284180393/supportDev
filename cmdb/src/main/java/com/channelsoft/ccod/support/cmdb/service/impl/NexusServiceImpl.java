@@ -420,7 +420,7 @@ public class NexusServiceImpl implements INexusService {
     public List<AppFileNexusInfo> downloadAndUploadAppFiles(String srcNexusHostUrl, String srcNexusUser, String srcPwd, List<AppFileNexusInfo> srcFileList, String dstNexusHostUrl, String dstNexusUser, String dstNexusPwd, String dstRepository, String dstDirectory, boolean isClearTargetDirectory) throws ParamException, InterfaceCallException, NexusException, IOException {
         List<NexusAssetInfo> assets = downloadAndUploadFiles(srcNexusHostUrl, srcNexusUser, srcPwd,
                 srcFileList.stream().map(f->f.getNexusAssetInfo(srcNexusHostUrl)).collect(Collectors.toList()), dstNexusHostUrl,
-                dstNexusUser, dstNexusPwd, dstRepository, dstRepository, isClearTargetDirectory);
+                dstNexusUser, dstNexusPwd, dstRepository, dstDirectory, isClearTargetDirectory);
         Map<String, String> fileDeployPathMap = srcFileList.stream()
                 .collect(Collectors.toMap(a->a.getFileName(), v->v.getDeployPath()));
         return assets.stream().map(a->new AppFileNexusInfo(a, fileDeployPathMap.get(a.getNexusAssetFileName())))

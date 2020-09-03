@@ -12,6 +12,7 @@
         <result column="env_load_cmd" property="initCmd" jdbcType="VARCHAR" />
         <result column="init_cmd" property="initCmd" jdbcType="VARCHAR" />
         <result column="start_cmd" property="startCmd" jdbcType="VARCHAR" />
+        <result column="log_output_cmd" property="logOutputCmd" jdbcType="VARCHAR" />
         <result column="kernal" property="kernal" jdbcType="BOOLEAN" />
         <result column="time_out" property="timeout" jdbcType="INTEGER" />
         <result column="ports" property="ports" jdbcType="VARCHAR" />
@@ -41,6 +42,7 @@
         a.env_load_cmd,
         a.init_cmd,
         a.start_cmd,
+        a.log_output_cmd,
         a.kernal,
         a.time_out,
         a.ports,
