@@ -438,11 +438,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         for (String setName : setAppMap.keySet()) {
+            BizSetDefine setDefine = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity())).get(setName);
             Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = setAppMap.get(setName)
                     .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
             List<CCODDomainInfo> domainList = new ArrayList<>();
             for (String domainName : domainAppMap.keySet()) {
-                List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName);
+                List<PlatformAppDeployDetailVo> domAppList = domainAppMap.get(domainName).stream()
+                        .sorted(getAppSort(setDefine)).collect(Collectors.toList());
                 CCODDomainInfo domain = new CCODDomainInfo(domAppList.get(0).getDomainId(), domAppList.get(0).getDomainName());
                 Map<String, List<PlatformAppDeployDetailVo>> assembleAppMap = domAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAssembleTag));
                 for (String assembleTag : assembleAppMap.keySet()) {
@@ -451,12 +453,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         CCODModuleInfo bkModule = new CCODModuleInfo(deployApp);
                         assemble.getModules().add(bkModule);
                     }
+                    assemble.setModules(assemble.getModules().stream().sorted(getCCODModuleSort(setDefine)).collect(Collectors.toList()));
                     domain.getAssembles().add(assemble);
                 }
+                domain.setAssembles(domain.getAssembles().stream().sorted(getCCODAssembleSort(setDefine)).collect(Collectors.toList()));
                 domainList.add(domain);
             }
             CCODSetInfo set = new CCODSetInfo(setName);
-            set.setDomains(domainList);
+            set.setDomains(domainList.stream().sorted(getCCODDomainSort(setDefine)).collect(Collectors.toList()));
             setList.add(set);
         }
         for (String setName : setNames) {
@@ -465,6 +469,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 setList.add(setInfo);
             }
         }
+        setList = setList.stream().sorted(this.getCCODSetSort()).collect(Collectors.toList());
         return setList;
     }
 
@@ -1573,6 +1578,67 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 if(!o1.getAppName().equals(o2.getAppName()))
                     return appSortMap.get(o1.getAppName()) - appSortMap.get(o2.getAppName());
                 return getIndexFromAlias(o1.getAlias(), aliasMap.get(o1.getAppName())) - getIndexFromAlias(o2.getAlias(), aliasMap.get(o2.getAppName()));
+            }
+        };
+        return sort;
+    }
+
+    private Comparator<CCODSetInfo> getCCODSetSort()
+    {
+        Map<String, Integer> setSortMap = new HashMap<>();
+        for(int i = 0; i < this.ccodBiz.getSet().size(); i++)
+            setSortMap.put(this.ccodBiz.getSet().get(i).getName(), i);
+        Comparator<CCODSetInfo> sort = new Comparator<CCODSetInfo>() {
+            @Override
+            public int compare(CCODSetInfo o1, CCODSetInfo o2) {
+                return setSortMap.get(o1.getBkSetName()) - setSortMap.get(o2.getBkSetName());
+            }
+        };
+        return sort;
+    }
+
+    private Comparator<CCODDomainInfo> getCCODDomainSort(BizSetDefine setDefine)
+    {
+        Comparator<CCODDomainInfo> sort = new Comparator<CCODDomainInfo>() {
+            @Override
+            public int compare(CCODDomainInfo o1, CCODDomainInfo o2) {
+                return Integer.parseInt(o1.getDomainId().replace(setDefine.getFixedDomainId(), "")) - Integer.parseInt(o2.getDomainId().replace(setDefine.getFixedDomainId(), ""));
+            }
+        };
+        return sort;
+    }
+
+    private Comparator<CCODAssembleInfo> getCCODAssembleSort(BizSetDefine setDefine)
+    {
+        Map<String, Integer> appSortMap = new HashMap<>();
+        for(int i = 0; i < setDefine.getApps().size(); i++)
+            appSortMap.put(setDefine.getApps().get(i).getName(), i);
+        Map<String, String> aliasMap = setDefine.getApps().stream().collect(Collectors.toMap(o->o.getName(), v->v.getAlias()));
+        Comparator<CCODAssembleInfo> sort = new Comparator<CCODAssembleInfo>() {
+            @Override
+            public int compare(CCODAssembleInfo a1, CCODAssembleInfo a2) {
+                CCODModuleInfo o1 = a1.getModules().get(0);
+                CCODModuleInfo o2 = a2.getModules().get(0);
+                if(!o1.getModuleName().equals(o2.getModuleName()))
+                    return appSortMap.get(o1.getModuleName()) - appSortMap.get(o2.getModuleName());
+                return getIndexFromAlias(o1.getModuleAlias(), aliasMap.get(o1.getModuleName())) - getIndexFromAlias(o2.getModuleAlias(), aliasMap.get(o2.getModuleName()));
+            }
+        };
+        return sort;
+    }
+
+    private Comparator<CCODModuleInfo> getCCODModuleSort(BizSetDefine setDefine)
+    {
+        Map<String, Integer> appSortMap = new HashMap<>();
+        for(int i = 0; i < setDefine.getApps().size(); i++)
+            appSortMap.put(setDefine.getApps().get(i).getName(), i);
+        Map<String, String> aliasMap = setDefine.getApps().stream().collect(Collectors.toMap(o->o.getName(), v->v.getAlias()));
+        Comparator<CCODModuleInfo> sort = new Comparator<CCODModuleInfo>() {
+            @Override
+            public int compare(CCODModuleInfo o1, CCODModuleInfo o2) {
+                if(!o1.getModuleName().equals(o2.getModuleName()))
+                    return appSortMap.get(o1.getModuleName()) - appSortMap.get(o2.getModuleName());
+                return getIndexFromAlias(o1.getModuleAlias(), aliasMap.get(o1.getModuleName())) - getIndexFromAlias(o2.getModuleAlias(), aliasMap.get(o2.getModuleName()));
             }
         };
         return sort;

@@ -61,12 +61,12 @@ public class CMDBController {
     public AjaxResultPo addNewApp(@RequestBody AppModuleVo moduleVo)
     {
         String uri = String.format("POST %s/apps", this.apiBasePath);
-        logger.debug(String.format("enter %s controller and app param=%s", uri, JSONObject.toJSONString(moduleVo)));
+        logger.debug(String.format("enter %s controller and app param=%s", uri, gson.toJson(moduleVo)));
         AjaxResultPo resultPo;
         try
         {
             this.appManagerService.registerNewAppModule(moduleVo);
-            logger.info(String.format("register %s SUCCESS, quit %s", JSONObject.toJSONString(moduleVo), uri));
+            logger.info(String.format("register %s SUCCESS, quit %s", gson.toJson(moduleVo), uri));
             resultPo = new AjaxResultPo(true, "register new app SUCCESS");
         }
         catch (Exception e)
@@ -80,13 +80,13 @@ public class CMDBController {
     @RequestMapping(value = "/appModules", method = RequestMethod.POST)
     public AjaxResultPo updateExistAppModule(@RequestBody AppModuleVo moduleVo)
     {
-        String uri = String.format("POST %s/appCfgs", this.apiBasePath);
-        logger.debug(String.format("enter %s controller and param=%s", uri, JSONObject.toJSONString(moduleVo)));
+        String uri = String.format("POST %s/appModules", this.apiBasePath);
+        logger.debug(String.format("enter %s controller and param=%s", uri, gson.toJson(moduleVo)));
         AjaxResultPo resultPo;
         try
         {
             this.appManagerService.updateAppModule(moduleVo);
-            logger.info(String.format("modify %s cfg SUCCESS, quit %s", JSONObject.toJSONString(moduleVo), uri));
+            logger.info(String.format("modify %s cfg SUCCESS, quit %s", gson.toJson(moduleVo), uri));
             resultPo = new AjaxResultPo(true, "modify %s cfg SUCCESS");
         }
         catch (Exception e)
@@ -218,7 +218,7 @@ public class CMDBController {
     public AjaxResultPo updatePlatformApps(@RequestBody PlatformAppUpdateParamVo paramVo)
     {
         String uri = String.format("PUT %s/platformApps", this.apiBasePath);
-        logger.debug(String.format("enter %s controller : param=[%s]", uri, JSONObject.toJSONString(paramVo)));
+        logger.debug(String.format("enter %s controller : param=[%s]", uri, gson.toJson(paramVo)));
         AjaxResultPo resultPo;
         try
         {
@@ -238,7 +238,7 @@ public class CMDBController {
 //    public AjaxResultPo addPlatformApps(@RequestBody PlatformAppParamVo param)
 //    {
 //        String uri = String.format("POST %s/platformApps", this.apiBasePath);
-//        logger.debug(String.format("enter %s controller with param=%s", uri, JSONObject.toJSONString(param)));
+//        logger.debug(String.format("enter %s controller with param=%s", uri, gson.toJson(param)));
 //        if(param.getMethod() != PlatformAppOperationMethod.ADD_BY_PLATFORM_CLIENT_COLLECT.id)
 //        {
 //            logger.error(String.format("not support platform app operation method=%d, quit %s controller",
@@ -257,7 +257,7 @@ public class CMDBController {
 //            this.appManagerService.createNewPlatformAppDataCollectTask(param.getPlatformId(), param.getPlatformName(), param.getDomainId(),
 //                    param.getHostIp(), param.getAppName(), param.getVersion());
 //            logger.info(String.format("platform app collect task with param=%s create SUCCESS, quit %s controller",
-//                    JSONObject.toJSONString(param), uri));
+//                    gson.toJson(param), uri));
 //            resultPo = new AjaxResultPo(true, "collect task create SUCCESS");
 //        }
 //        catch (Exception e)
@@ -566,7 +566,7 @@ public class CMDBController {
 //        try
 //        {
 ////            List<CCODPlatformInfo> bizPlatforms = this.ljPaasService.queryCCODBiz(null, null, null);
-////            String data = JSONObject.toJSONString(bizPlatforms);
+////            String data = gson.toJson(bizPlatforms);
 ////            List<CCODPlatformInfo> resultList = new ArrayList<>();
 ////            for(CCODPlatformInfo platformInfo : bizPlatforms)
 ////            {
@@ -730,7 +730,7 @@ public class CMDBController {
     public AjaxResultPo collectPlatformData(@RequestBody PlatformDataCollectParamVo param)
     {
         String uri = String.format("POST %s/platformData", this.apiBasePath);
-        logger.debug(String.format("enter %s controller, param=%s", uri, JSONObject.toJSONString(param)));
+        logger.debug(String.format("enter %s controller, param=%s", uri, gson.toJson(param)));
         AjaxResultPo resultPo;
         try
         {

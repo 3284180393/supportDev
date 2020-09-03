@@ -2,10 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.channelsoft.ccod.support.cmdb.config.AppDefine;
-import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
-import com.channelsoft.ccod.support.cmdb.config.CCODBiz;
-import com.channelsoft.ccod.support.cmdb.config.ImageCfg;
+import com.channelsoft.ccod.support.cmdb.config.*;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
 import com.channelsoft.ccod.support.cmdb.exception.*;
@@ -17,7 +14,10 @@ import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import com.channelsoft.ccod.support.cmdb.utils.ServiceUnitUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +56,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 //    @Autowired
 //    AppMapper appMapper;
 
-
+    private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
 
     @Value("${nexus.platform-app-cfg-repository}")
     private String platformAppCfgRepository;
@@ -204,27 +204,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.notCheckCfgAppSet = new HashSet<>(ccodBiz.getNotCheckCfgApps());
         this.setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         flushRegisteredApp();
-//        updateAssetId4AppModule();
-//        rectifyAppModule();
-//        deleteNotUserData();
         try
         {
-//            updateRegisterAppCfgs();
-            System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-//            List<LJBizInfo> bizList = paasService.queryAllBiz();
-//            for(LJBizInfo biz : bizList)
-//            {
-//                List<LJHostInfo> hostList = paasService.queryBKHost(biz.getBkBizId(), null, null, null, null);
-//                System.out.println(String.format("%s[%d] has %d hosts : %s", biz.getBkBizName(), biz.getBkBizId(), hostList.size(),
-//                        String.join(",", hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity())).keySet())));
-//                if(biz.getBkBizId() == 34)
-//                    System.out.println("haha");
-//            }
-
-//            updateRegisterAppModuleImageExist();
-//            List<AppModuleVo> list = queryAllHasImageAppModule();
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
-
         }
         catch (Exception ex)
         {
@@ -339,7 +321,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public void preprocessPlatformAppModule(PlatformAppModuleVo module) throws DataAccessException, InterfaceCallException, NexusException, ParamException
     {
-        logger.debug(String.format("begin to handle module[%s]", JSONObject.toJSONString(module)));
+        logger.debug(String.format("begin to handle module[%s]", gson.toJson(module)));
         AppPo appPo = module.getAppInfo();
         String appName = appPo.getAppName();
         String appVersion = appPo.getVersion();
@@ -455,7 +437,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     private boolean handlePlatformAppModule(PlatformAppModuleVo module, List<AppModuleVo> registerAppList)
             throws DataAccessException, InterfaceCallException, NexusException, ParamException
     {
-        logger.debug(String.format("begin to handle module[%s]", JSONObject.toJSONString(module)));
+        logger.debug(String.format("begin to handle module[%s]", gson.toJson(module)));
         Map<String, List<AppModuleVo>> appMap = registerAppList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
         AppPo appPo = module.getAppInfo();
         String appName = appPo.getAppName();
@@ -573,7 +555,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     public AppModuleVo addNewAppModule(AppPo appPo, DeployFileInfo installPackage, DeployFileInfo[] cfgs) throws InterfaceCallException, NexusException {
         String appName = appPo.getAppName();
         String version = appPo.getVersion();
-        logger.debug(String.format("add new app module %s(%s)[%s] to cmdb", appName, version, JSONObject.toJSONString(appPo)));
+        logger.debug(String.format("add new app module %s(%s)[%s] to cmdb", appName, version, gson.toJson(appPo)));
         String directory = appPo.getAppNexusDirectory();
         addAppToNexus(appName, version, installPackage, cfgs, this.appRepository, directory);
         AppModuleVo moduleVo = addNewAppToDB(appPo, installPackage, cfgs);
@@ -784,7 +766,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Override
     public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
-        logger.debug(String.format("begin to register app=[%s] into cmdb", JSONObject.toJSONString(appModule)));
+        logger.debug(String.format("begin to register app=[%s] into cmdb", gson.toJson(appModule)));
         String checkResult = this.checkAppBaseProperties(appModule, AppUpdateOperation.REGISTER);
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
         String appName = appModule.getAppName();
@@ -797,7 +779,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         try
         {
             AppPo appPo = getAppFromModule(appModule, true);
-            logger.debug(String.format("insert app info [%s]", JSONObject.toJSONString(appPo)));
+            logger.debug(String.format("insert app info [%s]", gson.toJson(appPo)));
             this.appMapper.insert(appPo);
             AppModuleVo newModule = this.appModuleMapper.selectByNameAndVersion(appName, version);
             this.appReadLock.writeLock().lock();
@@ -817,7 +799,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
     @Override
     public void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
-        logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", JSONObject.toJSONString(appModule)));
+        logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", gson.toJson(appModule)));
         String appName = appModule.getAppName();
         String version = appModule.getVersion();
         String checkResult = checkAppBaseProperties(appModule, AppUpdateOperation.MODIFY_REGISTER);
@@ -830,7 +812,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         try
         {
             AppPo appPo = getAppFromModule(appModule, false);
-            logger.debug(String.format("update app to %s", JSONObject.toJSONString(appPo)));
+            logger.debug(String.format("update app to %s", gson.toJson(appPo)));
             this.appMapper.update(appPo);
             logger.debug(String.format("flush register app map"));
             AppModuleVo newModule = this.appModuleMapper.selectByNameAndVersion(appName, version);
@@ -1226,179 +1208,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
         finally {
             this.appReadLock.readLock().unlock();
-        }
-    }
-
-    private void updateRegisteredApps()
-    {
-        this.appReadLock.writeLock().lock();
-        try
-        {
-            List<AppModuleVo> apps = this.appModuleMapper.select(null, null, null, null);
-            for(AppModuleVo module : apps) {
-                AppPo app = module.getApp();
-                app.setInstallPackage(module.getInstallPackage().getAppFileNexusInfo());
-                this.appMapper.update(app);
-            }
-        }
-        finally {
-            this.appReadLock.writeLock().unlock();
-        }
-    }
-
-    @Test
-    public void schemaParamTest()
-    {
-        PlatformUpdateSchemaParamVo paramVo = new PlatformUpdateSchemaParamVo();
-        paramVo.setBkBizId(0);
-        paramVo.setBkCloudId(8);
-        paramVo.setPlatformId("ccodDevelopTestPlatform");
-        paramVo.setPlatformName("ccod开发测试平台");
-        paramVo.setTaskType(PlatformUpdateTaskType.CREATE);
-        String script = "glsServer##glsServer##ece10ef28dce83ab36e4d79213ec4f69##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "LicenseServer##license##5214##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "configserver##configserver##aca2af60caa0fb9f4af57f37f869dafc90472525##/home/cfs/Platform@10.130.41.218\n" +
-                "gls##gls##10309##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "dcms##dcms##11110##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "dcmsWebservice##dcmsWebservice##20503##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "dcmsRecord##dcmsRecord##21763##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "dcmsStaticsReport##dcmsStatics##20537##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "dcmsStaticsReport##dcmsStaticsReport##20528##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "safetyMonitor##safetyMonitor##20383##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "dcmssg##dcmsSG##20070##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "customWebservice##customWebservice##19553##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "dcmsx##dcmsx##master_8efabf4##/home/ccodrunner/resin-4.0.13/webapps@10.130.41.218\n" +
-                "slee##slee##3.1.5.0##/home/slee/Platform/slee/ChannelSoft/CsCCP/SoftSwitch/lib@10.130.41.218\n" +
-                "UCGateway##UCGateway##b4c50cc9602c11c9cbfae23d07f134dc##/home/ccodrunner/SmartDialer4.1/Service@10.130.41.218\n" +
-                "AppGateWay##AppGateWay##c03e1e3fedf73f25a1565c602b8e4040##/home/ccodrunner/SmartDialer4.1/Service@10.130.41.218\n" +
-                "DialEngine##DialEngine##24ae5d2c45523ab5c7e0da7b86db4c18##/home/ccodrunner/SmartDialer4.1/Service@10.130.41.218\n" +
-                "cmsserver##cms##4c303e2a4b97a047f63eb01b247303c9306fbda5##/home/channelsoft/Platform@10.130.41.218\n" +
-                "cmsserver##cms##4c303e2a4b97a047f63eb01b247303c9306fbda5##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "UCDServer##ucds##deb3c3c4bf62c5ae5b3f8a467029a03ed95fb39e##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "ucxserver##ucx##1fef2157ea07c483979b424c758192bd709e6c2a##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "DDSServer##dds##150:18722##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "dcs##dcs##155:21974##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "StatSchedule##ss##154:21104##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "EAService##eas##216:11502##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "dcproxy##dcproxy##195:21857##/home/ccodrunner/Platform@10.130.41.218\n" +
-                "daengine##daengine##179:20744##/home/ccodrunner/Platform@10.130.41.218";
-        paramVo.setPlanAppList(Arrays.asList(script.split("\n")));
-        System.out.println(JSONObject.toJSONString(paramVo));
-    }
-
-    @Test
-    public void splitTest()
-    {
-        String path = "/home/ccodrunner/resin-4.0.13/webapps";
-        String appAlias = "dcmsx";
-        path = path.replaceAll("^/", "");
-        String[] arr = path.split("/");
-        arr[1] = appAlias;
-        System.out.println(String.join("/", arr));
-    }
-
-    @Test
-    public void indexTest()
-    {
-        try
-        {
-            String standId = "ucgateway";
-            List<String> usedIds = new ArrayList<>();
-//            usedIds.add("tr207");
-//            usedIds.add("tr203");
-            for(int i = 0; i < 5; i++)
-            {
-                String domainId = autoGenerateAlias(standId, usedIds, true);
-                System.out.println(domainId);
-                usedIds.add(domainId);
-            }
-            usedIds.add(standId + "225");
-            usedIds.add(standId + "112");
-            String domainId = autoGenerateAlias(standId, usedIds, true);
-            System.out.println(domainId);
-            usedIds.add(domainId);
-
-        }
-        catch (Exception ex)
-        {
-            ex.printStackTrace();
-        }
-    }
-
-    @Test
-    public void sqlTest()
-    {
-        DatabaseType dbType = DatabaseType.ORACLE;
-        String areaId = "010";
-        String domainId = "cloud01";
-        String alias = "cms1";
-        try
-        {
-            String insertSql = ServiceUnitUtils.getDefaultCMSServerInsertSql(dbType, areaId, domainId, alias);
-            System.out.println(String.format("insertSql=%s", insertSql));
-            alias = "ucds";
-            String dbName = "ucds";
-            String dbUser = "ucds";
-            String dbPwd = "ucds";
-            String ucdsIp = "10.130.41.218";
-            int ucdsPort = 32194;
-            String ucdsDataKeeperIp = "10.130.29.72";
-            String ucdsInnerIp = "10.130.29.75";
-            insertSql = ServiceUnitUtils.getDefaultUCDSServerInsertSql(dbType, areaId, domainId, alias, dbName, dbUser,
-                    dbPwd, ucdsIp, ucdsPort, ucdsDataKeeperIp, ucdsInnerIp);
-            System.out.println(String.format("insertSql=%s", insertSql));
-            alias = "dcs";
-            insertSql = ServiceUnitUtils.getDefaultDCSServerInsertSql(dbType, areaId, domainId, alias);
-            System.out.println(String.format("insertSql=%s", insertSql));
-            alias = "dds";
-            insertSql = ServiceUnitUtils.getDefaultDDSServerInsertSql(dbType, areaId, domainId, alias);
-            System.out.println(String.format("insertSql=%s", insertSql));
-
-            alias = "daengine";
-            insertSql = ServiceUnitUtils.getDefaultDAEInsertSql(dbType, areaId, domainId, alias);
-            System.out.println(String.format("insertSql=%s", insertSql));
-
-            alias = "ss";
-            insertSql = ServiceUnitUtils.getDefaultSSInsertSql(dbType, areaId, domainId, alias);
-            System.out.println(String.format("insertSql=%s", insertSql));
-
-            alias = "ucds";
-            ucdsPort = 33333;
-            String updateSql = ServiceUnitUtils.getDefaultUCDSServerUpdateSql(dbType, domainId, alias, ucdsPort);
-            System.out.println(String.format("updateSql=%s", updateSql));
-        }
-        catch (Exception ex)
-        {
-            ex.printStackTrace();
-        }
-    }
-
-    @Test
-    public void removeTest()
-    {
-        String pbCfgData = "[{\"deployPath\":\"/root/resin-4.0.13/conf\",\"fileName\":\"local_datasource.xml\",\"fileSize\":0,\"md5\":\"e9c26f00f17a7660bfa3f785c4fe34be\",\"nexusAssetId\":\"dG1wOjg1MTM1NjUyYTk3OGJlOWFhN2U5NGFhNDVlZTIxN2Nm\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/local_datasource.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"/root/resin-4.0.13/conf\",\"fileName\":\"local_jvm.xml\",\"fileSize\":0,\"md5\":\"d41d8cd98f00b204e9800998ecf8427e\",\"nexusAssetId\":\"dG1wOmQ0ODExNzU0MWRjYjg5ZWNkODFhZTYxM2NmNDM3NmQ3\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/local_jvm.xml\",\"nexusRepository\":\"tmp\"},{\"deployPath\":\"/usr/local/lib\",\"fileName\":\"tnsnames.ora\",\"fileSize\":0,\"md5\":\"d41d8cd98f00b204e9800998ecf8427e\",\"nexusAssetId\":\"dG1wOjEzYjI5ZTQ0OWYwZTNiOGQzMDcyY2Q2ZTEyNzg2NTQ3\",\"nexusPath\":\"/configText/123456-wuph/publicConfig/tnsnames.ora\",\"nexusRepository\":\"tmp\"}]";
-        List<AppFileNexusInfo> list = JSONArray.parseArray(pbCfgData, AppFileNexusInfo.class);
-        System.out.println(list.size());
-        try {
-            Map<String, String> map = new HashMap<>();
-            map.put("1", "Wuhan");
-            map.put("2", "Shanghai");
-            map.put("3", "Beijing");
-            map.put("4", "Nanjing");
-            map.put("5", "Guangzhou");
-            map.put("6", "Chengdu");
-            map.put("7", "Helei");
-            List<String> set = new ArrayList<>(map.keySet());
-            for(String key : set)
-            {
-                if("1".equals(key) || "3".equals(key))
-                    map.remove(key);
-            }
-            System.out.println(String.join(",", map.keySet()));
-        }
-        catch (Exception ex)
-        {
-            ex.printStackTrace();
         }
     }
 }

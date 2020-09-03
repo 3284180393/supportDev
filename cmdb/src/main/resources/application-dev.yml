@@ -41,23 +41,6 @@ ccod:
     apps[5]:
       name: DataKeeper
   set[1]:
-    name: 运营门户
-    id: supportPortal
-    isBasic: 1
-    fixedDomainName: 运营门户域
-    fixedDomainId: ops
-    apps[0]:
-      name: gls
-      alias: gls
-    apps[1]:
-      name: httpd
-    apps[2]:
-      name: IBcustomWebs
-    apps[3]:
-      name: IBsafetymoni
-    apps[4]:
-      name: licen
-  set[2]:
     name: 网关接入
     id: gatewayAccess
     isBasic: 1
@@ -65,7 +48,7 @@ ccod:
     fixedDomainId: gateway
     apps[0]:
       name: umg
-  set[3]:
+  set[2]:
     name: 域服务
     id: domainService
     isBasic: 1
@@ -126,6 +109,23 @@ ccod:
       name: DialEngine
     apps[18]:
       name: UCGateway
+  set[3]:
+    name: 运营门户
+    id: supportPortal
+    isBasic: 1
+    fixedDomainName: 运营门户域
+    fixedDomainId: ops
+    apps[0]:
+      name: gls
+      alias: gls
+    apps[1]:
+      name: httpd
+    apps[2]:
+      name: IBcustomWebs
+    apps[3]:
+      name: IBsafetymoni
+    apps[4]:
+      name: licen
   set[4]:
     name: 管理门户
     id: managerPortal
