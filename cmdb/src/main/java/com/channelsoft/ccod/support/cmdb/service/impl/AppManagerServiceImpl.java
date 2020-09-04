@@ -645,77 +645,96 @@ public class AppManagerServiceImpl implements IAppManagerService {
     @Override
     public String checkAppBaseProperties(AppBase appBase, AppUpdateOperation operation)
     {
+        String appName = appBase.getAppName();
+        if(StringUtils.isBlank(appName))
+            return String.format("appName of %s is blank;", operation.name);
+        boolean needVersion = false;
+        boolean needAlias = false;
+        boolean notRegister = false;
+        boolean needProp = false;
+        boolean checkProp = false;
+        switch (operation)
+        {
+            case ADD:
+                needVersion = true;
+                checkProp = true;
+                needProp = true;
+                break;
+            case MODIFY_REGISTER:
+                needVersion = true;
+                checkProp = true;
+                break;
+            case UPDATE:
+            case DEBUG:
+                needAlias = true;
+                checkProp = true;
+                break;
+            case REGISTER:
+                needVersion = true;
+                notRegister = true;
+                needProp = true;
+                checkProp = true;
+                break;
+            case DELETE:
+                needAlias = true;
+        }
         this.appReadLock.readLock().lock();
+        String tag = String.format("%s %s", operation.name, appName);
         try {
-            String appName = appBase.getAppName();
-            if(StringUtils.isBlank(appName))
-                return String.format("appName of %s is blank;", operation.name);
             String alias = appBase.getAlias();
-            if(operation.equals(AppUpdateOperation.DELETE)) {
-                if(StringUtils.isBlank(alias))
-                    return String.format("alias of %s %s is blank;", operation.name, appName);
-                return "";
-            }
+            if(needAlias && StringUtils.isBlank(alias))
+                return String.format("alias of %s is blank", tag);
             String version = appBase.getVersion();
-            if(!this.registerAppMap.containsKey(appName))
-                return String.format("%s %s not register;", operation.name, appName);
-            else if(StringUtils.isBlank(version))
-                return String.format("version of %s for %s is blank;", appName, operation.name);
-            AppModuleVo registeredApp = this.registerAppMap.containsKey(appName) ?
-                    this.registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version) : null;
-            if(operation.equals(AppUpdateOperation.REGISTER)){
-                if(registeredApp != null)
-                    return String.format("%s version %s has registered", appName, version);
+            if(needVersion && StringUtils.isBlank(version))
+                return String.format("version of %s is blank", tag);
+            List<AppModuleVo> registers = this.registerAppMap.containsKey(appName) ? this.registerAppMap.get(appName) : new ArrayList<>();
+            Map<String, AppModuleVo> versionMap = registers.stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity()));
+            if(notRegister && versionMap.containsKey(version))
+                return String.format("version %s of %s has registered", version, tag);
+            else if(notRegister && appBase.getInstallPackage() == null)
+                return String.format("installPackage of %s is empty;", tag);
+            else if(!notRegister && !this.registerAppMap.containsKey(appName))
+                return String.format("app %s of %s has not registered", appName, tag);
+            else if(!notRegister && StringUtils.isNotBlank(version) && !versionMap.containsKey(version))
+                return String.format("version %s of %s has not registered", version, tag);
+            if(checkProp){
+                if(StringUtils.isNotBlank(appBase.getPorts()) && !appBase.getPorts().matches(this.portRegex))
+                    return String.format("%s is illegal port for %s", appBase.getPorts(), tag);
+                if(StringUtils.isNotBlank(appBase.getNodePorts()) && !appBase.getNodePorts().matches(this.portRegex))
+                    return String.format("%s is illegal nodePort for %s", appBase.getPorts(), tag);
+                if(StringUtils.isNotBlank(appBase.getCheckAt()) && !appBase.getCheckAt().matches(this.healthCheckRegex))
+                    return String.format("%s is illegal checkAt for %s", appBase.getCheckAt(), tag);
+                if(appBase.getInitialDelaySeconds() != null && appBase.getInitialDelaySeconds() <= 0)
+                    return String.format("%d is illegal initialDelaySeconds for %s", appBase.getInitialDelaySeconds(), tag);
+                if(appBase.getPeriodSeconds() != null && appBase.getPeriodSeconds() <= 0)
+                    return String.format("%d is illegal periodSeconds for %s", appBase.getPeriodSeconds(), tag);
             }
-            else if(registeredApp == null)
-                return String.format("%s version %s has not registered", appName, version);
-            switch (operation)
-            {
-                case UPDATE:
-                case DEBUG:
-                    if(StringUtils.isBlank(alias))
-                        return String.format("alias of %s for %s is blank;", appName, operation.name);
-                case ADD:
-                    if(!registeredApp.isHasImage())
-                        return String.format("%s version %s has not image for %s", appName, version, operation.name);
-                    appBase.setAppType(registeredApp.getAppType());
-                    appBase.setCcodVersion(registeredApp.getCcodVersion());
-                    break;
-                case REGISTER:
-                case MODIFY_REGISTER:
-                    if(StringUtils.isBlank(appBase.getCcodVersion()))
-                        return String.format("ccodVersion is blank for %s", operation.name);
-                    else if(appBase.getAppType() == null)
-                        return String.format("appType is null for %s", operation.name);
-                    else if(appBase.getInstallPackage() == null)
-                        return String.format("installPackage of %s is null", appName);
-                    break;
-                default:
-                    return String.format("not support %s operation;", operation.name);
+            if(needProp) {
+                StringBuffer sb = new StringBuffer();
+                if(!notRegister && StringUtils.isNotBlank(version)){
+                    AppModuleVo module = versionMap.get(version);
+                    if(appBase.getAppType() != null && !appBase.getAppType().equals(module.getAppType()))
+                        return String.format("type of %s is %s not %s", module.getAppType().name, appBase.getAppType().name);
+                    else if(StringUtils.isNotBlank(appBase.getCcodVersion()) && !appBase.getCcodVersion().equals(module.getCcodVersion()))
+                        return String.format("ccodVersion of %s[%s] is %s not %s", appName, version, module.getCcodVersion(), appBase.getCcodVersion());
+                    appBase.setAppType(module.getAppType());
+                    appBase.setCcodVersion(module.getCcodVersion());
+                }
+                if(StringUtils.isBlank(appBase.getBasePath()))
+                    sb.append(String.format("basePath of %s is blank;", tag));
+                if(StringUtils.isBlank(appBase.getDeployPath()))
+                    sb.append(String.format("deployPath of %s is blank;", tag));
+                if(StringUtils.isBlank(appBase.getStartCmd()))
+                    sb.append(String.format("startCmd is blank for %s;", tag));
+                if(StringUtils.isBlank(appBase.getLogOutputCmd()))
+                    sb.append(String.format("logOutputCmd for %s is blank;", tag));
+                if(StringUtils.isBlank(appBase.getPorts()))
+                    sb.append(String.format("ports is blank for %s;", tag));
+                if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
+                    sb.append(String.format("cfgs of %s is empty;", tag));
+                return sb.toString();
             }
-            StringBuffer sb = new StringBuffer();
-            String tag = String.format("%s %s(%s)", operation.name, alias, appName);
-            if(operation.equals(AppUpdateOperation.ADD) || operation.equals(AppUpdateOperation.REGISTER) || operation.equals(AppUpdateOperation.MODIFY_REGISTER))
-                tag = String.format("%s %s", operation.name, appName);
-            if(StringUtils.isBlank(appBase.getBasePath()))
-                sb.append(String.format("basePath of %s is blank;", tag));
-            if(StringUtils.isBlank(appBase.getDeployPath()))
-                sb.append(String.format("deployPath of %s is blank;", tag));
-            if(StringUtils.isNotBlank(appBase.getCheckAt()) && !appBase.getCheckAt().matches(this.healthCheckRegex))
-                sb.append(String.format("%s is illegal health check word for %s;", appBase.getCheckAt(), tag));
-            if(StringUtils.isBlank(appBase.getStartCmd()))
-                sb.append(String.format("startCmd is blank for %s;", tag));
-            if(StringUtils.isBlank(appBase.getLogOutputCmd()))
-                sb.append(String.format("logOutputCmd for %s is blank;", tag));
-            if(StringUtils.isBlank(appBase.getPorts()))
-                sb.append(String.format("ports is blank for %s;", tag));
-            else if(!appBase.getPorts().matches(this.portRegex))
-                sb.append(String.format("%s is illegal ports for %s;", appBase.getPorts(), tag));
-            if(StringUtils.isNotBlank(appBase.getNodePorts()) && !appBase.getNodePorts().matches(this.portRegex))
-                sb.append(String.format("%s is illegal nodePorts for %s;", appBase.getNodePorts(), tag));
-            if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
-                sb.append(String.format("cfgs of %s is empty;", tag));
-            return sb.toString();
+            return "";
         }
         finally {
             this.appReadLock.readLock().unlock();
@@ -838,27 +857,35 @@ public class AppManagerServiceImpl implements IAppManagerService {
     {
         String directory = appModule.getAppNexusDirectory();
         List<AppFileNexusInfo> srcFiles = new ArrayList<>();
-        srcFiles.add(appModule.getInstallPackage());
-        srcFiles.addAll(appModule.getCfgs());
-        Map<String, AppFileNexusInfo> fileMap = this.nexusService.downloadAndUploadAppFiles(this.nexusHostUrl, this.nexusUserName,
-                this.nexusPassword, srcFiles, this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository,
-                directory, true).stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
-        AppPo appPo = new AppPo(appModule, false);
-        appPo.setInstallPackage(fileMap.get(appModule.getInstallPackage().getFileName()));
-        fileMap.remove(appModule.getInstallPackage().getFileName());
-        appPo.setCfgs(new ArrayList<>(fileMap.values()));
+        if(appModule.getCfgs() != null && appModule.getCfgs().size() > 0)
+            srcFiles.addAll(appModule.getCfgs());
+        if(appModule.getInstallPackage() != null)
+            srcFiles.add(appModule.getInstallPackage());
+        if(srcFiles.size() > 0) {
+            Map<String, AppFileNexusInfo> fileMap = this.nexusService.downloadAndUploadAppFiles(this.nexusHostUrl, this.nexusUserName,
+                    this.nexusPassword, srcFiles, this.nexusHostUrl, this.nexusUserName, this.nexusPassword, this.appRepository,
+                    directory, true).stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
+            if(appModule.getInstallPackage() != null){
+                appModule.setInstallPackage(fileMap.get(appModule.getInstallPackage().getFileName()));
+                fileMap.remove(appModule.getInstallPackage().getFileName());
+            }
+            if(appModule.getCfgs() != null && appModule.getCfgs().size() > 0){
+                appModule.setCfgs(new ArrayList<>(fileMap.values()));
+            }
+        }
+        AppPo appPo;
         Date now = new Date();
-        appPo.setUpdateTime(now);
         if(!isNew) {
             AppModuleVo registered = this.registerAppMap.get(appModule.getAppName()).stream()
                     .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(appModule.getVersion());
-            appPo.setAppId(registered.getAppId());
-            appPo.setCreateTime(registered.getCreateTime());
+            registered.update(appModule);
+            appPo = registered.getApp();
         }
         else {
-            appPo.setAppId(0);
+            appPo = appModule.getApp();
             appPo.setCreateTime(now);
         }
+        appPo.setUpdateTime(now);
         return appPo;
     }
 

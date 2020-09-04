@@ -31,6 +31,11 @@ public interface PlatformAppDeployDetailMapper {
             @Param("domainId")String domainId,
             @Param("hostIp")String hostIp) throws DataAccessException;
 
+    PlatformAppDeployDetailVo selectPlatformApp(
+            @Param("platformId")String platformId,
+            @Param("domainId")String domainId,
+            @Param("alias")String alias);
+
     /**
      * 查询应用在平台的部署详情
      * @param appName 应用名

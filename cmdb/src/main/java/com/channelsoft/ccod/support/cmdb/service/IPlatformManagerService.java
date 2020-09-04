@@ -199,6 +199,15 @@ public interface IPlatformManagerService {
     List<AppFileNexusInfo> queryPlatformAppCfgs(String platformId, String domainId, String alias) throws ParamException;
 
     /**
+     * 查询指定的平台应用详情
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param alias 别名
+     * @return 指定详情
+     */
+    PlatformAppDeployDetailVo queryPlatformApp(String platformId, String domainId, String alias);
+
+    /**
      * 调试平台应用
      * @param platformId 平台id
      * @param domainId 域id

@@ -766,57 +766,51 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             return checkResult;
         String appName = optInfo.getAppName();
         String alias = optInfo.getAlias();
+        Map<String, PlatformAppDeployDetailVo> aliasAppMap = deployApps.stream()
+                .collect(Collectors.toMap(d->d.getAlias(), v->v));
+        Boolean aliasExist = null;
+        boolean needHostIp = false;
+        boolean notCheckVersion = false;
+        boolean notCheckSupport = false;
         AppUpdateOperation operation = optInfo.getOperation();
-        Set<String> appSet = setDefine.getApps().stream().map(a->a.getName()).collect(Collectors.toSet());
-        Set<String> aliasSet = deployApps.stream().map(d->d.getAlias()).collect(Collectors.toSet());
-        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
-        switch (optInfo.getOperation())
+        String tag = String.format("%s %s", operation.name, appName);
+        switch (operation)
         {
             case ADD:
-                if(!appSet.contains(appName))
-                    return String.format("%s not support %s", setDefine.getName(), appName);
-                else if(!optInfo.getCcodVersion().equals(ccodVersion))
-                    return String.format("%s version %s not support ccod %s for %s", appName, optInfo.getVersion(), ccodVersion, operation.name);
-                else if(StringUtils.isBlank(optInfo.getHostIp()))
-                    return String.format("hostIp for %s %s is blank;", operation.name, appName);
-                else if(!hostMap.containsKey(optInfo.getHostIp()))
-                    return String.format("hostIp %s for %s %s not exist;", optInfo.getHostIp(), operation.name, appName);
-                break;
-            case DEBUG:
-                if(!appSet.contains(appName))
-                    return String.format("%s not support %s", setDefine.getName(), appName);
-                else if(!optInfo.getCcodVersion().equals(ccodVersion))
-                    return String.format("%s version %s not support ccod %s for %s", appName, optInfo.getVersion(), ccodVersion, operation.name);
-                if(StringUtils.isBlank(alias))
-                    return String.format("alias for %s %s is blank", operation.name, appName);
-                else if(StringUtils.isBlank(optInfo.getHostIp()))
-                    return String.format("hostIp for %s %s is blank;", operation.name, appName);
-                else if(!hostMap.containsKey(optInfo.getHostIp()))
-                    return String.format("hostIp %s for %s %s not exist;", optInfo.getHostIp(), operation.name, appName);
+                needHostIp = true;
                 break;
             case UPDATE:
-                if(!appSet.contains(appName))
-                    return String.format("%s not support %s", setDefine.getName(), appName);
-                else if(!optInfo.getCcodVersion().equals(ccodVersion))
-                    return String.format("%s version %s not support ccod %s for %s", optInfo.getAppName(), optInfo.getVersion(), ccodVersion, optInfo.getOperation().name);
-                else if(StringUtils.isBlank(alias))
-                    return String.format("alias for DEBUG %s is blank", appName);
-                else if(!aliasSet.contains(alias))
-                    return String.format("%s not exist for %s", alias, operation.name);
-                else if(StringUtils.isBlank(optInfo.getHostIp()))
-                    return String.format("hostIp for %s %s is blank;", operation.name, appName);
-                else if(!hostMap.containsKey(optInfo.getHostIp()))
-                    return String.format("hostIp %s for %s %s not exist;", optInfo.getHostIp(), operation.name, appName);
+                aliasExist = true;
                 break;
             case DELETE:
-                if(StringUtils.isBlank(alias))
-                    return String.format("alias for %s %s is blank", operation.name, appName);
-                else if(!aliasSet.contains(alias))
-                    return String.format("%s not exist for %s", alias, operation.name);
+                aliasExist = true;
+                notCheckSupport = true;
+                notCheckVersion = true;
+                break;
+            case DEBUG:
+                aliasExist = aliasAppMap.containsKey(alias) ? true : false;
+                needHostIp = aliasExist ? false : true;
                 break;
             default:
-                return String.format("%s operation not been support", optInfo.getOperation().name);
+                return String.format("not support operation for %s", operation.name, tag);
         }
+        Map<String, String> appMap = setDefine.getApps().stream().collect(Collectors.toMap(a->a.getName(), v->v.getAlias()));
+        if(!notCheckSupport && !appMap.containsKey(appName))
+            return String.format("app %s not support by %s", appName, setDefine.getName());
+        if(aliasExist != null && aliasExist && !aliasAppMap.containsKey(alias)) {
+            return String.format("%s not exist for %s", alias, tag);
+        }
+        else if(aliasExist != null && !aliasExist && aliasAppMap.containsKey(alias)){
+            return String.format("%s has exist for %s", alias, tag);
+        }
+        if(!notCheckVersion && StringUtils.isNotBlank(optInfo.getVersion()) && !optInfo.getCcodVersion().equals(ccodVersion)){
+            return String.format("%s[%s] support ccod %s not %s", appName, optInfo.getVersion(), optInfo.getCcodVersion(), ccodVersion);
+        }
+        if(needHostIp && StringUtils.isBlank(optInfo.getHostIp()))
+            return String.format("hostIp is blank for %s", tag);
+        Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
+        if(StringUtils.isNotBlank(optInfo.getHostIp()) && !hostMap.containsKey(optInfo.getHostIp()))
+            return String.format("host %s not exist for %s", optInfo.getHostIp(), tag);
         return "";
     }
 
@@ -1689,18 +1683,19 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             deployGls = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName))
                     .get("glsServer").get(0);
         }
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream()
+                .collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         for(DomainUpdatePlanInfo plan : plans)
         {
             if(domainMap.containsKey(plan.getDomainId()) && (plan.getPublicConfig() == null || plan.getPublicConfig().size() == 0))
                 plan.setPublicConfig(domainMap.get(plan.getDomainId()).getCfgs());
-            List<K8sOperationInfo> deploySteps = generateDomainDeploySteps(jobId, platformPo, plan, isNewPlatform);
+            List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(plan.getDomainId()) ? domainAppMap.get(plan.getDomainId()) : new ArrayList<>();
+            List<K8sOperationInfo> deploySteps = generateDomainDeploySteps(jobId, platformPo, plan, domainApps, isNewPlatform);
             steps.addAll(deploySteps);
         }
         if(!status.equals(UpdateStatus.EXEC))
             return;
         Map<String, List<AssemblePo>> domainAssembleMap = assembleList.stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
-        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream()
-                .collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         Map<String, Map<String, List<AppFileNexusInfo>>> domainCfgMap = new HashMap<>();
         Date date = new Date();
         for (DomainUpdatePlanInfo plan : plans) {
@@ -1769,6 +1764,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
+    public PlatformAppDeployDetailVo queryPlatformApp(String platformId, String domainId, String alias) {
+        PlatformAppDeployDetailVo deployApp = this.platformAppDeployDetailMapper.selectPlatformApp(platformId, domainId, alias);
+        Assert.notNull(deployApp, String.format("%s/%s/%s not exist", platformId, domainId, alias));
+        return deployApp;
+    }
+
+    @Override
     public PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo)
             throws ParamException, ApiException, InterfaceCallException, IOException, NotSupportAppException, LJPaasException, NexusException {
         Assert.notNull(optInfo, "debug detail can not be null");
@@ -1787,7 +1789,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 .stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAlias, Function.identity()));
         if(deployAppMap.containsKey(alias))
             optInfo.fill(deployAppMap.get(alias));
-        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(true);
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
         String checkResult = checkAppOperationParam(platform.getCcodVersion(), optInfo, setDefine, new ArrayList<>(), bkHostList);
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
@@ -1826,8 +1827,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     private List<K8sOperationInfo> generateDomainDeploySteps(
-            String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, boolean isNewPlatform)
-            throws ParamException, ApiException, InterfaceCallException, IOException
+            String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
+            boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException
     {
         String domainId = plan.getDomainId();
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
@@ -1836,6 +1837,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String platformId = platformPo.getPlatformId();
         String k8sApiUrl = platformPo.getK8sApiUrl();
         String k8sAuthToken = platformPo.getK8sAuthToken();
+        Map<String, PlatformAppDeployDetailVo> aliasAppMap = domainApps.stream().collect(Collectors.toMap(o->o.getAlias(), v->v));
+        plan.getAppUpdateOperationList().stream().filter(o->o.getOperation().equals(AppUpdateOperation.UPDATE))
+                .forEach(o->o.fill(aliasAppMap.get(o.getAlias())));
         List<AppFileNexusInfo> domainCfg = plan.getPublicConfig();
         if(!isNewPlatform && domainCfg != null && domainCfg.size() > 0) {
             if(this.ik8sApiService.isNamespacedConfigMapExist(domainId, platformId, k8sApiUrl, k8sAuthToken)) {

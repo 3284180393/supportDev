@@ -345,7 +345,7 @@ public class PlatformAppModuleVo {
         else
             po.setAppType(AppType.getEnum(this.moduleType));
         po.setAppName(this.moduleName);
-        po.setVersionControl(this.versionControl);
+        po.setVersionControl(this.versionControl==null ? null : VersionControl.getEnum(this.versionControl));
         po.setVersionControlUrl(this.versionControlUrl);
         return po;
     }

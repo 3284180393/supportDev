@@ -87,11 +87,11 @@ public class CMDBController {
         {
             this.appManagerService.updateAppModule(moduleVo);
             logger.info(String.format("modify %s cfg SUCCESS, quit %s", gson.toJson(moduleVo), uri));
-            resultPo = new AjaxResultPo(true, "modify %s cfg SUCCESS");
+            resultPo = new AjaxResultPo(true, "modify app register info SUCCESS");
         }
         catch (Exception e)
         {
-            logger.error(String.format("modify app cfg exception, quit %s controller", uri), e);
+            logger.error(String.format("modify app register info exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;
@@ -308,16 +308,16 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping("/platformApps/{platformId}/{domainId}/{hostIp}")
-    public AjaxResultPo queryPlatformAppsByHostIp(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String hostIp)
+    @RequestMapping("/platformApps/{platformId}/{domainId}/{alias}")
+    public AjaxResultPo queryPlatformAppsByHostIp(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String alias)
     {
-        String uri = String.format("GET %s/platformApps/%s/%s/%s", this.apiBasePath, platformId, domainId, hostIp);
+        String uri = String.format("GET %s/platformApps/%s/%s/%s", this.apiBasePath, platformId, domainId, alias);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            PlatformAppDeployDetailVo[] details = this.appManagerService.queryPlatformApps(platformId, domainId, hostIp);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", details.length, details);
+            PlatformAppDeployDetailVo deployApp = this.platformManagerService.queryPlatformApp(platformId, domainId, alias);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, deployApp);
             logger.info(String.format("query SUCCESS, quit %s controller", uri));
         }
         catch (Exception e)

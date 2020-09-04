@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
+import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppModuleVo;
 
@@ -18,9 +19,9 @@ public class AppPo extends AppBase{
 
     private int appId;    //应用id
 
-    private boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
+    private Boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
 
-    private int timeout; //启动超时
+    private Integer timeout; //启动超时
 
     private Date createTime; //应用创建时间
 
@@ -30,50 +31,20 @@ public class AppPo extends AppBase{
 
     private String comment; //备注
 
-    private String versionControl; //版本控制方式
+    private VersionControl versionControl; //版本控制方式
 
     private String versionControlUrl; //版本控制的连接url
 
-    private boolean hasImage; //是否有镜像
+    private Boolean hasImage; //是否有镜像
 
     public AppPo()
     {
 
     }
 
-    public AppPo(AppModuleVo moduleVo, boolean hasImage)
+    public AppPo(AppBase appBase)
     {
-        this.appId = moduleVo.getAppId();
-        this.appName = moduleVo.getAppName();
-        this.appType = moduleVo.getAppType();
-        this.version = moduleVo.getVersion();
-        this.ccodVersion = moduleVo.getCcodVersion();
-        this.basePath = moduleVo.getBasePath();
-        this.deployPath = moduleVo.getDeployPath();
-        this.envLoadCmd = moduleVo.getEnvLoadCmd();
-        this.initCmd = moduleVo.getInitCmd();
-        this.startCmd = moduleVo.getStartCmd();
-        this.logOutputCmd = moduleVo.getLogOutputCmd();
-        this.kernal = moduleVo.isKernal();
-        this.timeout = moduleVo.getTimeout();
-        this.ports = moduleVo.getPorts();
-        this.nodePorts = moduleVo.getNodePorts();
-        this.checkAt = moduleVo.getCheckAt();
-        this.resources = moduleVo.getResources();
-        this.initialDelaySeconds = moduleVo.getInitialDelaySeconds();
-        this.periodSeconds = moduleVo.getPeriodSeconds();
-        this.createTime = moduleVo.getCreateTime();
-        this.updateTime = moduleVo.getUpdateTime();
-        this.createReason = moduleVo.getCreateReason();
-        this.comment = moduleVo.getComment();
-        if(moduleVo.getVersionControl() != null)
-            this.versionControl = moduleVo.getVersionControl().name;
-        else
-            this.versionControl = null;
-        this.versionControlUrl = moduleVo.getVersionControlUrl();
-        this.hasImage = hasImage;
-        this.cfgs = moduleVo.getCfgs();
-        this.installPackage = moduleVo.getInstallPackage();
+        super(appBase);
     }
 
     public int getAppId() {
@@ -116,11 +87,11 @@ public class AppPo extends AppBase{
         this.comment = comment;
     }
 
-    public String getVersionControl() {
+    public VersionControl getVersionControl() {
         return versionControl;
     }
 
-    public void setVersionControl(String versionControl) {
+    public void setVersionControl(VersionControl versionControl) {
         this.versionControl = versionControl;
     }
 
@@ -137,27 +108,27 @@ public class AppPo extends AppBase{
         return url;
     }
 
-    public boolean isHasImage() {
+    public Boolean isHasImage() {
         return hasImage;
     }
 
-    public void setHasImage(boolean hasImage) {
+    public void setHasImage(Boolean hasImage) {
         this.hasImage = hasImage;
     }
 
-    public boolean isKernal() {
+    public Boolean isKernal() {
         return kernal;
     }
 
-    public void setKernal(boolean kernal) {
+    public void setKernal(Boolean kernal) {
         this.kernal = kernal;
     }
 
-    public int getTimeout() {
+    public Integer getTimeout() {
         return timeout;
     }
 
-    public void setTimeout(int timeout) {
+    public void setTimeout(Integer timeout) {
         this.timeout = timeout;
     }
 

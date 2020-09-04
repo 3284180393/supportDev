@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
 import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.po.*;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Date;
 import java.util.List;
@@ -29,13 +30,13 @@ public class AppModuleVo extends AppBase{
 
     private String versionControlUrl; //版本控制的连接url
 
-    private boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
+    private Boolean kernal; //该模块是否是核心模块，如果是核心模块则CREATE或是REPLACE对应的deployment时必须返回执行成功后才能执行后面操作
 
-    private int timeout; //启动超时
+    private Integer timeout; //启动超时
 
     private String comment; //备注
 
-    private boolean hasImage; //是否有镜像
+    private Boolean hasImage; //是否有镜像
 
     public AppModuleVo()
     {
@@ -44,33 +45,16 @@ public class AppModuleVo extends AppBase{
 
     public AppModuleVo(AppPo app)
     {
+        super(app);
         this.appId = app.getAppId();
-        this.appType = app.getAppType();
-        this.appName = app.getAppName();
-        this.version = app.getVersion();
-        this.ccodVersion = app.getCcodVersion();
         this.createTime = app.getCreateTime();
         this.createReason = app.getCreateReason();
         this.updateTime = app.getUpdateTime();
-        this.versionControl = VersionControl.getEnum(app.getVersionControl());
+        this.versionControl = app.getVersionControl();
         this.versionControlUrl = app.getVersionControlUrl();
-        this.basePath = app.getBasePath();
-        this.deployPath = app.getDeployPath();
-        this.envLoadCmd = app.getEnvLoadCmd();
-        this.initCmd = app.getInitCmd();
-        this.startCmd = app.getStartCmd();
-        this.logOutputCmd = app.getLogOutputCmd();
         this.kernal = app.isKernal();
         this.timeout = app.getTimeout();
-        this.ports = app.getPorts();
-        this.nodePorts = app.getNodePorts();
-        this.checkAt = app.getCheckAt();
-        this.resources = app.getResources();
-        this.initialDelaySeconds = app.getInitialDelaySeconds();
-        this.periodSeconds = app.getPeriodSeconds();
         this.comment = app.getComment();
-        this.installPackage = app.getInstallPackage();
-        this.cfgs = app.getCfgs();
         this.hasImage = app.isHasImage();
     }
 
@@ -135,63 +119,43 @@ public class AppModuleVo extends AppBase{
         return url;
     }
 
-    public boolean isHasImage() {
+    public Boolean isHasImage() {
         return hasImage;
     }
 
-    public void setHasImage(boolean hasImage) {
+    public void setHasImage(Boolean hasImage) {
         this.hasImage = hasImage;
     }
 
-    public boolean isKernal() {
+    public Boolean isKernal() {
         return kernal;
     }
 
-    public void setKernal(boolean kernal) {
+    public void setKernal(Boolean kernal) {
         this.kernal = kernal;
     }
 
-    public int getTimeout() {
+    public Integer getTimeout() {
         return timeout;
     }
 
-    public void setTimeout(int timeout) {
+    public void setTimeout(Integer timeout) {
         this.timeout = timeout;
     }
 
     public AppPo getApp()
     {
-        AppPo po = new AppPo();
-        po.setHasImage(this.hasImage);
-        po.setBasePath(this.basePath);
-        po.setVersion(this.version);
-        po.setAppName(this.appName);
-        po.setUpdateTime(this.updateTime);
+        AppPo po = new AppPo(this);
+        po.setAppId(this.appId);
         po.setCreateTime(this.createTime);
         po.setCreateReason(this.createReason);
-        po.setComment(this.comment);
-        po.setAppType(this.appType);
-        po.setCcodVersion(this.ccodVersion);
-        if(this.versionControl != null)
-            po.setVersionControl(this.versionControl.name);
-        else
-            po.setVersionControl(null);
-        po.setAppId(this.appId);
-        po.setDeployPath(this.deployPath);
-        po.setEnvLoadCmd(this.envLoadCmd);
-        po.setInitCmd(this.initCmd);
-        po.setStartCmd(this.startCmd);
-        po.setLogOutputCmd(this.getLogOutputCmd());
-        po.setTimeout(this.timeout);
-        po.setResources(this.resources);
-        po.setPorts(this.ports);
-        po.setNodePorts(this.nodePorts);
-        po.setCheckAt(this.checkAt);
-        po.setResources(this.resources);
+        po.setUpdateTime(this.updateTime);
+        po.setVersionControl(this.versionControl);
         po.setVersionControlUrl(this.versionControlUrl);
         po.setKernal(this.kernal);
-        po.setCfgs(this.cfgs);
-        po.setInstallPackage(this.getInstallPackage());
+        po.setTimeout(this.timeout);
+        po.setHasImage(this.hasImage);
+        po.setComment(this.comment);
         return po;
     }
 
@@ -200,6 +164,18 @@ public class AppModuleVo extends AppBase{
         AppPo po = getApp();
         po.setAppId(appId);
         return po;
+    }
+
+    public void update(AppModuleVo module)
+    {
+        this.changeTo(module);
+        this.updateTime = new Date();
+        this.versionControl = module.getVersionControl() != null ? module.getVersionControl() : this.versionControl;
+        this.versionControlUrl = StringUtils.isNotBlank(module.getVersionControlUrl()) ? module.getVersionControlUrl() : this.versionControlUrl;
+        this.kernal = module.isKernal() != null ? module.isKernal() : this.kernal;
+        this.timeout = module.getTimeout() != null ? module.getTimeout() : this.timeout;
+        this.comment = StringUtils.isNotBlank(module.getComment()) ? module.getComment() : this.comment;
+        this.hasImage = module.isHasImage() != null ? module.isHasImage() : this.hasImage;
     }
 
     @Override

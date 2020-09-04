@@ -47,9 +47,9 @@ public abstract class AppBase {
 
     protected String resources; //启动该应用所需的资源
 
-    protected int initialDelaySeconds; //应用预计启动时间
+    protected Integer initialDelaySeconds; //应用预计启动时间
 
-    protected int periodSeconds; //应用健康检查周期
+    protected Integer periodSeconds; //应用健康检查周期
 
     protected List<AppFileNexusInfo> cfgs; //应用配置文件
 
@@ -199,19 +199,19 @@ public abstract class AppBase {
         this.resources = resources;
     }
 
-    public int getInitialDelaySeconds() {
+    public Integer getInitialDelaySeconds() {
         return initialDelaySeconds;
     }
 
-    public void setInitialDelaySeconds(int initialDelaySeconds) {
+    public void setInitialDelaySeconds(Integer initialDelaySeconds) {
         this.initialDelaySeconds = initialDelaySeconds;
     }
 
-    public int getPeriodSeconds() {
+    public Integer getPeriodSeconds() {
         return periodSeconds;
     }
 
-    public void setPeriodSeconds(int periodSeconds) {
+    public void setPeriodSeconds(Integer periodSeconds) {
         this.periodSeconds = periodSeconds;
     }
 
@@ -248,10 +248,10 @@ public abstract class AppBase {
         this.deployPath = StringUtils.isNotBlank(appBase.deployPath) ? appBase.deployPath : this.deployPath;
         this.envLoadCmd = StringUtils.isNotBlank(appBase.envLoadCmd) ? appBase.envLoadCmd : this.envLoadCmd;
         this.initCmd = StringUtils.isNotBlank(appBase.initCmd) ? appBase.initCmd : this.initCmd;
-        this.initialDelaySeconds = appBase.initialDelaySeconds > 0 ? appBase.initialDelaySeconds : this.initialDelaySeconds;
+        this.initialDelaySeconds = appBase != null ? appBase.initialDelaySeconds : this.initialDelaySeconds;
         this.logOutputCmd = StringUtils.isNotBlank(appBase.logOutputCmd) ? appBase.logOutputCmd : this.logOutputCmd;
         this.nodePorts = StringUtils.isNotBlank(appBase.nodePorts) ? appBase.nodePorts : this.nodePorts;
-        this.periodSeconds = appBase.periodSeconds > 0 ? appBase.periodSeconds : this.periodSeconds;
+        this.periodSeconds = appBase.periodSeconds != null ? appBase.periodSeconds : this.periodSeconds;
         this.ports = StringUtils.isNotBlank(appBase.ports) ? appBase.ports : this.ports;
         this.resources = StringUtils.isNotBlank(appBase.resources) ? appBase.resources : this.resources;
         this.startCmd = StringUtils.isNotBlank(appBase.startCmd) ? appBase.startCmd : this.startCmd;
@@ -260,6 +260,7 @@ public abstract class AppBase {
     }
 
     public void fill(AppBase appBase) {
+        this.appType = this.appType == null ? appBase.appType : this.appType;
         this.version = StringUtils.isBlank(this.version) ? appBase.version : this.version;
         this.basePath = StringUtils.isBlank(this.basePath) ? appBase.basePath : this.basePath;
         this.checkAt = StringUtils.isBlank(this.checkAt) ? appBase.checkAt : this.checkAt;

@@ -65,7 +65,7 @@
 	    pa.base_path,
 	    pa.deploy_path,
 	    pa.env_load_cmd,
-	    pa.start_cmd,
+	    pa.init_cmd,
 	    pa.start_cmd,
 	    pa.log_output_cmd,
 	    pa.ports,
@@ -112,6 +112,15 @@
             pf.platform_name ASC,
             dm.domain_name ASC,
             host_ip ASC
+    </select>
+    <select id="selectPlatformApp" resultMap="PlatformAppDeployDetailMap" >
+        select
+        <include refid="Base_Column_List" />
+        WHERE
+        1 = 1
+        And pf.platform_id=#{platformId,jdbcType=VARCHAR}
+        And dm.domain_id=#{domainId,jdbcType=VARCHAR}
+        And alias=#{alias,jdbcType=VARCHAR}
     </select>
     <select id="selectAppDeployDetails" resultMap="PlatformAppDeployDetailMap" >
         select
