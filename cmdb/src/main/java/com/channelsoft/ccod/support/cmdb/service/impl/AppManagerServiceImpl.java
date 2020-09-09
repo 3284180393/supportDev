@@ -1237,4 +1237,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
             this.appReadLock.readLock().unlock();
         }
     }
+
+    @Override
+    public boolean isSupport(String appName) {
+        Set<String> appSet = this.ccodBiz.getSet().stream().flatMap(s->s.getApps().stream()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(AppDefine::getName)).keySet();
+        return appSet.contains(appName);
+    }
 }

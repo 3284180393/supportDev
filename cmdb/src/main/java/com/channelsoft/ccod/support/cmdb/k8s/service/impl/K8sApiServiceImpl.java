@@ -522,12 +522,23 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public K8sStatus getStatusFromDeployment(V1Deployment deployment) {
+        K8sStatus status = K8sStatus.UPDATING;
+        if( deployment.getStatus().getAvailableReplicas() != null && deployment.getStatus().getAvailableReplicas() == deployment.getStatus().getReplicas())
+            status = K8sStatus.ACTIVE;
+        else{
+            Map<String, String> statusMap = deployment.getStatus().getConditions().stream().collect(Collectors.toMap(c->c.getType(), v->v.getStatus()));
+            if(statusMap.containsKey("Progressing") && statusMap.get("Progressing").equals("False") && statusMap.containsKey("Available") && statusMap.get("Available").equals("False"))
+                status = K8sStatus.ERROR;
+        }
+        return status;
+    }
+
+    @Override
     public K8sStatus readNamespacedDeploymentStatus(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("read deployment status %s from %s at %s", name, k8sApiUrl, namespace));
         V1Deployment deployment = readNamespacedDeployment(name, namespace, k8sApiUrl, authToken);
-        K8sStatus status = K8sStatus.UPDATING;
-        if(deployment.getStatus().getAvailableReplicas() == deployment.getStatus().getReplicas())
-            status = K8sStatus.ACTIVE;
+        K8sStatus status = getStatusFromDeployment(deployment);
         logger.info(String.format("status of deployment %s is %s", name, status.name));
         return status;
     }

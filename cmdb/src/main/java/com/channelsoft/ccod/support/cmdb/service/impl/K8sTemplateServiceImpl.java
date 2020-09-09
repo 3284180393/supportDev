@@ -35,6 +35,7 @@ import java.io.*;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.Map.*;
 
 /**
  * @ClassName: K8sTemplateServiceImpl
@@ -98,6 +99,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Value("${nexus.host-url}")
     private String nexusHostUrl;
+
+    @Value("${debug-timeout}")
+    private int debugTimeout;
 
     private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
 
@@ -1093,7 +1097,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<K8sOperationInfo> addSteps = generateAddPlatformAppSteps(jobId, appBase, domainId, domainCfg, platform, true);
         addSteps.forEach(v->{
             if (v.getKind().equals(K8sKind.DEPLOYMENT) && v.getOperation().equals(K8sOperation.CREATE)) {
-                v.setKernal(true);v.setTimeout(150);
+                v.setKernal(true);v.setTimeout(debugTimeout);
             }});
         steps.addAll(addSteps);
         return steps;
@@ -1457,5 +1461,81 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             }
         }
         return null;
+    }
+
+    private String getPortString(List<V1ServicePort> ports, String serviceType)
+    {
+        return ports.stream().map(p->serviceType.equals("ClusterIP")?String.format("%s/%s", p.getPort(), p.getProtocol()) : String.format("%s:%s/%s", p.getPort(), p.getNodePort(), p.getProtocol()))
+                .collect(Collectors.joining(","));
+    }
+
+    private PlatformAppDeployDetailVo getAppDetailFromK8sObj(V1Deployment deploy, List<V1Service> services)
+    {
+        PlatformAppDeployDetailVo detail = new PlatformAppDeployDetailVo();
+        Map<String, String> labels = deploy.getSpec().getTemplate().getMetadata().getLabels();
+        String domainId = labels.get(this.domainIdLabel);
+        String alias = deploy.getSpec().getTemplate().getSpec().getInitContainers().get(0).getName();
+        String appName = null;
+        for(String key : labels.keySet()){
+            if(labels.get(key).equals(alias)){
+                appName = key;
+                break;
+            }
+        }
+        detail.setAppName(appName);
+        detail.setAlias(alias);
+        detail.setDomainId(domainId);
+        for(V1Service service : services){
+            String portStr = getPortString(service.getSpec().getPorts(), service.getSpec().getType());
+            if(service.getSpec().getType().equals("ClusterIP"))
+                detail.setPorts(portStr);
+            else
+                detail.setNodePorts(portStr);
+        }
+        detail.setReplicas(deploy.getStatus().getReplicas());
+        detail.setAvailableReplicas(deploy.getStatus().getAvailableReplicas());
+        K8sStatus status = this.ik8sApiService.getStatusFromDeployment(deploy);
+        detail.setStatus(status.name);
+        return detail;
+    }
+
+    @Override
+    public List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform) throws ApiException
+    {
+        String platformId = platform.getPlatformId();
+        String k8sApiUrl = platform.getK8sApiUrl();
+        String k8sAuthToken = platform.getK8sAuthToken();
+        List<V1Deployment> deployments = this.ik8sApiService.listNamespacedDeployment(platformId, k8sApiUrl, k8sAuthToken)
+                .stream().filter(d->d.getMetadata().getLabels().containsKey(this.appTypeLabel)
+                        && (d.getMetadata().getLabels().get(this.appTypeLabel).equals(AppType.BINARY_FILE.name)
+                        || d.getMetadata().getLabels().get(this.appTypeLabel).equals(AppType.RESIN_WEB_APP.name)
+                        || d.getMetadata().getLabels().get(this.appTypeLabel).equals(AppType.TOMCAT_WEB_APP.name)
+                )).collect(Collectors.toList());
+        List<V1Service> services = this.ik8sApiService.listNamespacedService(platformId, k8sApiUrl, k8sAuthToken);
+        List<PlatformAppDeployDetailVo> details = new ArrayList<>();
+        for(V1Deployment deployment : deployments){
+            List<V1Service> relativeSvcs = services.stream().filter(s->isMatch(s.getSpec().getSelector(), deployment.getSpec().getTemplate().getMetadata().getLabels()))
+                    .collect(Collectors.toList());
+            PlatformAppDeployDetailVo detail = this.getAppDetailFromK8sObj(deployment, relativeSvcs);
+            details.add(detail);
+        }
+        return details;
+    }
+
+    @Override
+    public PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String alias) throws ApiException {
+        V1Deployment deployment = this.ik8sApiService.readNamespacedDeployment(String.format("%s-%s", alias, domainId), platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken());
+        String appName = null;
+        for(Entry<String, String> entry : deployment.getSpec().getTemplate().getMetadata().getLabels().entrySet()) {
+            if(entry.getValue().equals(alias)){
+                appName = entry.getKey();
+                break;
+            }
+        }
+        Map<String, String> selector = new HashMap<>();
+        selector.put(this.domainIdLabel, domainId);
+        selector.put(appName, alias);
+        List<V1Service> services = this.ik8sApiService.selectNamespacedService(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+        return getAppDetailFromK8sObj(deployment, services);
     }
 }

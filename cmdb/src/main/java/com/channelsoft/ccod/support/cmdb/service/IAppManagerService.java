@@ -222,4 +222,11 @@ public interface IAppManagerService {
      * @throws ParamException
      */
     void preprocessPlatformAppModule(PlatformAppModuleVo module) throws DataAccessException, InterfaceCallException, NexusException, ParamException;
+
+    /**
+     * cmdb是否支持指定的应用名
+     * @param appName 应用名
+     * @return true支持，false不支持
+     */
+    boolean isSupport(String appName);
 }

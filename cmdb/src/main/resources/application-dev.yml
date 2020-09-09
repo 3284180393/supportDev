@@ -362,6 +362,8 @@ windows: false
 
 debug: false
 
+debug-timeout: 150
+
 develop: true
 
 test:

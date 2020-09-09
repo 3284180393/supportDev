@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformDeployStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
@@ -128,6 +129,25 @@ public interface IPlatformManagerService {
     List<PlatformTopologyInfo> queryAllPlatformTopology() throws ParamException, InterfaceCallException, LJPaasException, NotSupportAppException;
 
     /**
+     * 查询指定模块的部署状态信息
+     * @param platformId 平台id
+     * @return 已经部署模块的状态明细
+     * @throws ApiException
+     */
+    List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId) throws ApiException;
+
+
+    /**
+     * 查询平台指定模块的k8s部署状态
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param alias 别名
+     * @return 指定模块在k8s上的状态
+     * @throws ApiException
+     */
+    PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String alias) throws ApiException;
+
+    /**
      * 更新平台升级计划
      * @param updateSchema 需要更新的平台计划
      * @throws ParamException 计划的参数异常
@@ -189,6 +209,25 @@ public interface IPlatformManagerService {
     PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
 
     /**
+     * 是否平台部署正在进行
+     * @param platformId 平台id
+     * @return true正在进行，false已经结束
+     */
+    boolean isPlatformDeployOngoing(String platformId);
+
+    /**
+     * 获取平台部署日志
+     * @return 平台部署日志
+     */
+    List<K8sOperationPo> getPlatformDeployLogs();
+
+    /**
+     * 获取最后一次平台部署任务状态
+     * @return 部署状态
+     */
+    PlatformDeployStatus getLastPlatformDeployTaskStatus();
+
+    /**
      * 查询指定应用模块的配置文件
      * @param platformId 平台id
      * @param domainId 域id
@@ -212,13 +251,8 @@ public interface IPlatformManagerService {
      * @param platformId 平台id
      * @param domainId 域id
      * @param optInfo 需要调试的相关内容
-     * @return 调试后的结果
-     * @throws ParamException
-     * @throws ApiException
-     * @throws InterfaceCallException
-     * @throws IOException
      */
-    PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, ApiException, InterfaceCallException, IOException, NotSupportAppException, LJPaasException, NexusException;
+    void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, InterfaceCallException, LJPaasException, ApiException;
 
     /**
      * 修改平台应用配置文件

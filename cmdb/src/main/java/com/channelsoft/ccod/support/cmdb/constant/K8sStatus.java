@@ -11,7 +11,9 @@ public enum K8sStatus {
 
     ACTIVE(1, "ACTIVE", "活跃状态"),
 
-    UPDATING(2, "UPDATING", "正在更新"),;
+    UPDATING(2, "UPDATING", "正在更新"),
+
+    ERROR(3, "ERROR", "启动失败"),;
 
     public int id;
 

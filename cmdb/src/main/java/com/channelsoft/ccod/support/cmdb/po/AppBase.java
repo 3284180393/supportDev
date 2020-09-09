@@ -262,6 +262,7 @@ public abstract class AppBase {
     public void fill(AppBase appBase) {
         this.appType = this.appType == null ? appBase.appType : this.appType;
         this.version = StringUtils.isBlank(this.version) ? appBase.version : this.version;
+        this.ccodVersion = StringUtils.isBlank(this.ccodVersion) ? appBase.ccodVersion : this.ccodVersion;
         this.basePath = StringUtils.isBlank(this.basePath) ? appBase.basePath : this.basePath;
         this.checkAt = StringUtils.isBlank(this.checkAt) ? appBase.checkAt : this.checkAt;
         this.deployPath = StringUtils.isBlank(this.deployPath) ? appBase.deployPath : this.deployPath;

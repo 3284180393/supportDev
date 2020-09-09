@@ -13,6 +13,7 @@ import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppUpdateOperationInfo;
 import com.channelsoft.ccod.support.cmdb.vo.K8sOperationInfo;
+import com.channelsoft.ccod.support.cmdb.vo.PlatformAppDeployDetailVo;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 
@@ -221,5 +222,23 @@ public interface IK8sTemplateService {
      * @throws ParamException
      */
     List<K8sThreePartServiceVo> generateTestThreePartServices(String ccodVersion, String platformId) throws ApiException, ParamException;
+
+    /**
+     * 查询指定平台所有ccod模块在k8s上的运行状态
+     * @param platform 指定的基于k8s的平台
+     * @return 所有ccod模块在k8s上运行状态
+     * @throws ApiException
+     */
+    List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform) throws ApiException;
+
+    /**
+     * 查询指定ccod模块在k8s上的运行状态
+     * @param platform 平台信息
+     * @param domainId 域id
+     * @param alias 应用别名
+     * @return 指定ccod模块在k8s上的运行状态
+     * @throws ApiException
+     */
+    PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String alias) throws ApiException;
 
 }

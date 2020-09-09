@@ -433,6 +433,13 @@ public interface IK8sApiService {
     K8sStatus readNamespacedDeploymentStatus(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 从指定的deployment获得deployment的状态
+     * @param deployment 指定的deployment
+     * @return deployment状态
+     */
+    K8sStatus getStatusFromDeployment(V1Deployment deployment);
+
+    /**
      * 在指定的k8s系统里为指定命名空间创建deployment
      * @param namespace 需要创建deployment的命名空间
      * @param deployment 需要被创建的deployment

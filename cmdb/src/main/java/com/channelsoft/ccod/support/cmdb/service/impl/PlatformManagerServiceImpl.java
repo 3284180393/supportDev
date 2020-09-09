@@ -245,6 +245,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private final Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
 
+    private final List<K8sOperationPo> platformDeployLogs = new ArrayList<>();
+
     private Map<String, List<BizSetDefine>> appSetRelationMap;
 
     private Map<String, BizSetDefine> setDefineMap;
@@ -252,6 +254,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     protected final ReentrantReadWriteLock appWriteLock = new ReentrantReadWriteLock();
 
     private boolean isPlatformCheckOngoing = false;
+
+    private String ongoingPlatformId = null;
 
     private String domainIdRegexFmt = "^%s(0[1-9]|[1-9]\\d+)";
 
@@ -497,6 +501,21 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
+    public List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId) throws ApiException {
+        PlatformPo platform = getK8sPlatform(platformId);
+        List<PlatformAppDeployDetailVo> details = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform);
+        return details;
+    }
+
+    @Override
+    public PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String alias) throws ApiException {
+        PlatformPo platform = getK8sPlatform(platformId);
+        V1Deployment deployment = this.k8sApiService.readNamespacedDeployment(String.format("%s-%s", alias, domainId), platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+        PlatformAppDeployDetailVo detail = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform, domainId, alias);
+        return detail;
+    }
+
+    @Override
     public List<PlatformAppPo> updatePlatformApps(String platformId, String platformName, List<AppUpdateOperationInfo> appList) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, LJPaasException, IOException {
         logger.debug(String.format("begin to update %d apps of %s(%s)", appList.size(), platformName, platformId));
         PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
@@ -538,9 +557,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     {
         Date date = new Date();
         String platformId = platformPo.getPlatformId();
-        Map<String, DomainPo> domainMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
+        Map<String, DomainPo> domainMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<String, List<AppUpdateOperationInfo>> domainOptMap = appList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getDomainId));
-        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainName));
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         Map<String, List<AssemblePo>> domainAssembleMap = this.assembleMapper.select(platformId, null).stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
         List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(null);
         Map<String, Map<String, List<AppFileNexusInfo>>> domainCfgMap = new HashMap<>();
@@ -803,7 +822,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         else if(aliasExist != null && !aliasExist && aliasAppMap.containsKey(alias)){
             return String.format("%s has exist for %s", alias, tag);
         }
-        if(!notCheckVersion && StringUtils.isNotBlank(optInfo.getVersion()) && !optInfo.getCcodVersion().equals(ccodVersion)){
+        if(!notCheckVersion && StringUtils.isNotBlank(optInfo.getCcodVersion()) && !optInfo.getCcodVersion().equals(ccodVersion)){
             return String.format("%s[%s] support ccod %s not %s", appName, optInfo.getVersion(), optInfo.getCcodVersion(), ccodVersion);
         }
         if(needHostIp && StringUtils.isBlank(optInfo.getHostIp()))
@@ -866,6 +885,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             throw new ClientCollectDataException(String.format("start platform=%s app data collect FAIL : some collect task is ongoing", platformId));
         }
         this.isPlatformCheckOngoing = true;
+        this.ongoingPlatformId = platformId;
         try {
             List<PlatformAppModuleVo> modules = this.platformAppCollectService.updatePlatformAppData(platformId, platformName, wantList);
             List<PlatformAppModuleVo> failList = new ArrayList<>();
@@ -965,6 +985,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             return modules.toArray(new PlatformAppModuleVo[0]);
         } finally {
             this.isPlatformCheckOngoing = false;
+            this.ongoingPlatformId = null;
         }
     }
 
@@ -1695,38 +1716,55 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         if(!status.equals(UpdateStatus.EXEC))
             return;
+        Assert.isTrue(!this.isPlatformCheckOngoing, "some platform collect or deploy task is ongoing");
         Map<String, List<AssemblePo>> domainAssembleMap = assembleList.stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
-        Map<String, Map<String, List<AppFileNexusInfo>>> domainCfgMap = new HashMap<>();
-        Date date = new Date();
-        for (DomainUpdatePlanInfo plan : plans) {
-            String domainId = plan.getDomainId();
-            boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
-            DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(platformId);
-            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-            logger.debug(String.format("preprocess %s %d apps with isCreate=%b and %d deployed apps",
-                    gson.toJson(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-            Map<String, List<AppFileNexusInfo>> cfgMap = preprocessDomainApps(schema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, clone, date);
-            domainCfgMap.put(domainId, cfgMap);
-        }
-        PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(platformPo, steps, schema, platformDeployApps, deployGls);
-        logger.info(String.format("platform schema execute result : %s", gson.toJson(execResultVo)));
-        if(!execResultVo.isSuccess())
-            throw new ParamException(String.format("schema execute fail : %s", execResultVo.getErrorMsg()));
-        schema.setDomainUpdatePlanList(schema.getDomainUpdatePlanList().stream()
-                .filter(plan->!plan.getStatus().equals(UpdateStatus.EXEC)).collect(Collectors.toList()));
-        for (DomainUpdatePlanInfo plan : plans) {
-            String domainId = plan.getDomainId();
-            boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
-            DomainPo domainPo = isCreate ? plan.getDomain(schema.getPlatformId()) : domainMap.get(domainId);
-            if (isCreate)
-                this.domainMapper.insert(domainPo);
-            List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-            List<AssemblePo> assembles = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
-            logger.debug(String.format("handle %s %d apps with isCreate=%b and %d deployed apps",
-                    gson.toJson(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-            handleDomainApps(platformId, domainPo, plan.getAppUpdateOperationList(), assembles, domainAppList, registerApps, domainCfgMap.get(domainId));
-        }
-        this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
+        this.isPlatformCheckOngoing = true;
+        this.ongoingPlatformId = platformId;
+        this.platformDeployLogs.clear();
+        new Thread(()->{
+            try {
+                Map<String, Map<String, List<AppFileNexusInfo>>> domainCfgMap = new HashMap<>();
+                Date date = new Date();
+                for (DomainUpdatePlanInfo plan : plans) {
+                    String domainId = plan.getDomainId();
+                    boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
+                    DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(platformId);
+                    List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
+                    logger.debug(String.format("preprocess %s %d apps with isCreate=%b and %d deployed apps",
+                            gson.toJson(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
+                    Map<String, List<AppFileNexusInfo>> cfgMap = preprocessDomainApps(schema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, clone, date);
+                    domainCfgMap.put(domainId, cfgMap);
+                }
+                PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(platformPo, steps, platformDeployLogs, schema, platformDeployApps, deployGls);
+                logger.info(String.format("platform schema execute result : %s", gson.toJson(execResultVo)));
+                if(!execResultVo.isSuccess()){
+                    logger.error(String.format("schema execute fail : %s", execResultVo.getErrorMsg()));
+                    return;
+                }
+                schema.setDomainUpdatePlanList(schema.getDomainUpdatePlanList().stream()
+                        .filter(plan->!plan.getStatus().equals(UpdateStatus.EXEC)).collect(Collectors.toList()));
+                for (DomainUpdatePlanInfo plan : plans) {
+                    String domainId = plan.getDomainId();
+                    boolean isCreate = domainMap.containsKey(plan.getDomainId()) ? false : true;
+                    DomainPo domainPo = isCreate ? plan.getDomain(schema.getPlatformId()) : domainMap.get(domainId);
+                    if (isCreate)
+                        this.domainMapper.insert(domainPo);
+                    List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
+                    List<AssemblePo> assembles = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
+                    logger.debug(String.format("handle %s %d apps with isCreate=%b and %d deployed apps",
+                            gson.toJson(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
+                    handleDomainApps(platformId, domainPo, plan.getAppUpdateOperationList(), assembles, domainAppList, registerApps, domainCfgMap.get(domainId));
+                }
+                this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
+            }
+            catch (Exception ex) {
+                logger.error(String.format("schema execute fail : %s", ex.getMessage()));
+            }
+            finally {
+                this.isPlatformCheckOngoing = false;
+                this.ongoingPlatformId = null;
+            }
+        }).start();
     }
 
     private void resetSchema(PlatformUpdateSchemaInfo schema)
@@ -1771,8 +1809,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public PlatformAppDeployDetailVo debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo)
-            throws ParamException, ApiException, InterfaceCallException, IOException, NotSupportAppException, LJPaasException, NexusException {
+    public void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, InterfaceCallException, LJPaasException, ApiException {
+        Assert.isTrue(!this.isPlatformCheckOngoing, "some platform deploy, collect or debug task is ongoing");
         Assert.notNull(optInfo, "debug detail can not be null");
         String appName = optInfo.getAppName();
         String alias = optInfo.getAlias();
@@ -1787,8 +1825,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Assert.isTrue(cloudSet.size()==1, String.format("cloudId of %s not unique", platform.getPlatformName()));
         Map<String, PlatformAppDeployDetailVo> deployAppMap = this.platformAppDeployDetailMapper.selectPlatformApps(platformId, domainId, null)
                 .stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAlias, Function.identity()));
-        if(deployAppMap.containsKey(alias))
+        if(deployAppMap.containsKey(alias)){
             optInfo.fill(deployAppMap.get(alias));
+            if(StringUtils.isBlank(optInfo.getHostIp()))
+                optInfo.setHostIp(deployAppMap.get(alias).getHostIp());
+        }
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
         String checkResult = checkAppOperationParam(platform.getCcodVersion(), optInfo, setDefine, new ArrayList<>(), bkHostList);
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
@@ -1799,23 +1840,37 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String jobId = DigestUtils.md5DigestAsHex(sf.format(now).getBytes());
         boolean isNsExist = this.k8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken);
         Assert.isTrue(isNsExist, String.format("namespace %s not exist at %s", platformId, k8sApiUrl));
-        AppModuleVo module = this.appManagerService.queryAppByVersion(appName, optInfo.getVersion(), true);
-        optInfo.setAppType(module.getAppType());
-        List<AppFileNexusInfo> domainCfg = optInfo.getDomainCfg();
-        if(domainCfg == null || domainCfg.size() == 0){
-            DomainPo domainPo = this.domainMapper.selectByPrimaryKey(platformId, domainId);
-            domainCfg = domainPo != null ? domainPo.getCfgs() : new ArrayList<>();
-        }
-        List<K8sOperationInfo> steps = this.k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform);;
-        for(K8sOperationInfo step : steps) {
-            K8sOperationPo execResult = execK8sOpt(step, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-            if(!execResult.isSuccess())
-                throw new ParamException(String.format("debug fail : %s", execResult.getComment()));
-        }
-        logger.info(String.format("debug success"));
-        PlatformAppDeployDetailVo deployApp = optInfo.getPlatformAppDetail(platformId, this.nexusHostUrl);
-        logger.info(String.format("deploy detail of debug app is %s", gson.toJson(deployApp)));
-        return deployApp;
+        this.isPlatformCheckOngoing = true;
+        this.platformDeployLogs.clear();
+        this.ongoingPlatformId = platformId;
+        new Thread(()->{
+            try
+            {
+                AppModuleVo module = this.appManagerService.queryAppByVersion(appName, optInfo.getVersion(), true);
+                optInfo.setAppType(module.getAppType());
+                List<AppFileNexusInfo> domainCfg = optInfo.getDomainCfg();
+                if(domainCfg == null || domainCfg.size() == 0){
+                    DomainPo domainPo = this.domainMapper.selectByPrimaryKey(platformId, domainId);
+                    domainCfg = domainPo != null ? domainPo.getCfgs() : new ArrayList<>();
+                }
+                List<K8sOperationInfo> steps = this.k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform);;
+                for(K8sOperationInfo step : steps) {
+                    K8sOperationPo execResult = execK8sOpt(platformDeployLogs, step, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+                    if(!execResult.isSuccess())
+                        throw new ParamException(String.format("debug fail : %s", execResult.getComment()));
+                }
+                logger.info(String.format("debug success"));
+                PlatformAppDeployDetailVo deployApp = optInfo.getPlatformAppDetail(platformId, this.nexusHostUrl);
+                logger.info(String.format("deploy detail of debug app is %s", gson.toJson(deployApp)));
+            }
+            catch (Exception ex) {
+                logger.error("debug exception", ex);
+            }
+            finally {
+                this.ongoingPlatformId = null;
+                this.isPlatformCheckOngoing = false;
+            }
+        }).start();
     }
 
 
@@ -2107,6 +2162,30 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         this.platformUpdateSchemaMapper.insert(schemaPo);
         this.platformUpdateSchemaMap.put(platformId, schemaInfo);
         return schemaInfo;
+    }
+
+    @Override
+    public boolean isPlatformDeployOngoing(String platformId) {
+        if(this.isPlatformCheckOngoing && StringUtils.isNotBlank(this.ongoingPlatformId) && this.ongoingPlatformId.equals(platformId))
+            return true;
+        return false;
+    }
+
+    @Override
+    public List<K8sOperationPo> getPlatformDeployLogs() {
+        return this.platformDeployLogs;
+    }
+
+    @Override
+    public PlatformDeployStatus getLastPlatformDeployTaskStatus() {
+        if(this.isPlatformCheckOngoing)
+            return PlatformDeployStatus.DEPLOYING;
+        else if(this.platformDeployLogs.size() == 0)
+            return PlatformDeployStatus.NOT_EXEC;
+        K8sOperationPo last = this.platformDeployLogs.get(this.platformDeployLogs.size() - 1);
+        if(last.isSuccess())
+            return PlatformDeployStatus.SUCCESS;
+        return PlatformDeployStatus.FAIL;
     }
 
     private void checkPlatformCreateParam(PlatformCreateParamVo param) throws ParamException, InterfaceCallException, LJPaasException {
@@ -2558,18 +2637,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return this.k8sApiService.readNamespacedConfigMap(platformId, configMapName, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
-    private PlatformPo getK8sPlatform(String platformId) throws ParamException {
+    private PlatformPo getK8sPlatform(String platformId){
         PlatformPo platformPo = this.platformMapper.selectByPrimaryKey(platformId);
         Assert.notNull(platformPo, String.format("%s platform not exit", platformId));
         Assert.isTrue(PlatformType.K8S_CONTAINER.equals(platformPo.getType()), String.format("platform %s type is %s not %s", platformId, platformPo.getType().name, PlatformType.K8S_CONTAINER.name));
-        if (StringUtils.isBlank(platformPo.getK8sApiUrl())) {
-            logger.error(String.format("k8s api url of %s is blank", platformId));
-            throw new ParamException(String.format("k8s api url of %s is blank", platformId));
-        }
-        if (StringUtils.isBlank(platformPo.getK8sAuthToken())) {
-            logger.error(String.format("k8s auth token of %s is blank", platformId));
-            throw new ParamException(String.format("k8s auth token of %s is blank", platformId));
-        }
+        Assert.isTrue(StringUtils.isNotBlank(platformPo.getK8sApiUrl()), String.format("k8s api url of %s is blank", platformId));
+        Assert.isTrue(StringUtils.isNotBlank(platformPo.getK8sAuthToken()), String.format("k8s auth token of %s is blank", platformId));
         return platformPo;
     }
 
@@ -2944,7 +3017,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return saveDir;
     }
 
-    private K8sOperationPo execK8sOpt(K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ParamException
+    private K8sOperationPo execK8sOpt(List<K8sOperationPo> execResults, K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ParamException
     {
         if(optInfo.getOperation().equals(K8sOperation.CREATE) && optInfo.getOperation().equals(K8sOperation.DELETE))
             throw new ParamException(String.format("current version not support %s %s %s",
@@ -2952,6 +3025,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Object retVal = null;
         K8sOperationPo execResult = new K8sOperationPo(optInfo.getJobId(), platformId, optInfo.getDomainId(), optInfo.getKind(),
                 optInfo.getName(), optInfo.getOperation(), gson.toJson(optInfo.getObj()));
+        execResults.add(execResult);
         try
         {
             switch (optInfo.getKind())
@@ -3104,14 +3178,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResult;
     }
 
-    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps, PlatformAppDeployDetailVo deployGls) throws ParamException
+    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps, PlatformAppDeployDetailVo deployGls) throws ParamException
     {
         String jobId = schema.getSchemaId();
         Date startTime = new Date();
         String platformId = platformPo.getPlatformId();
         List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
         PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(jobId, platformId, k8sOptList);
-        List<K8sOperationPo> execResults = execK8sDeploySteps(platformPo, k8sOptList, deployGls);
+        execK8sDeploySteps(platformPo, k8sOptList, execResults, deployGls);
         boolean execSucc = execResults.get(execResults.size() - 1).isSuccess();
         logger.info(String.format("%s schema with jobId=%s execute : %b", platformId, jobId, execSucc));
         if(execSucc)
@@ -3143,22 +3217,19 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResultVo;
     }
 
-    private List<K8sOperationPo> execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, PlatformAppDeployDetailVo deployGls) throws ParamException
+    private void execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformAppDeployDetailVo deployGls) throws ParamException
     {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
-        int oraclePort = 0;
-        List<K8sOperationPo> execResults = new ArrayList<>();
         Map<String, Object> params = platform.getParams();
         for(K8sOperationInfo k8sOpt : k8sOptList)
         {
-            K8sOperationPo ret = execK8sOpt(k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
+            K8sOperationPo ret = execK8sOpt(execResults, k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
             if(!ret.isSuccess())
             {
                 logger.error(String.format("platform update schema exec fail : %s", ret.getComment()));
-                execResults.add(ret);
-                return execResults;
+                return;
             }
             try
             {
@@ -3172,7 +3243,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             && labels.get(this.appNameLabel).equals("oracle"))
                     {
                         V1Service oraSvc = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
-                        oraclePort = getNodePortFromK8sService(oraSvc);
+                        int oraclePort = getNodePortFromK8sService(oraSvc);
                         boolean isConn = oracleConnectTest((String)params.get(PlatformBase.glsDBUserKey), (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey), oraclePort, (String)params.get(PlatformBase.glsDBSidKey), 240);
                         if(!isConn)
                             throw new ApiException("create service for oracle fail");
@@ -3230,7 +3301,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
             execResults.add(ret);
         }
-        return execResults;
     }
 
     @Override
@@ -3313,31 +3383,42 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         updateRecord.setExecSchema(gson.toJson(schemaInfo).getBytes());
         logger.info(String.format("rollback step is : %s", gson.toJson(optList)));
         boolean isSuccess = true;
-        for(K8sOperationInfo optInfo : optList)
+        Assert.isTrue(!this.isPlatformCheckOngoing, "some platform deploy, collect or debug is ongoing");
+        this.ongoingPlatformId = platformId;
+        this.isPlatformCheckOngoing = true;
+        this.platformDeployLogs.clear();
+        try
         {
-            K8sOperationPo execResult = execK8sOpt(optInfo, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-            rollbackResults.add(execResult);
-            if(!execResult.isSuccess()) {
-                logger.error(String.format("rollback step exec fail : %s", gson.toJson(execResult)));
-                isSuccess = false;
-                updateRecord.setResult(false);
-                updateRecord.setComment(execResult.getComment());
-                break;
+            for(K8sOperationInfo optInfo : optList)
+            {
+                K8sOperationPo execResult = execK8sOpt(this.platformDeployLogs, optInfo, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+                rollbackResults.add(execResult);
+                if(!execResult.isSuccess()) {
+                    logger.error(String.format("rollback step exec fail : %s", gson.toJson(execResult)));
+                    isSuccess = false;
+                    updateRecord.setResult(false);
+                    updateRecord.setComment(execResult.getComment());
+                    break;
+                }
             }
+            lastRecords.get(0).setLast(false);
+            logger.debug(String.format("update is_last of job_id=%s from true to false", lastRecord.getJobId()));
+            this.platformUpdateRecordMapper.update(lastRecords.get(0));
+            if(isSuccess) {
+                logger.info(String.format("rollback domain %s of platform %s SUCCESS", String.join(",", domainIds), platformId));
+                updateRecord.setResult(true);
+            }
+            logger.debug(String.format("insert rollback steps to db"));
+            for(K8sOperationPo execResult : rollbackResults)
+                this.k8sOperationMapper.insert(execResult);
+            logger.debug(String.format("insert new platform update record(updateJobId=%s) to db", jobId));
+            this.platformUpdateRecordMapper.insert(updateRecord);
+            return new PlatformUpdateRecordVo(updateRecord, gson);
         }
-        lastRecords.get(0).setLast(false);
-        logger.debug(String.format("update is_last of job_id=%s from true to false", lastRecord.getJobId()));
-        this.platformUpdateRecordMapper.update(lastRecords.get(0));
-        if(isSuccess) {
-            logger.info(String.format("rollback domain %s of platform %s SUCCESS", String.join(",", domainIds), platformId));
-            updateRecord.setResult(true);
+        finally {
+            this.ongoingPlatformId = null;
+            this.isPlatformCheckOngoing = false;
         }
-        logger.debug(String.format("insert rollback steps to db"));
-        for(K8sOperationPo execResult : rollbackResults)
-            this.k8sOperationMapper.insert(execResult);
-        logger.debug(String.format("insert new platform update record(updateJobId=%s) to db", jobId));
-        this.platformUpdateRecordMapper.insert(updateRecord);
-        return new PlatformUpdateRecordVo(updateRecord, gson);
     }
 
     private List<K8sOperationInfo> generateDomainRollBackSteps(List<K8sOperationPo> updateSteps, String jobId)

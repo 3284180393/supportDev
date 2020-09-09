@@ -3,9 +3,11 @@ package com.channelsoft.ccod.support.cmdb.controller;
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
+import com.channelsoft.ccod.support.cmdb.constant.PlatformDeployStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
+import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -112,6 +114,26 @@ public class CMDBController {
         catch (Exception e)
         {
             logger.error(String.format("query app modules exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/supportApps/{appName}", method = RequestMethod.GET)
+    public AjaxResultPo isSupportApp(@PathVariable String appName)
+    {
+        String uri = String.format("GET %s/supportApps/%s", this.apiBasePath, appName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            boolean isSupport = this.appManagerService.isSupport(appName);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, isSupport);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query app supported exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;
@@ -234,6 +256,8 @@ public class CMDBController {
         return resultPo;
     }
 
+
+
 //    @RequestMapping(value = "/platformApps", method = RequestMethod.POST)
 //    public AjaxResultPo addPlatformApps(@RequestBody PlatformAppParamVo param)
 //    {
@@ -336,13 +360,13 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            PlatformAppDeployDetailVo detail = this.platformManagerService.debugPlatformApp(platformId, domainId, optInfo);
-            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, detail);
+            this.platformManagerService.debugPlatformApp(platformId, domainId, optInfo);
+            resultPo = new AjaxResultPo(true, "debug started", 1, null);
             logger.info(String.format("query SUCCESS, quit %s controller", uri));
         }
         catch (Exception e)
         {
-            logger.error(String.format("debug platform app exception, quit %s controller", uri), e);
+            logger.error(String.format("start debug exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;
@@ -663,6 +687,106 @@ public class CMDBController {
         {
             logger.error(String.format("query sets of ccod biz, quit %s controller", uri), e);
             resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformDeploy/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo isPlatformDeployOngoing(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/platformDeploy/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            boolean ongoing = this.platformManagerService.isPlatformDeployOngoing(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, ongoing);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform deploy ongoing exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformDeployStatus", method = RequestMethod.GET)
+    public AjaxResultPo getLastPlatformDeployStatus()
+    {
+        String uri = String.format("GET %s/platformDeployStatus", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformDeployStatus status = this.platformManagerService.getLastPlatformDeployTaskStatus();
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, status);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform last deploy status exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformAppDeployStatus/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformCCODAppDeployStatus(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/platformAppDeployStatus/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<PlatformAppDeployDetailVo> details = this.platformManagerService.queryPlatformCCODAppDeployStatus(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.size(), details);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform ccod app deploy status exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformAppDeployStatus/{platformId}/{domainId}/{alias}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformCCODSingleAppDeployStatus(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String alias)
+    {
+        String uri = String.format("GET %s/platformAppDeployStatus/%s/%s/%s", this.apiBasePath, platformId, domainId, alias);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformAppDeployDetailVo detail = this.platformManagerService.queryPlatformCCODAppDeployStatus(platformId, domainId, alias);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, detail);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform single ccod app deploy status exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platformDeployLogs", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformDeployLogs()
+    {
+        String uri = String.format("GET %s/platformDeployLogs", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<K8sOperationPo> logs = this.platformManagerService.getPlatformDeployLogs();
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, logs);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform deploy logs exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;
     }

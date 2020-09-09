@@ -44,9 +44,9 @@ public class PlatformAppDeployDetailVo extends AppBase {
 
     private String hostIp; //服务器ip
 
-    private int replicas; //运行副本数目
+    private Integer replicas; //运行副本数目
 
-    private int availableReplicas; //可用副本数目
+    private Integer availableReplicas; //可用副本数目
 
     private String status; //应用的相关status
 
@@ -254,19 +254,19 @@ public class PlatformAppDeployDetailVo extends AppBase {
         this.status = status;
     }
 
-    public int getReplicas() {
+    public Integer getReplicas() {
         return replicas;
     }
 
-    public void setReplicas(int replicas) {
+    public void setReplicas(Integer replicas) {
         this.replicas = replicas;
     }
 
-    public int getAvailableReplicas() {
+    public Integer getAvailableReplicas() {
         return availableReplicas;
     }
 
-    public void setAvailableReplicas(int availableReplicas) {
+    public void setAvailableReplicas(Integer availableReplicas) {
         this.availableReplicas = availableReplicas;
     }
 
