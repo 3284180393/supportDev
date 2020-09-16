@@ -255,6 +255,13 @@ public interface IPlatformManagerService {
     void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, InterfaceCallException, LJPaasException, ApiException;
 
     /**
+     * 从k8s删除指定平台的namespace
+     * @param platformId 指定平台id
+     * @throws ApiException
+     */
+    void deleteNamespaceFromK8s(String platformId) throws ApiException;
+
+    /**
      * 修改平台应用配置文件
      * @param platformId 平台id
      * @param domainId 域id

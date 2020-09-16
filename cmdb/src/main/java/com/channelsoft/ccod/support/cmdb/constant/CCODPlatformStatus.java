@@ -21,7 +21,11 @@ public enum CCODPlatformStatus {
 
     WAIT_SYNC_TO_PAAS(5, "WAIT_SYNC_TO_PAAS", "需要将已有的平台应用部署详情从cmdb同步到paas,cmdb有平台应用部署记录,paas已经创建biz有且仅有idle pool set并且没有分配任何空闲主机"),
 
-    SCHEMA_UPDATE(6, "SCHEMA_UPDATE", "有升级计划的平台"),;
+    SCHEMA_UPDATE(6, "SCHEMA_UPDATE", "有升级计划的平台"),
+
+    UPDATING(7, "UPDATING", "升级中"),
+
+    CREATING(8, "CREATING", "创建部署中"),;
 
     public int id;
 

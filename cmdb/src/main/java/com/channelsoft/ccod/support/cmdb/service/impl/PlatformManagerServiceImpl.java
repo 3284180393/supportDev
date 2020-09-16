@@ -1536,30 +1536,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         List<AssemblePo> assembleList = this.assembleMapper.select(updateSchema.getPlatformId(), null);
         makeupDomainIdAndAliasForSchema(updateSchema, domainList, platformDeployApps, clone);
-        if (status.equals(UpdateStatus.EXEC) || status.equals(UpdateStatus.WAIT_EXEC))
-            execPlatformSchema(platformPo, updateSchema, domainList, assembleList, platformDeployApps, registerApps);
-        boolean closeSchema = status.equals(UpdateStatus.EXEC) && updateSchema.getDomainUpdatePlanList().size() == 0 ? true : false;
-        if (this.platformUpdateSchemaMap.containsKey(updateSchema.getPlatformId()))
-            this.platformUpdateSchemaMap.remove(updateSchema.getPlatformId());
+        this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
         this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
-        if(closeSchema) {
-            logger.info(String.format("schema of %s has completed and status change to %s",
-                    platformPo.getPlatformId(), CCODPlatformStatus.RUNNING.name));
-            platformPo.setStatus(CCODPlatformStatus.RUNNING);
-        }
-        else
-        {
-            PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
-            schemaPo.setContext(gson.toJson(updateSchema).getBytes());
-            schemaPo.setPlatformId(updateSchema.getPlatformId());
-            this.platformUpdateSchemaMapper.insert(schemaPo);
-            this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
-            if(updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE))
-                platformPo.setStatus(CCODPlatformStatus.SCHEMA_CREATE);
-            else
-                platformPo.setStatus(CCODPlatformStatus.SCHEMA_UPDATE);
-        }
+        PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+        schemaPo.setContext(gson.toJson(updateSchema).getBytes());
+        schemaPo.setPlatformId(updateSchema.getPlatformId());
+        this.platformUpdateSchemaMapper.insert(schemaPo);
+        platformPo.setStatus(updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE) ? CCODPlatformStatus.SCHEMA_CREATE : CCODPlatformStatus.SCHEMA_UPDATE);
         this.platformMapper.update(platformPo);
+        if (status.equals(UpdateStatus.EXEC) || status.equals(UpdateStatus.WAIT_EXEC)){
+            execPlatformSchema(platformPo, updateSchema, domainList, assembleList, platformDeployApps, registerApps);
+        }
         logger.info(String.format("update %s schema success", updateSchema.getSchemaId()));
     }
 
@@ -1723,6 +1710,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         this.platformDeployLogs.clear();
         new Thread(()->{
             try {
+                platformPo.setStatus(isNewPlatform ? CCODPlatformStatus.CREATING : CCODPlatformStatus.UPDATING);
+                platformMapper.update(platformPo);
                 Map<String, Map<String, List<AppFileNexusInfo>>> domainCfgMap = new HashMap<>();
                 Date date = new Date();
                 for (DomainUpdatePlanInfo plan : plans) {
@@ -1755,6 +1744,23 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             gson.toJson(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
                     handleDomainApps(platformId, domainPo, plan.getAppUpdateOperationList(), assembles, domainAppList, registerApps, domainCfgMap.get(domainId));
                 }
+                boolean closeSchema = status.equals(UpdateStatus.EXEC) && schema.getDomainUpdatePlanList().size() == 0 ? true : false;
+                this.platformUpdateSchemaMap.put(schema.getPlatformId(), schema);
+                this.platformUpdateSchemaMapper.delete(schema.getPlatformId());
+                if(closeSchema) {
+                    logger.info(String.format("schema of %s has completed and status change to %s",
+                            platformPo.getPlatformId(), CCODPlatformStatus.RUNNING.name));
+                    this.platformUpdateSchemaMap.remove(schema.getPlatformId());
+                    platformPo.setStatus(CCODPlatformStatus.RUNNING);
+                }
+                else {
+                    PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
+                    schemaPo.setContext(gson.toJson(schema).getBytes());
+                    schemaPo.setPlatformId(schema.getPlatformId());
+                    this.platformUpdateSchemaMapper.insert(schemaPo);
+                    platformPo.setStatus(CCODPlatformStatus.SCHEMA_UPDATE);
+                }
+                this.platformMapper.update(platformPo);
                 this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
             }
             catch (Exception ex) {
@@ -1881,6 +1887,20 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return index;
     }
 
+    @Override
+    public void deleteNamespaceFromK8s(String platformId) throws ApiException {
+        PlatformPo platform = getK8sPlatform(platformId);
+        boolean nsExist = this.k8sApiService.isNamespaceExist(platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+        if(!nsExist){
+            logger.warn(String.format("namespace %s not exist", platformId));
+        }
+        else{
+
+        }
+
+
+    }
+
     private List<K8sOperationInfo> generateDomainDeploySteps(
             String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
             boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException
@@ -1927,8 +1947,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     : this.k8sTemplateService.generateUpdatePlatformAppSteps(jobId, optInfo, domainId, domainCfg, platformPo);
             steps.addAll(optSteps);
         }
-        if(!isNewPlatform)
-            steps.forEach(s->s.setKernal(false));
+        steps.forEach(s->s.setKernal(false));
         logger.info(String.format("deploy %s %d apps need %d steps", domainId, plan.getAppUpdateOperationList().size(), steps.size()));
         return steps;
     }
