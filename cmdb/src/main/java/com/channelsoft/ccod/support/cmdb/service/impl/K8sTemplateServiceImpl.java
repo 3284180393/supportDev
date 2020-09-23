@@ -10,6 +10,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.AppBase;
 import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
+import com.channelsoft.ccod.support.cmdb.po.PlatformBase;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IK8sTemplateService;
@@ -99,6 +100,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Value("${nexus.host-url}")
     private String nexusHostUrl;
+
+    @Value("${k8s.platform-base-volume}")
+    private String platformBaseVolume;
 
     @Value("${debug-timeout}")
     private int debugTimeout;
@@ -867,6 +871,29 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
+    public V1Job generatePlatformInitJob(PlatformPo platform) throws ParamException {
+        String platformId = platform.getPlatformId();
+        String ccodVersion = platform.getCcodVersion();
+        String baseDataNexusPath = (String)platform.getParams().get(PlatformBase.baseDataNexusPathKey);
+        String platformBaseDataRepository = (String)platform.getParams().get(PlatformBase.baseDataNexusRepositoryKey);
+        V1Job job = (V1Job) selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.JOB);
+        String fileName = baseDataNexusPath.replaceAll("^.*/", "");
+        job.getMetadata().setNamespace(platformId);
+        String workDir = "/root/data";
+        String arg = String.format("cd %s;wget %s/repository/%s/%s;tar -xvzf %s",
+                workDir, nexusHostUrl, platformBaseDataRepository, baseDataNexusPath, fileName);
+        job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(arg));
+        job.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity()))
+                .get("data").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId));
+        logger.warn(String.format("arg=%s", arg));
+        logger.warn(String.format("workDir=%s", workDir));
+        logger.warn(String.format("fileName=%s", fileName));
+        logger.warn(String.format("path=%s", baseDataNexusPath));
+        logger.warn(String.format("job=%s", gson.toJson(job)));
+        return job;
+    }
+
+    @Override
     public K8sCCODDomainAppVo getCCODDomainApp(String appName, String alias, String version, String domainId, String platformId, String k8sApiUrl, String k8sAuthToken) throws ParamException, ApiException {
         logger.debug(String.format("get %s[%s(%s)] at %s deploy detail from k8s", alias, appName, version, domainId));
         List<AppModuleVo> modules = this.appManagerService.queryAllRegisterAppModule(true).stream()
@@ -1159,10 +1186,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Override
     public List<K8sOperationInfo> generatePlatformCreateSteps(
-            String ccodVersion, String platformId, String hostUrl, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
+            String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
             V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps,
-            List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl,
-            String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException {
+            List<K8sThreePartServiceVo> threePartServices, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException {
+        String platformId = platform.getPlatformId();
+        String ccodVersion = platform.getCcodVersion();
+        String hostUrl = platform.getHostUrl();
+        String k8sApiUrl = platform.getK8sApiUrl();
+        String k8sAuthToken = platform.getK8sAuthToken();
         if(this.ik8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken))
             throw new ParamException(String.format("namespace %s has exist at %s", platformId, k8sApiUrl));
         List<K8sOperationInfo> steps = new ArrayList<>();
@@ -1191,13 +1222,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             step = new K8sOperationInfo(jobId, platformId, null, K8sKind.SECRET, secret.getMetadata().getName(), K8sOperation.CREATE, secret);
             steps.add(step);
         }
-//        if(job != null)
-//        {
-//            if(!job.getMetadata().getNamespace().equals(platformId))
-//                throw new ParamException(String.format("namespace of job should be %s not %s", platformId, namespace.getMetadata().getNamespace()));
-//            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, job.getMetadata().getName(), K8sOperation.CREATE, job);
-//            steps.add(step);
-//        }
         if(pv == null)
             pv = generatePersistentVolume(ccodVersion, platformId);
         step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PV, pv.getMetadata().getName(), K8sOperation.CREATE, pv);
@@ -1206,8 +1230,16 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             pvc = generatePersistentVolumeClaim(ccodVersion, platformId);
         step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pvc);
         steps.add(step);
+        job = job == null ? generatePlatformInitJob(platform) : job;
+        if(job != null)
+        {
+            if(!job.getMetadata().getNamespace().equals(platformId))
+                throw new ParamException(String.format("namespace of job should be %s not %s", platformId, namespace.getMetadata().getNamespace()));
+            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, job.getMetadata().getName(), K8sOperation.CREATE, job);
+            steps.add(step);
+        }
         V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, platformId,
-                platformCfg.stream().map(cfg->cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
+                platform.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
         K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP,
                 platformId, K8sOperation.CREATE, configMap);
@@ -1452,6 +1484,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                     case NAMESPACE:
                         if(StringUtils.isNotBlank(templatePo.getNamespaceJson()))
                             return gson.fromJson(templatePo.getNamespaceJson(), V1Namespace.class);
+                        break;
+                    case JOB:
+                        if(StringUtils.isNotBlank(templatePo.getJobJson()))
+                            return gson.fromJson(templatePo.getJobJson(), V1Job.class);
                         break;
                     case SECRET:
                         if(StringUtils.isNotBlank(templatePo.getSecretJson()))

@@ -27,6 +27,8 @@ public class K8sObjectTemplatePo {
 
     private String namespaceJson;
 
+    private String jobJson;
+
     private String secretJson;
 
     private String persistentVolumeJson;
@@ -126,5 +128,13 @@ public class K8sObjectTemplatePo {
 
     public void setPersistentVolumeClaimJson(String persistentVolumeClaimJson) {
         this.persistentVolumeClaimJson = persistentVolumeClaimJson;
+    }
+
+    public String getJobJson() {
+        return jobJson;
+    }
+
+    public void setJobJson(String jobJson) {
+        this.jobJson = jobJson;
     }
 }

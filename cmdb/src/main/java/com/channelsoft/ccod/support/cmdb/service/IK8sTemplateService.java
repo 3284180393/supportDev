@@ -68,6 +68,14 @@ public interface IK8sTemplateService {
     V1PersistentVolumeClaim generatePersistentVolumeClaim(String ccodVersion, String platformId) throws ParamException;
 
     /**
+     * 生成平台初始job
+     * @param platform 需要生成初始job的平台
+     * @return 平台初始job
+     * @throws ParamException
+     */
+    V1Job generatePlatformInitJob(PlatformPo platform) throws ParamException;
+
+    /**
      * 获取已经部署的ccod域应用在k8s上的部署详情
      * @param appName 应用名
      * @param alias 别名
@@ -191,9 +199,6 @@ public interface IK8sTemplateService {
 
     /**
      * 生成平台创建步骤
-     * @param ccodVersion 平台的ccod大版本号
-     * @param platformId 平台id
-     * @param hostUrl 平台访问域名
      * @param jobId 创建平台的任务id
      * @param job 创建平台需要预执行的job
      * @param namespace 创建平台的namespace信息，如果为空将根据现有模板自动创建
@@ -202,16 +207,14 @@ public interface IK8sTemplateService {
      * @param pvc 平台使用的pvc,如果为空将通过模板自动创建
      * @param threePartApps 平台依赖的第三方应用，如果为空将根据模板自动创建oracle和mysql
      * @param threePartServices 平台依赖的第三方服务，如果为空将根据模板自动创建umg141,umg147和umg41三个缺省第三方服务
-     * @param platformCfg 平台公共配置
-     * @param k8sApiUrl k8s的api的url
-     * @param k8sAuthToken 访问k8s api的认证token
+     * @param platform 需要被创建的平台
      * @return 平台创建所需执行的步骤
      * @throws ApiException
      * @throws ParamException
      * @throws IOException
      * @throws InterfaceCallException
      */
-    List<K8sOperationInfo> generatePlatformCreateSteps(String ccodVersion, String platformId, String hostUrl, String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps, List<K8sThreePartServiceVo> threePartServices, List<AppFileNexusInfo> platformCfg, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException, IOException, InterfaceCallException;
+    List<K8sOperationInfo> generatePlatformCreateSteps(String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps, List<K8sThreePartServiceVo> threePartServices, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException;
 
     /**
      * 生成一组用于测试的第三方服务

@@ -25,7 +25,11 @@ public enum CCODPlatformStatus {
 
     UPDATING(7, "UPDATING", "升级中"),
 
-    CREATING(8, "CREATING", "创建部署中"),;
+    CREATING(8, "CREATING", "创建部署中"),
+
+    DEBUG(9, "DEBUG", "调试中"),
+
+    DEPLOY_FAIL(10, "DEPLOY_FAIL", "部署失败"),;
 
     public int id;
 

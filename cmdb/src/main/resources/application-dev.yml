@@ -338,6 +338,7 @@ image:
 k8s:
   gls_oracle_svc_name: oracle
   gls_oracle_sid: xe
+  platform-base-volume: /home/kubernetes/volume
   labels:
     ccod-version: ccod-version
     domain-id: domain-id
