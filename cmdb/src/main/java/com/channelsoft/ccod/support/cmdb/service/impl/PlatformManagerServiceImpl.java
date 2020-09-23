@@ -1680,8 +1680,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 .forEach(plan -> plan.getAppUpdateOperationList().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
         PlatformAppDeployDetailVo deployGls;
         if(isNewPlatform) {
+            String nfsServerIp = StringUtils.isBlank(schema.getNfsServerIp()) ? schema.getK8sHostIp() : schema.getNfsServerIp();
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
-                    null, null, schema.getThreePartApps(), schema.getThreePartServices(), platformPo);
+                    null, null, schema.getThreePartApps(), schema.getThreePartServices(), nfsServerIp, platformPo);
             steps.addAll(platformCreateSteps);
             Map<String, List<AppUpdateOperationInfo>> optMap = schema.getDomainUpdatePlanList().stream()
                     .flatMap(plan->plan.getAppUpdateOperationList().stream()).collect(Collectors.toList())

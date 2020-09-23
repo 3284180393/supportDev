@@ -101,9 +101,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Value("${nexus.host-url}")
     private String nexusHostUrl;
 
-    @Value("${k8s.platform-base-volume}")
-    private String platformBaseVolume;
-
     @Value("${debug-timeout}")
     private int debugTimeout;
 
@@ -772,6 +769,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
         deploy.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity()))
                 .get("sql").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId));
+        deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().stream().filter(m->m.getName().equals("sql"))
+                .forEach(m->{
+                    if(appName.equals("oracle") || m.getMountPath().equals("/docker-entrypoint-initdb.d/")){
+                        m.setSubPath(String.format("%s/base-volume/db/%s/sql", platformId, appName));
+                    }
+                    else{
+                        m.setSubPath(String.format("%s/base-volume/db/%s/data", platformId, appName));
+                    }
+                });
         if(appName.equals("oracle"))
             deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(0, String.format("/tmp/init.sh %s", hostUrl));
         logger.info(String.format("selected deployment for %s is %s", gson.toJson(selector), gson.toJson(deploy)));
@@ -808,13 +814,16 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1PersistentVolume generatePersistentVolume(String ccodVersion, String platformId) throws ParamException {
+    public V1PersistentVolume generatePersistentVolume(PlatformPo platform, String nfsServerIp) throws ParamException {
+        String platformId = platform.getPlatformId();
+        String ccodVersion = platform.getCcodVersion();
         V1PersistentVolume pv = (V1PersistentVolume)selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.PV);
         String name = String.format("base-volume-%s", platformId);
         pv.getMetadata().setName(name);
         pv.getSpec().getClaimRef().setNamespace(platformId);
         pv.getSpec().getClaimRef().setName(name);
-        pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s/base-volume", platformId));
+        pv.getSpec().getNfs().setPath("/home/kubernetes/volume");
+        pv.getSpec().getNfs().setServer(nfsServerIp);
         pv.getSpec().setStorageClassName(name);
         logger.info(String.format("generate persistentVolume is %s", gson.toJson(pv)));
         return pv;
@@ -879,9 +888,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Job job = (V1Job) selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.JOB);
         String fileName = baseDataNexusPath.replaceAll("^.*/", "");
         job.getMetadata().setNamespace(platformId);
-        String workDir = "/root/data";
-        String arg = String.format("cd %s;wget %s/repository/%s/%s;tar -xvzf %s",
-                workDir, nexusHostUrl, platformBaseDataRepository, baseDataNexusPath, fileName);
+        String workDir = String.format("/root/data/%s/base-volume", platformId);
+        String arg = String.format("mkdir %s -p;cd %s;wget %s/repository/%s/%s;tar -xvzf %s",
+                workDir, workDir, nexusHostUrl, platformBaseDataRepository, baseDataNexusPath, fileName);
         job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(arg));
         job.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity()))
                 .get("data").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId));
@@ -1188,7 +1197,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     public List<K8sOperationInfo> generatePlatformCreateSteps(
             String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
             V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps,
-            List<K8sThreePartServiceVo> threePartServices, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException {
+            List<K8sThreePartServiceVo> threePartServices, String nfsServerIp, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException {
         String platformId = platform.getPlatformId();
         String ccodVersion = platform.getCcodVersion();
         String hostUrl = platform.getHostUrl();
@@ -1223,7 +1232,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             steps.add(step);
         }
         if(pv == null)
-            pv = generatePersistentVolume(ccodVersion, platformId);
+            pv = generatePersistentVolume(platform, nfsServerIp);
         step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PV, pv.getMetadata().getName(), K8sOperation.CREATE, pv);
         steps.add(step);
         if(pvc == null)
