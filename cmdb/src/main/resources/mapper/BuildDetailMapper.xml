@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.BuildDetailMapper" >
+    <resultMap id="BuildDetailMap" type="com.channelsoft.ccod.support.cmdb.ci.po.BuildDetailPo" >
+        <id column="id" property="id" jdbcType="INTEGER" />
+        <result column="job_name" property="jobName" jdbcType="VARCHAR" />
+        <result column="app_name" property="appName" jdbcType="VARCHAR" />
+        <result column="version" property="version" jdbcType="VARCHAR" />
+        <result column="project_leader" property="projectLeader" jdbcType="VARCHAR" />
+        <result column="parameters" property="parameters" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
+        <result column="start_time" property="startTime" jdbcType="TIMESTAMP" />
+        <result column="end_time" property="endTime" jdbcType="TIMESTAMP" />
+        <result column="jenkins_result" property="jenkinsResult" jdbcType="VARCHAR" />
+        <result column="queue_id" property="queueId" jdbcType="INTEGER" />
+        <result column="number" property="number" jdbcType="INTEGER" />
+        <result column="jenkins_log" property="jenkinsLog" jdbcType="VARCHAR" />
+        <result column="sonar_result" property="sonarResult" jdbcType="VARCHAR" />
+        <result column="sonar_output" property="sonarOutput" jdbcType="VARCHAR" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+	    bd.id,
+	    bd.job_name,
+	    bd.app_name,
+	    bd.version,
+	    bd.project_leader,
+	    bd.parameters,
+	    bd.start_time,
+	    bd.end_time,
+	    bd.jenkins_result,
+	    bd.queue_id,
+	    bd.number,
+	    bd.jenkins_log,
+	    bd.sonar_result,
+	    bd.sonar_output
+    </sql>
+    <select id="select" resultMap="BuildDetailMap">
+        select
+        <include refid="Base_Column_List" />
+        from build_detail bd
+        WHERE
+        1 = 1
+        <if test="jobName!=null">
+            And bd.job_name=#{jobName,jdbcType=VARCHAR}
+        </if>
+        <if test="appName!=null">
+            And bd.app_name=#{appName,jdbcType=VARCHAR}
+        </if>
+        <if test="version!=null">
+            And bd.version=#{version,jdbcType=VARCHAR}
+        </if>
+        <if test="startTime!=null">
+            And bd.start_time>=#{startTime,jdbcType=TIMESTAMP}
+        </if>
+        <if test="endTime!=null">
+            And bd.endTime<=#{endTime,jdbcType=TIMESTAMP}
+        </if>
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.ci.po.BuildDetailPo"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into build_detail(
+            	job_name,
+	            app_name,
+	            version,
+	            project_leader,
+	            parameters,
+	            start_time,
+	            end_time,
+	            jenkins_result,
+	            queue_id,
+	            number,
+	            jenkins_log,
+	            sonar_result,
+	            sonar_output
+            )
+        values (
+            #{jobName,jdbcType=VARCHAR},
+            #{appName,jdbcType=VARCHAR},
+            #{version,jdbcType=VARCHAR},
+            #{projectLeader,jdbcType=VARCHAR},
+            #{parameters,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
+            #{startTime,jdbcType=TIMESTAMP},
+            #{endTime,jdbcType=TIMESTAMP},
+            #{jenkinsResult,jdbcType=VARCHAR},
+            #{queueId,jdbcType=INTEGER},
+            #{number,jdbcType=INTEGER},
+            #{jenkinsLog,jdbcType=VARCHAR},
+            #{sonarResult,jdbcType=VARCHAR},
+            #{sonarOutput,jdbcType=VARCHAR})
+    </insert>
+</mapper>

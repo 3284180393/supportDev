@@ -2,7 +2,7 @@ spring:
   datasource:
     username : root
     password : qnsoft
-    url: jdbc:mysql://10.130.76.80:3306/cmdb
+    url: jdbc:mysql://10.130.76.80:3306/cmdb_shop
     driver-class-name : com.mysql.jdbc.Driver
 
 mybatis:
@@ -282,6 +282,15 @@ nexus:
 git:
   k8s_deploy_git_url: http://10.130.24.101/wuph/payaml.git
 
+
+app-shop:
+  git:
+    url: http://10.130.24.101/
+    user: lanhb
+    email: lanhb@channelsoft.com
+    password: 12345678
+    project: app-shop
+    branch: master
 
 app-publish-nexus:
   user: admin

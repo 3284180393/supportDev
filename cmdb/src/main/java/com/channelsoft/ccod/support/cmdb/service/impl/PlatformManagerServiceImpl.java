@@ -2673,7 +2673,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     public V1ConfigMap queryPlatformK8sConfigMapByName(String platformId, String configMapName) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s configMap %s of %s", configMapName, platformId));
         PlatformPo platformPo = getK8sPlatform(platformId);
-        return this.k8sApiService.readNamespacedConfigMap(platformId, configMapName, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
+        return this.k8sApiService.readNamespacedConfigMap(configMapName, platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
     private PlatformPo getK8sPlatform(String platformId){
