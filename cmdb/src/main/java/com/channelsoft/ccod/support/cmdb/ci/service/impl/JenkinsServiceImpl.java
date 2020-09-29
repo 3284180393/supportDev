@@ -9,6 +9,7 @@ import com.offbytwo.jenkins.model.*;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -28,11 +29,14 @@ import java.util.stream.Collectors;
 @Service
 public class JenkinsServiceImpl implements IJenkinsService {
 
-    private String hostUrl = "http://jenkins.ci.ccod.io";
+    @Value("${ci.jenkins.host-url}")
+    private String hostUrl;
 
-    private String user = "admin";
+    @Value("${ci.jenkins.user-name}")
+    private String user;
 
-    private String password = "123456";
+    @Value("${ci.jenkins.password}")
+    private String password;
 
     private final static Logger logger = LoggerFactory.getLogger(JenkinsServiceImpl.class);
 

@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.ci.service.ISonarqubeService;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import org.junit.Test;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -16,11 +17,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class SonarqubeServiceImpl implements ISonarqubeService {
 
-    private String userName = "admin";
+    @Value("${ci.sonarqube.host-url}")
+    private String hostUrl;
 
-    private String password = "$G1mRhN{j.qBkH:j";
+    @Value("${ci.sonarqube.user-name}")
+    private String userName;
 
-    private String hostUrl = "http://sonarqube.ci.com/";
+    @Value("${ci.sonarqube.password}")
+    private String password;
 
     @Override
     public String getCheckResult(String jobName) throws InterfaceCallException {

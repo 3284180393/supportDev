@@ -16,6 +16,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
@@ -32,6 +33,9 @@ import java.util.*;
 @Service
 public class CIServiceImpl implements ICIService {
 
+    @Value("${debug}")
+    private boolean debug;
+
     private final static Logger logger = LoggerFactory.getLogger(CIServiceImpl.class);
 
     @Autowired
@@ -43,17 +47,23 @@ public class CIServiceImpl implements ICIService {
     @Autowired
     BuildDetailMapper buildDetailMapper;
 
-    private String msgReceiver = "兰海波|王寓锋|吴培豪";
+    @Value("${ci.notify.default-receiver}")
+    private String msgReceiver;
 
-    private String msgSendType = "userName";
+    @Value("${ci.notify.msg-send-type}")
+    private String msgSendType;
 
-    private String msgType = "action_card";
+    @Value("${ci.notify.msg-type}")
+    private String msgType;
 
-    private String msgSendUrl = "http://10.130.76.80/DDmsg.ashx";
+    @Value("${ci.notify.msg-send-url}")
+    private String msgSendUrl;
 
-    private String msgImageUrl = "https://hao1.qhimg.com/t01ea3a44e231e5d6f4.png";
+    @Value("${ci.notify.default-msg-image-url}")
+    private String msgImageUrl;
 
-    private String jenkinsHostUrl = "http://jenkins.ci.ccod.io";
+    @Value("${ci.jenkins.host-url}")
+    private String jenkinsHostUrl;
 
     @Override
     public BuildDetailPo getJobBuildResult(String jobName) throws Exception {
@@ -128,7 +138,7 @@ public class CIServiceImpl implements ICIService {
         Map<String, Object> params = new HashMap<>();
         params.put("msgType", this.msgType);
         params.put("sendtype", this.msgSendType);
-        params.put("listSendto", this.msgReceiver);
+        params.put("listSendto", !debug && StringUtils.isNotBlank(detail.getProjectLeader()) ? detail.getProjectLeader() : this.msgReceiver);
         params.put("msgSentFrom", "jenkins构建结果");
         params.put("msgContent", sb.toString());
         params.put("msgTitle", title);
