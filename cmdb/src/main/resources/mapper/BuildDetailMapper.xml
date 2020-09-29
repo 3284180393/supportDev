@@ -49,11 +49,12 @@
             And bd.version=#{version,jdbcType=VARCHAR}
         </if>
         <if test="startTime!=null">
-            And bd.start_time>=#{startTime,jdbcType=TIMESTAMP}
+            And bd.start_time &gt;= #{startTime,jdbcType=TIMESTAMP}
         </if>
         <if test="endTime!=null">
-            And bd.endTime<=#{endTime,jdbcType=TIMESTAMP}
+            And bd.end_time &lt;= #{endTime,jdbcType=TIMESTAMP}
         </if>
+        order by bd.end_time desc
     </select>
     <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.ci.po.BuildDetailPo"
             useGeneratedKeys="true" keyProperty="id">

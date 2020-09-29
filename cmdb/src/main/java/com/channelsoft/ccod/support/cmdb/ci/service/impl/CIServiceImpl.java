@@ -6,10 +6,12 @@ import com.channelsoft.ccod.support.cmdb.ci.po.BuildDetailPo;
 import com.channelsoft.ccod.support.cmdb.ci.service.ICIService;
 import com.channelsoft.ccod.support.cmdb.ci.service.IJenkinsService;
 import com.channelsoft.ccod.support.cmdb.ci.service.ISonarqubeService;
+import com.channelsoft.ccod.support.cmdb.dao.BuildDetailMapper;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import com.offbytwo.jenkins.model.Build;
 import com.offbytwo.jenkins.model.BuildWithDetails;
 import com.offbytwo.jenkins.model.JobWithDetails;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 /**
@@ -36,6 +39,9 @@ public class CIServiceImpl implements ICIService {
 
     @Autowired
     ISonarqubeService sonarqubeService;
+
+    @Autowired
+    BuildDetailMapper buildDetailMapper;
 
     private String msgReceiver = "兰海波|王寓锋|吴培豪";
 
@@ -91,6 +97,7 @@ public class CIServiceImpl implements ICIService {
                 po = getSonarCheckResult(po);
                 logger.warn(String.format("job %s #%d build result is : %s", jobName, number, JSONObject.toJSONString(po)));
                 sendBuildResult(po);
+                buildDetailMapper.insert(po);
             }
             catch (Exception ex) {
                 logger.error(String.format("job %s #%d build error", jobName, number), ex);
@@ -133,6 +140,36 @@ public class CIServiceImpl implements ICIService {
         groupMap.put("deptName", "");
         sendMsg.put("querydept", groupMap);
         HttpRequestTools.httpPostRequest(this.msgSendUrl, sendMsg);
+    }
+
+    @Override
+    public List<BuildDetailPo> queryBuildHistory(String jobName, String appName, String version, String startTime, String endTime) throws Exception{
+        logger.debug(String.format("query build history for jobName=%s,appName=%s,version=%s,beginTime=%s,endTime=%s",
+                jobName, appName, version, startTime, endTime));
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        Date start = null;
+        Date end = null;
+        if(StringUtils.isNotBlank(startTime)) {
+            try{
+                start = sf.parse(String.format("%s000000", startTime));
+            }
+            catch (Exception ex) {
+                throw new Exception(String.format("error startTime string, wanted format yyyyMMdd", startTime));
+            }
+        }
+        if(StringUtils.isNotBlank(endTime)) {
+            try{
+                end = sf.parse(String.format("%s000000", endTime));
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(String.format("error endTime string, wanted format yyyyMMdd", endTime));
+            }
+        }
+
+        List<BuildDetailPo> list = buildDetailMapper.select(jobName, appName, version, start, end);
+        logger.info(String.format("search %d record", list.size()));
+        return list;
     }
 
     private void someTest() throws Exception
