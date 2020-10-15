@@ -170,9 +170,17 @@ public interface IAppManagerService {
      * @param imageUrl 应用的imageUrl
      * @return 该应用的类型
      * @throws ParamException imageUrl不是一个合法的应用imageUrl
-     * @throws NotSupportAppException 该应用对应的应用类型不被支持
+     * @throws NotSupportAppException 指定应用不支持
      */
     AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException;
+
+    /**
+     * 从imageUrl获取该镜像对应的ccod模块注册信息
+     * @param imageUrl 镜像url
+     * @return 模块注册信息
+     * @throws ParamException
+     */
+    AppModuleVo getRegisteredCCODAppFromImageUrl(String imageUrl) throws ParamException;
 
     /**
      * 根据应用别名获取某个业务集群下的应用模块信息

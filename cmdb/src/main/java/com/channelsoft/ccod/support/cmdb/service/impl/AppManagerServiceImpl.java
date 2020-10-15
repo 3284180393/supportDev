@@ -1207,6 +1207,31 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
+    public AppModuleVo getRegisteredCCODAppFromImageUrl(String imageUrl) throws ParamException{
+        logger.debug(String.format("get ccod module register info from %s", imageUrl));
+        String[] arr = imageUrl.replaceAll(".*/", "").split(":");
+        if(arr.length != 2)
+            throw new ParamException(String.format("%s is illegal ccod module image url", imageUrl));
+        this.appReadLock.readLock().lock();
+        try{
+            AppModuleVo module = null;
+            for(String appName : this.registerAppMap.keySet())
+            {
+                if(appName.toLowerCase().equals(arr[0])){
+                    module = this.registerAppMap.get(appName).stream()
+                            .collect(Collectors.toMap(a->a.getVersion(), v->v)).get(arr[1].replaceAll("\\-", ":"));
+                    if(module != null)
+                        return module;
+                }
+            }
+        }
+        finally {
+            this.appReadLock.readLock().unlock();
+        }
+        throw new ParamException(String.format("can not get module register info for %s", imageUrl));
+    }
+
+    @Override
     public AppModuleVo getAppModuleForBizSet(String bizSetName, String appAlias, String version) throws ParamException, NotSupportAppException {
         logger.debug(String.format("find app module info for alias %s[%s] at bisSet %s", appAlias, version, bizSetName));
         if(!this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity())).containsKey(bizSetName))

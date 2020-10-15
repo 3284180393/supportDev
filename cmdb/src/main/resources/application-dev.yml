@@ -2,7 +2,7 @@ spring:
   datasource:
     username : root
     password : qnsoft
-    url: jdbc:mysql://10.130.76.80:3306/cmdb_shop
+    url: jdbc:mysql://10.130.41.88:3306/cmdb_shop
     driver-class-name : com.mysql.jdbc.Driver
 
 mybatis:
@@ -15,6 +15,7 @@ ccod:
   app-standard-alias-regex: ^[a-z]+[0-9a-z\\-]*[a-z0-9]$
   service-port-regex: ^\d+(\:\d+)?/(TCP|UDP)(,\d+(\:\d+)?/(TCP|UDP))*$
   health-check-at-regex: ^.+/CMD$|^\d+/TCP$|^\d+/(HTTP|HTTPS)(\:.+)?$
+  start-cmd-regex: (^|;)([^(\s|;)]+\s+)?[^;]*(/|\s+)cmsserver(;|$|\s+[^;]+($|;))
   notCheckCfgApps:
     - cmsserver
   platform-deploy-template: platform_deploy.py
@@ -350,6 +351,8 @@ k8s:
   platform-volume-base: platform-volume-base
   labels:
     ccod-version: ccod-version
+    platform-id: platform-id
+    platform-name: platform-name
     domain-id: domain-id
     app-name: app-name
     app-alias: alias

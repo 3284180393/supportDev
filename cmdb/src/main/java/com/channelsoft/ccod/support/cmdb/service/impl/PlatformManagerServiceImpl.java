@@ -509,17 +509,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId) throws ApiException {
+    public List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
         PlatformPo platform = getK8sPlatform(platformId);
         List<PlatformAppDeployDetailVo> details = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform);
         return details;
     }
 
     @Override
-    public PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String alias) throws ApiException {
+    public PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String appName, String alias) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
         PlatformPo platform = getK8sPlatform(platformId);
-        V1Deployment deployment = this.k8sApiService.readNamespacedDeployment(String.format("%s-%s", alias, domainId), platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-        PlatformAppDeployDetailVo detail = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform, domainId, alias);
+        PlatformAppDeployDetailVo detail = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform, domainId, appName, alias);
         return detail;
     }
 
@@ -1445,44 +1444,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public void modifyK8sPlatformAppCfg(String platformId, String domainId, String alias, List<AppFileNexusInfo> newCfgs) throws ParamException, InterfaceCallException, NexusException, ApiException, IOException {
-        String configMapName = String.format("%s-%s", alias, domainId);
-        logger.debug(String.format("modify cfgs %s in %s to %s", configMapName, platformId, gson.toJson(newCfgs)));
-        List<AppFileNexusInfo> oldCfgs = queryPlatformAppCfgs(platformId, domainId, alias);
-        if(oldCfgs.size() != newCfgs.size())
-            throw new ParamException(String.format("cfg count of %s at %s error, want %d, offer %d", alias, domainId, oldCfgs.size(), newCfgs.size()));
-        Map<String, List<AppFileNexusInfo>> newCfgMap = newCfgs.stream().collect(Collectors.groupingBy(AppFileNexusInfo::getFileName));
-        Map<String, AppFileNexusInfo> oldCfgMap = oldCfgs.stream().collect(Collectors.toMap(AppFileNexusInfo::getFileName, Function.identity()));
-        for(String fileName : oldCfgMap.keySet())
-        {
-            if(!newCfgMap.containsKey(fileName))
-                throw new ParamException(String.format("want cfg %s of %s at %s not offer", fileName, alias, domainId));
-            else if(newCfgMap.get(fileName).size() > 1)
-                throw new ParamException(String.format("cfg %s of %s at %s multi defile", fileName, alias, domainId));
-        }
-        PlatformPo platform = getK8sPlatform(platformId);
-        V1ConfigMap oldConfigMap = this.k8sApiService.readNamespacedConfigMap(configMapName, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-
-        V1ConfigMap newConfigMap = this.k8sApiService.getConfigMapFromNexus(platformId, configMapName,
-                newCfgs.stream().map(cfg -> cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
-                this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
-        List<V1Deployment> deployments = this.k8sApiService.listNamespacedDeployment(platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-        for(V1Deployment deployment : deployments)
-        {
-            if(!deployment.getSpec().getSelector().getMatchLabels().containsKey(this.domainIdLabel)
-                    || !deployment.getSpec().getSelector().getMatchLabels().get(this.domainIdLabel).equals(domainId))
-                continue;
-
-        }
-
-        logger.debug(String.format("modify config %s from %s to %s", configMapName, gson.toJson(oldConfigMap), gson.toJson(newConfigMap)));
-        this.k8sApiService.replaceNamespacedConfigMap(configMapName, platformId, newConfigMap, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-
-
-
-    }
-
-    @Override
     public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException {
         logger.debug(String.format("begin to update platform update schema : %s", gson.toJson(updateSchema)));
 //        resetSchema(updateSchema);
@@ -1787,6 +1748,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }).start();
     }
 
+    @Override
+    public PlatformTopologyInfo restorePlatformTopologyFromK8s(String platformId, String platformName, String ccodVersion, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException {
+        logger.debug(String.format("begin to restore platform %s(%s) topology from %s", platformId, platformName, k8sApiUrl));
+        boolean isExist = this.k8sApiService.isNamespaceExist(platformName, k8sApiUrl, k8sAuthToken);
+        Assert.isTrue(isExist, String.format("namespace %s not exist at %s", platformId, k8sApiUrl));
+
+        return null;
+    }
+
     private void resetSchema(PlatformUpdateSchemaInfo schema)
     {
         schema.setNamespace(null);
@@ -1944,7 +1914,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         if(domainCfg != null && domainCfg.size() > 0) {
-            V1ConfigMap configMap = this.k8sApiService.getConfigMapFromNexus(platformId, domainId,
+            V1ConfigMap configMap = this.k8sApiService.getConfigMapFromNexus(platformId, domainId, domainId,
                     domainCfg.stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
                     nexusHostUrl, nexusUserName, nexusPassword);
             K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, domainId, K8sOperation.CREATE, configMap);

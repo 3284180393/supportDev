@@ -751,15 +751,15 @@ public class CMDBController {
         return resultPo;
     }
 
-    @RequestMapping(value = "/platformAppDeployStatus/{platformId}/{domainId}/{alias}", method = RequestMethod.GET)
-    public AjaxResultPo getPlatformCCODSingleAppDeployStatus(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String alias)
+    @RequestMapping(value = "/platformAppDeployStatus/{platformId}/{domainId}/{appName}/{alias}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformCCODSingleAppDeployStatus(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String appName, @PathVariable String alias)
     {
-        String uri = String.format("GET %s/platformAppDeployStatus/%s/%s/%s", this.apiBasePath, platformId, domainId, alias);
+        String uri = String.format("GET %s/platformAppDeployStatus/%s/%s/%s/%s", this.apiBasePath, platformId, domainId, appName, alias);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            PlatformAppDeployDetailVo detail = this.platformManagerService.queryPlatformCCODAppDeployStatus(platformId, domainId, alias);
+            PlatformAppDeployDetailVo detail = this.platformManagerService.queryPlatformCCODAppDeployStatus(platformId, domainId, appName, alias);
             resultPo = new AjaxResultPo(true, "query SUCCESS", 1, detail);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }

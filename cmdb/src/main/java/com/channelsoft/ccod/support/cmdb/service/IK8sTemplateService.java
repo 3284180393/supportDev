@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
+import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
@@ -59,7 +60,15 @@ public interface IK8sTemplateService {
      */
     V1Deployment generateThreeAppDeployment(String ccodVersion, String appName, String alias, String version, String platformId, String hostUrl) throws ParamException;
 
-    V1Namespace generateNamespace(String ccodVersion, String platformId) throws ParamException;
+    /**
+     * 为指定的平台生成namespace
+     * @param ccodVersion 平台的ccodVersion
+     * @param platformId 平台id
+     * @param platformName 平台名
+     * @return 生成的命名空间
+     * @throws ParamException
+     */
+    V1Namespace generateNamespace(String ccodVersion, String platformId, String platformName) throws ParamException;
 
     V1Secret generateSecret(String ccodVersion, String platformId, String name) throws ParamException;
 
@@ -239,17 +248,19 @@ public interface IK8sTemplateService {
      * @param platform 指定的基于k8s的平台
      * @return 所有ccod模块在k8s上运行状态
      * @throws ApiException
+     * @throws ParamException
      */
-    List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform) throws ApiException;
+    List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform) throws ApiException, ParamException, InterfaceCallException, NexusException, IOException;
 
     /**
      * 查询指定ccod模块在k8s上的运行状态
      * @param platform 平台信息
      * @param domainId 域id
+     * @param appName 应用名
      * @param alias 应用别名
      * @return 指定ccod模块在k8s上的运行状态
      * @throws ApiException
      */
-    PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String alias) throws ApiException;
+    PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
 
 }

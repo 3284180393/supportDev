@@ -241,6 +241,12 @@ public abstract class AppBase {
         return group;
     }
 
+    public String getAppTag()
+    {
+        return String.format("%s[%s(%s)]", alias, appName, version);
+    }
+
+
     public void changeTo(AppBase appBase) {
         this.version = StringUtils.isNotBlank(appBase.version) ? appBase.version : this.version;
         this.basePath = StringUtils.isNotBlank(appBase.basePath) ? appBase.basePath : this.basePath;

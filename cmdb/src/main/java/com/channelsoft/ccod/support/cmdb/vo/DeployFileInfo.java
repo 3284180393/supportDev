@@ -34,11 +34,12 @@ public class DeployFileInfo {
 
     private String transferFailReason; //源文件传输失败原因
 
-//    public DeployFileInfo(String fileName, String savePath)
-//    {
-//        this.fileName = fileName;
-//        this.localSavePath = savePath;
-//    }
+    public DeployFileInfo(String savePath)
+    {
+        this.localSavePath = savePath;
+        String[] arr = savePath.split("/");
+        this.fileName = arr.length == 1 ? savePath : arr[arr.length -1];
+    }
 
     public DeployFileInfo(AppFilePo filePo, String savePath)
     {

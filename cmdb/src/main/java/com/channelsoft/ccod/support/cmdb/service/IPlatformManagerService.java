@@ -134,18 +134,19 @@ public interface IPlatformManagerService {
      * @return 已经部署模块的状态明细
      * @throws ApiException
      */
-    List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId) throws ApiException;
+    List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
 
 
     /**
      * 查询平台指定模块的k8s部署状态
      * @param platformId 平台id
      * @param domainId 域id
+     * @param appName 应用名
      * @param alias 别名
      * @return 指定模块在k8s上的状态
      * @throws ApiException
      */
-    PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String alias) throws ApiException;
+    PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String appName, String alias) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
 
     /**
      * 更新平台升级计划
@@ -255,24 +256,24 @@ public interface IPlatformManagerService {
     void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, InterfaceCallException, LJPaasException, ApiException;
 
     /**
+     * 从k8s恢复出平台拓扑
+     * @param platformId 平台id
+     * @param platformName 平台名
+     * @param ccodVersion ccod大版本号
+     * @param k8sApiUrl k8s的api url
+     * @param k8sAuthToken k8s的认证token
+     * @return
+     * @throws ApiException
+     * @throws ParamException
+     */
+    PlatformTopologyInfo restorePlatformTopologyFromK8s(String platformId, String platformName, String ccodVersion, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException;
+
+    /**
      * 从k8s删除指定平台的namespace
      * @param platformId 指定平台id
      * @throws ApiException
      */
     void deleteNamespaceFromK8s(String platformId) throws ApiException;
-
-    /**
-     * 修改平台应用配置文件
-     * @param platformId 平台id
-     * @param domainId 域id
-     * @param alias 应用别名
-     * @param newCfgs 新的配置文件
-     * @throws ParamException
-     * @throws InterfaceCallException
-     * @throws NexusException
-     * @throws ApiException
-     */
-    void modifyK8sPlatformAppCfg(String platformId, String domainId, String alias, List<AppFileNexusInfo> newCfgs) throws ParamException, InterfaceCallException, NexusException, ApiException, IOException;
 
     /**
      * 查询指定平台的命名空间

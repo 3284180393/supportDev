@@ -9,6 +9,7 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
+import com.channelsoft.ccod.support.cmdb.utils.CharsetDetector;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.GsonBuilder;
@@ -40,6 +41,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 
@@ -447,17 +449,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
-    public V1ConfigMap createConfigMapFromNexus(String namespace, String configMapName, String k8sApiUrl, String authToken, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws ApiException, InterfaceCallException, IOException {
-        V1ConfigMap body = getConfigMapFromNexus(namespace, configMapName, cfgs, nexusHostUrl, nexusUser, nexusPwd);
-        getConnection(k8sApiUrl, authToken);
-        CoreV1Api apiInstance = new CoreV1Api();
-        V1ConfigMap configMap = apiInstance.createNamespacedConfigMap(namespace, body, null, null,null);
-        logger.info(String.format("configMap %s create SUCCESS : %s", configMapName, gson.toJson(configMap)));
-        return configMap;
-    }
-
-    @Override
-    public V1ConfigMap getConfigMapFromNexus(String namespace, String configMapName, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws InterfaceCallException, IOException {
+    public V1ConfigMap getConfigMapFromNexus(String namespace, String configMapName, String appName, List<NexusAssetInfo> cfgs, String nexusHostUrl, String nexusUser, String nexusPwd) throws InterfaceCallException, IOException {
         logger.debug(String.format("get configMap %s at %s from nexus %s", configMapName, namespace, gson.toJson(cfgs)));
         Map<String, String> dataMap = new HashMap<>();
         Date now = new Date();
@@ -472,8 +464,17 @@ public class K8sApiServiceImpl implements IK8sApiService {
         for(NexusAssetInfo cfg : cfgs)
         {
             String fileSavePath = this.nexusService.downloadFile(nexusUser, nexusPwd, cfg.getDownloadUrl(), tmpSaveDir, cfg.getNexusAssetFileName());
+            String encoding = CharsetDetector.detectCharset(fileSavePath);
+            if(encoding == null){
+                logger.warn(String.format("can not detect encoding of %s for %s, set default GBK", cfg.getNexusAssetFileName(), appName));
+                encoding = "GBK";
+            }
+            logger.debug(String.format("%s for %s encoding is %s", cfg.getNexusAssetFileName(), appName, encoding));
+            Assert.isTrue(encoding.equals("UTF-8") || encoding.equals("GBK") || encoding.equals("GB2312") || encoding.equals("GB18030"),
+                    String.format("not support encoding %s of %s for %s", encoding, cfg.getNexusAssetFileName(), appName));
+            String charsetName = encoding.equals("UTF-8") ? "UTF-8" : "GBK";
             BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileSavePath)),
-                    "UTF-8"));
+                    charsetName));
             String lineTxt = null;
             String context = "";
             while ((lineTxt = br.readLine()) != null)
@@ -488,7 +489,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
         V1ConfigMap body = new V1ConfigMap();
         body.setMetadata(meta);
         body.setData(dataMap);
-        logger.info(String.format("get configMap %s at %s from nexus SUCCESS", configMapName, namespace));
+        logger.info(String.format("generate configMap %s for %s at %s from nexus SUCCESS", configMapName, appName, namespace));
         return body;
     }
 

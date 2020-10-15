@@ -3,17 +3,17 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
+import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
-import com.channelsoft.ccod.support.cmdb.po.AppBase;
-import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformBase;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import com.channelsoft.ccod.support.cmdb.service.IK8sTemplateService;
+import com.channelsoft.ccod.support.cmdb.service.INexusService;
+import com.channelsoft.ccod.support.cmdb.utils.FileUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -32,9 +32,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import javax.xml.bind.DatatypeConverter;
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.Map.*;
 
@@ -56,6 +60,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Autowired
     IAppManagerService appManagerService;
 
+    @Autowired
+    INexusService nexusService;
+
+    @Value("${nexus.platform-app-cfg-repository}")
+    private String platformAppCfgRepository;
+
     @Value("${k8s.labels.app-name}")
     private String appNameLabel;
 
@@ -64,6 +74,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Value("${k8s.labels.ccod-version}")
     private String ccodVersionLabel;
+
+    @Value("${k8s.labels.platform-id}")
+    private String platformIdLabel;
+
+    @Value("${k8s.labels.platform-name}")
+    private String platformNameLabel;
 
     @Value("${k8s.labels.domain-id}")
     private String domainIdLabel;
@@ -85,6 +101,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Value("${ccod.health-check-at-regex}")
     private String healthCheckRegex;
+
+    @Value("${ccod.start-cmd-regex}")
+    private String startCmdRegex;
 
     @Value("${k8s.template-file-path}")
     private String templateSavePath;
@@ -272,6 +291,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Override
     public V1Service generateCCODDomainAppService(String ccodVersion, AppType appType, String appName, String alias, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException {
+        logger.debug(String.format("generate service for %s(%s) : portType=%s and port=%s", alias, appName, portType.name, portStr));
         if(!portType.equals(ServicePortType.ClusterIP) && !portType.equals(ServicePortType.NodePort))
             throw new ParamException(String.format("can not handle service port type : %s", portType.name));
         V1Service service = (V1Service)selectK8sObjectTemplate(ccodVersion, appType, appName, null, K8sKind.SERVICE);
@@ -302,6 +322,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 svcPort.setTargetPort(new IntOrString(portVo.getTargetPort()));
             service.getSpec().getPorts().add(svcPort);
         }
+        logger.info(String.format("service for %s(%s, portType=%s and port=%s) : %s", alias, appName, portType.name, portStr));
         return service;
     }
 
@@ -322,6 +343,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Override
     public V1Deployment generateCCODDomainAppDeployment(AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException {
+        logger.debug(String.format("generate deployment for %s : domainId=%s", gson.toJson(appBase), domainId));
         String appName = appBase.getAppName();
         String alias = appBase.getAlias();
         String version = appBase.getVersion();
@@ -381,7 +403,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             logger.debug(String.format("modify deployment hostnames of hostAliases to %s", platform.getHostUrl()));
             deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).getHostnames().set(0, platform.getHostUrl());
         }
-        logger.info(String.format("selected deployment is %s for selector %s", gson.toJson(deploy), gson.toJson(selector)));
+        logger.info(String.format("generated deployment for %s : %s", gson.toJson(appBase), gson.toJson(deploy)));
         return deploy;
     }
 
@@ -785,7 +807,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Namespace generateNamespace(String ccodVersion, String platformId) throws ParamException {
+    public V1Namespace generateNamespace(String ccodVersion, String platformId, String platformName) throws ParamException {
         Map<String, String> selector = getK8sTemplateSelector(ccodVersion, null, null, null, K8sKind.NAMESPACE);
         V1Namespace ns = null;
         for(K8sObjectTemplatePo template : this.objectTemplateList)
@@ -800,6 +822,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             throw new ParamException(String.format("can not match namespace template for select %s", gson.toJson(selector)));
         ns.getMetadata().setNamespace(platformId);
         ns.getMetadata().setName(platformId);
+        Map<String, String> labels = new HashMap<>();
+        labels.put(this.platformIdLabel, platformId);
+        labels.put(this.platformNameLabel, DatatypeConverter.printHexBinary(platformName.getBytes()));
+        labels.put(this.ccodVersionLabel, ccodVersion);
+        ns.getMetadata().setLabels(labels);
         logger.info(String.format("selected namespace for selector %s is %s", gson.toJson(selector), gson.toJson(ns)));
         return ns;
     }
@@ -935,12 +962,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String appName = appBase.getAppName();
         String version = appBase.getVersion();
         String alias = appBase.getAlias();
+        String tag = String.format("%s[%s(%s)]", alias, appName, version);
+        logger.debug(String.format("generate k8s object for %s, domainId=%s", gson.toJson(appBase), domainId));
         AppModuleVo module = this.appManagerService.queryAppByVersion(appName, version, true);
         String ccodVersion = module.getCcodVersion();
         AppType appType = module.getAppType();
         String platformId = platform.getPlatformId();
+        logger.debug(String.format("generate configMap for %s : cfg=%s", tag, gson.toJson(module.getCfgs())));
         V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, String.format("%s-%s", alias, domainId),
-                appBase.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
+                appName, appBase.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
         V1Deployment deploy = this.generateCCODDomainAppDeployment(appBase, domainId, domainCfg, platform);
         List<V1Service> services = new ArrayList<>();
@@ -1199,6 +1229,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps,
             List<K8sThreePartServiceVo> threePartServices, String nfsServerIp, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException {
         String platformId = platform.getPlatformId();
+        String platformName = platform.getPlatformName();
         String ccodVersion = platform.getCcodVersion();
         String hostUrl = platform.getHostUrl();
         String k8sApiUrl = platform.getK8sApiUrl();
@@ -1207,7 +1238,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             throw new ParamException(String.format("namespace %s has exist at %s", platformId, k8sApiUrl));
         List<K8sOperationInfo> steps = new ArrayList<>();
         if(namespace == null)
-            namespace = generateNamespace(ccodVersion, platformId);
+            namespace = generateNamespace(ccodVersion, platformId, platformName);
         if(!namespace.getMetadata().getName().equals(platformId))
             throw new ParamException(String.format("name of namespace should be %s not %s", platformId, namespace.getMetadata().getName()));
         K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, platformId, K8sOperation.CREATE, namespace);
@@ -1247,7 +1278,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             step = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, job.getMetadata().getName(), K8sOperation.CREATE, job);
             steps.add(step);
         }
-        V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, platformId,
+        V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, platformId, platformId,
                 platform.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
         K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP,
@@ -1514,22 +1545,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 .collect(Collectors.joining(","));
     }
 
-    private PlatformAppDeployDetailVo getAppDetailFromK8sObj(V1Deployment deploy, List<V1Service> services)
+    private PlatformAppDeployDetailVo getAppDetailFromK8sObj(AppModuleVo module, String alias, V1Deployment deploy, List<V1Service> services, V1ConfigMap configMap) throws IOException, InterfaceCallException, NexusException
     {
         PlatformAppDeployDetailVo detail = new PlatformAppDeployDetailVo();
         Map<String, String> labels = deploy.getSpec().getTemplate().getMetadata().getLabels();
-        String domainId = labels.get(this.domainIdLabel);
-        String alias = deploy.getSpec().getTemplate().getSpec().getInitContainers().get(0).getName();
-        String appName = null;
-        for(String key : labels.keySet()){
-            if(labels.get(key).equals(alias)){
-                appName = key;
-                break;
-            }
-        }
-        detail.setAppName(appName);
-        detail.setAlias(alias);
-        detail.setDomainId(domainId);
         for(V1Service service : services){
             String portStr = getPortString(service.getSpec().getPorts(), service.getSpec().getType());
             if(service.getSpec().getType().equals("ClusterIP"))
@@ -1541,46 +1560,260 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         detail.setAvailableReplicas(deploy.getStatus().getAvailableReplicas());
         K8sStatus status = this.ik8sApiService.getStatusFromDeployment(deploy);
         detail.setStatus(status.name);
+        detail.setInitCmd(module.getInitCmd());
+        V1Container init = deploy.getSpec().getTemplate().getSpec().getInitContainers().stream()
+                .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(alias);
+        V1Container run = deploy.getSpec().getTemplate().getSpec().getContainers().stream()
+                .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(String.format("%s-runtime", alias));
+        detail.setAssembleTag(deploy.getMetadata().getName());
+        detail.setPlatformId(deploy.getMetadata().getNamespace());
+        detail.setAlias(alias);
+        String domainId = labels.get(this.domainIdLabel);
+        detail.setDomainId(domainId);
+        List<String> cmd = run.getCommand();
+        String command = cmd.get(2).replaceAll(";$", "").replaceAll("\\s+;", "");
+        String cmdTag = "resin.sh";
+        if(module.getAppType().equals(AppType.TOMCAT_WEB_APP))
+            cmdTag = "startup.sh";
+        else if(module.getAppType().equals(AppType.BINARY_FILE))
+            cmdTag = module.getInstallPackage().getFileName();
+        Pattern pattern = Pattern.compile(String.format(startCmdRegex, cmdTag));
+        Matcher matcher = pattern.matcher(command);
+        if(!matcher.find()){
+            detail.setStartCmd(command);
+            detail.setInitCmd(null);
+            detail.setLogOutputCmd(null);
+        }
+        else{
+            String startCmd = matcher.group().replace(";", "");
+            int index = command.indexOf(startCmd);
+            String initCmd = index == 0 ? null : command.substring(0, index - 1).replaceAll(";$", "");
+            String logOutputCmd = index == command.length() - 1 ? null : command.substring(index + startCmd.length());
+            detail.setStartCmd(startCmd);
+            detail.setInitCmd(initCmd);
+            detail.setLogOutputCmd(logOutputCmd);
+            String tag = cmdTag;
+            List<String> cds = Arrays.stream(command.split(";")).filter(s->s.matches("^cd .*")).collect(Collectors.toList());
+            if(cds.size() > 0){
+                detail.setBasePath(cds.get(cds.size()-1).replaceAll("^cd ", "").replace(";", ""));
+                Arrays.stream(startCmd.split("\\s+")).filter(s->s.indexOf(tag)>=0)
+                        .forEach(s->detail.setDeployPath(s.replaceAll(String.format("", tag), "")));
+            }
+        }
+        if(run.getLivenessProbe() != null){
+            detail.setInitialDelaySeconds(run.getLivenessProbe().getInitialDelaySeconds());
+            detail.setPeriodSeconds(run.getLivenessProbe().getPeriodSeconds());
+            if(run.getLivenessProbe().getHttpGet() != null){
+                detail.setCheckAt(String.format("%d/%s", run.getLivenessProbe().getHttpGet().getPort().getIntValue(), run.getLivenessProbe().getHttpGet().getScheme()));
+            }
+            else if(run.getLivenessProbe().getTcpSocket() != null){
+                detail.setCheckAt(String.format("%d/TCP", run.getLivenessProbe().getTcpSocket().getPort().getIntValue()));
+            }
+            else if(run.getLivenessProbe().getExec() != null){
+                detail.setCheckAt(String.format("%s/CMD", run.getLivenessProbe().getExec().getCommand()));
+            }
+        }
+        cmd = init.getCommand();
+        command = cmd.get(2);
+        detail.setEnvLoadCmd(command);
+        String volume = module.getAppType().equals(AppType.BINARY_FILE) ? "binary-file" : "war";
+        String mountPath = run.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, v->v.getMountPath())).get(volume);
+        List<AppFileNexusInfo> cfgs = restoreConfigFileFromConfigMap(configMap, command, detail.getBasePath(), volume, mountPath);
+        detail.setCfgs(cfgs);
+        detail.fill(module);
         return detail;
     }
 
+    private List<AppFileNexusInfo> restoreConfigFileFromConfigMap(V1ConfigMap configMap, String cfgCreateCmd, String basePath, String volume, String mountPath) throws IOException, InterfaceCallException, NexusException
+    {
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String saveDir = String.format("%s/cfgs/%s/%s", System.getProperty("user.dir"), configMap.getMetadata().getName(), sf.format(now));
+        String repository = String.format("restoredFromK8s/%s/%s", configMap.getMetadata().getName(), sf.format(now));
+        List<DeployFileInfo> fileList = new ArrayList<>();
+        String[] cmds = cfgCreateCmd.replaceAll(String.format("(^|;)/%s", volume), mountPath)
+                .replaceAll("//", "").replaceAll("^\\s+", "").replaceAll("\\s$", "")
+                .replaceAll("\\s*;\\s*", ";").split(";");
+        Map<String, String> cpMap = new HashMap<>();
+        Arrays.stream(cmds).filter(s->s.matches("^cp\\s+.+")).forEach(s->{
+            String[] arr = s.split("\\s+");
+            String fileName = arr[1].replaceAll(".*/", "");
+            String deployPath = arr[2].replaceAll(String.format("%s$", fileName), "").replaceAll("/$", "");
+            if(deployPath.matches(String.format("^%s(/.*|$)", basePath))) {
+                deployPath = "./" + deployPath.replaceAll(String.format("^%s", ""), "").replaceAll("^/", "");
+            }
+            else if(StringUtils.isBlank(deployPath)){
+                deployPath = "./";
+            }
+            cpMap.put(fileName, deployPath);
+        });
+        for(String fileName : configMap.getData().keySet()){
+            if(cpMap.containsKey(fileName)){
+                String filePath = FileUtils.saveContextToFile(saveDir, fileName, configMap.getData().get(fileName), true);
+                DeployFileInfo fileInfo = new DeployFileInfo(filePath);
+                fileList.add(fileInfo);
+            }
+            else {
+                logger.error(String.format("%s for %s not used", fileName, configMap.getMetadata().getName()));
+            }
+
+        }
+        List<NexusAssetInfo> assets = nexusService.uploadRawComponent(nexusHostUrl, nexusUserName, nexusPassword, platformAppCfgRepository, repository, fileList.toArray(new DeployFileInfo[0]));
+        return assets.stream().map(a->new AppFileNexusInfo(a, cpMap.get(a.getNexusAssetFileName()))).collect(Collectors.toList());
+    }
+
     @Override
-    public List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform) throws ApiException
+    public List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform) throws ApiException, ParamException, InterfaceCallException, NexusException, IOException
     {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
-        List<V1Deployment> deployments = this.ik8sApiService.listNamespacedDeployment(platformId, k8sApiUrl, k8sAuthToken)
-                .stream().filter(d->d.getMetadata().getLabels().containsKey(this.appTypeLabel)
-                        && (d.getMetadata().getLabels().get(this.appTypeLabel).equals(AppType.BINARY_FILE.name)
-                        || d.getMetadata().getLabels().get(this.appTypeLabel).equals(AppType.RESIN_WEB_APP.name)
-                        || d.getMetadata().getLabels().get(this.appTypeLabel).equals(AppType.TOMCAT_WEB_APP.name)
-                )).collect(Collectors.toList());
+        List<V1Deployment> deployments = this.ik8sApiService.listNamespacedDeployment(platformId, k8sApiUrl, k8sAuthToken);
         List<V1Service> services = this.ik8sApiService.listNamespacedService(platformId, k8sApiUrl, k8sAuthToken);
+        Map<String, V1ConfigMap> configMapMap = this.ik8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken)
+                .stream().collect(Collectors.toMap(s->s.getMetadata().getName(), v->v));
         List<PlatformAppDeployDetailVo> details = new ArrayList<>();
         for(V1Deployment deployment : deployments){
-            List<V1Service> relativeSvcs = services.stream().filter(s->isMatch(s.getSpec().getSelector(), deployment.getSpec().getTemplate().getMetadata().getLabels()))
-                    .collect(Collectors.toList());
-            PlatformAppDeployDetailVo detail = this.getAppDetailFromK8sObj(deployment, relativeSvcs);
-            details.add(detail);
+            boolean isDomainApp = isCCODDomainAppDeployment(deployment);
+            logger.debug(String.format("deployment %s is ccod domain app deployment : %b", deployment.getMetadata().getName(), isDomainApp));
+            if(!isDomainApp){
+                continue;
+            }
+            String domainId = deployment.getMetadata().getLabels().get(this.domainIdLabel);
+            for(V1Container init : deployment.getSpec().getTemplate().getSpec().getInitContainers()){
+                V1ConfigMap configMap = configMapMap.get(String.format("%s-%s", init.getName(), domainId));
+                if(configMap == null){
+                    logger.error(String.format("can not find configMap %s-%s", init.getName(), domainId));
+                    continue;
+                }
+                AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(init.getImage());
+                List<V1Service> relativeSvcs = services.stream().filter(s->isMatch(s.getSpec().getSelector(), deployment.getSpec().getTemplate().getMetadata().getLabels()))
+                        .collect(Collectors.toList());
+                PlatformAppDeployDetailVo detail = this.getAppDetailFromK8sObj(module, init.getName(), deployment, relativeSvcs, configMap);
+                details.add(detail);
+            }
+
         }
         return details;
     }
 
-    @Override
-    public PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String alias) throws ApiException {
-        V1Deployment deployment = this.ik8sApiService.readNamespacedDeployment(String.format("%s-%s", alias, domainId), platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken());
-        String appName = null;
-        for(Entry<String, String> entry : deployment.getSpec().getTemplate().getMetadata().getLabels().entrySet()) {
-            if(entry.getValue().equals(alias)){
-                appName = entry.getKey();
-                break;
+
+    /**
+     * 用来判断deployment上运行的是否是ccod域模块
+     * @param deployment
+     * @return
+     */
+    private boolean isCCODDomainAppDeployment(V1Deployment deployment)
+    {
+        Map<String, String> labels = deployment.getMetadata().getLabels();
+        if(labels == null || labels.size() == 0)
+            return false;
+        if(!labels.containsKey(this.domainIdLabel))
+            return  false;
+        else if(!labels.containsKey(this.appTypeLabel)
+                || (!labels.get(this.appTypeLabel).equals(AppType.BINARY_FILE.name) && !labels.get(this.appTypeLabel).equals(AppType.RESIN_WEB_APP.name) && !labels.get(this.appTypeLabel).equals(AppType.TOMCAT_WEB_APP.name)))
+            return false;
+        String deployName = deployment.getMetadata().getName();
+        String domainId = labels.get(this.domainIdLabel);
+        List<V1Container> initList = deployment.getSpec().getTemplate().getSpec().getInitContainers() == null ? new ArrayList<>() : deployment.getSpec().getTemplate().getSpec().getInitContainers();
+        List<V1Container> runtimeList = deployment.getSpec().getTemplate().getSpec().getInitContainers() == null ? new ArrayList<>() : deployment.getSpec().getTemplate().getSpec().getContainers();
+        if(initList.size() != runtimeList.size()){
+            logger.error(String.format("%s init container count not equal runtime count", deployName));
+            return false;
+        }
+        if(deployment.getSpec().getTemplate().getSpec().getVolumes() == null || deployment.getSpec().getTemplate().getSpec().getVolumes().size() == 0){
+            logger.error(String.format("deployment %s has not any volume", deployName));
+            return false;
+        }
+        Map<String, V1Volume> volumeMap = deployment.getSpec().getTemplate().getSpec().getVolumes().stream()
+                .collect(Collectors.toMap(k->k.getName(), v->v));
+        try{
+            Map<String, V1Container> runtimeMap = runtimeList.stream().collect(Collectors.toMap(c->c.getName(), v->v));
+            for(V1Container init : initList){
+                AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(init.getImage());
+                V1Container runtime = runtimeMap.get(String.format("%s-runtime", init.getName()));
+                if(runtime == null){
+                    logger.error(String.format("can not find container %s-runtime at deployment %s", runtime.getName(), deployment.getMetadata().getName()));
+                    return false;
+                }
+                if(init.getCommand() == null || init.getCommand().size() != 3 || !init.getCommand().get(0).equals("/bin/sh") || !init.getCommand().get(1).equals("-c")){
+                    logger.error(String.format("deployment %s %s container command is not wanted", deployName, init.getName()));
+                    return false;
+                }
+                if(runtime.getCommand() == null || runtime.getCommand().size() != 3 || !runtime.getCommand().get(0).equals("/bin/sh") || !runtime.getCommand().get(1).equals("-c")){
+                    logger.error(String.format("deployment %s %s container command is not wanted", deployName, runtime.getName()));
+                    return false;
+                }
+                if(init.getVolumeMounts() == null || init.getVolumeMounts().size() == 0){
+                    logger.error(String.format("deployment %s %s container has not any volumeMount", deployName, init.getName()));
+                    return false;
+                }
+                Map<String, V1VolumeMount> initMountMap = init.getVolumeMounts().stream().collect(Collectors.toMap(k->k.getName(), v->v));
+                if(runtime.getVolumeMounts() == null || runtime.getVolumeMounts().size() == 0){
+                    logger.error(String.format("deployment %s %s container has not any volumeMount", deployName, runtime.getName()));
+                    return false;
+                }
+                Map<String, V1VolumeMount> runtimeMountMap = runtime.getVolumeMounts().stream().collect(Collectors.toMap(k->k.getName(), v->v));
+                String volume = module.getAppType().equals(AppType.BINARY_FILE) ? "binary-file" : "war";
+                if(!volumeMap.containsKey(volume)){
+                    logger.error(String.format("deployment %s not find %s volume", deployName, volume));
+                    return false;
+                }
+                else if(!initMountMap.containsKey(volume)){
+                    logger.error(String.format("%s deployment %s container not has %s volume", deployName, init.getName(), volume));
+                    return false;
+                }
+                else if(!runtimeMountMap.containsKey(volume)){
+                    logger.error(String.format("%s deployment %s container not has %s volume", deployName, runtime.getName(), volume));
+                    return false;
+                }
+                volume = String.format("%s-%s-volume", init.getName(), domainId);
+                if(!volumeMap.containsKey(volume)){
+                    logger.error(String.format("deployment %s not find %s configMap volume", deployName, volume));
+                    return false;
+                }
+                else if(volumeMap.get(volume).getConfigMap() == null){
+                    logger.error(String.format("deployment %s %s volume is not configMap", deployName, volume));
+                    return false;
+                }
+                else if(!initMountMap.containsKey(volume)){
+                    logger.error(String.format("%s deployment %s container not has %s configMap volume", deployName, init.getName(), volume));
+                    return false;
+                }
             }
         }
+        catch (Exception ex) {
+            logger.error(String.format("parse deployment exception", ex));
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
         Map<String, String> selector = new HashMap<>();
         selector.put(this.domainIdLabel, domainId);
         selector.put(appName, alias);
+        List<V1Deployment> deployments = this.ik8sApiService.selectNamespacedDeployment(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+        if(deployments.size() == 0 || deployments.size() > 1){
+            throw new ParamException(String.format("%s has find %d deployment for %s", platform.getPlatformId(), deployments.size(), gson.toJson(selector)));
+        }
+        V1Deployment deployment = deployments.get(0);
+        if(!isCCODDomainAppDeployment(deployment)){
+            throw new ParamException(String.format("deployment %s for %s is illegal ccod domain app deployment",
+                    deployment.getMetadata().getName(), gson.toJson(selector)));
+        }
+        V1Container initContainer = deployment.getSpec().getTemplate().getSpec().getInitContainers().stream()
+                .collect(Collectors.toMap(k->k.getName(), v->v)).get(alias);
+        if(initContainer == null){
+            throw new ParamException(String.format("can not find container for %s", gson.toJson(selector)));
+        }
+        AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(initContainer.getImage());
+        V1ConfigMap configMap = ik8sApiService.readNamespacedConfigMap(String.format("%s-%s", alias, domainId), platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken());
         List<V1Service> services = this.ik8sApiService.selectNamespacedService(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-        return getAppDetailFromK8sObj(deployment, services);
+        if(services.size() == 0){
+            throw new ParamException(String.format("can not find service for %s", gson.toJson(selector)));
+        }
+        return getAppDetailFromK8sObj(module, alias,deployment, services, configMap);
     }
 }
