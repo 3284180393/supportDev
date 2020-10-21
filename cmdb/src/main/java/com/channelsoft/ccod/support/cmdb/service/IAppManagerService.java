@@ -3,6 +3,7 @@ package com.channelsoft.ccod.support.cmdb.service;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
+import com.channelsoft.ccod.support.cmdb.constant.VersionControl;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
@@ -86,7 +87,33 @@ public interface IAppManagerService {
      * @throws NexusException nexus的api返回调用失败或是解析nexus的返回结果失败
      * @throws IOException
      */
-    void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException;
+    void registerNewAppModule(AppModuleVo appModule) throws ParamException, InterfaceCallException, NexusException, IOException;
+
+    /**
+     * CI注册ccod模块
+     * @param appModule 模块信息
+     * @throws NotSupportAppException
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws NexusException
+     * @throws IOException
+     */
+    void registerCIAppModule(AppModuleVo appModule) throws ParamException, InterfaceCallException, NexusException, IOException;
+
+    /**
+     * CI注册ccod模块
+     * @param appName 模块名
+     * @param version 版本
+     * @param ccodVersion 适用ccod大版本
+     * @param gitUrl 模块的git url地址
+     * @param repository 构建后的应用模块存放在nexus的仓库
+     * @param path 构建后的应用模块存放在nexus的path
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws NexusException
+     * @throws IOException
+     */
+    void registerCIAppModule(String appName, AppType appType, String version, String ccodVersion, String gitUrl, String repository, String path) throws ParamException, InterfaceCallException, NexusException, IOException;
 
     /**
      * 检查应用的基础属性

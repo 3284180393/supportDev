@@ -300,9 +300,75 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn(String.format("begin to exec %s", command));
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
+//            updateK8sTemplate();
+//            String str = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"mysql\":\"mysql\",\"version\":\"5.7\"},\"name\":\"mysql\",\"namespace\":\"someTest\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"mysql\":\"mysql\"}},\"template\":{\"metadata\":{\"labels\":{\"mysql\":\"mysql\"}},\"spec\":{\"containers\":[{\"args\":[\"--default_authentication_plugin\\u003dmysql_native_password\",\"--character-set-server\\u003dutf8mb4\",\"--collation-server\\u003dutf8mb4_unicode_ci\",\"--lower-case-table-names\\u003d1\"],\"env\":[{\"name\":\"MYSQL_ROOT_PASSWORD\",\"value\":\"ccod\"},{\"name\":\"MYSQL_USER\",\"value\":\"ccod\"},{\"name\":\"MYSQL_PASSWORD\",\"value\":\"ccod\"},{\"name\":\"MYSQL_DATABASE\",\"value\":\"ccod\"}],\"image\":\"nexus.io:5000/db/mysql:5.7.29\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"mysql\",\"ports\":[{\"containerPort\":3306,\"protocol\":\"TCP\"}],\"resources\":{},\"volumeMounts\":[{\"mountPath\":\"/docker-entrypoint-initdb.d/\",\"name\":\"sql\",\"subPath\":\"base-volume/db/mysql/sql\"},{\"mountPath\":\"/var/lib/mysql\",\"name\":\"data\",\"subPath\":\"base-volume/db/mysql/data\"}]}],\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"sql\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-test-by-wyf\"},{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-test-by-wyf\"}}]}}}}";
+            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("jhkgs");
+            logger.error(gson.toJson(schema));
+
         } catch (Exception ex) {
             logger.error("write msg error", ex);
         }
+    }
+
+    private void updateK8sTemplate() throws Exception{
+        PlatformPo platform = getK8sPlatform("jhkgs");
+        platform.setPlatformId("someTest");
+        List<K8sObjectTemplatePo> templateList = k8sTemplateService.getK8sTemplates();
+        List<K8sOperationInfo> steps = k8sTemplateService.generatePlatformCreateSteps("1234455", null, null, null, null, null, null, null, null, platform);
+        {
+            V1Deployment deployment = (V1Deployment) steps.stream().filter(o->o.getKind().equals(K8sKind.DEPLOYMENT) && o.getName().equals("oracle"))
+                    .collect(Collectors.toList()).get(0).getObj();
+            V1PersistentVolumeClaimVolumeSource src = deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(a->a.getName(), v->v)).get("sql").getPersistentVolumeClaim();
+            V1Volume volume = new V1Volume();
+            volume.setPersistentVolumeClaim(src);
+            volume.setName("data");
+            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
+            volume = new V1Volume();
+            volume.setPersistentVolumeClaim(src);
+            volume.setName("sysData");
+            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
+            V1VolumeMount mount = new V1VolumeMount();
+            mount.setName("data");
+            mount.setMountPath("/home/oracle/oracle10g/oradata");
+            mount.setSubPath("base-volume/db/oracle/data");
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().add(mount);
+            mount = new V1VolumeMount();
+            mount.setName("sysData");
+            mount.setMountPath("/usr/lib/oracle/xe/oradata/XE");
+            mount.setSubPath("base-volume/db/oracle/data");
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().add(mount);
+//                System.out.println(gson.toJson(deployment));
+            templateList.stream().filter(t-> t.getLabels().containsKey("app-name") && t.getLabels().get("app-name").equals("oracle")).forEach(t->{
+                t.setDeployJson(gson.toJson(deployment));
+            });
+        }
+        {
+            V1Deployment deployment = (V1Deployment) steps.stream().filter(o->o.getKind().equals(K8sKind.DEPLOYMENT) && o.getName().equals("mysql"))
+                    .collect(Collectors.toList()).get(0).getObj();
+            V1PersistentVolumeClaimVolumeSource src = deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(a->a.getName(), v->v)).get("sql").getPersistentVolumeClaim();
+            V1Volume volume = new V1Volume();
+            volume.setPersistentVolumeClaim(src);
+            volume.setName("data");
+            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
+            deployment.getSpec().getTemplate().getSpec().getVolumes().remove(1);
+            V1VolumeMount mount = new V1VolumeMount();
+            mount.setName("data");
+            mount.setMountPath("/var/lib/mysql");
+            mount.setSubPath("base-volume/db/mysql/data");
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().add(mount);
+//                System.out.println(gson.toJson(deployment));
+            templateList.stream().filter(t-> t.getLabels().containsKey("app-name") && t.getLabels().get("app-name").equals("mysql")).forEach(t->{
+                t.setDeployJson(gson.toJson(deployment));
+            });
+
+        }
+        List<K8sObjectTemplatePo> newT = new ArrayList<>();
+        templateList.stream().filter(t->t.getLabels().containsKey("ccod-version") && t.getLabels().get("ccod-version").equals("3.9")).forEach(t->{
+            t.getLabels().put("ccod-version", "4.8");
+            newT.add(t);
+        });
+        templateList.addAll(newT);
+        logger.error(gson.toJson(templateList));
     }
 
     @Override
@@ -2174,6 +2240,29 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
+    public PlatformUpdateSchemaInfo restoreExistK8sPlatform(String platformId) throws ParamException, InterfaceCallException, IOException, ApiException {
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String jobId = DigestUtils.md5DigestAsHex(sf.format(new Date()).getBytes()).substring(0, 10);
+        PlatformPo platform = getK8sPlatform(platformId);
+        List<DomainPo> domainList = domainMapper.select(platformId, null);
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppsMap = platformAppDeployDetailMapper.selectPlatformApps(platformId, null, null)
+                .stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        PlatformUpdateSchemaInfo schemaInfo = new PlatformUpdateSchemaInfo(platform, PlatformUpdateTaskType.RESTORE, UpdateStatus.WAIT_EXEC, String.format("%s还原规划", platform.getPlatformName()), String.format("从cmdb还原出%s平台", platform.getPlatformName()));
+        schemaInfo.setSchemaId(jobId);
+        for(DomainPo domain : domainList){
+            List<PlatformAppDeployDetailVo> deployApps = domainAppsMap.get(domain.getDomainId());
+            if(deployApps == null){
+                logger.warn(String.format("domain %s(%s) is empty", domain.getDomainName(), domain.getDomainId()));
+                continue;
+            }
+            DomainUpdatePlanInfo planInfo = generateCloneExistDomain(domain);
+            planInfo.setAppUpdateOperationList(deployApps.stream().map(d->d.getOperationInfo(AppUpdateOperation.ADD)).collect(Collectors.toList()));
+            schemaInfo.getDomainUpdatePlanList().add(planInfo);
+        }
+        return schemaInfo;
+    }
+
+    @Override
     public boolean isPlatformDeployOngoing(String platformId) {
         if(this.isPlatformCheckOngoing && StringUtils.isNotBlank(this.ongoingPlatformId) && this.ongoingPlatformId.equals(platformId))
             return true;
@@ -2239,7 +2328,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      * @throws LJPaasException
      */
     private PlatformUpdateSchemaInfo cloneExistPlatform(
-            PlatformCreateParamVo paramVo, List<LJHostInfo> hostList) throws ParamException{
+            PlatformCreateParamVo paramVo, List<LJHostInfo> hostList){
         logger.debug(String.format("begin to clone platform : %s", gson.toJson(paramVo)));
         String clonedPlatformId = paramVo.getParams();
         PlatformPo clonedPlatform = getK8sPlatform(clonedPlatformId);

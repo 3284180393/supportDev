@@ -146,7 +146,7 @@ public class NexusServiceImpl implements INexusService {
             throw new InterfaceCallException(String.format("upload component to exception", url));
         }
         String group = String.format("/%s", directory);
-        List<NexusAssetInfo> assetList = this.queryGroupAssetMap(nexusHostUrl, userName, password, repository, group);
+        List<NexusAssetInfo> assetList = this.queryGroupAssets(nexusHostUrl, userName, password, repository, group);
         Map<String, NexusAssetInfo> fileAssetMap = assetList.stream().collect(Collectors.toMap(NexusAssetInfo::getPath, Function.identity()));
         for(DeployFileInfo fileInfo : componentFiles)
         {
@@ -222,7 +222,7 @@ public class NexusServiceImpl implements INexusService {
 //    }
 
     @Override
-    public List<NexusAssetInfo> queryGroupAssetMap(String nexusHostUrl, String userName, String password, String repository, String group) throws InterfaceCallException, NexusException
+    public List<NexusAssetInfo> queryGroupAssets(String nexusHostUrl, String userName, String password, String repository, String group) throws InterfaceCallException, NexusException
     {
         String url = getNexusQueryGroupItemsUrl(nexusHostUrl, repository, group);
         String conResult = HttpRequestTools.httpGetRequest(url, userName, password);
@@ -380,7 +380,7 @@ public class NexusServiceImpl implements INexusService {
     public void clearComponent(String nexusHostUrl, String userName, String password, String repository, String directory) throws InterfaceCallException, NexusException {
         logger.debug(String.format("clear component %s/%s/%s", nexusHostUrl, repository, directory));
         String group = String.format("/%s", directory);
-        List<NexusAssetInfo> assetInfos = this.queryGroupAssetMap(nexusHostUrl, userName, password, repository, group);
+        List<NexusAssetInfo> assetInfos = this.queryGroupAssets(nexusHostUrl, userName, password, repository, group);
         for(NexusAssetInfo assetInfo : assetInfos)
             deleteAsset(nexusHostUrl, userName, password, assetInfo.getId());
         logger.debug(String.format("component %s/%s/%s cleared", nexusHostUrl, repository, directory));

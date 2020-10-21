@@ -15,7 +15,7 @@ ccod:
   app-standard-alias-regex: ^[a-z]+[0-9a-z\\-]*[a-z0-9]$
   service-port-regex: ^\d+(\:\d+)?/(TCP|UDP)(,\d+(\:\d+)?/(TCP|UDP))*$
   health-check-at-regex: ^.+/CMD$|^\d+/TCP$|^\d+/(HTTP|HTTPS)(\:.+)?$
-  start-cmd-regex: (^|;)([^(\s|;)]+\s+)?[^;]*(/|\s+)cmsserver(;|$|\s+[^;]+($|;))
+  start-cmd-regex: (^|;)([^(\s|;)]+\s+)?[^;]*(/|\s+)%s(;|$|\s+[^;]+($|;))
   notCheckCfgApps:
     - cmsserver
   platform-deploy-template: platform_deploy.py
@@ -251,6 +251,8 @@ ccod:
       name: dcmsDialerWS
     apps[4]:
       name: dcmsDialerRQ
+    apps[5]:
+      name: dcmsDialerNew
   startChains:
     chains[0]:
       name: glsServer
@@ -380,7 +382,7 @@ ci:
     user-name: admin
     password: "$G1mRhN{j.qBkH:j"
   notify:
-    msg-send-url: http://10.130.76.80/DDmsg.ashx
+    msg-send-url: http://10.130.41.88/DDmsg.ashx
     default-msg-image-url: https://hao1.qhimg.com/t01ea3a44e231e5d6f4.png
     msg-type: action_card
     msg-send-type: userName
@@ -390,7 +392,7 @@ ci:
 
 windows: false
 
-debug: false
+debug: true
 
 debug-timeout: 150
 

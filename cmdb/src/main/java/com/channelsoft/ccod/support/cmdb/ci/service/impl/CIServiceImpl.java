@@ -1,13 +1,12 @@
 package com.channelsoft.ccod.support.cmdb.ci.service.impl;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.ci.po.BuildDetailPo;
 import com.channelsoft.ccod.support.cmdb.ci.service.ICIService;
 import com.channelsoft.ccod.support.cmdb.ci.service.IJenkinsService;
 import com.channelsoft.ccod.support.cmdb.ci.service.ISonarqubeService;
 import com.channelsoft.ccod.support.cmdb.dao.BuildDetailMapper;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
+import com.google.gson.*;
 import com.offbytwo.jenkins.model.Build;
 import com.offbytwo.jenkins.model.BuildWithDetails;
 import com.offbytwo.jenkins.model.JobWithDetails;
@@ -37,6 +36,8 @@ public class CIServiceImpl implements ICIService {
     private boolean debug;
 
     private final static Logger logger = LoggerFactory.getLogger(CIServiceImpl.class);
+
+    private final static Gson gson = new Gson();
 
     @Autowired
     IJenkinsService jenkinsService;
@@ -76,8 +77,9 @@ public class CIServiceImpl implements ICIService {
     {
         String sonarQubeCheckResult = sonarqubeService.getCheckResult(jenkinsResult.getJobName());
         jenkinsResult.setSonarOutput(sonarQubeCheckResult);
-        JSONObject jsonObj = JSONObject.parseObject(sonarQubeCheckResult);
-        String sonarResult = jsonObj.getJSONObject("projectStatus").getString("status");
+        JsonParser jp = new JsonParser();
+        JsonObject jsonObj = jp.parse(sonarQubeCheckResult).getAsJsonObject();
+        String sonarResult = jsonObj.get("projectStatus").getAsJsonObject().get("status").getAsString();
         jenkinsResult.setSonarResult(sonarResult);
         return jenkinsResult;
     }
@@ -105,7 +107,7 @@ public class CIServiceImpl implements ICIService {
                 }
                 BuildDetailPo po = jenkinsService.getBuildResultFromDetail(job, details);
                 po = getSonarCheckResult(po);
-                logger.warn(String.format("job %s #%d build result is : %s", jobName, number, JSONObject.toJSONString(po)));
+                logger.warn(String.format("job %s #%d build result is : %s", jobName, number, gson.toJson(po)));
                 sendBuildResult(po);
                 buildDetailMapper.insert(po);
             }
@@ -124,16 +126,18 @@ public class CIServiceImpl implements ICIService {
         StringBuffer sb = new StringBuffer();
         sb.append(String.format("版本:%s  \n  ", detail.getParameters().get("VERSION")));
         sb.append(String.format("### jenkins构建%s  \n  ", jenkSucc ? "成功" : "失败"));
-        sb.append(String.format("### sonarqube检查%s  \n  ", sonarSucc ? "成功" : "失败"));
+        sb.append(String.format("### sonarqube检查%s  \n  ", sonarSucc ? "成功" : "未通过"));
         if(!sonarSucc){
-            JSONObject jsonObject = JSONObject.parseObject(detail.getSonarOutput()).getJSONObject("projectStatus");
-            JSONArray jsonArray = JSONArray.parseArray(jsonObject.getString("conditions"));
-            for(int i = 0; i < jsonArray.size(); i++){
-                JSONObject obj = jsonArray.getJSONObject(i);
-                if(obj.containsKey("status") && !obj.get("status").equals("OK")){
-                    sb.append(JSONObject.toJSONString(obj)).append("  \n  ");
+            JsonParser jp = new JsonParser();
+            JsonArray jsonArray = jp.parse(detail.getSonarOutput()).getAsJsonObject()
+                    .get("projectStatus").getAsJsonObject().get("conditions").getAsJsonArray();
+            jsonArray.forEach(e->{
+                JsonObject o = e.getAsJsonObject();
+                if(o != null && o.get("status") != null && !"OK".equals(o.get("status").getAsString())){
+                    sb.append(gson.toJson(o)).append("\n");
                 }
-            }
+
+            });
         }
         Map<String, Object> params = new HashMap<>();
         params.put("msgType", this.msgType);
@@ -169,7 +173,7 @@ public class CIServiceImpl implements ICIService {
         }
         if(StringUtils.isNotBlank(endTime)) {
             try{
-                end = sf.parse(String.format("%s000000", endTime));
+                end = sf.parse(String.format("%s235959", endTime));
             }
             catch (Exception ex)
             {
@@ -185,7 +189,12 @@ public class CIServiceImpl implements ICIService {
     private void someTest() throws Exception
     {
         String json = "{\"appName\":\"cmsserver\",\"endTime\":1601280955287,\"id\":0,\"jenkinsResult\":\"SUCCESS\",\"jobName\":\"cmsserver\",\"number\":7,\"projectLeader\":\"肖少辉\",\"queueId\":3848,\"sonarOutput\":\"{\\\"projectStatus\\\":{\\\"status\\\":\\\"ERROR\\\",\\\"conditions\\\":[{\\\"status\\\":\\\"OK\\\",\\\"metricKey\\\":\\\"new_reliability_rating\\\",\\\"comparator\\\":\\\"GT\\\",\\\"periodIndex\\\":1,\\\"errorThreshold\\\":\\\"1\\\",\\\"actualValue\\\":\\\"1\\\"},{\\\"status\\\":\\\"OK\\\",\\\"metricKey\\\":\\\"new_security_rating\\\",\\\"comparator\\\":\\\"GT\\\",\\\"periodIndex\\\":1,\\\"errorThreshold\\\":\\\"1\\\",\\\"actualValue\\\":\\\"1\\\"},{\\\"status\\\":\\\"OK\\\",\\\"metricKey\\\":\\\"new_maintainability_rating\\\",\\\"comparator\\\":\\\"GT\\\",\\\"periodIndex\\\":1,\\\"errorThreshold\\\":\\\"1\\\",\\\"actualValue\\\":\\\"1\\\"},{\\\"status\\\":\\\"ERROR\\\",\\\"metricKey\\\":\\\"new_coverage\\\",\\\"comparator\\\":\\\"LT\\\",\\\"periodIndex\\\":1,\\\"errorThreshold\\\":\\\"80\\\",\\\"actualValue\\\":\\\"0.0\\\"},{\\\"status\\\":\\\"ERROR\\\",\\\"metricKey\\\":\\\"new_duplicated_lines_density\\\",\\\"comparator\\\":\\\"GT\\\",\\\"periodIndex\\\":1,\\\"errorThreshold\\\":\\\"3\\\",\\\"actualValue\\\":\\\"3.874813710879285\\\"}],\\\"periods\\\":[{\\\"index\\\":1,\\\"mode\\\":\\\"previous_version\\\",\\\"date\\\":\\\"2020-09-28T08:10:52+0000\\\",\\\"parameter\\\":\\\"efb771002ed7c4991216cecc2d9b014cb53a1a1d\\\"}],\\\"ignoredConditions\\\":false}}\",\"sonarResult\":\"ERROR\",\"startTime\":1601280800580,\"version\":\"8f7b2f98951ba85bca4fc1dbd57dd361531d9020\"}";
-        BuildDetailPo detail = JSONObject.parseObject(json, BuildDetailPo.class);
+//        BuildDetailPo detail = gson.fromJson(json, BuildDetailPo.class);
+        BuildDetailPo detail = new BuildDetailPo();
+        detail.setJenkinsResult("SUCCESS");
+        detail.setSonarResult("ERROR");
+        json = "{\"projectStatus\":{\"status\":\"ERROR\",\"conditions\":[{\"status\":\"OK\",\"metricKey\":\"new_reliability_rating\",\"comparator\":\"GT\",\"periodIndex\":1,\"errorThreshold\":\"1\",\"actualValue\":\"1\"},{\"status\":\"ERROR\",\"metricKey\":\"new_security_rating\",\"comparator\":\"GT\",\"periodIndex\":1,\"errorThreshold\":\"1\",\"actualValue\":\"2\"},{\"status\":\"OK\",\"metricKey\":\"new_maintainability_rating\",\"comparator\":\"GT\",\"periodIndex\":1,\"errorThreshold\":\"1\",\"actualValue\":\"1\"},{\"status\":\"ERROR\",\"metricKey\":\"new_coverage\",\"comparator\":\"LT\",\"periodIndex\":1,\"errorThreshold\":\"80\",\"actualValue\":\"0.0\"},{\"status\":\"OK\",\"metricKey\":\"new_duplicated_lines_density\",\"comparator\":\"GT\",\"periodIndex\":1,\"errorThreshold\":\"3\",\"actualValue\":\"1.4722536806342015\"}],\"periods\":[{\"index\":1,\"mode\":\"previous_version\",\"date\":\"2020-09-25T10:38:50+0000\",\"parameter\":\"b4a6a0a76279af35ffc0833519afaf3dd4262ca8\"}],\"ignoredConditions\":false}}";
+        detail.setSonarOutput(json);
         sendBuildResult(detail);
     }
 

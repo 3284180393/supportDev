@@ -2,18 +2,14 @@ package com.channelsoft.ccod.support.cmdb.controller;
 
 import com.channelsoft.ccod.support.cmdb.ci.po.BuildDetailPo;
 import com.channelsoft.ccod.support.cmdb.ci.service.ICIService;
+import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
-import org.apache.commons.lang3.StringUtils;
+import com.channelsoft.ccod.support.cmdb.service.IAppManagerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -29,10 +25,13 @@ public class CIController {
 
     private final static Logger logger = LoggerFactory.getLogger(CIController.class);
 
-    private final String apiBasePath = "/cmdb/api";
+    private final String apiBasePath = "/cmdb/api/ci";
 
     @Autowired
     ICIService ciService;
+
+    @Autowired
+    IAppManagerService appManagerService;
 
     @RequestMapping(value = "/builds/{jobName}", method = RequestMethod.GET)
     public AjaxResultPo queryBuild(@PathVariable String jobName)
@@ -44,7 +43,7 @@ public class CIController {
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            logger.error("query build result FAIL", ex);
             resultPo = AjaxResultPo.failed(ex);
         }
         return resultPo;
@@ -60,7 +59,7 @@ public class CIController {
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            logger.error("create build history FAIL", ex);
             resultPo = AjaxResultPo.failed(ex);
         }
         return resultPo;
@@ -78,7 +77,7 @@ public class CIController {
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            logger.error("query build history FAIL", ex);
             resultPo = AjaxResultPo.failed(ex);
         }
         return resultPo;
@@ -96,7 +95,7 @@ public class CIController {
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            logger.error("query build history FAIL", ex);
             resultPo = AjaxResultPo.failed(ex);
         }
         return resultPo;
@@ -114,9 +113,23 @@ public class CIController {
         }
         catch (Exception ex)
         {
-            ex.printStackTrace();
+            logger.error(String.format("query build history FAIL"), ex);
             resultPo = AjaxResultPo.failed(ex);
         }
         return resultPo;
+    }
+
+    @RequestMapping(value = "/app", method = RequestMethod.POST)
+    public String registerModule(String appName, AppType appType, String version, String ccodVersion, String gitUrl, String repository, String path)
+    {
+        try {
+            appManagerService.registerCIAppModule(appName, appType, version, ccodVersion, gitUrl, repository, path);
+            return "0";
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("register app module from ci FAIL"), ex);
+            return "1";
+        }
     }
 }

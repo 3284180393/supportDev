@@ -10,6 +10,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.AppBase;
+import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import com.channelsoft.ccod.support.cmdb.vo.AppUpdateOperationInfo;
@@ -30,6 +31,12 @@ import java.util.Map;
  * @Version: 1.0
  */
 public interface IK8sTemplateService {
+
+    /**
+     * 获取当前的k8s对象模板
+     * @return k8s对象模板
+     */
+    List<K8sObjectTemplatePo> getK8sTemplates();
 
     ExtensionsV1beta1Ingress generateIngress(String ccodVersion, AppType appType, String appName, String alias, String platformId, String domainId, String hostUrl) throws ParamException;
 

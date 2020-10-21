@@ -1,7 +1,5 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.*;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.*;
@@ -12,19 +10,14 @@ import com.channelsoft.ccod.support.cmdb.service.ILJPaasService;
 import com.channelsoft.ccod.support.cmdb.service.INexusService;
 import com.channelsoft.ccod.support.cmdb.service.IPlatformAppCollectService;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
-import com.channelsoft.ccod.support.cmdb.utils.ServiceUnitUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
@@ -34,7 +27,6 @@ import javax.annotation.PostConstruct;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -330,7 +322,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             String group = appPo.getAppNexusGroup();
             logger.warn(String.format("%s[%s] not exit register it first", appName, appVersion));
-            List<NexusAssetInfo> appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
+            List<NexusAssetInfo> appFileAssetList = this.nexusService.queryGroupAssets(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
             if(appFileAssetList.size() > 0)
             {
                 logger.info(String.format("%s[%s] is has not registered at cmdb, but %s not empty, clear fisrt",
@@ -339,7 +331,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 {
                     nexusService.deleteAsset(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, assetInfo.getId());
                 }
-                appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
+                appFileAssetList = this.nexusService.queryGroupAssets(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
                 if(appFileAssetList.size() != 0)
                 {
                     logger.error(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
@@ -448,7 +440,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         {
             String group = appPo.getAppNexusGroup();
             logger.warn(String.format("%s[%s] not exit register it first", appName, appVersion));
-            List<NexusAssetInfo> appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
+            List<NexusAssetInfo> appFileAssetList = this.nexusService.queryGroupAssets(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
             if(appFileAssetList.size() > 0)
             {
                 logger.info(String.format("%s[%s] is has not registered at cmdb, but %s not empty, clear fisrt",
@@ -457,7 +449,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 {
                     nexusService.deleteAsset(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, assetInfo.getId());
                 }
-                appFileAssetList = this.nexusService.queryGroupAssetMap(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
+                appFileAssetList = this.nexusService.queryGroupAssets(this.nexusHostUrl, this.nexusUserName, nexusPassword, this.appRepository, group);
                 if(appFileAssetList.size() != 0)
                 {
                     logger.error(String.format("delete assets at %s/%s/%s fail", this.nexusHostUrl, this.appRepository, appPo.getAppNexusDirectory()));
@@ -624,15 +616,27 @@ public class AppManagerServiceImpl implements IAppManagerService {
         finally {
             this.appReadLock.readLock().unlock();
         }
+        return imageExist(appName, version);
+    }
+
+    private boolean imageExist(String appName, String version)
+    {
         boolean imageExist = false;
         String url = String.format("http://%s/v2/%s/%s/tags/list", this.nexusDockerUrl, this.imageRepository, appName.toLowerCase());
         try
         {
             String queryResult = HttpRequestTools.httpGetRequest(url, this.nexusUserName, this.nexusPassword);
-            String tags = JSONObject.parseObject(queryResult).getString("tags");
-            Set<String> set = new HashSet<>(JSONArray.parseArray(tags, String.class));
-            if(set.contains(version.replaceAll("\\:", "-")))
-                imageExist = true;
+            JsonParser jp = new JsonParser();
+            JsonObject jo = jp.parse(queryResult).getAsJsonObject();
+//            String tags = JSONObject.parseObject(queryResult).getString("tags");
+            JsonArray je = jo.get("tags").getAsJsonArray();
+            for(JsonElement e : je){
+                if(version.replaceAll("\\:", "-").equals(e.getAsString())){
+                    imageExist = true;
+                    break;
+                }
+
+            }
         }
         catch (Exception ex)
         {
@@ -784,15 +788,14 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public void registerNewAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
+    public void registerNewAppModule(AppModuleVo appModule) throws ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to register app=[%s] into cmdb", gson.toJson(appModule)));
         String checkResult = this.checkAppBaseProperties(appModule, AppUpdateOperation.REGISTER);
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
         String appName = appModule.getAppName();
         String version = appModule.getVersion();
         if(appModule.isHasImage()) {
-            boolean hasImage = hasImage(appName, version);
-            Assert.isTrue(hasImage, String.format("not find image for %s version %s at nexus", appName, version));
+            Assert.isTrue(imageExist(appName, version), String.format("not find image for %s version %s at nexus", appName, version));
         }
         this.appWriteLock.writeLock().lock();
         try
@@ -817,6 +820,107 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
+    public void registerCIAppModule(AppModuleVo appModule) throws ParamException, InterfaceCallException, NexusException, IOException {
+        logger.debug(String.format("register appMode[%s] from ci", gson.toJson(appModule)));
+        Assert.isTrue(StringUtils.isNotBlank(appModule.getAppName()), String.format("appName can not be empty"));
+        String appName = appModule.getAppName();
+        Assert.notNull(appModule.getAppType(), String.format(String.format("appType of %s is null", appName)));
+        AppType appType = appModule.getAppType();
+        Assert.isTrue(StringUtils.isNotBlank(appModule.getVersion()), String.format("version of %s can not be empty", appName));
+        String version = appModule.getVersion();
+        Assert.isTrue(StringUtils.isNotBlank(appModule.getCcodVersion()), String.format("ccodVersion of %s(%s) can not be null", appName, version));
+        String ccodVersion = appModule.getCcodVersion();
+        Assert.notNull(appModule.getInstallPackage(), String.format("installPackage of %s(%s) can not be null", appName, version));
+        Assert.notNull(appModule.getVersionControl(), String.format("versionControl of %s(%s) can not be null", appName,  version));
+        Assert.isTrue(StringUtils.isNotBlank(appModule.getVersionControlUrl()), String.format("versionControlUrl of %s(%s) can not be empty", appName, version));
+        this.appReadLock.writeLock().lock();
+        try{
+            Map<AppType, List<AppModuleVo>> typeMap = registerAppMap.containsKey(appName) ? registerAppMap.get(appName).stream().filter(a->StringUtils.isBlank(checkAppBaseProperties(a, AppUpdateOperation.ADD))).collect(Collectors.groupingBy(AppModuleVo::getAppType)) : new HashMap<>();
+            List<AppModuleVo> modules = typeMap.get(appType);
+            if(modules != null){
+                AppModuleVo registered = modules.stream().collect(Collectors.toMap(a->a.getVersion(), v->v)).get(version);
+                if(registered != null){
+                    if(!ccodVersion.equals(registered.getCcodVersion())){
+                        throw new ParamException(String.format("%s(%s) for ccod %s has been register", appName, version, registered.getCcodVersion()));
+                    }
+                    logger.warn(String.format("%s(%s) has registered", appName, version));
+                    registered.setInstallPackage(appModule.getInstallPackage());
+                    registered.setVersionControl(appModule.getVersionControl());
+                    registered.setVersionControlUrl(appModule.getVersionControlUrl());
+                    registered.setHasImage(true);
+                    registered.setUpdateTime(new Date());
+                    this.appMapper.update(registered.getApp());
+                    return;
+                }
+                else{
+                    List<AppModuleVo> ms = modules.stream().filter(a->a.getCcodVersion().equals(ccodVersion))
+                            .sorted(Comparator.comparing(AppModuleVo::getCreateTime).reversed()).collect(Collectors.toList());
+                    if(ms.size() > 0){
+                        appModule.fill(ms.get(0));
+                    }
+                    else{
+                        appModule.fill(modules.get(modules.size() - 1));
+                    }
+                }
+            }
+            else{
+                modules = registerAppMap.values().stream().flatMap(v->v.stream()).filter(a->a.getAppType().equals(appType) && StringUtils.isBlank(checkAppBaseProperties(a, AppUpdateOperation.ADD))).sorted(Comparator.comparing(AppModuleVo::getCreateTime).reversed()).collect(Collectors.toList());
+                appModule.fill(modules.get(modules.size() - 1));
+                if(appType.equals(AppType.BINARY_FILE)){
+                    appModule.setStartCmd(String.format("./", appModule.getInstallPackage().getFileName()));
+                }
+            }
+        }
+        finally {
+            this.appReadLock.writeLock().unlock();
+        }
+        appModule.setHasImage(true);
+        registerNewAppModule(appModule);
+        logger.info(String.format("register app module %s(%s) from ci success", appName, version));
+    }
+
+    @Override
+    public void registerCIAppModule(String appName, AppType appType, String version, String ccodVersion, String gitUrl, String repository, String path) throws ParamException, InterfaceCallException, NexusException, IOException {
+        logger.debug(String.format("register app module(appName=%s, version=%s, ccodVersion=%s, gitUrl=%s, repository=%s, path=%s) from ci",
+                appName, version, ccodVersion, gitUrl, repository, path));
+        Assert.isTrue(StringUtils.isNotBlank(appName), "appName is blank");
+        Assert.notNull(appType, "appType is null");
+        Assert.isTrue(StringUtils.isNotBlank(version), "version is blank");
+        Assert.isTrue(StringUtils.isNotBlank(ccodVersion), "ccodVersion is blank");
+        Assert.isTrue(StringUtils.isNotBlank(gitUrl), "gitUrl is blank");
+        Assert.isTrue(StringUtils.isNotBlank(repository), "repository is blank");
+        Assert.isTrue(StringUtils.isNotBlank(path), "path is blank");
+        String group = String.format("/%s", path.replaceAll("/[^/]+$", ""));
+        Map<String, NexusAssetInfo> assetMap = nexusService.queryGroupAssets(nexusHostUrl, nexusUserName, nexusPassword, repository, group)
+                .stream().collect(Collectors.toMap(a->a.getPath(), v->v));
+        if(!assetMap.containsKey(path)){
+            throw new ParamException(String.format("%s at repository %s not exist", path, repository));
+        }
+        AppModuleVo module = new AppModuleVo();
+        module.setAppName(appName);
+        module.setVersion(version);
+        module.setCcodVersion(ccodVersion);
+        module.setVersionControl(VersionControl.GIT);
+        module.setVersionControlUrl(gitUrl);
+        module.setAppType(appType);
+        String deployPath;
+        switch (appType){
+            case BINARY_FILE:
+                deployPath = "./bin";
+                break;
+            case TOMCAT_WEB_APP:
+            case RESIN_WEB_APP:
+                deployPath = "./webapps";
+                break;
+            default:
+                throw new ParamException(String.format("not support appType %s", appType.name));
+        }
+        module.setInstallPackage(new AppFileNexusInfo(assetMap.get(path), deployPath));
+        registerCIAppModule(module);
+        logger.info(String.format("app from ci register success"));
+    }
+
+    @Override
     public void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", gson.toJson(appModule)));
         String appName = appModule.getAppName();
@@ -824,8 +928,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String checkResult = checkAppBaseProperties(appModule, AppUpdateOperation.MODIFY_REGISTER);
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
         if(appModule.isHasImage()) {
-            boolean hasImage = hasImage(appName, version);
-            Assert.isTrue(hasImage, String.format("not find image for %s version %s at nexus", appName, version));
+            Assert.isTrue(imageExist(appName, version), String.format("not find image for %s version %s at nexus", appName, version));
         }
         this.appWriteLock.writeLock().lock();
         try

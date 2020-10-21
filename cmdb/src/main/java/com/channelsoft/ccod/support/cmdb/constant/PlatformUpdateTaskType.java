@@ -15,7 +15,9 @@ public enum PlatformUpdateTaskType {
 
     UPDATE(3, "UPDATE", "更新已有平台"),
 
-    ROLLBACK(4, "ROLLBACK", "对已经升级的平台进行回滚"),;
+    ROLLBACK(4, "ROLLBACK", "对已经升级的平台进行回滚"),
+
+    RESTORE(5, "RESTORE", "恢复已经部署的平台"),;
 
     public int id;
 

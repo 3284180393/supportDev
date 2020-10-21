@@ -168,6 +168,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         this.testThreePartServices.addAll(threeSvcs);
     }
 
+    @Override
+    public List<K8sObjectTemplatePo> getK8sTemplates() {
+        return this.objectTemplateList;
+    }
+
     private List<K8sObjectTemplatePo> generatePlatformObjectTemplate(String srcPlatformId, String ccodVersion, String binaryApp, String tomcatApp, String resinApp) throws ApiException
     {
         List<K8sObjectTemplatePo> templateList = new ArrayList<>();
@@ -546,7 +551,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         commands.add(1, "-c");
         String basePath = appBase.getBasePath();
         String deployPath = getAbsolutePath(basePath, appBase.getDeployPath());
-        String execParam = "";
+        String execParam = String.format("cd %s", basePath);
         if(platformCfg != null && platformCfg.size() > 0)
         {
             String mountPath = String.format("/cfg/%s", platformId);
@@ -789,19 +794,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         deploy.getSpec().getSelector().getMatchLabels().put(appName, alias);
         deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
         deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
-        deploy.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity()))
-                .get("sql").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId));
-        deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().stream().filter(m->m.getName().equals("sql"))
-                .forEach(m->{
-                    if(appName.equals("oracle") || m.getMountPath().equals("/docker-entrypoint-initdb.d/")){
-                        m.setSubPath(String.format("%s/base-volume/db/%s/sql", platformId, appName));
-                    }
-                    else{
-                        m.setSubPath(String.format("%s/base-volume/db/%s/data", platformId, appName));
-                    }
-                });
-        if(appName.equals("oracle"))
+        deploy.getSpec().getTemplate().getSpec().getVolumes().forEach(v->v.getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId)));
+        if(appName.equals("oracle")){
             deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(0, String.format("/tmp/init.sh %s", hostUrl));
+        }
         logger.info(String.format("selected deployment for %s is %s", gson.toJson(selector), gson.toJson(deploy)));
         return deploy;
     }
@@ -849,7 +845,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         pv.getMetadata().setName(name);
         pv.getSpec().getClaimRef().setNamespace(platformId);
         pv.getSpec().getClaimRef().setName(name);
-        pv.getSpec().getNfs().setPath("/home/kubernetes/volume");
+        pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s", platformId));
         pv.getSpec().getNfs().setServer(nfsServerIp);
         pv.getSpec().setStorageClassName(name);
         logger.info(String.format("generate persistentVolume is %s", gson.toJson(pv)));
@@ -1545,8 +1541,19 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 .collect(Collectors.joining(","));
     }
 
-    private PlatformAppDeployDetailVo getAppDetailFromK8sObj(AppModuleVo module, String alias, V1Deployment deploy, List<V1Service> services, V1ConfigMap configMap) throws IOException, InterfaceCallException, NexusException
+    private PlatformAppDeployDetailVo getAppDetailFromK8sObj(String alias, V1Deployment deploy, List<V1Service> services, V1ConfigMap configMap) throws IOException, InterfaceCallException, NexusException, ParamException
     {
+        V1Container init = deploy.getSpec().getTemplate().getSpec().getInitContainers().stream()
+                .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(alias);
+        AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(init.getImage());
+        String volume = module.getAppType().equals(AppType.BINARY_FILE) ? "binary-file" : "war";
+        V1Container runtime = deploy.getSpec().getTemplate().getSpec().getContainers().stream()
+                .collect(Collectors.toMap(k->k.getName(), v->v)).get(String.format("%s-runtime", alias));
+        String basePath = runtime.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+                .get(volume).getMountPath().replaceAll("/$", "");
+        if(module.getAppType().equals(AppType.TOMCAT_WEB_APP) || module.getAppType().equals(AppType.RESIN_WEB_APP)){
+            basePath = basePath.replaceAll("/webapps$", "");
+        }
         PlatformAppDeployDetailVo detail = new PlatformAppDeployDetailVo();
         Map<String, String> labels = deploy.getSpec().getTemplate().getMetadata().getLabels();
         for(V1Service service : services){
@@ -1561,16 +1568,13 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         K8sStatus status = this.ik8sApiService.getStatusFromDeployment(deploy);
         detail.setStatus(status.name);
         detail.setInitCmd(module.getInitCmd());
-        V1Container init = deploy.getSpec().getTemplate().getSpec().getInitContainers().stream()
-                .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(alias);
-        V1Container run = deploy.getSpec().getTemplate().getSpec().getContainers().stream()
-                .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(String.format("%s-runtime", alias));
         detail.setAssembleTag(deploy.getMetadata().getName());
         detail.setPlatformId(deploy.getMetadata().getNamespace());
         detail.setAlias(alias);
+        detail.setBasePath(basePath);
         String domainId = labels.get(this.domainIdLabel);
         detail.setDomainId(domainId);
-        List<String> cmd = run.getCommand();
+        List<String> cmd = runtime.getCommand();
         String command = cmd.get(2).replaceAll(";$", "").replaceAll("\\s+;", "");
         String cmdTag = "resin.sh";
         if(module.getAppType().equals(AppType.TOMCAT_WEB_APP))
@@ -1580,44 +1584,32 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         Pattern pattern = Pattern.compile(String.format(startCmdRegex, cmdTag));
         Matcher matcher = pattern.matcher(command);
         if(!matcher.find()){
-            detail.setStartCmd(command);
-            detail.setInitCmd(null);
-            detail.setLogOutputCmd(null);
+            System.out.println("not find");
         }
-        else{
-            String startCmd = matcher.group().replace(";", "");
-            int index = command.indexOf(startCmd);
-            String initCmd = index == 0 ? null : command.substring(0, index - 1).replaceAll(";$", "");
-            String logOutputCmd = index == command.length() - 1 ? null : command.substring(index + startCmd.length());
-            detail.setStartCmd(startCmd);
-            detail.setInitCmd(initCmd);
-            detail.setLogOutputCmd(logOutputCmd);
-            String tag = cmdTag;
-            List<String> cds = Arrays.stream(command.split(";")).filter(s->s.matches("^cd .*")).collect(Collectors.toList());
-            if(cds.size() > 0){
-                detail.setBasePath(cds.get(cds.size()-1).replaceAll("^cd ", "").replace(";", ""));
-                Arrays.stream(startCmd.split("\\s+")).filter(s->s.indexOf(tag)>=0)
-                        .forEach(s->detail.setDeployPath(s.replaceAll(String.format("", tag), "")));
+        String startCmd = matcher.group().replace(";", "");
+        int index = command.indexOf(startCmd);
+        String initCmd = index == 0 ? null : command.substring(0, index - 1).replaceAll(";$", "");
+        String logOutputCmd = index == command.length() - 1 ? null : command.substring(index + startCmd.length() + 1);
+        detail.setStartCmd(startCmd);
+        detail.setInitCmd(initCmd);
+        detail.setLogOutputCmd(logOutputCmd);
+        if(runtime.getLivenessProbe() != null){
+            detail.setInitialDelaySeconds(runtime.getLivenessProbe().getInitialDelaySeconds());
+            detail.setPeriodSeconds(runtime.getLivenessProbe().getPeriodSeconds());
+            if(runtime.getLivenessProbe().getHttpGet() != null){
+                detail.setCheckAt(String.format("%d/%s", runtime.getLivenessProbe().getHttpGet().getPort().getIntValue(), runtime.getLivenessProbe().getHttpGet().getScheme()));
             }
-        }
-        if(run.getLivenessProbe() != null){
-            detail.setInitialDelaySeconds(run.getLivenessProbe().getInitialDelaySeconds());
-            detail.setPeriodSeconds(run.getLivenessProbe().getPeriodSeconds());
-            if(run.getLivenessProbe().getHttpGet() != null){
-                detail.setCheckAt(String.format("%d/%s", run.getLivenessProbe().getHttpGet().getPort().getIntValue(), run.getLivenessProbe().getHttpGet().getScheme()));
+            else if(runtime.getLivenessProbe().getTcpSocket() != null){
+                detail.setCheckAt(String.format("%d/TCP", runtime.getLivenessProbe().getTcpSocket().getPort().getIntValue()));
             }
-            else if(run.getLivenessProbe().getTcpSocket() != null){
-                detail.setCheckAt(String.format("%d/TCP", run.getLivenessProbe().getTcpSocket().getPort().getIntValue()));
-            }
-            else if(run.getLivenessProbe().getExec() != null){
-                detail.setCheckAt(String.format("%s/CMD", run.getLivenessProbe().getExec().getCommand()));
+            else if(runtime.getLivenessProbe().getExec() != null){
+                detail.setCheckAt(String.format("%s/CMD", runtime.getLivenessProbe().getExec().getCommand()));
             }
         }
         cmd = init.getCommand();
         command = cmd.get(2);
         detail.setEnvLoadCmd(command);
-        String volume = module.getAppType().equals(AppType.BINARY_FILE) ? "binary-file" : "war";
-        String mountPath = run.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, v->v.getMountPath())).get(volume);
+        String mountPath = runtime.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, v->v.getMountPath())).get(volume);
         List<AppFileNexusInfo> cfgs = restoreConfigFileFromConfigMap(configMap, command, detail.getBasePath(), volume, mountPath);
         detail.setCfgs(cfgs);
         detail.fill(module);
@@ -1686,10 +1678,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                     logger.error(String.format("can not find configMap %s-%s", init.getName(), domainId));
                     continue;
                 }
-                AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(init.getImage());
                 List<V1Service> relativeSvcs = services.stream().filter(s->isMatch(s.getSpec().getSelector(), deployment.getSpec().getTemplate().getMetadata().getLabels()))
                         .collect(Collectors.toList());
-                PlatformAppDeployDetailVo detail = this.getAppDetailFromK8sObj(module, init.getName(), deployment, relativeSvcs, configMap);
+                PlatformAppDeployDetailVo detail = this.getAppDetailFromK8sObj(init.getName(), deployment, relativeSvcs, configMap);
                 details.add(detail);
             }
 
@@ -1808,12 +1799,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         if(initContainer == null){
             throw new ParamException(String.format("can not find container for %s", gson.toJson(selector)));
         }
-        AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(initContainer.getImage());
         V1ConfigMap configMap = ik8sApiService.readNamespacedConfigMap(String.format("%s-%s", alias, domainId), platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken());
         List<V1Service> services = this.ik8sApiService.selectNamespacedService(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
         if(services.size() == 0){
             throw new ParamException(String.format("can not find service for %s", gson.toJson(selector)));
         }
-        return getAppDetailFromK8sObj(module, alias,deployment, services, configMap);
+        return getAppDetailFromK8sObj(alias, deployment, services, configMap);
     }
 }

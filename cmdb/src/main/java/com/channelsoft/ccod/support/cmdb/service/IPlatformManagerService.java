@@ -269,6 +269,18 @@ public interface IPlatformManagerService {
     PlatformTopologyInfo restorePlatformTopologyFromK8s(String platformId, String platformName, String ccodVersion, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException;
 
     /**
+     * 恢复已经存在的k8s平台
+     * @param platformId 被恢复的k8s平台
+     * @return 创建该平台的schema
+     * @throws ParamException
+     * @throws NotSupportSetException
+     * @throws NotSupportAppException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    PlatformUpdateSchemaInfo restoreExistK8sPlatform(String platformId) throws ParamException, InterfaceCallException, IOException, ApiException;
+
+    /**
      * 从k8s删除指定平台的namespace
      * @param platformId 指定平台id
      * @throws ApiException

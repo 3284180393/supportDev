@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.constant.PlatformUpdateTaskType;
+
 import java.util.Date;
 
 /**
@@ -10,11 +12,14 @@ import java.util.Date;
  * @Version: 1.0
  */
 public class PlatformUpdateRecordPo {
+
     private int recordId;
 
     private String platformId;
 
     private String jobId;
+
+    private PlatformUpdateTaskType taskType;
 
     private String preUpdateJobId;
 
@@ -118,5 +123,13 @@ public class PlatformUpdateRecordPo {
 
     public void setLast(boolean last) {
         isLast = last;
+    }
+
+    public PlatformUpdateTaskType getTaskType() {
+        return taskType;
+    }
+
+    public void setTaskType(PlatformUpdateTaskType taskType) {
+        this.taskType = taskType;
     }
 }

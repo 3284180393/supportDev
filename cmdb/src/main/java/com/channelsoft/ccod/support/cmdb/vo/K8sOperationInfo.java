@@ -2,6 +2,8 @@ package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
+import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
+import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
@@ -40,6 +42,15 @@ public class K8sOperationInfo {
         this.name = name;
         this.operation = operation;
         this.obj = obj;
+    }
+
+    public K8sOperationInfo(K8sOperationPo operationPo){
+        this.jobId = operationPo.getJobId();
+        this.platformId = operationPo.getPlatformId();
+        this.domainId = operationPo.getDomainId();
+        this.kind = operationPo.getKind();
+        this.name = operationPo.getName();
+        this.operation = operationPo.getOperation();
     }
 
     public String getPlatformId() {

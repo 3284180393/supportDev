@@ -98,7 +98,7 @@ public interface INexusService {
      * @return 查询结果
      * @throws Exception
      */
-    List<NexusAssetInfo> queryGroupAssetMap(String nexusHostUrl, String userName, String password, String repository, String group) throws InterfaceCallException, NexusException;
+    List<NexusAssetInfo> queryGroupAssets(String nexusHostUrl, String userName, String password, String repository, String group) throws InterfaceCallException, NexusException;
 
 
     /**

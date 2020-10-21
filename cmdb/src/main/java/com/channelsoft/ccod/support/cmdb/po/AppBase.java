@@ -266,6 +266,7 @@ public abstract class AppBase {
     }
 
     public void fill(AppBase appBase) {
+        this.appName = StringUtils.isBlank(this.appName) ? appBase.appName : this.appName;
         this.appType = this.appType == null ? appBase.appType : this.appType;
         this.version = StringUtils.isBlank(this.version) ? appBase.version : this.version;
         this.ccodVersion = StringUtils.isBlank(this.ccodVersion) ? appBase.ccodVersion : this.ccodVersion;
@@ -274,10 +275,10 @@ public abstract class AppBase {
         this.deployPath = StringUtils.isBlank(this.deployPath) ? appBase.deployPath : this.deployPath;
         this.envLoadCmd = StringUtils.isBlank(this.envLoadCmd) ? appBase.envLoadCmd : this.envLoadCmd;
         this.initCmd = StringUtils.isBlank(this.initCmd) ? appBase.initCmd : this.initCmd;
-        this.initialDelaySeconds = this.initialDelaySeconds <= 0 ? appBase.initialDelaySeconds : this.initialDelaySeconds;
+        this.initialDelaySeconds = this.initialDelaySeconds == null ? appBase.initialDelaySeconds : this.initialDelaySeconds;
         this.logOutputCmd = StringUtils.isBlank(this.logOutputCmd) ? appBase.logOutputCmd : this.logOutputCmd;
         this.nodePorts = StringUtils.isBlank(this.nodePorts) ? appBase.nodePorts : this.nodePorts;
-        this.periodSeconds = this.periodSeconds <= 0 ? appBase.periodSeconds : this.periodSeconds;
+        this.periodSeconds = this.periodSeconds == null ? appBase.periodSeconds : this.periodSeconds;
         this.ports = StringUtils.isBlank(this.ports) ? appBase.ports : this.ports;
         this.resources = StringUtils.isBlank(this.resources) ? appBase.resources : this.resources;
         this.startCmd = StringUtils.isBlank(this.startCmd) ? appBase.startCmd : this.startCmd;
