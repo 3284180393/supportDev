@@ -834,6 +834,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Assert.notNull(appModule.getVersionControl(), String.format("versionControl of %s(%s) can not be null", appName,  version));
         Assert.isTrue(StringUtils.isNotBlank(appModule.getVersionControlUrl()), String.format("versionControlUrl of %s(%s) can not be empty", appName, version));
         this.appReadLock.writeLock().lock();
+        AppModuleVo chosen = null;
+        boolean isMatch = true;
         try{
             Map<AppType, List<AppModuleVo>> typeMap = registerAppMap.containsKey(appName) ? registerAppMap.get(appName).stream().filter(a->StringUtils.isBlank(checkAppBaseProperties(a, AppUpdateOperation.ADD))).collect(Collectors.groupingBy(AppModuleVo::getAppType)) : new HashMap<>();
             List<AppModuleVo> modules = typeMap.get(appType);
@@ -856,19 +858,21 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     List<AppModuleVo> ms = modules.stream().filter(a->a.getCcodVersion().equals(ccodVersion))
                             .sorted(Comparator.comparing(AppModuleVo::getCreateTime).reversed()).collect(Collectors.toList());
                     if(ms.size() > 0){
-                        appModule.fill(ms.get(0));
+                        chosen = ms.get(0);
                     }
                     else{
-                        appModule.fill(modules.get(modules.size() - 1));
+                        chosen = modules.get(modules.size() - 1);
                     }
                 }
             }
             else{
                 modules = registerAppMap.values().stream().flatMap(v->v.stream()).filter(a->a.getAppType().equals(appType) && StringUtils.isBlank(checkAppBaseProperties(a, AppUpdateOperation.ADD))).sorted(Comparator.comparing(AppModuleVo::getCreateTime).reversed()).collect(Collectors.toList());
-                appModule.fill(modules.get(modules.size() - 1));
-                if(appType.equals(AppType.BINARY_FILE)){
-                    appModule.setStartCmd(String.format("./", appModule.getInstallPackage().getFileName()));
-                }
+                chosen = modules.get(modules.size() - 1);
+                isMatch = false;
+            }
+            appModule.fill(chosen);
+            if(!isMatch && appType.equals(AppType.BINARY_FILE)) {
+                appModule.setStartCmd(String.format("./", appModule.getInstallPackage().getFileName()));
             }
         }
         finally {

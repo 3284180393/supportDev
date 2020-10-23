@@ -17,6 +17,7 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -818,6 +819,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     Assert.notNull(platformBase.getBaseDataNexusRepository(), "baseDataNexusRepository can not be null");
                     Assert.notNull(platformBase.getBaseDataNexusPath(), "baseDataNexusPath can not be null");
                     Assert.notNull(platformBase.getGlsDBType(), "glsDBType cannot be null");
+                    Assert.isTrue(platformBase.getGlsDBType().equals(DatabaseType.ORACLE) || platformBase.getGlsDBType().equals(DatabaseType.MYSQL), String.format("unsupported gls dbType : %s", platformBase.getGlsDBType().name));
                     Assert.notNull(platformBase.getGlsDBUser(), "glsDBUser can not be null");
                     Assert.notNull(platformBase.getGlsDBPwd(), "glsDBPwd can not be null");
                     Assert.notNull(platformBase.getCfgs(), "cfgs of platform can not be null");
@@ -3327,6 +3329,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
         Map<String, Object> params = platform.getParams();
+        DatabaseType glsDBType = DatabaseType.getEnum((String)platform.getParams().get(PlatformBase.glsDBTypeKey));
         for(K8sOperationInfo k8sOpt : k8sOptList)
         {
             K8sOperationPo ret = execK8sOpt(execResults, k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
@@ -3344,18 +3347,23 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     if(labels == null || labels.size() == 0 || !labels.containsKey(this.serviceTypeLabel) || !labels.containsKey(this.appNameLabel))
                         continue;
                     if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name)
-                            && labels.get(this.appNameLabel).equals("oracle"))
+                            && labels.get(this.appNameLabel).equals("oracle") && glsDBType.equals(DatabaseType.ORACLE))
                     {
-                        V1Service oraSvc = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
-                        int oraclePort = getNodePortFromK8sService(oraSvc);
-                        boolean isConn = oracleConnectTest((String)params.get(PlatformBase.glsDBUserKey), (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey), oraclePort, (String)params.get(PlatformBase.glsDBSidKey), 240);
-                        if(!isConn)
-                            throw new ApiException("create service for oracle fail");
-                        params.put(PlatformBase.dbPortKey, oraclePort);
+                        if((labels.get(this.appNameLabel).equals("oracle") && glsDBType.equals(DatabaseType.ORACLE))
+                                || (labels.get(this.appNameLabel).equals("mysql") && glsDBType.equals(DatabaseType.MYSQL)))
+                        {
+                            V1Service dbSvc = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            int dbPort = getNodePortFromK8sService(dbSvc);
+                            boolean isConn = databaseConnectTest(platform.getGlsDBType(), (String)params.get(PlatformBase.glsDBUserKey), (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey), dbPort, (String)params.get(PlatformBase.glsDBSidKey), 240);
+                            if(!isConn)
+                                throw new ApiException("create service for glsDB fail");
+                            params.put(PlatformBase.dbPortKey, dbPort);
+                        }
+
                     }
                     else if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.DOMAIN_OUT_SERVICE.name) && labels.get(this.appNameLabel).equals("UCDServer"))
                     {
-                        Connection connect = createOracleConnection((String)params.get(PlatformBase.glsDBUserKey),
+                        Connection connect = createDBConnection(platform.getGlsDBType(), (String)params.get(PlatformBase.glsDBUserKey),
                                 (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey),
                                 (int)params.get(PlatformBase.dbPortKey), (String)params.get(PlatformBase.glsDBSidKey));
                         V1Service ucdsOutService = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
@@ -3732,22 +3740,33 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return new PlatformUpdateRecordVo(recordPo, gson);
     }
 
-    private Connection createOracleConnection(String user, String pwd, String ip, int port, String sid) throws ClassNotFoundException, SQLException {
-        String connStr = String.format("jdbc:oracle:thin:@%s:%s:%s", ip, port, sid);
-        Class.forName("oracle.jdbc.driver.OracleDriver");
-        logger.debug(String.format("create %s oracle conn", connStr));
+    private Connection createDBConnection(DatabaseType dbType, String user, String pwd, String ip, int port, String dbName) throws ClassNotFoundException, SQLException, ParamException {
+        String connStr;
+        switch (dbType){
+            case ORACLE:
+                connStr = String.format("jdbc:oracle:thin:@%s:%s:%s", ip, port, dbName);
+                Class.forName("oracle.jdbc.driver.OracleDriver");
+                break;
+            case MYSQL:
+                connStr = String.format("jdbc:mysql://%s:%s/%s", ip, port, dbName);
+                Class.forName("com.mysql.jdbc.Driver");
+                break;
+            default:
+                throw new ParamException(String.format("unsupported dbType %s", dbType.name));
+
+        }
         Connection conn = DriverManager.getConnection(connStr, user, pwd);
         logger.debug(String.format("conn %s success", connStr));
         return conn;
     }
 
-    private boolean oracleConnectTest(String user, String pwd, String ip, int port, String sid, int timeout) {
+    private boolean databaseConnectTest(DatabaseType dbType, String user, String pwd, String ip, int port, String sid, int timeout) {
         int count = 1;
         while (count < (timeout / 10)) {
             System.out.println("");
             try {
                 logger.debug(String.format("try connect oracle"));
-                Connection conn = createOracleConnection(user, pwd, ip, port, sid);
+                Connection conn = createDBConnection(dbType, user, pwd, ip, port, sid);
                 conn.close();
                 return true;
             } catch (Exception ex) {
@@ -3763,6 +3782,25 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         logger.error("conn timeout");
         return false;
+    }
+
+    @Test
+    public void platformTest()
+    {
+        try{
+            dbTest();
+        }
+        catch (Exception ex)
+        {
+            ex.printStackTrace();
+        }
+    }
+
+    private void dbTest() throws Exception
+    {
+
+        Connection conn = createDBConnection(DatabaseType.MYSQL, "root", "qnsoft", "10.130.41.88", 3306, "cmdb_shop");
+        System.out.println("Ok");
     }
 
 }

@@ -296,6 +296,8 @@ public abstract class PlatformBase {
             params.put(this.glsDBPwdKey, this.glsDBPwd);
         if(this.glsDBType.equals(DatabaseType.ORACLE))
             params.put(this.glsDBSidKey, "xe");
+        else if(this.glsDBType.equals(DatabaseType.MYSQL))
+            params.put(this.glsDBSidKey, "ucds");
         params.put(this.baseDataNexusPathKey, this.baseDataNexusPath);
         params.put(this.baseDataNexusRepositoryKey, this.baseDataNexusRepository);
         if(type.equals(PlatformType.K8S_CONTAINER))
