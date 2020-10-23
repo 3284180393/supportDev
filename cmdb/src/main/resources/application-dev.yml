@@ -110,6 +110,8 @@ ccod:
       name: DialEngine
     apps[18]:
       name: UCGateway
+    apps[19]:
+      name: MonitorProxy
   set[3]:
     name: 运营门户
     id: supportPortal
@@ -227,6 +229,12 @@ ccod:
       name: CommBankSHReportEX
     apps[41]:
       name: dcmsNew
+    apps[42]:
+      name: dms
+    apps[43]:
+      name: timeManager
+    apps[44]:
+      name: numberManager
   set[5]:
     name: 对外接口
     id: api
@@ -369,8 +377,8 @@ k8s:
     binary-file: binary-file
   deployment:
     defaultCfgMountPath: /cfg
-  template-file-path: D:/tmp/template.txt
-  test-three-part-service-save-path: D:/tmp/threePartServices.txt
+  template-file-path: /home/cmdb/config/template.txt
+  test-three-part-service-save-path: /home/cmdb/config/threePartServices.txt
 
 ci:
   jenkins:

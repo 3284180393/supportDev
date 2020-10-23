@@ -29,6 +29,8 @@ public abstract class PlatformBase {
 
     public static String k8sHostIpKey = "k8sHostIp";
 
+    public static String nfsServerIpKey = "nfsServerIp";
+
     public static String dbPortKey = "dbPort";
 
     public static String baseDataNexusRepositoryKey = "baseDataNexusRepository";
@@ -71,6 +73,8 @@ public abstract class PlatformBase {
 
     protected String k8sAuthToken; //k8s的认证token
 
+    protected String nfsServerIp; //平台被挂载的nfs的server ip
+
     public PlatformBase(){}
 
     public PlatformBase(PlatformBase platformBase)
@@ -93,6 +97,7 @@ public abstract class PlatformBase {
         this.k8sHostIp = platformBase.k8sHostIp;
         this.k8sApiUrl = platformBase.k8sApiUrl;
         this.k8sAuthToken = platformBase.k8sAuthToken;
+        this.nfsServerIp = platformBase.nfsServerIp;
     }
 
     public PlatformBase(PlatformBase platformBase, Map<String, Object> params)
@@ -112,9 +117,10 @@ public abstract class PlatformBase {
         this.glsDBPwd = StringUtils.isNotBlank(platformBase.glsDBPwd) ? platformBase.glsDBPwd : (String)params.get(glsDBPwdKey);
         this.baseDataNexusRepository = StringUtils.isNotBlank(platformBase.baseDataNexusRepository) ? platformBase.baseDataNexusRepository : (String)params.get(baseDataNexusRepositoryKey);
         this.baseDataNexusPath = StringUtils.isNotBlank(platformBase.baseDataNexusPath) ? platformBase.baseDataNexusPath : (String)params.get(this.baseDataNexusPathKey);
-        this.k8sHostIp = platformBase.k8sHostIp;
+        this.k8sHostIp = StringUtils.isNotBlank(platformBase.k8sHostIp) ? platformBase.k8sHostIp : (String)params.get(k8sHostIpKey);
         this.k8sApiUrl = platformBase.k8sApiUrl;
         this.k8sAuthToken = platformBase.k8sAuthToken;
+        this.nfsServerIp = StringUtils.isNotBlank(platformBase.nfsServerIp) ? platformBase.nfsServerIp : (String)params.get(nfsServerIpKey);
     }
 
     public String getPlatformId() {
@@ -261,6 +267,14 @@ public abstract class PlatformBase {
         this.cfgs = cfgs;
     }
 
+    public String getNfsServerIp() {
+        return nfsServerIp;
+    }
+
+    public void setNfsServerIp(String nfsServerIp) {
+        this.nfsServerIp = nfsServerIp;
+    }
+
     public PlatformPo getCreatePlatform(String comment)
     {
         PlatformPo po = new PlatformPo(this, CCODPlatformStatus.SCHEMA_CREATE, comment);
@@ -286,6 +300,8 @@ public abstract class PlatformBase {
         params.put(this.baseDataNexusRepositoryKey, this.baseDataNexusRepository);
         if(type.equals(PlatformType.K8S_CONTAINER))
             params.put(this.k8sHostIpKey, this.k8sHostIp);
+        if(type.equals(PlatformType.K8S_CONTAINER))
+            params.put(this.nfsServerIp, StringUtils.isNotBlank(this.nfsServerIp) ? this.nfsServerIp : this.k8sHostIp);
         return params;
     }
 }

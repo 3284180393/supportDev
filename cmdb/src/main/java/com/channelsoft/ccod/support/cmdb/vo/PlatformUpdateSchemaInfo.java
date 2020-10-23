@@ -47,8 +47,6 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
 
     private List<K8sThreePartServiceVo> threePartServices;
 
-    private String nfsServerIp;  //被挂载的nfs的server ip
-
     public PlatformUpdateSchemaInfo() {}
 
     public PlatformUpdateSchemaInfo(PlatformBase platformBase, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
@@ -160,13 +158,5 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
 
     public void setThreePartServices(List<K8sThreePartServiceVo> threePartServices) {
         this.threePartServices = threePartServices;
-    }
-
-    public String getNfsServerIp() {
-        return nfsServerIp;
-    }
-
-    public void setNfsServerIp(String nfsServerIp) {
-        this.nfsServerIp = nfsServerIp;
     }
 }

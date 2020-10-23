@@ -129,7 +129,7 @@ public class CIController {
         catch (Exception ex)
         {
             logger.error(String.format("register app module from ci FAIL"), ex);
-            return "1";
+            return ex.getMessage();
         }
     }
 }

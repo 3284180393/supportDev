@@ -78,9 +78,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Value("${k8s.labels.platform-id}")
     private String platformIdLabel;
 
-    @Value("${k8s.labels.platform-name}")
-    private String platformNameLabel;
-
     @Value("${k8s.labels.domain-id}")
     private String domainIdLabel;
 
@@ -327,7 +324,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 svcPort.setTargetPort(new IntOrString(portVo.getTargetPort()));
             service.getSpec().getPorts().add(svcPort);
         }
-        logger.info(String.format("service for %s(%s, portType=%s and port=%s) : %s", alias, appName, portType.name, portStr));
+        logger.info(String.format("service for %s(%s), portType=%s and port=%s)", alias, appName, portType.name, portStr));
         return service;
     }
 
@@ -820,7 +817,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         ns.getMetadata().setName(platformId);
         Map<String, String> labels = new HashMap<>();
         labels.put(this.platformIdLabel, platformId);
-        labels.put(this.platformNameLabel, DatatypeConverter.printHexBinary(platformName.getBytes()));
         labels.put(this.ccodVersionLabel, ccodVersion);
         ns.getMetadata().setLabels(labels);
         logger.info(String.format("selected namespace for selector %s is %s", gson.toJson(selector), gson.toJson(ns)));
@@ -911,7 +907,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Job job = (V1Job) selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.JOB);
         String fileName = baseDataNexusPath.replaceAll("^.*/", "");
         job.getMetadata().setNamespace(platformId);
-        String workDir = String.format("/root/data/%s/base-volume", platformId);
+        String workDir = "/root/data/base-volume";
         String arg = String.format("mkdir %s -p;cd %s;wget %s/repository/%s/%s;tar -xvzf %s",
                 workDir, workDir, nexusHostUrl, platformBaseDataRepository, baseDataNexusPath, fileName);
         job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(arg));
@@ -1050,7 +1046,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         steps.add(step);
         step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
                 app.getDeploy().getMetadata().getName(), K8sOperation.CREATE, app.getDeploy());
-        if(module.isKernal()) {
+        if(module.isKernal() != null && module.isKernal()) {
             step.setKernal(true);
             step.setTimeout(module.getTimeout());
         }
@@ -1284,14 +1280,16 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             threePartApps = new ArrayList<>();
         if(threePartApps.size() == 0)
         {
-            V1Deployment oraDep = generateThreeAppDeployment(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId, hostUrl);
-            V1Service oraSvc = generateThreeAppService(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId);
-            K8sThreePartAppVo oracle = new K8sThreePartAppVo("oracle", "oracle", "32-xe-10g-1.0", oraDep, Arrays.asList(oraSvc), new ArrayList<>());
-            threePartApps.add(oracle);
             V1Deployment mysqlDep = generateThreeAppDeployment(ccodVersion,"mysql", "mysql", "5.7", platformId, hostUrl);
             V1Service mysqlSvc = generateThreeAppService(ccodVersion, "mysql", "mysql", "5.7", platformId);
             K8sThreePartAppVo mysql = new K8sThreePartAppVo("mysql", "mysql", "5.7", mysqlDep, Arrays.asList(mysqlSvc), new ArrayList<>());
             threePartApps.add(mysql);
+            if(ccodVersion.equals("3.9") || ccodVersion.equals("4.1")){
+                V1Deployment oraDep = generateThreeAppDeployment(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId, hostUrl);
+                V1Service oraSvc = generateThreeAppService(ccodVersion,"oracle", "oracle", "32-xe-10g-1.0", platformId);
+                K8sThreePartAppVo oracle = new K8sThreePartAppVo("oracle", "oracle", "32-xe-10g-1.0", oraDep, Arrays.asList(oraSvc), new ArrayList<>());
+                threePartApps.add(oracle);
+            }
         }
         metaMap = threePartApps.stream().map(app->app.getDeploy().getMetadata()).collect(Collectors.toList())
                 .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));

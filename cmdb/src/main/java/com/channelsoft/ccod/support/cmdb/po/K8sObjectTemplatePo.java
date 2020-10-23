@@ -1,5 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -136,5 +139,25 @@ public class K8sObjectTemplatePo {
 
     public void setJobJson(String jobJson) {
         this.jobJson = jobJson;
+    }
+
+    @Autowired
+    public K8sObjectTemplatePo clone()
+    {
+        K8sObjectTemplatePo po = new K8sObjectTemplatePo();
+        po.setLabels(new HashMap<>());
+        labels.forEach((k,v)->po.getLabels().put(k, v));
+        po.templateId = templateId;
+        po.deployJson = deployJson;
+        po.serviceJson = serviceJson;
+        po.ingressJson = ingressJson;
+        po.endpointsJson = endpointsJson;
+        po.podJson = podJson;
+        po.namespaceJson = namespaceJson;
+        po.jobJson = jobJson;
+        po.secretJson = secretJson;
+        po.persistentVolumeJson = persistentVolumeJson;
+        po.persistentVolumeClaimJson = persistentVolumeClaimJson;
+        return po;
     }
 }

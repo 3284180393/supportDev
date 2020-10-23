@@ -19,7 +19,9 @@ public enum PlatformCreateMethod {
 
     K8S_API(5, "K8S_API", "从k8s api接口中获取"),
 
-    K8S_API_CLONE(6, "K8S_API_CLONE", "通过k8s api克隆"),;
+    K8S_API_CLONE(6, "K8S_API_CLONE", "通过k8s api克隆"),
+
+    RESTORE_FROM_CMDB(7, "RESTORE_FROM_CMDB", "通过cmdb记录恢复"),;
 
     public int id;
 

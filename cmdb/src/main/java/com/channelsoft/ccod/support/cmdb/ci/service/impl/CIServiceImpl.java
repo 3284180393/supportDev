@@ -126,7 +126,7 @@ public class CIServiceImpl implements ICIService {
         StringBuffer sb = new StringBuffer();
         sb.append(String.format("版本:%s  \n  ", detail.getParameters().get("VERSION")));
         sb.append(String.format("### jenkins构建%s  \n  ", jenkSucc ? "成功" : "失败"));
-        sb.append(String.format("### sonarqube检查%s  \n  ", sonarSucc ? "成功" : "未通过"));
+        sb.append(String.format("### sonarqube检查%s  \n  ", sonarSucc ? "通过" : "未通过"));
         if(!sonarSucc){
             JsonParser jp = new JsonParser();
             JsonArray jsonArray = jp.parse(detail.getSonarOutput()).getAsJsonObject()
