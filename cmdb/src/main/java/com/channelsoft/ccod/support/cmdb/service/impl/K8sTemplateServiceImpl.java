@@ -792,6 +792,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
         deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
         deploy.getSpec().getTemplate().getSpec().getVolumes().forEach(v->v.getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId)));
+        deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().forEach(m->m.setSubPath(String.format("%s/%s", platformId, m.getSubPath())));
         if(appName.equals("oracle")){
             deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(0, String.format("/tmp/init.sh %s", hostUrl));
         }
@@ -841,7 +842,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         pv.getMetadata().setName(name);
         pv.getSpec().getClaimRef().setNamespace(platformId);
         pv.getSpec().getClaimRef().setName(name);
-        pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s", platformId));
+        pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume"));
         pv.getSpec().getNfs().setServer(nfsServerIp);
         pv.getSpec().setStorageClassName(name);
         logger.info(String.format("generate persistentVolume is %s", gson.toJson(pv)));
@@ -907,7 +908,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Job job = (V1Job) selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.JOB);
         String fileName = baseDataNexusPath.replaceAll("^.*/", "");
         job.getMetadata().setNamespace(platformId);
-        String workDir = "/root/data/base-volume";
+        String workDir = String.format("/root/data/%s/base-volume", platformId);
         String arg = String.format("mkdir %s -p;cd %s;wget %s/repository/%s/%s;tar -xvzf %s",
                 workDir, workDir, nexusHostUrl, platformBaseDataRepository, baseDataNexusPath, fileName);
         job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(arg));

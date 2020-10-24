@@ -303,9 +303,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn("write msg to sysLog success");
 //            updateK8sTemplate();
 //            String str = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"mysql\":\"mysql\",\"version\":\"5.7\"},\"name\":\"mysql\",\"namespace\":\"someTest\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"mysql\":\"mysql\"}},\"template\":{\"metadata\":{\"labels\":{\"mysql\":\"mysql\"}},\"spec\":{\"containers\":[{\"args\":[\"--default_authentication_plugin\\u003dmysql_native_password\",\"--character-set-server\\u003dutf8mb4\",\"--collation-server\\u003dutf8mb4_unicode_ci\",\"--lower-case-table-names\\u003d1\"],\"env\":[{\"name\":\"MYSQL_ROOT_PASSWORD\",\"value\":\"ccod\"},{\"name\":\"MYSQL_USER\",\"value\":\"ccod\"},{\"name\":\"MYSQL_PASSWORD\",\"value\":\"ccod\"},{\"name\":\"MYSQL_DATABASE\",\"value\":\"ccod\"}],\"image\":\"nexus.io:5000/db/mysql:5.7.29\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"mysql\",\"ports\":[{\"containerPort\":3306,\"protocol\":\"TCP\"}],\"resources\":{},\"volumeMounts\":[{\"mountPath\":\"/docker-entrypoint-initdb.d/\",\"name\":\"sql\",\"subPath\":\"base-volume/db/mysql/sql\"},{\"mountPath\":\"/var/lib/mysql\",\"name\":\"data\",\"subPath\":\"base-volume/db/mysql/data\"}]}],\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"sql\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-test-by-wyf\"},{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-test-by-wyf\"}}]}}}}";
-//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-//            logger.error(gson.toJson(schema));
-//            updatePlatformUpdateSchema(schema);
+            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+            logger.error(gson.toJson(schema));
+            updatePlatformUpdateSchema(schema);
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -326,11 +326,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             volume.setName("data");
             deployment.getSpec().getTemplate().getSpec().getVolumes().clear();
             deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
-//            V1VolumeMount mount = new V1VolumeMount();
-//            mount.setName("data");
-//            mount.setMountPath("/home/oracle/oracle10g/oradata");
-//            mount.setSubPath("base-volume/db/oracle/data");
-//            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().add(mount);
+            V1VolumeMount mount = new V1VolumeMount();
+            mount.setName("data");
+            mount.setMountPath("/home/oracle/oracle10g/oradata");
+            mount.setSubPath("base-volume/db/oracle/data");
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().add(mount);
 //            mount = new V1VolumeMount();
 //            mount.setName("data");
 //            mount.setMountPath("/usr/lib/oracle/xe/oradata/XE");
@@ -3168,6 +3168,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         case DELETE:
                             this.k8sApiService.deletePersistentVolume(optInfo.getName(), k8sApiUrl, k8sAuthToken);
                             break;
+                        case REPLACE:
+                            this.k8sApiService.replacePersistentVolume(optInfo.getName(), (V1PersistentVolume)optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            break;
                     }
                     break;
                 case PVC:
@@ -3354,7 +3357,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         {
                             V1Service dbSvc = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
                             int dbPort = getNodePortFromK8sService(dbSvc);
-                            boolean isConn = databaseConnectTest(platform.getGlsDBType(), (String)params.get(PlatformBase.glsDBUserKey), (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey), dbPort, (String)params.get(PlatformBase.glsDBSidKey), 240);
+                            boolean isConn = databaseConnectTest(glsDBType, (String)params.get(PlatformBase.glsDBUserKey), (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey), dbPort, (String)params.get(PlatformBase.glsDBSidKey), 240);
                             if(!isConn)
                                 throw new ApiException("create service for glsDB fail");
                             params.put(PlatformBase.dbPortKey, dbPort);

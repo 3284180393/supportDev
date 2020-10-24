@@ -198,6 +198,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         flushRegisteredApp();
         try
         {
+            appUpdate();
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         }
         catch (Exception ex)
@@ -206,6 +207,13 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
+
+    private void appUpdate(){
+        this.registerAppMap.values().stream().flatMap(s->s.stream()).filter(a->a.getStartCmd().equals("./")).forEach(a->{
+            a.setStartCmd(String.format("./%s", a.getInstallPackage().getFileName()));
+            appMapper.update(a.getApp());
+        });
+    }
 
     @Autowired
     public void flushRegisteredApp()
@@ -872,7 +880,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
             }
             appModule.fill(chosen);
             if(!isMatch && appType.equals(AppType.BINARY_FILE)) {
-                appModule.setStartCmd(String.format("./", appModule.getInstallPackage().getFileName()));
+                appModule.setStartCmd(String.format("./%s", appModule.getInstallPackage().getFileName()));
             }
         }
         finally {

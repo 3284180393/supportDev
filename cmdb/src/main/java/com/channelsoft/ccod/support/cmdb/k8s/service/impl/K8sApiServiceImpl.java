@@ -917,14 +917,14 @@ public class K8sApiServiceImpl implements IK8sApiService {
             System.out.println(logPath);
 //            deployReplaceTest();
 //            namespaceCreateTest();
-            createDeploymentTest();
-//            createPVTest();
+//            createDeploymentTest();
+            createPVTest();
 //            createPVCTest();
 //            createSvcTest();
 //            streamTest();
 //            createEndpointsTest();
 //            getTemplateJsonTest();
-            deploySelectTest();
+//            deploySelectTest();
         }
         catch (Exception ex)
         {
@@ -955,6 +955,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
     {
         String jsonStr = "{\"apiVersion\":\"v1\",\"kind\":\"Namespace\",\"metadata\":{\"name\":\"k8s-platform-test\"},\"spec\":{\"finalizers\":[\"kubernetes\"]}}";
         V1Namespace ns = gson.fromJson(jsonStr, V1Namespace.class);
+        ns.getMetadata().setNamespace(this.testPlatformId);
+        ns.getMetadata().setName(this.testPlatformId);
         ns = this.createNamespace(ns, this.testK8sApiUrl, this.testAuthToken);
         System.out.println(gson.toJson(ns));
     }
@@ -984,9 +986,11 @@ public class K8sApiServiceImpl implements IK8sApiService {
 
     private void createPVTest() throws Exception
     {
-        String jsonStr = "{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolume\",\"metadata\":{\"name\":\"base-volume-k8s-test\"},\"spec\":{\"accessModes\":[\"ReadWriteMany\"],\"capacity\":{\"storage\":\"1Gi\"},\"claimRef\":{\"apiVersion\":\"v1\",\"kind\":\"PersistentVolumeClaim\",\"name\":\"base-volume-k8s-test\",\"namespace\":\"k8s-test\"},\"nfs\":{\"path\":\"/home/kubernetes/volume/k8s-test/baseVolume\",\"server\":\"10.130.41.218\"},\"persistentVolumeReclaimPolicy\":\"Retain\",\"storageClassName\":\"base-volume-k8s-test\",\"volumeMode\":\"Filesystem\"}}";
+        String jsonStr = "{\"spec\":{\"nfs\":{\"path\":\"/home/kubernetes/volume\",\"server\":\"10.130.41.218\"}}}";
         V1PersistentVolume pv = gson.fromJson(jsonStr, V1PersistentVolume.class);
-        pv = createPersistentVolume(pv, this.testK8sApiUrl, this.testAuthToken);
+//        pv = createPersistentVolume(pv, this.testK8sApiUrl, this.testAuthToken);
+        pv.getSpec().getNfs().setPath(String.format("someTest/%s", pv.getSpec().getNfs().getPath()));
+        replacePersistentVolume("base-volume-pahjgs", pv, this.testK8sApiUrl, this.testAuthToken);
         System.out.println(gson.toJson(pv));
     }
 
