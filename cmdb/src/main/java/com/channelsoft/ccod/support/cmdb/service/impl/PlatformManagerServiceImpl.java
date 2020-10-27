@@ -303,9 +303,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn("write msg to sysLog success");
 //            updateK8sTemplate();
 //            String str = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"mysql\":\"mysql\",\"version\":\"5.7\"},\"name\":\"mysql\",\"namespace\":\"someTest\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"mysql\":\"mysql\"}},\"template\":{\"metadata\":{\"labels\":{\"mysql\":\"mysql\"}},\"spec\":{\"containers\":[{\"args\":[\"--default_authentication_plugin\\u003dmysql_native_password\",\"--character-set-server\\u003dutf8mb4\",\"--collation-server\\u003dutf8mb4_unicode_ci\",\"--lower-case-table-names\\u003d1\"],\"env\":[{\"name\":\"MYSQL_ROOT_PASSWORD\",\"value\":\"ccod\"},{\"name\":\"MYSQL_USER\",\"value\":\"ccod\"},{\"name\":\"MYSQL_PASSWORD\",\"value\":\"ccod\"},{\"name\":\"MYSQL_DATABASE\",\"value\":\"ccod\"}],\"image\":\"nexus.io:5000/db/mysql:5.7.29\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"mysql\",\"ports\":[{\"containerPort\":3306,\"protocol\":\"TCP\"}],\"resources\":{},\"volumeMounts\":[{\"mountPath\":\"/docker-entrypoint-initdb.d/\",\"name\":\"sql\",\"subPath\":\"base-volume/db/mysql/sql\"},{\"mountPath\":\"/var/lib/mysql\",\"name\":\"data\",\"subPath\":\"base-volume/db/mysql/data\"}]}],\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"sql\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-test-by-wyf\"},{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-test-by-wyf\"}}]}}}}";
-            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-            logger.error(gson.toJson(schema));
-            updatePlatformUpdateSchema(schema);
+//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+//            logger.error(gson.toJson(schema));
+//            updatePlatformUpdateSchema(schema);
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -313,56 +313,70 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     private void updateK8sTemplate() throws Exception{
-        PlatformPo platform = getK8sPlatform("jhkgs");
-        platform.setPlatformId("someTest");
         List<K8sObjectTemplatePo> templateList = k8sTemplateService.getK8sTemplates();
-        List<K8sOperationInfo> steps = k8sTemplateService.generatePlatformCreateSteps("1234455", null, null, null, null, null, null, null, null, platform);
-        {
-            V1Deployment deployment = (V1Deployment) steps.stream().filter(o->o.getKind().equals(K8sKind.DEPLOYMENT) && o.getName().equals("oracle"))
-                    .collect(Collectors.toList()).get(0).getObj();
-            V1PersistentVolumeClaimVolumeSource src = deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(a->a.getName(), v->v)).get("sql").getPersistentVolumeClaim();
-            V1Volume volume = new V1Volume();
-            volume.setPersistentVolumeClaim(src);
-            volume.setName("data");
-            deployment.getSpec().getTemplate().getSpec().getVolumes().clear();
-            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
-            V1VolumeMount mount = new V1VolumeMount();
-            mount.setName("data");
-            mount.setMountPath("/home/oracle/oracle10g/oradata");
-            mount.setSubPath("base-volume/db/oracle/data");
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().add(mount);
-//            mount = new V1VolumeMount();
+//        PlatformPo platform = getK8sPlatform("jhkgs");
+//        List<K8sOperationInfo> steps = k8sTemplateService.generatePlatformCreateSteps("1234455", null, null, null, null, null, null, null, null, platform);
+//        {
+//            V1Deployment deployment = (V1Deployment) steps.stream().filter(o->o.getKind().equals(K8sKind.DEPLOYMENT) && o.getName().equals("oracle"))
+//                    .collect(Collectors.toList()).get(0).getObj();
+//            V1PersistentVolumeClaimVolumeSource src = deployment.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(a->a.getName(), v->v)).get("sql").getPersistentVolumeClaim();
+//            V1Volume volume = new V1Volume();
+//            volume.setPersistentVolumeClaim(src);
+//            volume.setName("data");
+//            deployment.getSpec().getTemplate().getSpec().getVolumes().clear();
+//            deployment.getSpec().getTemplate().getSpec().getVolumes().add(volume);
+//            V1VolumeMount mount = new V1VolumeMount();
 //            mount.setName("data");
-//            mount.setMountPath("/usr/lib/oracle/xe/oradata/XE");
+//            mount.setMountPath("/home/oracle/oracle10g/oradata");
 //            mount.setSubPath("base-volume/db/oracle/data");
 //            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().add(mount);
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).setSubPath("base-volume/db/oracle/sql");
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts()
-                    .forEach(m->m.setName("data"));
-//                System.out.println(gson.toJson(deployment));
-            templateList.stream().filter(t-> t.getLabels().containsKey("app-name") && t.getLabels().get("app-name").equals("oracle")).forEach(t->{
-                t.setDeployJson(gson.toJson(deployment));
-            });
-        }
-        {
-            V1Deployment deployment = (V1Deployment) steps.stream().filter(o->o.getKind().equals(K8sKind.DEPLOYMENT) && o.getName().equals("mysql"))
-                    .collect(Collectors.toList()).get(0).getObj();
-            deployment.getSpec().getTemplate().getSpec().getVolumes().forEach(v->v.setName("data"));
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().stream().forEach(v->v.setName("data"));
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).setSubPath("base-volume/db/mysql/sql");
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(1).setSubPath("base-volume/db/mysql/data");
-            templateList.stream().filter(t-> t.getLabels().containsKey("app-name") && t.getLabels().get("app-name").equals("mysql")).forEach(t->{
-                t.setDeployJson(gson.toJson(deployment));
-            });
-
-        }
-        List<K8sObjectTemplatePo> newT = new ArrayList<>();
-        templateList.stream().filter(t->t.getLabels().containsKey("ccod-version") && t.getLabels().get("ccod-version").equals("4.1")).forEach(s->{
-            K8sObjectTemplatePo t = s.clone();
-            t.getLabels().put("ccod-version", "4.8");
-            newT.add(t);
+////            mount = new V1VolumeMount();
+////            mount.setName("data");
+////            mount.setMountPath("/usr/lib/oracle/xe/oradata/XE");
+////            mount.setSubPath("base-volume/db/oracle/data");
+////            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().add(mount);
+//            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).setSubPath("base-volume/db/oracle/sql");
+//            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts()
+//                    .forEach(m->m.setName("data"));
+////                System.out.println(gson.toJson(deployment));
+//            templateList.stream().filter(t-> t.getLabels().containsKey("app-name") && t.getLabels().get("app-name").equals("oracle")).forEach(t->{
+//                t.setDeployJson(gson.toJson(deployment));
+//            });
+//        }
+//        {
+//            V1Deployment deployment = (V1Deployment) steps.stream().filter(o->o.getKind().equals(K8sKind.DEPLOYMENT) && o.getName().equals("mysql"))
+//                    .collect(Collectors.toList()).get(0).getObj();
+//            deployment.getSpec().getTemplate().getSpec().getVolumes().forEach(v->v.setName("data"));
+//            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().stream().forEach(v->v.setName("data"));
+//            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).setSubPath("base-volume/db/mysql/sql");
+//            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(1).setSubPath("base-volume/db/mysql/data");
+//            templateList.stream().filter(t-> t.getLabels().containsKey("app-name") && t.getLabels().get("app-name").equals("mysql")).forEach(t->{
+//                t.setDeployJson(gson.toJson(deployment));
+//            });
+//
+//        }
+//        List<K8sObjectTemplatePo> newT = new ArrayList<>();
+//        templateList.stream().filter(t->t.getLabels().containsKey("ccod-version") && t.getLabels().get("ccod-version").equals("4.1")).forEach(s->{
+//            K8sObjectTemplatePo t = s.clone();
+//            t.getLabels().put("ccod-version", "4.8");
+//            newT.add(t);
+//        });
+//        templateList.addAll(newT);
+//        templateList.stream().filter(t->t.getLabels().containsKey(this.appTypeLabel) && (t.getLabels().get(this.appTypeLabel).equals(AppType.RESIN_WEB_APP.name)) && t.getDeployJson() != null).forEach(t->{
+//                    V1Deployment d = gson.fromJson(t.getDeployJson(), V1Deployment.class);
+//                    d.getSpec().getTemplate().getSpec().getContainers().get(0).setImage("nexus.io:5000/ccod-base/resin-jdk:resin-4.0.13_jdk-1.8.0_10");
+//                    t.setDeployJson(gson.toJson(d));
+//        });
+//        templateList.stream().filter(t->t.getLabels().containsKey(this.appTypeLabel) && (t.getLabels().get(this.appTypeLabel).equals(AppType.TOMCAT_WEB_APP.name)) && t.getDeployJson() != null).forEach(t->{
+//            V1Deployment d = gson.fromJson(t.getDeployJson(), V1Deployment.class);
+//            d.getSpec().getTemplate().getSpec().getContainers().get(0).setImage("nexus.io:5000/ccod-base/tomcat:6.0.53-jre8");
+//            t.setDeployJson(gson.toJson(d));
+//        });
+        templateList.stream().filter(t->t.getLabels().containsKey(appNameLabel) && t.getLabels().get(appNameLabel).equals("mysql") && t.getLabels().get(ccodVersionLabel).equals("4.8")).forEach(t->{
+            V1Deployment d = gson.fromJson(t.getDeployJson(), V1Deployment.class);
+            d.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(3, "--lower-case-table-names=0");
+            t.setDeployJson(gson.toJson(d));
         });
-        templateList.addAll(newT);
         logger.error(gson.toJson(templateList));
     }
 
@@ -570,16 +584,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
+    public List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
         PlatformPo platform = getK8sPlatform(platformId);
-        List<PlatformAppDeployDetailVo> details = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform);
+        List<PlatformAppDeployDetailVo> details = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform, isGetCfg);
         return details;
     }
 
     @Override
-    public PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String appName, String alias) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
+    public PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String appName, String alias, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
         PlatformPo platform = getK8sPlatform(platformId);
-        PlatformAppDeployDetailVo detail = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform, domainId, appName, alias);
+        PlatformAppDeployDetailVo detail = this.k8sTemplateService.getPlatformAppDetailFromK8s(platform, domainId, appName, alias, isGetCfg);
         return detail;
     }
 
@@ -1908,8 +1922,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         new Thread(()->{
             try
             {
-                CCODPlatformStatus status = platform.getStatus();
+                CCODPlatformStatus status = platform.getParams().containsKey(PlatformBase.statusBeforeDebugKey) ? CCODPlatformStatus.getEnum((String)platform.getParams().get(PlatformBase.statusBeforeDebugKey)) : platform.getStatus();
                 logger.debug(String.format("original status of platform %s is %s, changed to DEBUG now", platformId, status.name));
+                platform.getParams().put(PlatformBase.statusBeforeDebugKey, status.name);
                 platform.setStatus(CCODPlatformStatus.DEBUG);
                 platformMapper.update(platform);
                 AppModuleVo module = this.appManagerService.queryAppByVersion(appName, optInfo.getVersion(), true);

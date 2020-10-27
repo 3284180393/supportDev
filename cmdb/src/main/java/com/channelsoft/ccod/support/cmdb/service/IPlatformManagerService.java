@@ -131,10 +131,11 @@ public interface IPlatformManagerService {
     /**
      * 查询指定模块的部署状态信息
      * @param platformId 平台id
+     * @param isGetCfg 是否获取平台配置
      * @return 已经部署模块的状态明细
      * @throws ApiException
      */
-    List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
+    List<PlatformAppDeployDetailVo> queryPlatformCCODAppDeployStatus(String platformId, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
 
 
     /**
@@ -143,10 +144,11 @@ public interface IPlatformManagerService {
      * @param domainId 域id
      * @param appName 应用名
      * @param alias 别名
+     * @param isGetCfg 是否获取应用配置文件
      * @return 指定模块在k8s上的状态
      * @throws ApiException
      */
-    PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String appName, String alias) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
+    PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String appName, String alias, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
 
     /**
      * 更新平台升级计划

@@ -198,7 +198,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         flushRegisteredApp();
         try
         {
-            appUpdate();
+//            appUpdate();
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         }
         catch (Exception ex)
@@ -209,9 +209,24 @@ public class AppManagerServiceImpl implements IAppManagerService {
 
 
     private void appUpdate(){
-        this.registerAppMap.values().stream().flatMap(s->s.stream()).filter(a->a.getStartCmd().equals("./")).forEach(a->{
-            a.setStartCmd(String.format("./%s", a.getInstallPackage().getFileName()));
-            appMapper.update(a.getApp());
+//        this.registerAppMap.values().stream().flatMap(s->s.stream()).filter(a->a.getStartCmd().equals("./")).forEach(a->{
+//            a.setStartCmd(String.format("./%s", a.getInstallPackage().getFileName()));
+//            appMapper.update(a.getApp());
+//        });
+        String regex = ".*\\.war\\.war\\s*$";
+        this.registerAppMap.values().stream().flatMap(s->s.stream())
+                .filter(a->a.getInstallPackage().getFileName().matches(regex) || a.getInstallPackage().getNexusPath().matches(regex)).forEach(a->{
+                    a.getInstallPackage().setFileName(a.getInstallPackage().getFileName().replaceAll("\\.war\\.war\\s*$", "\\.war"));
+                    a.getInstallPackage().setNexusPath(a.getInstallPackage().getNexusPath().replaceAll("\\.war\\.war\\s*$", "\\.war"));
+                    a.setUpdateTime(new Date());
+                    appMapper.update(a.getApp());
+                    try{
+                        nexusService.deleteAsset(nexusHostUrl, nexusUserName, nexusPassword, a.getInstallPackage().getNexusAssetId());
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.printStackTrace();
+                    }
         });
     }
 
@@ -859,8 +874,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     registered.setVersionControlUrl(appModule.getVersionControlUrl());
                     registered.setHasImage(true);
                     registered.setUpdateTime(new Date());
-                    this.appMapper.update(registered.getApp());
-                    return;
+                    appModule = registered;
                 }
                 else{
                     List<AppModuleVo> ms = modules.stream().filter(a->a.getCcodVersion().equals(ccodVersion))
@@ -878,16 +892,21 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 chosen = modules.get(modules.size() - 1);
                 isMatch = false;
             }
-            appModule.fill(chosen);
-            if(!isMatch && appType.equals(AppType.BINARY_FILE)) {
-                appModule.setStartCmd(String.format("./%s", appModule.getInstallPackage().getFileName()));
-            }
         }
         finally {
             this.appReadLock.writeLock().unlock();
         }
         appModule.setHasImage(true);
-        registerNewAppModule(appModule);
+        if(chosen == null){
+            this.updateAppModule(appModule);
+        }
+        else{
+            appModule.fill(chosen);
+            if(!isMatch && appType.equals(AppType.BINARY_FILE)) {
+                appModule.setStartCmd(String.format("./%s", appModule.getInstallPackage().getFileName()));
+            }
+            registerNewAppModule(appModule);
+        }
         logger.info(String.format("register app module %s(%s) from ci success", appName, version));
     }
 
@@ -933,7 +952,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException {
+    public void updateAppModule(AppModuleVo appModule) throws ParamException, InterfaceCallException, NexusException, IOException {
         logger.debug(String.format("begin to modify cfg of app=[%s] in cmdb", gson.toJson(appModule)));
         String appName = appModule.getAppName();
         String version = appModule.getVersion();

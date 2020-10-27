@@ -126,13 +126,12 @@ public interface IAppManagerService {
     /**
      * 更新已有的应用模块
      * @param appModule 需要修改配置的应用模块信息
-     * @throws NotSupportAppException 不支持注册的应用
      * @throws ParamException 应用参数错误，例如版本重复
      * @throws InterfaceCallException 调用nexus的api失败
      * @throws NexusException nexus的api返回调用失败或是解析nexus的返回结果失败
      * @throws IOException
      */
-    void updateAppModule(AppModuleVo appModule) throws NotSupportAppException, ParamException, InterfaceCallException, NexusException, IOException;
+    void updateAppModule(AppModuleVo appModule) throws ParamException, InterfaceCallException, NexusException, IOException;
 
     /**
      * 查询指定应用的配置文件并以字符串的形式返回

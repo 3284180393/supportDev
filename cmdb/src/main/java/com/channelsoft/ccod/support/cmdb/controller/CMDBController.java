@@ -739,7 +739,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            List<PlatformAppDeployDetailVo> details = this.platformManagerService.queryPlatformCCODAppDeployStatus(platformId);
+            List<PlatformAppDeployDetailVo> details = this.platformManagerService.queryPlatformCCODAppDeployStatus(platformId, false);
             resultPo = new AjaxResultPo(true, "query SUCCESS", details.size(), details);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }
@@ -759,7 +759,7 @@ public class CMDBController {
         AjaxResultPo resultPo;
         try
         {
-            PlatformAppDeployDetailVo detail = this.platformManagerService.queryPlatformCCODAppDeployStatus(platformId, domainId, appName, alias);
+            PlatformAppDeployDetailVo detail = this.platformManagerService.queryPlatformCCODAppDeployStatus(platformId, domainId, appName, alias, false);
             resultPo = new AjaxResultPo(true, "query SUCCESS", 1, detail);
             logger.info(String.format("query SUCCESS, quit %s", uri));
         }

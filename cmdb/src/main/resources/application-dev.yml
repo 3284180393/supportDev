@@ -277,6 +277,7 @@ ccod:
     - mysql
   threePartServices:
     - umg
+some-test:
 
 nexus:
   user : admin

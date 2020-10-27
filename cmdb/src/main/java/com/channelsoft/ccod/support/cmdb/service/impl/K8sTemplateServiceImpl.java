@@ -1583,7 +1583,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         Pattern pattern = Pattern.compile(String.format(startCmdRegex, cmdTag));
         Matcher matcher = pattern.matcher(command);
         if(!matcher.find()){
-            System.out.println("not find");
+            logger.error(String.format("%s(%s) command %s is not matched for %s", alias, module.getAppName(), command, pattern.toString()));
+            throw new ParamException(String.format("%s(%s) command is illegal", alias, module.getAppName()));
         }
         String startCmd = matcher.group().replace(";", "");
         int index = command.indexOf(startCmd);
@@ -1608,9 +1609,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         cmd = init.getCommand();
         command = cmd.get(2);
         detail.setEnvLoadCmd(command);
-        String mountPath = runtime.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, v->v.getMountPath())).get(volume);
-        List<AppFileNexusInfo> cfgs = restoreConfigFileFromConfigMap(configMap, command, detail.getBasePath(), volume, mountPath);
-        detail.setCfgs(cfgs);
+        if(configMap != null){
+            String mountPath = runtime.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, v->v.getMountPath())).get(volume);
+            List<AppFileNexusInfo> cfgs = restoreConfigFileFromConfigMap(configMap, command, detail.getBasePath(), volume, mountPath);
+            detail.setCfgs(cfgs);
+        }
         detail.fill(module);
         return detail;
     }
@@ -1654,15 +1657,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform) throws ApiException, ParamException, InterfaceCallException, NexusException, IOException
+    public List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform, boolean isGetCfg) throws ApiException, ParamException, InterfaceCallException, NexusException, IOException
     {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
         List<V1Deployment> deployments = this.ik8sApiService.listNamespacedDeployment(platformId, k8sApiUrl, k8sAuthToken);
         List<V1Service> services = this.ik8sApiService.listNamespacedService(platformId, k8sApiUrl, k8sAuthToken);
-        Map<String, V1ConfigMap> configMapMap = this.ik8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken)
-                .stream().collect(Collectors.toMap(s->s.getMetadata().getName(), v->v));
+        Map<String, V1ConfigMap> configMapMap = isGetCfg ? this.ik8sApiService.listNamespacedConfigMap(platformId, k8sApiUrl, k8sAuthToken)
+                .stream().collect(Collectors.toMap(s->s.getMetadata().getName(), v->v)) : new HashMap<>();
         List<PlatformAppDeployDetailVo> details = new ArrayList<>();
         for(V1Deployment deployment : deployments){
             boolean isDomainApp = isCCODDomainAppDeployment(deployment);
@@ -1673,14 +1676,19 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             String domainId = deployment.getMetadata().getLabels().get(this.domainIdLabel);
             for(V1Container init : deployment.getSpec().getTemplate().getSpec().getInitContainers()){
                 V1ConfigMap configMap = configMapMap.get(String.format("%s-%s", init.getName(), domainId));
-                if(configMap == null){
+                if(configMap == null && isGetCfg){
                     logger.error(String.format("can not find configMap %s-%s", init.getName(), domainId));
                     continue;
                 }
                 List<V1Service> relativeSvcs = services.stream().filter(s->isMatch(s.getSpec().getSelector(), deployment.getSpec().getTemplate().getMetadata().getLabels()))
                         .collect(Collectors.toList());
-                PlatformAppDeployDetailVo detail = this.getAppDetailFromK8sObj(init.getName(), deployment, relativeSvcs, configMap);
-                details.add(detail);
+                try{
+                    PlatformAppDeployDetailVo detail = this.getAppDetailFromK8sObj(init.getName(), deployment, relativeSvcs, configMap);
+                    details.add(detail);
+                }
+                catch (Exception ex){
+                    logger.error(String.format("get %s deploy detail for %s", init, platform.getPlatformName(), platform.getPlatformId()));
+                }
             }
 
         }
@@ -1780,7 +1788,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
+    public PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
         Map<String, String> selector = new HashMap<>();
         selector.put(this.domainIdLabel, domainId);
         selector.put(appName, alias);
@@ -1798,7 +1806,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         if(initContainer == null){
             throw new ParamException(String.format("can not find container for %s", gson.toJson(selector)));
         }
-        V1ConfigMap configMap = ik8sApiService.readNamespacedConfigMap(String.format("%s-%s", alias, domainId), platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken());
+        V1ConfigMap configMap = isGetCfg ? ik8sApiService.readNamespacedConfigMap(String.format("%s-%s", alias, domainId), platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken()) : null;
         List<V1Service> services = this.ik8sApiService.selectNamespacedService(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
         if(services.size() == 0){
             throw new ParamException(String.format("can not find service for %s", gson.toJson(selector)));

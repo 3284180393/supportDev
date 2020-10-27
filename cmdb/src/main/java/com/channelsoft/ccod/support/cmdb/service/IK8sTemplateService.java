@@ -253,11 +253,12 @@ public interface IK8sTemplateService {
     /**
      * 查询指定平台所有ccod模块在k8s上的运行状态
      * @param platform 指定的基于k8s的平台
+     * @param isGetCfg 是否获取配置文件信息
      * @return 所有ccod模块在k8s上运行状态
      * @throws ApiException
      * @throws ParamException
      */
-    List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform) throws ApiException, ParamException, InterfaceCallException, NexusException, IOException;
+    List<PlatformAppDeployDetailVo> getPlatformAppDetailFromK8s(PlatformPo platform, boolean isGetCfg) throws ApiException, ParamException, InterfaceCallException, NexusException, IOException;
 
     /**
      * 查询指定ccod模块在k8s上的运行状态
@@ -265,9 +266,10 @@ public interface IK8sTemplateService {
      * @param domainId 域id
      * @param appName 应用名
      * @param alias 应用别名
+     * @param isGetCfg 是否分析和下载应用配置
      * @return 指定ccod模块在k8s上的运行状态
      * @throws ApiException
      */
-    PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
+    PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
 
 }

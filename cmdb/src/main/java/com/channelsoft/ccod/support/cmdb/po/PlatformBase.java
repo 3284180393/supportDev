@@ -37,6 +37,8 @@ public abstract class PlatformBase {
 
     public static String baseDataNexusPathKey = "baseDataNexusPath";
 
+    public static String statusBeforeDebugKey = "statusBeforeDebugKey";
+
     protected String platformId; //平台id
 
     protected String platformName; //该平台的平台名

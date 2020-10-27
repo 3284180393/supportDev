@@ -1,0 +1,25 @@
+appName: ucxserver
+appType: BINARY_FILE
+ccodVersion: '4.8'
+kernal: true
+timeout: 70
+basePath: /root/Platform
+deployPath: ./bin/
+envLoadCmd: mv /opt/FlowMap.full ./cfg/FlowMap.full
+initCmd:
+startCmd: ./ucxserver
+logOutputCmd: sleep 5;tail -F ../log/*/*.log
+ports: 11000/TCP
+nodePorts:
+checkAt: 11000/TCP
+resources:
+initialDelaySeconds: 30
+periodSeconds: 10
+cfgs:
+  - deployPath: ./etc/
+    nexusRepository: ccod_module_releases
+    nexusPath: ucxserver/58ff67bbef8f97e6f5a7ef0bccb68dfb1c7c63fa/config.ucx
+installPackage:
+  deployPath: ./bin
+  nexusRepository: ccod_module_releases
+  nexusPath: ucxserver/58ff67bbef8f97e6f5a7ef0bccb68dfb1c7c63fa/ucxserver
