@@ -262,8 +262,9 @@ public interface IPlatformManagerService {
      * @param platformId 平台id
      * @param domainId 域id
      * @param optInfo 需要调试的相关内容
+     * @param timeout deployment状态变成Active的超时时长，如果为空或是0则使用对应module定义的timeout，如果还是为空或是0则为缺省的debugTimeout
      */
-    void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, InterfaceCallException, LJPaasException, ApiException;
+    void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo, Integer timeout) throws ParamException, InterfaceCallException, LJPaasException, ApiException;
 
     /**
      * 从k8s恢复出平台拓扑

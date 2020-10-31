@@ -117,9 +117,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Value("${nexus.host-url}")
     private String nexusHostUrl;
 
-    @Value("${debug-timeout}")
-    private int debugTimeout;
-
     private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).disableHtmlEscaping().create();
 
     private Gson templateParseGson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
@@ -384,6 +381,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Container runtimeContainer = deploy.getSpec().getTemplate().getSpec().getContainers().get(0);
         logger.debug(String.format("set container name to %s-runtime", alias));
         runtimeContainer.setName(String.format("%s-runtime", alias));
+        if(appType.equals(AppType.JAR)){
+            runtimeContainer.setImage(image);
+        }
         mounts = generateRuntimeContainerMount(runtimeContainer, appBase, platformId, domainId, platform.getCfgs(), domainCfg);
         runtimeContainer.setVolumeMounts(mounts);
         logger.debug(String.format("generate init container commands"));
@@ -427,6 +427,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                         break;
                     case TOMCAT_WEB_APP:
                     case RESIN_WEB_APP:
+                    case JAR:
                         portVo.setTargetPort(8080);
                         break;
                     default:
@@ -543,12 +544,16 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     private List<String> generateCmdForRuntimeContainer(AppBase appBase,String platformId, String domainId, List<AppFileNexusInfo> platformCfg, List<AppFileNexusInfo> domainCfg) throws ParamException
     {
         String alias = appBase.getAlias();
+        AppType appType = appBase.getAppType();
         List<String> commands = new ArrayList<>();
         commands.add(0, "/bin/sh");
         commands.add(1, "-c");
         String basePath = appBase.getBasePath();
         String deployPath = getAbsolutePath(basePath, appBase.getDeployPath());
         String execParam = String.format("cd %s", basePath);
+        if(appType.equals(AppType.JAR)){
+            execParam = String.format("mkdir %s -p;mv /root/%s %s;%s", deployPath, appBase.getInstallPackage().getFileName(), deployPath, execParam);
+        }
         if(platformCfg != null && platformCfg.size() > 0)
         {
             String mountPath = String.format("/cfg/%s", platformId);
@@ -573,7 +578,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 }
             }
         }
-        AppType appType = appBase.getAppType();
         String cwd = appType.equals(AppType.BINARY_FILE) || appType.equals(AppType.JAR)? deployPath : basePath;
         if(StringUtils.isNotBlank(appBase.getInitCmd()))
             execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getInitCmd());
@@ -594,7 +598,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         AppType appType = appBase.getAppType();
         String appName = appBase.getAppName();
         String theName = packageFileName.replaceAll("\\.war$", "");
-        String basePath = appType.equals(AppType.BINARY_FILE) ? "/binary-file" : "/opt";
+        String basePath = appType.equals(AppType.BINARY_FILE) || appType.equals(AppType.JAR) ? "/binary-file" : "/opt";
         String deployPath = getAbsolutePath(basePath, appBase.getDeployPath());
         String execParam = "";
         String mountPath = String.format("/cfg/%s-cfg", alias);
@@ -606,6 +610,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             case TOMCAT_WEB_APP:
             case RESIN_WEB_APP:
                 execParam = String.format("mkdir %s -p;cd %s;mv /opt/%s %s/%s", deployPath, deployPath, packageFileName, deployPath, packageFileName);
+                break;
+            case JAR:
                 break;
             default:
                 throw new ParamException(String.format("error appType %s", appType.name));
@@ -628,6 +634,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 switch (appType)
                 {
                     case BINARY_FILE:
+                    case JAR:
                         execParam = String.format("%s;cp %s/%s %s/%s", execParam, mountPath, cfg.getFileName(), absolutePath, cfg.getFileName());
                         break;
                     case RESIN_WEB_APP:
@@ -718,6 +725,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                     break;
                 case TOMCAT_WEB_APP:
                 case RESIN_WEB_APP:
+                case JAR:
                     logger.debug(String.format("monitor port is %d/HTTPGet", targetPort));
                     get = new V1HTTPGetAction();
                     get.setPort(new IntOrString(targetPort));
@@ -974,7 +982,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             services.add(service);
         }
         ExtensionsV1beta1Ingress ingress = null;
-        if(appType.equals(AppType.TOMCAT_WEB_APP) || appType.equals(AppType.RESIN_WEB_APP))
+        if(appType.equals(AppType.TOMCAT_WEB_APP) || appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.JAR))
             ingress = this.generateIngress(ccodVersion, appType, appName, alias, platformId, domainId, platform.getHostUrl());
         K8sCCODDomainAppVo app = new K8sCCODDomainAppVo(alias, module, domainId, configMap, deploy, services, ingress);
         return app;
@@ -1124,7 +1132,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException {
+    public List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, int timeout) throws ParamException, ApiException, InterfaceCallException, IOException {
         String alias = appBase.getAlias();
         String appName = appBase.getAppName();
         String version = appBase.getVersion();
@@ -1156,7 +1164,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<K8sOperationInfo> addSteps = generateAddPlatformAppSteps(jobId, appBase, domainId, domainCfg, platform, true);
         addSteps.forEach(v->{
             if (v.getKind().equals(K8sKind.DEPLOYMENT) && v.getOperation().equals(K8sOperation.CREATE)) {
-                v.setKernal(true);v.setTimeout(debugTimeout);
+                v.setKernal(true);
+                v.setTimeout(timeout);
             }});
         steps.addAll(addSteps);
         return steps;

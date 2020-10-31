@@ -247,6 +247,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${ccod.service-port-regex}")
     private String portRegex;
 
+    @Value("${debug-timeout}")
+    private int debugTimeout;
+
     private final Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
 
     private final List<K8sOperationPo> platformDeployLogs = new ArrayList<>();
@@ -412,14 +415,20 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            d.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(3, "--lower-case-table-names=0");
 //            t.setDeployJson(gson.toJson(d));
 //        });
-        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(15)), K8sObjectTemplatePo.class);
-        po.getLabels().put(appTypeLabel, AppType.JAR.name);
-        po.setServiceJson(templateList.get(17).getServiceJson());
-        po.setIngressJson(templateList.get(17).getIngressJson());
-        V1Deployment deployment = (V1Deployment)gson.fromJson(po.getDeployJson(), V1Deployment.class);
-        deployment.getMetadata().getLabels().put(appTypeLabel, AppType.JAR.name);
+//        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(15)), K8sObjectTemplatePo.class);
+//        po.getLabels().put(appTypeLabel, AppType.JAR.name);
+//        po.setServiceJson(templateList.get(17).getServiceJson());
+//        po.setIngressJson(templateList.get(17).getIngressJson());
+//        V1Deployment deployment = (V1Deployment)gson.fromJson(po.getDeployJson(), V1Deployment.class);
+//        deployment.getMetadata().getLabels().put(appTypeLabel, AppType.JAR.name);
+//        po.setDeployJson(gson.toJson(deployment));
+//        templateList.add(po);
+        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(17)), K8sObjectTemplatePo.class);
+        po.getLabels().put(appNameLabel, "gls");
+        V1Deployment deployment = gson.fromJson(po.getDeployJson(), V1Deployment.class);
+        deployment.getSpec().getTemplate().getSpec().getContainers().get(0).setImage("ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-0");
         po.setDeployJson(gson.toJson(deployment));
-        templateList.add(po);
+        templateList.add(18, po);
         logger.error(gson.toJson(templateList));
     }
 
@@ -1933,7 +1942,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, InterfaceCallException, LJPaasException, ApiException {
+    public void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo, Integer timeout) throws ParamException, InterfaceCallException, LJPaasException, ApiException {
+        logger.debug(String.format("begin to debug %s at %s of %s, timeout=%s", gson.toJson(optInfo), domainId, platformId, timeout));
         Assert.isTrue(!this.isPlatformCheckOngoing, "some platform deploy, collect or debug task is ongoing");
         Assert.notNull(optInfo, "debug detail can not be null");
         String appName = optInfo.getAppName();
@@ -1977,7 +1987,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     detail.setUpdateTime(now);
                     detail.setDebugging(true);
                     detail.setPlatformId(platformId);
-                    detail.setDomainId(optInfo.getDomainId());
+                    detail.setDomainId(domainId);
                     detail.setDetail(optInfo);
                     detail.setCreateTime(now);
                     detail.setAppName(optInfo.getAppName());
@@ -2000,12 +2010,22 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 platformMapper.update(platform);
                 AppModuleVo module = this.appManagerService.queryAppByVersion(appName, optInfo.getVersion(), true);
                 optInfo.setAppType(module.getAppType());
+//                AppModuleVo jarModule = appManagerService.queryAppByVersion("timeManager", "208947d5f133ca865e457e2df0fcdca7eb5d6181", true);
+//                optInfo.changeTo(jarModule);
+//                optInfo.setAppName(jarModule.getAppName());
+//                optInfo.setAppType(jarModule.getAppType());
+//                optInfo.setAlias("timermanager");
+//                optInfo.setCheckAt(null);
                 List<AppFileNexusInfo> domainCfg = optInfo.getDomainCfg();
                 if(domainCfg == null || domainCfg.size() == 0){
                     DomainPo domainPo = this.domainMapper.selectByPrimaryKey(platformId, domainId);
                     domainCfg = domainPo != null ? domainPo.getCfgs() : new ArrayList<>();
                 }
-                List<K8sOperationInfo> steps = this.k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform);;
+                Integer startTimeout = timeout == null || timeout <= 0 ? module.getTimeout() : timeout;
+                if(startTimeout == null || startTimeout <= 0){
+                    startTimeout = debugTimeout;
+                }
+                List<K8sOperationInfo> steps = this.k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform, startTimeout);;
                 for(K8sOperationInfo step : steps) {
                     K8sOperationPo execResult = execK8sOpt(platformDeployLogs, step, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
                     if(!execResult.isSuccess()) {

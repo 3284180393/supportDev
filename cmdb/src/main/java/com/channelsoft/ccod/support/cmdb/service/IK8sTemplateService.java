@@ -191,11 +191,12 @@ public interface IK8sTemplateService {
      * @param domainId 域id
      * @param domainCfg 域公共配置
      * @param platform k8s平台相关信息
+     * @param timeout deployment状态变成Active的超时时长
      * @return 修改域应用的k8s调试步骤
      * @throws ParamException
      * @throws ApiException
      */
-    List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException;
+    List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, int timeout) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
      * 生成选择器用于选择k8s上的ccod域应用相关资源

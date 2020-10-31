@@ -357,14 +357,14 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/platformApps/{platformId}/{domainId}", method = RequestMethod.PUT)
-    public AjaxResultPo debugApp(@RequestBody @Valid AppUpdateOperationInfo optInfo, @PathVariable String platformId, @PathVariable String domainId)
+    public AjaxResultPo debugApp(@RequestBody @Valid AppUpdateOperationInfo optInfo, @PathVariable String platformId, @PathVariable String domainId, Integer timeout)
     {
-        String uri = String.format("PUT %s/platformApps/%s/%s, params=%s", this.apiBasePath, platformId, domainId, gson.toJson(optInfo));
+        String uri = String.format("PUT %s/platformApps/%s/%s, params=%s, timeout=%s", this.apiBasePath, platformId, domainId, gson.toJson(optInfo), timeout);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            this.platformManagerService.debugPlatformApp(platformId, domainId, optInfo);
+            this.platformManagerService.debugPlatformApp(platformId, domainId, optInfo, timeout);
             resultPo = new AjaxResultPo(true, "debug started", 1, null);
             logger.info(String.format("query SUCCESS, quit %s controller", uri));
         }
