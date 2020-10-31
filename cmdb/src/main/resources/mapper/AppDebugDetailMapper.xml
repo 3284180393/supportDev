@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.AppDebugDetailMapper" >
+    <resultMap id="AppDebugDetailMap" type="com.channelsoft.ccod.support.cmdb.po.AppDebugDetailPo" >
+        <id column="id" property="id" jdbcType="INTEGER" />
+        <result column="platform_id" property="platformId" jdbcType="VARCHAR" />
+        <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
+        <result column="app_name" property="appName" jdbcType="INTEGER" />
+        <result column="alias" property="alias" jdbcType="VARCHAR" />
+        <result column="detail" property="detail" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppOperationInfoHandler"/>
+        <result column="create_time" property="createTime" jdbcType="TIMESTAMP" />
+        <result column="update_time" property="updateTime" jdbcType="TIMESTAMP" />
+        <result column="debugging" property="debugging" jdbcType="BOOLEAN" />
+        <result column="try_count" property="tryCount" jdbcType="INTEGER" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+	    id,
+	    platform_id,
+	    domain_id,
+	    app_name,
+	    alias,
+	    detail,
+	    create_time,
+	    update_time,
+	    debugging,
+	    try_count
+    </sql>
+    <select id="select" resultMap="AppDebugDetailMap" >
+        SELECT
+        <include refid="Base_Column_List" />
+        FROM
+        debug_detail
+        WHERE
+        1 = 1
+        <if test="platformId!=null">
+            And platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="domainId!=null">
+            And domain_id=#{domainId,jdbcType=VARCHAR}
+        </if>
+        <if test="appName!=null">
+            And app_name=#{appName,jdbcType=VARCHAR}
+        </if>
+        <if test="alias!=null">
+            And alias=#{alias,jdbcType=VARCHAR}
+        </if>
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.AppDebugDetailPo"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into debug_detail
+            (
+                platform_id,
+                domain_id,
+                app_name,
+                alias,
+                detail,
+                create_time,
+                update_time,
+                debugging,
+                try_count)
+        values (
+                #{platformId,jdbcType=VARCHAR},
+                #{domainId,jdbcType=VARCHAR},
+                #{appName,jdbcType=VARCHAR},
+                #{alias,jdbcType=VARCHAR},
+                #{detail,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppOperationInfoHandler},
+                #{createTime,jdbcType=TIMESTAMP},
+                #{updateTime,jdbcType=TIMESTAMP},
+                #{debugging,jdbcType=BOOLEAN},
+                #{tryCount,jdbcType=INTEGER}
+                )
+    </insert>
+    <delete id="delete">
+        delete
+        from debug_detail
+        where 1=1
+        <if test="platformId!=null">
+            And
+            platform_id=#{platformId,jdbcType=VARCHAR}
+        </if>
+        <if test="domainId!=null">
+            And
+            domain_id=#{domainId,jdbcType=VARCHAR}
+        </if>
+        <if test="appName!=null">
+            And
+            app_name=#{appName,jdbcType=VARCHAR}
+        </if>
+        <if test="alias!=null">
+            And
+            alias=#{alias,jdbcType=VARCHAR}
+        </if>
+    </delete>
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.AppDebugDetailPo" >
+        update debug_detail set
+            detail = #{detail,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppOperationInfoHandler},
+            update_time = #{updateTime,jdbcType=VARCHAR},
+            debugging = #{debugging,jdbcType=BOOLEAN},
+            try_count = #{tryCount,jdbcType=INTEGER}
+        where id = #{id,jdbcType=VARCHAR}
+    </update>
+</mapper>

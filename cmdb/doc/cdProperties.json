@@ -10,20 +10,14 @@
   "initCmd": null,
   "startCmd": "./ucxserver",
   "logOutputCmd": "sleep 5;tail -F ../log/*/*.log",
-  "ports": "11000/TCP",
+  "ports": "11000/TCP,11001/TCP",
   "nodePorts": null,
   "checkAt": "11000/TCP",
   "resources": null,
-  "initialDelaySeconds": 30,
+  "initialDelaySeconds": 50,
   "periodSeconds": 10,
   "cfgs": [{
-    "deployPath": "./etc/",
-    "nexusRepository": "ccod_module_releases",
-    "nexusPath": "ucxserver/58ff67bbef8f97e6f5a7ef0bccb68dfb1c7c63fa/config.ucx"
-  }],
-  "installPackage": {
-    "deployPath": "./bin",
-    "nexusRepository": "ccod_module_releases",
-    "nexusPath": "ucxserver/58ff67bbef8f97e6f5a7ef0bccb68dfb1c7c63fa/ucxserver"
-  }
+    "deployPath": "./etc/config.ucx",
+    "gitPath": "./conf/config.ucx"
+  }]
 }

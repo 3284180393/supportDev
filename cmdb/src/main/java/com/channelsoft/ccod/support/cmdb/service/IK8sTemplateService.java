@@ -270,6 +270,6 @@ public interface IK8sTemplateService {
      * @return 指定ccod模块在k8s上的运行状态
      * @throws ApiException
      */
-    PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
+    PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias, boolean isGetCfg);
 
 }

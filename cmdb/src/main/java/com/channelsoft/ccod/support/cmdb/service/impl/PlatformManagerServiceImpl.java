@@ -55,7 +55,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private final static Logger logger = LoggerFactory.getLogger(PlatformManagerServiceImpl.class);
 
-    private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
+    private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).disableHtmlEscaping().create();
 
     protected String testPlatformId = "test-by-wyf";
 
@@ -80,7 +80,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             //过滤掉 类名包含 Bean的类
             return clazz.getName().contains("Bean");
         }
-    }).registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
+    }).registerTypeAdapter(DateTime.class, new GsonDateUtil()).disableHtmlEscaping().create();
 
     @Autowired
     IK8sApiService ik8sApiService;
@@ -144,6 +144,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     @Autowired
     PlatformUpdateRecordMapper platformUpdateRecordMapper;
+
+    @Autowired
+    AppDebugDetailMapper appDebugDetailMapper;
 
     @Autowired
     CCODBiz ccodBiz;
@@ -252,6 +255,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private Map<String, BizSetDefine> setDefineMap;
 
+    private Map<String, AppUpdateOperationInfo> debugAppMap = new HashMap<>();
+
     protected final ReentrantReadWriteLock appWriteLock = new ReentrantReadWriteLock();
 
     private boolean isPlatformCheckOngoing = false;
@@ -301,8 +306,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn(String.format("begin to exec %s", command));
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
-//            updateK8sTemplate();
-//            String str = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"mysql\":\"mysql\",\"version\":\"5.7\"},\"name\":\"mysql\",\"namespace\":\"someTest\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"mysql\":\"mysql\"}},\"template\":{\"metadata\":{\"labels\":{\"mysql\":\"mysql\"}},\"spec\":{\"containers\":[{\"args\":[\"--default_authentication_plugin\\u003dmysql_native_password\",\"--character-set-server\\u003dutf8mb4\",\"--collation-server\\u003dutf8mb4_unicode_ci\",\"--lower-case-table-names\\u003d1\"],\"env\":[{\"name\":\"MYSQL_ROOT_PASSWORD\",\"value\":\"ccod\"},{\"name\":\"MYSQL_USER\",\"value\":\"ccod\"},{\"name\":\"MYSQL_PASSWORD\",\"value\":\"ccod\"},{\"name\":\"MYSQL_DATABASE\",\"value\":\"ccod\"}],\"image\":\"nexus.io:5000/db/mysql:5.7.29\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"mysql\",\"ports\":[{\"containerPort\":3306,\"protocol\":\"TCP\"}],\"resources\":{},\"volumeMounts\":[{\"mountPath\":\"/docker-entrypoint-initdb.d/\",\"name\":\"sql\",\"subPath\":\"base-volume/db/mysql/sql\"},{\"mountPath\":\"/var/lib/mysql\",\"name\":\"data\",\"subPath\":\"base-volume/db/mysql/data\"}]}],\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"sql\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-test-by-wyf\"},{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-test-by-wyf\"}}]}}}}";
+            updateK8sTemplate();
 //            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
 //            logger.error(gson.toJson(schema));
 //            updatePlatformUpdateSchema(schema);
@@ -310,6 +314,37 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         } catch (Exception ex) {
             logger.error("write msg error", ex);
         }
+    }
+
+    private void debugDetailTest()
+    {
+        AppUpdateOperationInfo optInfo = new AppUpdateOperationInfo();
+        optInfo.setAppName("ucxserver");
+        optInfo.setAlias("ucx01");
+        optInfo.setCfgs(gson.fromJson("[{\"fileName\":\"Config.ini\",\"ext\":\"\",\"md5\":\"10d27726780b713ffbff1fc90efeee56\",\"deployPath\":\"./bin/\",\"nexusRepository\":\"ccod_module_releases\",\"nexusPath\":\"LicenseServer/a508e3bf0ddd9e11a7edd758f814d2c98939e5a5/Config.ini\",\"nexusAssetId\":\"Y2NvZF9tb2R1bGVfcmVsZWFzZXM6MTNiMjllNDQ5ZjBlM2I4ZGU5OWQ3MTlkMTAyMDEwNTc\"}]", new TypeToken<List<AppFileNexusInfo>>() {}.getType()));
+        optInfo.setAppType(AppType.BINARY_FILE);
+        optInfo.setOperation(AppUpdateOperation.REGISTER);
+        AppDebugDetailPo po = new AppDebugDetailPo();
+        po.setAlias("ucxserver");
+        po.setAppName("ucx01");
+        po.setCreateTime(new Date());
+        po.setUpdateTime(new Date());
+        po.setDebugging(true);
+        po.setDetail(optInfo);
+        po.setDomainId("domain01");
+        po.setPlatformId("test");
+        po.setTryCount(1);
+        appDebugDetailMapper.insert(po);
+        List<AppDebugDetailPo> list = appDebugDetailMapper.select("test", "domain01", "ucxserver", "ucx01");
+        System.out.println(gson.toJson(list));
+        optInfo.setCfgs(gson.fromJson("[{\"fileName\":\"fps.cfg\",\"ext\":\"cfg\",\"md5\":\"33d01caf16d256ec16175b1fa24328ee\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"ccod_module_releases\",\"nexusPath\":\"fpsvr/27768:27779/fps.cfg\",\"nexusAssetId\":\"Y2NvZF9tb2R1bGVfcmVsZWFzZXM6ZDQ4MTE3NTQxZGNiODllYzI5MmFjNjYzNGFlZTgzMWU\"}]", new TypeToken<List<AppFileNexusInfo>>() {}.getType()));
+        po.setDebugging(false);
+        po.setUpdateTime(new Date());
+        po.setTryCount(2);
+        appDebugDetailMapper.update(po);
+        list = appDebugDetailMapper.select("test", "domain01", "ucxserver", "ucx01");
+        System.out.println(gson.toJson(list));
+//        appDebugDetailMapper.delete("test", "domain01", "cmsserver", "cms01");
     }
 
     private void updateK8sTemplate() throws Exception{
@@ -362,21 +397,29 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            newT.add(t);
 //        });
 //        templateList.addAll(newT);
-//        templateList.stream().filter(t->t.getLabels().containsKey(this.appTypeLabel) && (t.getLabels().get(this.appTypeLabel).equals(AppType.RESIN_WEB_APP.name)) && t.getDeployJson() != null).forEach(t->{
+//        templateList.stream().filter(t->t.getLabels().containsKey(this.appTypeLabel) && (t.getLabels().get(this.appTypeLabel).equals(AppType.RESIN_WEB_APP.name)) && t.getDeployJson() != null && t.getLabels().get(ccodVersionLabel).equals("4.8")).forEach(t->{
 //                    V1Deployment d = gson.fromJson(t.getDeployJson(), V1Deployment.class);
 //                    d.getSpec().getTemplate().getSpec().getContainers().get(0).setImage("nexus.io:5000/ccod-base/resin-jdk:resin-4.0.13_jdk-1.8.0_10");
 //                    t.setDeployJson(gson.toJson(d));
 //        });
-//        templateList.stream().filter(t->t.getLabels().containsKey(this.appTypeLabel) && (t.getLabels().get(this.appTypeLabel).equals(AppType.TOMCAT_WEB_APP.name)) && t.getDeployJson() != null).forEach(t->{
+//        templateList.stream().filter(t->t.getLabels().containsKey(this.appTypeLabel) && (t.getLabels().get(this.appTypeLabel).equals(AppType.TOMCAT_WEB_APP.name)) && t.getDeployJson() != null && t.getLabels().get(ccodVersionLabel).equals("4.8")).forEach(t->{
 //            V1Deployment d = gson.fromJson(t.getDeployJson(), V1Deployment.class);
 //            d.getSpec().getTemplate().getSpec().getContainers().get(0).setImage("nexus.io:5000/ccod-base/tomcat:6.0.53-jre8");
 //            t.setDeployJson(gson.toJson(d));
 //        });
-        templateList.stream().filter(t->t.getLabels().containsKey(appNameLabel) && t.getLabels().get(appNameLabel).equals("mysql") && t.getLabels().get(ccodVersionLabel).equals("4.8")).forEach(t->{
-            V1Deployment d = gson.fromJson(t.getDeployJson(), V1Deployment.class);
-            d.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(3, "--lower-case-table-names=0");
-            t.setDeployJson(gson.toJson(d));
-        });
+//        templateList.stream().filter(t->t.getLabels().containsKey(appNameLabel) && t.getLabels().get(appNameLabel).equals("mysql") && t.getLabels().get(ccodVersionLabel).equals("4.8")).forEach(t->{
+//            V1Deployment d = gson.fromJson(t.getDeployJson(), V1Deployment.class);
+//            d.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(3, "--lower-case-table-names=0");
+//            t.setDeployJson(gson.toJson(d));
+//        });
+        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(15)), K8sObjectTemplatePo.class);
+        po.getLabels().put(appTypeLabel, AppType.JAR.name);
+        po.setServiceJson(templateList.get(17).getServiceJson());
+        po.setIngressJson(templateList.get(17).getIngressJson());
+        V1Deployment deployment = (V1Deployment)gson.fromJson(po.getDeployJson(), V1Deployment.class);
+        deployment.getMetadata().getLabels().put(appTypeLabel, AppType.JAR.name);
+        po.setDeployJson(gson.toJson(deployment));
+        templateList.add(po);
         logger.error(gson.toJson(templateList));
     }
 
@@ -581,6 +624,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             topoList.add(topo);
         }
         return topoList;
+    }
+
+    @Override
+    public List<AppDebugDetailPo> queryPlatformDebugApps(String platformId) {
+        return appDebugDetailMapper.select(platformId, null, null, null);
     }
 
     @Override
@@ -1922,6 +1970,29 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         new Thread(()->{
             try
             {
+                List<AppDebugDetailPo> details = appDebugDetailMapper.select(platformId, optInfo.getDomainId(), optInfo.getAppName(), optInfo.getAlias());
+                AppDebugDetailPo detail;
+                if(details.size() == 0){
+                    detail = new AppDebugDetailPo();
+                    detail.setUpdateTime(now);
+                    detail.setDebugging(true);
+                    detail.setPlatformId(platformId);
+                    detail.setDomainId(optInfo.getDomainId());
+                    detail.setDetail(optInfo);
+                    detail.setCreateTime(now);
+                    detail.setAppName(optInfo.getAppName());
+                    detail.setAlias(optInfo.getAlias());
+                    detail.setTryCount(1);
+                    appDebugDetailMapper.insert(detail);
+                }
+                else{
+                    detail = details.get(0);
+                    detail.setUpdateTime(now);
+                    detail.setDebugging(true);
+                    detail.setDetail(optInfo);
+                    detail.setTryCount(detail.getTryCount() + 1);
+                    appDebugDetailMapper.update(detail);
+                }
                 CCODPlatformStatus status = platform.getParams().containsKey(PlatformBase.statusBeforeDebugKey) ? CCODPlatformStatus.getEnum((String)platform.getParams().get(PlatformBase.statusBeforeDebugKey)) : platform.getStatus();
                 logger.debug(String.format("original status of platform %s is %s, changed to DEBUG now", platformId, status.name));
                 platform.getParams().put(PlatformBase.statusBeforeDebugKey, status.name);
@@ -1937,12 +2008,21 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 List<K8sOperationInfo> steps = this.k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform);;
                 for(K8sOperationInfo step : steps) {
                     K8sOperationPo execResult = execK8sOpt(platformDeployLogs, step, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-                    if(!execResult.isSuccess())
+                    if(!execResult.isSuccess()) {
+                        detail.setUpdateTime(new Date());
+                        detail.setDebugging(false);
+                        appDebugDetailMapper.update(detail);
                         throw new ParamException(String.format("debug fail : %s", execResult.getComment()));
+                    }
                 }
                 logger.debug(String.format("DEBUG finish, change platform %s status from DEBUG to %s", platformId, status.name));
-                platform.setStatus(status);
-                platformMapper.update(platform);
+                appDebugDetailMapper.delete(platformId, optInfo.getDomainId(), optInfo.getAppName(), optInfo.getAlias());
+                details = appDebugDetailMapper.select(platformId, null, null, null);
+                if(details.size() == 0){
+                    logger.debug(String.format("all debug app of %s has completed, change platform status to %s", platformId, status.name));
+                    platform.setStatus(status);
+                    platformMapper.update(platform);
+                }
                 PlatformAppDeployDetailVo deployApp = optInfo.getPlatformAppDetail(platformId, this.nexusHostUrl);
                 logger.info(String.format("deploy detail of debug app is %s", gson.toJson(deployApp)));
             }
@@ -2073,7 +2153,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     private void makeupDomainIdAndAliasForSchema(PlatformUpdateSchemaInfo schemaInfo, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> deployAppList, boolean clone) throws ParamException {
-        if(schemaInfo.getDomainUpdatePlanList() == null || schemaInfo.getDomainUpdatePlanList().size() == 0)
+        if(schemaInfo.getTaskType().equals(PlatformUpdateTaskType.RESTORE) || schemaInfo.getDomainUpdatePlanList() == null || schemaInfo.getDomainUpdatePlanList().size() == 0)
             return;
         List<DomainUpdatePlanInfo> addDomainList = schemaInfo.getDomainUpdatePlanList().stream().filter(plan->plan.getUpdateType().equals(DomainUpdateType.ADD))
                 .collect(Collectors.toList());
@@ -3381,7 +3461,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     }
                     else if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.DOMAIN_OUT_SERVICE.name) && labels.get(this.appNameLabel).equals("UCDServer"))
                     {
-                        Connection connect = createDBConnection(platform.getGlsDBType(), (String)params.get(PlatformBase.glsDBUserKey),
+                        Connection connect = createDBConnection(DatabaseType.getEnum((String)platform.getParams().get(PlatformBase.glsDBTypeKey)), (String)params.get(PlatformBase.glsDBUserKey),
                                 (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey),
                                 (int)params.get(PlatformBase.dbPortKey), (String)params.get(PlatformBase.glsDBSidKey));
                         V1Service ucdsOutService = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);

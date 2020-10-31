@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.ci.po.BuildDetailPo;
 import com.channelsoft.ccod.support.cmdb.ci.service.ICIService;
 import com.channelsoft.ccod.support.cmdb.ci.service.IJenkinsService;
 import com.channelsoft.ccod.support.cmdb.ci.service.ISonarqubeService;
+import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.dao.BuildDetailMapper;
 import com.channelsoft.ccod.support.cmdb.utils.HttpRequestTools;
 import com.google.gson.*;
@@ -11,6 +12,7 @@ import com.offbytwo.jenkins.model.Build;
 import com.offbytwo.jenkins.model.BuildWithDetails;
 import com.offbytwo.jenkins.model.JobWithDetails;
 import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +39,7 @@ public class CIServiceImpl implements ICIService {
 
     private final static Logger logger = LoggerFactory.getLogger(CIServiceImpl.class);
 
-    private final static Gson gson = new Gson();
+    private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).disableHtmlEscaping().create();
 
     @Autowired
     IJenkinsService jenkinsService;

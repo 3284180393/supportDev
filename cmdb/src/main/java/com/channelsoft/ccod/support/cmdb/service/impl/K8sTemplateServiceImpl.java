@@ -120,7 +120,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Value("${debug-timeout}")
     private int debugTimeout;
 
-    private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
+    private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).disableHtmlEscaping().create();
 
     private Gson templateParseGson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
         @Override
@@ -574,7 +574,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             }
         }
         AppType appType = appBase.getAppType();
-        String cwd = appType.equals(AppType.BINARY_FILE) ? deployPath:basePath;
+        String cwd = appType.equals(AppType.BINARY_FILE) || appType.equals(AppType.JAR)? deployPath : basePath;
         if(StringUtils.isNotBlank(appBase.getInitCmd()))
             execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getInitCmd());
         execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getStartCmd());
@@ -684,27 +684,27 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         {
             if(!checkAt.matches(this.healthCheckRegex))
                 throw new ParamException(String.format("%s is not legal health check word", checkAt));
-            String[] arr = checkAt.split("/");
-            String[] typeArr = arr[arr.length - 1].split("\\:");
-            String checkType = typeArr[0];
+            String checkType = checkAt.replaceAll("^.+/", "");
+            String check = checkAt.replaceAll(String.format("/%s$", checkType), "");
+            String port = check.replaceAll("\\:.+$", "");
             if(checkType.equals("HTTP") || checkType.equals("HTTPS"))
             {
                 get = new V1HTTPGetAction();
-                get.setPort(new IntOrString(Integer.parseInt(arr[0])));
-                String subPath = typeArr.length==1 ? "" : arr[arr.length-1].replaceAll("^%s\\:", "");
-                String path = String.format("/%s-%s/%s", alias, domainId, subPath).replaceAll("//", "/").replaceAll("/$", "");
+                get.setPort(new IntOrString(Integer.parseInt(port)));
+                String subPath = check.replaceAll(String.format("^%s\\:?", port), "");
+                String path = String.format("/%s-%s%s", alias, domainId, subPath).replaceAll("/$", "");
                 get.setPath(path);
                 get.setScheme(checkType);
             }
             else if(checkType.equals("TCP"))
             {
                 tcp = new V1TCPSocketAction();
-                tcp.setPort(new IntOrString(Integer.parseInt(arr[0])));
+                tcp.setPort(new IntOrString(Integer.parseInt(port)));
             }
             else
             {
                 exec = new V1ExecAction();
-                exec.setCommand(Arrays.asList(checkAt.replaceAll(String.format("/%s$", arr[1]), "")));
+                exec.setCommand(Arrays.asList(checkAt.replaceAll(String.format("/%s$", checkType), "")));
             }
         }
         else
@@ -1788,29 +1788,38 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException {
-        Map<String, String> selector = new HashMap<>();
-        selector.put(this.domainIdLabel, domainId);
-        selector.put(appName, alias);
-        List<V1Deployment> deployments = this.ik8sApiService.selectNamespacedDeployment(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-        if(deployments.size() == 0 || deployments.size() > 1){
-            throw new ParamException(String.format("%s has find %d deployment for %s", platform.getPlatformId(), deployments.size(), gson.toJson(selector)));
+    public PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias, boolean isGetCfg) {
+        try{
+            Map<String, String> selector = new HashMap<>();
+            selector.put(this.domainIdLabel, domainId);
+            selector.put(appName, alias);
+            List<V1Deployment> deployments = this.ik8sApiService.selectNamespacedDeployment(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+            if(deployments.size() == 0 || deployments.size() > 1){
+                throw new ParamException(String.format("%s has find %d deployment for %s", platform.getPlatformId(), deployments.size(), gson.toJson(selector)));
+            }
+            V1Deployment deployment = deployments.get(0);
+            if(!isCCODDomainAppDeployment(deployment)){
+                throw new ParamException(String.format("deployment %s for %s is illegal ccod domain app deployment",
+                        deployment.getMetadata().getName(), gson.toJson(selector)));
+            }
+            V1Container initContainer = deployment.getSpec().getTemplate().getSpec().getInitContainers().stream()
+                    .collect(Collectors.toMap(k->k.getName(), v->v)).get(alias);
+            if(initContainer == null){
+                throw new ParamException(String.format("can not find container for %s", gson.toJson(selector)));
+            }
+            V1ConfigMap configMap = isGetCfg ? ik8sApiService.readNamespacedConfigMap(String.format("%s-%s", alias, domainId), platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken()) : null;
+            List<V1Service> services = this.ik8sApiService.selectNamespacedService(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+            return getAppDetailFromK8sObj(alias, deployment, services, configMap);
         }
-        V1Deployment deployment = deployments.get(0);
-        if(!isCCODDomainAppDeployment(deployment)){
-            throw new ParamException(String.format("deployment %s for %s is illegal ccod domain app deployment",
-                    deployment.getMetadata().getName(), gson.toJson(selector)));
+        catch (Exception ex){
+            logger.debug(String.format("get detail for 5s(%s) at %s of %s exception", alias, appName, domainId, platform.getPlatformId()), ex);
+            PlatformAppDeployDetailVo detail = new PlatformAppDeployDetailVo();
+            detail.setPlatformId(platform.getPlatformId());
+            detail.setDomainId(domainId);
+            detail.setAppName(appName);
+            detail.setAlias(alias);
+            detail.setStartCmd("ERROR");
+            return detail;
         }
-        V1Container initContainer = deployment.getSpec().getTemplate().getSpec().getInitContainers().stream()
-                .collect(Collectors.toMap(k->k.getName(), v->v)).get(alias);
-        if(initContainer == null){
-            throw new ParamException(String.format("can not find container for %s", gson.toJson(selector)));
-        }
-        V1ConfigMap configMap = isGetCfg ? ik8sApiService.readNamespacedConfigMap(String.format("%s-%s", alias, domainId), platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken()) : null;
-        List<V1Service> services = this.ik8sApiService.selectNamespacedService(platform.getPlatformId(), selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-        if(services.size() == 0){
-            throw new ParamException(String.format("can not find service for %s", gson.toJson(selector)));
-        }
-        return getAppDetailFromK8sObj(alias, deployment, services, configMap);
     }
 }

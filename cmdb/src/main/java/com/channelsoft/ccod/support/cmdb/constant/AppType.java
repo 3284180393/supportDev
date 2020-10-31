@@ -17,6 +17,8 @@ public enum AppType
 
     TOMCAT_WEB_APP(4, "TOMCAT_WEB_APP", "基于tomcat的web应用"),
 
+    JAR(5, "JAR", "jar包形式的应用"),
+
     OTHER(99, "OTHER", "其它"),;
 
     public int id;

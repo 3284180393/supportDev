@@ -14,7 +14,7 @@ ccod:
   domain-id-regex: ^[0-9a-z][0-9a-z\\-]*[0-9a-z]$
   app-standard-alias-regex: ^[a-z]+[0-9a-z\\-]*[a-z0-9]$
   service-port-regex: ^\d+(\:\d+)?/(TCP|UDP)(,\d+(\:\d+)?/(TCP|UDP))*$
-  health-check-at-regex: ^.+/CMD$|^\d+/TCP$|^\d+/(HTTP|HTTPS)(\:.+)?$
+  health-check-at-regex: ^.+/CMD$|^\d+/TCP$|^\d+(\:/.+)?/(HTTP|HTTPS)$
   start-cmd-regex: (^|;)([^(\s|;)]+\s+)?[^;]*(/|\s+)%s(;|$|\s+[^;]+($|;))
   notCheckCfgApps:
     - cmsserver

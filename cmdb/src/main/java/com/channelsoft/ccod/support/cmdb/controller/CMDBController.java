@@ -2,19 +2,23 @@ package com.channelsoft.ccod.support.cmdb.controller;
 
 import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
+import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformDeployStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
+import com.channelsoft.ccod.support.cmdb.po.AppDebugDetailPo;
 import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.kubernetes.client.openapi.models.*;
 import javafx.application.Platform;
 import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +61,7 @@ public class CMDBController {
 
     private String apiBasePath = "/cmdb/api";
 
-    private final static Gson gson = new Gson();
+    private final static Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).disableHtmlEscaping().create();
 
     @RequestMapping(value = "/apps", method = RequestMethod.POST)
     public AjaxResultPo addNewApp(@RequestBody AppModuleVo moduleVo)
@@ -1112,6 +1116,26 @@ public class CMDBController {
         {
             logger.error(String.format("delete platform FAIL"), ex);
             resultPo = new AjaxResultPo(false, String.format("delete platform FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/debugApps/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatformDeployApps(@PathVariable String platformId)
+    {
+        String uri = String.format("GET %s/debugApps/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<AppDebugDetailPo> details = this.platformManagerService.queryPlatformDebugApps(platformId);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", details.size(), details);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query debug detail exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return resultPo;
     }

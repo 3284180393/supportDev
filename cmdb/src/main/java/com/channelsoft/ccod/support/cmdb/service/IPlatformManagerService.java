@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformDeployStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.exception.*;
+import com.channelsoft.ccod.support.cmdb.po.AppDebugDetailPo;
 import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo;
@@ -149,6 +150,13 @@ public interface IPlatformManagerService {
      * @throws ApiException
      */
     PlatformAppDeployDetailVo queryPlatformCCODAppDeployStatus(String platformId, String domainId, String appName, String alias, boolean isGetCfg) throws ApiException, ParamException, IOException, InterfaceCallException, NexusException;
+
+    /**
+     * 查询平台正在进行调试的应用
+     * @param platformId 平台id
+     * @return 平台正在进行调试的应用
+     */
+    List<AppDebugDetailPo> queryPlatformDebugApps(String platformId);
 
     /**
      * 更新平台升级计划
