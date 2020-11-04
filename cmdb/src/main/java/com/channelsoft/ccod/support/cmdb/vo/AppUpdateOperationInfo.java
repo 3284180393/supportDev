@@ -23,6 +23,8 @@ public class AppUpdateOperationInfo extends AppBase {
     @NotNull(message = "operation can not be null")
     private AppUpdateOperation operation; //应用升级类型,由AppUpdateType枚举定义
 
+    private String platformId; //平台id
+
     private String domainId; //应用所在的域id
 
     private String domainName; //域名
@@ -38,6 +40,8 @@ public class AppUpdateOperationInfo extends AppBase {
     private String appRunner; //该应用的执行用户
 
     private List<AppFileNexusInfo> domainCfg;  //域公共配置，该字段主要用于调试应用
+
+    private Integer timeout; //指定应用启动超时时长
 
     public AppUpdateOperationInfo(AppBase appBase)
     {
@@ -124,6 +128,22 @@ public class AppUpdateOperationInfo extends AppBase {
 
     public void setDomainCfg(List<AppFileNexusInfo> domainCfg) {
         this.domainCfg = domainCfg;
+    }
+
+    public Integer getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeout = timeout;
+    }
+
+    public String getPlatformId() {
+        return platformId;
+    }
+
+    public void setPlatformId(String platformId) {
+        this.platformId = platformId;
     }
 
     public PlatformAppPo getPlatformApp(int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId)

@@ -470,6 +470,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             volumeMountMap.put(mountName, mount);
             volumeMountMap.get(mountName).setMountPath(String.format("/cfg/%s", platformId));
         }
+        if(volumeMountMap.containsKey("war")){
+            volumeMountMap.get("war").setMountPath(deployPath);
+        }
+        if(volumeMountMap.containsKey("binary-file")){
+            volumeMountMap.get("binary-file").setMountPath(basePath);
+        }
         return new ArrayList<>(volumeMountMap.values());
     }
 
@@ -548,7 +554,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<String> commands = new ArrayList<>();
         commands.add(0, "/bin/sh");
         commands.add(1, "-c");
-        String basePath = appBase.getBasePath();
+        String basePath = appBase.getBasePath().trim().replaceAll("/$", "");
+        if(appType.equals(AppType.JAR) && basePath.equals("/root")){
+            throw new ParamException("base path of JAR can not be /root");
+        }
         String deployPath = getAbsolutePath(basePath, appBase.getDeployPath());
         String execParam = String.format("cd %s", basePath);
         if(appType.equals(AppType.JAR)){
@@ -622,6 +631,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             switch (appType)
             {
                 case BINARY_FILE:
+                case JAR:
                     execParam = String.format("%s;mkdir %s -p", execParam, absolutePath);
                     break;
                 case RESIN_WEB_APP:
@@ -1554,7 +1564,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Container init = deploy.getSpec().getTemplate().getSpec().getInitContainers().stream()
                 .collect(Collectors.toMap(V1Container::getName, Function.identity())).get(alias);
         AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(init.getImage());
-        String volume = module.getAppType().equals(AppType.BINARY_FILE) ? "binary-file" : "war";
+        String volume = module.getAppType().equals(AppType.BINARY_FILE) || module.getAppType().equals(AppType.JAR) ? "binary-file" : "war";
         V1Container runtime = deploy.getSpec().getTemplate().getSpec().getContainers().stream()
                 .collect(Collectors.toMap(k->k.getName(), v->v)).get(String.format("%s-runtime", alias));
         String basePath = runtime.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
@@ -1583,22 +1593,28 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String domainId = labels.get(this.domainIdLabel);
         detail.setDomainId(domainId);
         List<String> cmd = runtime.getCommand();
-        String command = cmd.get(2).replaceAll(";$", "").replaceAll("\\s+;", "");
+        List<String> commands = Arrays.asList(cmd.get(2).replaceAll(";$", "").replaceAll("\\s*;\\s*", ";").split(";"));
         String cmdTag = "resin.sh";
         if(module.getAppType().equals(AppType.TOMCAT_WEB_APP))
             cmdTag = "startup.sh";
-        else if(module.getAppType().equals(AppType.BINARY_FILE))
+        else if(module.getAppType().equals(AppType.BINARY_FILE) || module.getAppType().equals(AppType.JAR))
             cmdTag = module.getInstallPackage().getFileName();
-        Pattern pattern = Pattern.compile(String.format(startCmdRegex, cmdTag));
-        Matcher matcher = pattern.matcher(command);
-        if(!matcher.find()){
-            logger.error(String.format("%s(%s) command %s is not matched for %s", alias, module.getAppName(), command, pattern.toString()));
-            throw new ParamException(String.format("%s(%s) command is illegal", alias, module.getAppName()));
+        String cmdRegex = String.format(".*(/|\\s+)%s(\\s.+|$)", cmdTag);
+        String startCmd = null;
+        int index = 0;
+        for(int i = 0; i < commands.size(); i++){
+            String command = commands.get(i);
+            if(command.matches(cmdRegex) && !command.matches("^(mv|cp|touch) .+")){
+                startCmd = command;
+                index = i;
+            }
         }
-        String startCmd = matcher.group().replace(";", "");
-        int index = command.indexOf(startCmd);
-        String initCmd = index == 0 ? null : command.substring(0, index - 1).replaceAll(";$", "");
-        String logOutputCmd = index == command.length() - 1 ? null : command.substring(index + startCmd.length() + 1);
+        if(startCmd == null){
+            throw new ParamException(String.format("can not parse startCmd from %s at container %s in deployment %s",
+                    String.join(";", commands), runtime.getName(), deploy.getMetadata().getName()));
+        }
+        String initCmd = String.join(";", commands.subList(0, index));
+        String logOutputCmd = String.join(";", commands.subList(index+1, commands.size()));
         detail.setStartCmd(startCmd);
         detail.setInitCmd(initCmd);
         detail.setLogOutputCmd(logOutputCmd);
@@ -1615,12 +1631,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 detail.setCheckAt(String.format("%s/CMD", runtime.getLivenessProbe().getExec().getCommand()));
             }
         }
-        cmd = init.getCommand();
-        command = cmd.get(2);
-        detail.setEnvLoadCmd(command);
+        detail.setEnvLoadCmd(init.getCommand().get(2));
         if(configMap != null){
             String mountPath = runtime.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, v->v.getMountPath())).get(volume);
-            List<AppFileNexusInfo> cfgs = restoreConfigFileFromConfigMap(configMap, command, detail.getBasePath(), volume, mountPath);
+            List<AppFileNexusInfo> cfgs = restoreConfigFileFromConfigMap(configMap, init.getCommand().get(2), detail.getBasePath(), volume, mountPath);
             detail.setCfgs(cfgs);
         }
         detail.fill(module);
@@ -1712,24 +1726,37 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
      */
     private boolean isCCODDomainAppDeployment(V1Deployment deployment)
     {
-        Map<String, String> labels = deployment.getMetadata().getLabels();
-        if(labels == null || labels.size() == 0)
-            return false;
-        if(!labels.containsKey(this.domainIdLabel))
-            return  false;
-        else if(!labels.containsKey(this.appTypeLabel)
-                || (!labels.get(this.appTypeLabel).equals(AppType.BINARY_FILE.name) && !labels.get(this.appTypeLabel).equals(AppType.RESIN_WEB_APP.name) && !labels.get(this.appTypeLabel).equals(AppType.TOMCAT_WEB_APP.name)))
-            return false;
         String deployName = deployment.getMetadata().getName();
+        String errTag = String.format("so %s is not ccod domain app deployment", deployName);
+        Map<String, String> labels = deployment.getMetadata().getLabels();
+        if(labels == null || labels.size() == 0 || !labels.containsKey(this.domainIdLabel) || !labels.containsKey(this.appTypeLabel)){
+            logger.warn(String.format("deployment labels not container %s or %s tag, %s", domainIdLabel, appTypeLabel, errTag));
+            return false;
+        }
+        AppType appType = AppType.getEnum(labels.get(appTypeLabel));
+        if(appType == null){
+            logger.warn(String.format("appType %s is not been supported, %s", labels.get(appTypeLabel), errTag));
+            return false;
+        }
+        switch (appType){
+            case BINARY_FILE:
+            case RESIN_WEB_APP:
+            case TOMCAT_WEB_APP:
+            case JAR:
+                break;
+            default:
+                logger.warn(String.format("appType %s is not supported by ccod domain app, %s", appType.name, errTag));
+                return false;
+        }
         String domainId = labels.get(this.domainIdLabel);
         List<V1Container> initList = deployment.getSpec().getTemplate().getSpec().getInitContainers() == null ? new ArrayList<>() : deployment.getSpec().getTemplate().getSpec().getInitContainers();
         List<V1Container> runtimeList = deployment.getSpec().getTemplate().getSpec().getInitContainers() == null ? new ArrayList<>() : deployment.getSpec().getTemplate().getSpec().getContainers();
         if(initList.size() != runtimeList.size()){
-            logger.error(String.format("%s init container count not equal runtime count", deployName));
+            logger.warn(String.format("%s init container count not equal runtime count, %s", deployName, errTag));
             return false;
         }
         if(deployment.getSpec().getTemplate().getSpec().getVolumes() == null || deployment.getSpec().getTemplate().getSpec().getVolumes().size() == 0){
-            logger.error(String.format("deployment %s has not any volume", deployName));
+            logger.warn(String.format("deployment %s has not any volume, %s", deployName, errTag));
             return false;
         }
         Map<String, V1Volume> volumeMap = deployment.getSpec().getTemplate().getSpec().getVolumes().stream()
@@ -1737,60 +1764,66 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         try{
             Map<String, V1Container> runtimeMap = runtimeList.stream().collect(Collectors.toMap(c->c.getName(), v->v));
             for(V1Container init : initList){
-                AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(init.getImage());
                 V1Container runtime = runtimeMap.get(String.format("%s-runtime", init.getName()));
                 if(runtime == null){
-                    logger.error(String.format("can not find container %s-runtime at deployment %s", runtime.getName(), deployment.getMetadata().getName()));
+                    logger.warn(String.format("can not find container %s-runtime at deployment %s, %s"
+                            , runtime.getName(), deployName, errTag));
                     return false;
                 }
                 if(init.getCommand() == null || init.getCommand().size() != 3 || !init.getCommand().get(0).equals("/bin/sh") || !init.getCommand().get(1).equals("-c")){
-                    logger.error(String.format("deployment %s %s container command is not wanted", deployName, init.getName()));
+                    logger.warn(String.format("deployment %s %s container command is not wanted, %s",
+                            deployName, init.getName(), errTag));
                     return false;
                 }
                 if(runtime.getCommand() == null || runtime.getCommand().size() != 3 || !runtime.getCommand().get(0).equals("/bin/sh") || !runtime.getCommand().get(1).equals("-c")){
-                    logger.error(String.format("deployment %s %s container command is not wanted", deployName, runtime.getName()));
+                    logger.warn(String.format("deployment %s %s container command is not wanted, %s", deployName, runtime.getName(), errTag));
                     return false;
                 }
                 if(init.getVolumeMounts() == null || init.getVolumeMounts().size() == 0){
-                    logger.error(String.format("deployment %s %s container has not any volumeMount", deployName, init.getName()));
+                    logger.warn(String.format("deployment %s %s container has not any volumeMount, %s", deployName, init.getName(), errTag));
                     return false;
                 }
                 Map<String, V1VolumeMount> initMountMap = init.getVolumeMounts().stream().collect(Collectors.toMap(k->k.getName(), v->v));
                 if(runtime.getVolumeMounts() == null || runtime.getVolumeMounts().size() == 0){
-                    logger.error(String.format("deployment %s %s container has not any volumeMount", deployName, runtime.getName()));
+                    logger.warn(String.format("deployment %s %s container has not any volumeMount, %s", deployName, runtime.getName(), errTag));
                     return false;
                 }
                 Map<String, V1VolumeMount> runtimeMountMap = runtime.getVolumeMounts().stream().collect(Collectors.toMap(k->k.getName(), v->v));
-                String volume = module.getAppType().equals(AppType.BINARY_FILE) ? "binary-file" : "war";
+                AppModuleVo module = appManagerService.getRegisteredCCODAppFromImageUrl(init.getImage());
+                if(!module.getAppType().equals(appType)){
+                    logger.warn(String.format("appTye %s is not equal with registered %s, %s", appType.name, module.getAppType().name, errTag));
+                    return false;
+                }
+                String volume = appType.equals(AppType.BINARY_FILE) || appType.equals(AppType.JAR) ? "binary-file" : "war";
                 if(!volumeMap.containsKey(volume)){
-                    logger.error(String.format("deployment %s not find %s volume", deployName, volume));
+                    logger.warn(String.format("deployment %s not find %s volume, %s", deployName, volume, errTag));
                     return false;
                 }
                 else if(!initMountMap.containsKey(volume)){
-                    logger.error(String.format("%s deployment %s container not has %s volume", deployName, init.getName(), volume));
+                    logger.warn(String.format("%s deployment %s container not has %s volume, %s", deployName, init.getName(), volume, errTag));
                     return false;
                 }
                 else if(!runtimeMountMap.containsKey(volume)){
-                    logger.error(String.format("%s deployment %s container not has %s volume", deployName, runtime.getName(), volume));
+                    logger.warn(String.format("%s deployment %s container not has %s volume, %s", deployName, runtime.getName(), volume, errTag));
                     return false;
                 }
                 volume = String.format("%s-%s-volume", init.getName(), domainId);
                 if(!volumeMap.containsKey(volume)){
-                    logger.error(String.format("deployment %s not find %s configMap volume", deployName, volume));
+                    logger.warn(String.format("deployment %s not find %s configMap volume, %s", deployName, volume, errTag));
                     return false;
                 }
                 else if(volumeMap.get(volume).getConfigMap() == null){
-                    logger.error(String.format("deployment %s %s volume is not configMap", deployName, volume));
+                    logger.warn(String.format("deployment %s %s volume is not configMap, %s", deployName, volume, errTag));
                     return false;
                 }
                 else if(!initMountMap.containsKey(volume)){
-                    logger.error(String.format("%s deployment %s container not has %s configMap volume", deployName, init.getName(), volume));
+                    logger.warn(String.format("%s deployment %s container not has %s configMap volume, %s", deployName, init.getName(), volume, errTag));
                     return false;
                 }
             }
         }
         catch (Exception ex) {
-            logger.error(String.format("parse deployment exception", ex));
+            logger.error(String.format("parse deployment exception, %s", errTag), ex);
             return false;
         }
         return true;

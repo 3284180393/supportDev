@@ -357,20 +357,20 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/platformApps/{platformId}/{domainId}", method = RequestMethod.PUT)
-    public AjaxResultPo debugApp(@RequestBody @Valid AppUpdateOperationInfo optInfo, @PathVariable String platformId, @PathVariable String domainId, Integer timeout)
+    public AjaxResultPo debugApp(@RequestBody @Valid AppUpdateOperationInfo optInfo, @PathVariable String platformId, @PathVariable String domainId)
     {
-        String uri = String.format("PUT %s/platformApps/%s/%s, params=%s, timeout=%s", this.apiBasePath, platformId, domainId, gson.toJson(optInfo), timeout);
+        String uri = String.format("PUT %s/platformApps/%s/%s, params=%s", this.apiBasePath, platformId, domainId, gson.toJson(optInfo));
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            this.platformManagerService.debugPlatformApp(platformId, domainId, optInfo, timeout);
-            resultPo = new AjaxResultPo(true, "debug started", 1, null);
-            logger.info(String.format("query SUCCESS, quit %s controller", uri));
+            this.platformManagerService.debugPlatformApp(platformId, domainId, optInfo);
+            resultPo = new AjaxResultPo(true, "debug task has been added to queue", 1, null);
+            logger.info(String.format("debug task has been added to queue, quit %s controller", uri));
         }
         catch (Exception e)
         {
-            logger.error(String.format("start debug exception, quit %s controller", uri), e);
+            logger.error(String.format("add debug task to queue exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;

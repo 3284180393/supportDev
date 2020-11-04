@@ -7,6 +7,7 @@ import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
+import com.channelsoft.ccod.support.cmdb.utils.FileUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -15,6 +16,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
+import io.kubernetes.client.util.Yaml;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -25,6 +27,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.DigestUtils;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.introspector.Property;
+import org.yaml.snakeyaml.nodes.NodeTuple;
+import org.yaml.snakeyaml.nodes.Tag;
+import org.yaml.snakeyaml.representer.Representer;
 
 import javax.annotation.PostConstruct;
 import java.io.*;
@@ -252,19 +259,25 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private final Map<String, PlatformUpdateSchemaInfo> platformUpdateSchemaMap = new ConcurrentHashMap<>();
 
+    private final List<AppDebugTaskVo> debugQueue = new ArrayList<>();
+
+    private final Map<String, List<K8sOperationPo>> debugLogsMap = new ConcurrentHashMap<>();
+
     private final List<K8sOperationPo> platformDeployLogs = new ArrayList<>();
 
     private Map<String, List<BizSetDefine>> appSetRelationMap;
 
     private Map<String, BizSetDefine> setDefineMap;
 
-    private Map<String, AppUpdateOperationInfo> debugAppMap = new HashMap<>();
-
     protected final ReentrantReadWriteLock appWriteLock = new ReentrantReadWriteLock();
+
+    protected final ReentrantReadWriteLock debugLock = new ReentrantReadWriteLock();
 
     private boolean isPlatformCheckOngoing = false;
 
     private String ongoingPlatformId = null;
+
+    private int debugTaskId = 1;
 
     private String domainIdRegexFmt = "^%s(0[1-9]|[1-9]\\d+)";
 
@@ -309,10 +322,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn(String.format("begin to exec %s", command));
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
-            updateK8sTemplate();
-//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-//            logger.error(gson.toJson(schema));
-//            updatePlatformUpdateSchema(schema);
+//            updateK8sTemplate();
+            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+            logger.error(gson.toJson(schema));
+            updatePlatformUpdateSchema(schema);
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -1803,6 +1816,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         if(!status.equals(UpdateStatus.EXEC))
             return;
+        try{
+            generateYamlForDeploy(platformId, steps);
+        }
+        catch (Exception ex){
+            logger.error("generate platform create yaml exception", ex);
+        }
         Assert.isTrue(!this.isPlatformCheckOngoing, "some platform collect or deploy task is ongoing");
         Map<String, List<AssemblePo>> domainAssembleMap = assembleList.stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
         this.isPlatformCheckOngoing = true;
@@ -1942,9 +1961,38 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo, Integer timeout) throws ParamException, InterfaceCallException, LJPaasException, ApiException {
-        logger.debug(String.format("begin to debug %s at %s of %s, timeout=%s", gson.toJson(optInfo), domainId, platformId, timeout));
-        Assert.isTrue(!this.isPlatformCheckOngoing, "some platform deploy, collect or debug task is ongoing");
+    public void debugHandle() {
+        logger.debug(String.format("begin to handle app debug task"));
+        this.debugLock.writeLock().lock();
+        try{
+            Map<String, List<AppDebugTaskVo>> taskMap = debugQueue.stream().collect(Collectors.groupingBy(AppDebugTaskVo::getDebugTag));
+            for(String tag : taskMap.keySet()){
+                List<AppDebugTaskVo> tasks = taskMap.get(tag).stream().sorted(Comparator.comparing(AppDebugTaskVo::getId).reversed()).collect(Collectors.toList());
+                if(tasks.stream().filter(t->t.getStatus()==AppDebugTaskVo.RUNNING).count() == 0){
+                    AppDebugTaskVo task = tasks.get(0);
+                    for(int i = 1; i < tasks.size(); i++){
+                        debugQueue.remove(tasks.get(i));
+                    }
+                    PlatformPo platform;
+                    try{
+                        platform = getK8sPlatform(task.getDebugInfo().getPlatformId());
+                    }
+                    catch (Exception ex){
+                        logger.error(String.format("query %s platform exception", task.getDebugInfo().getPlatformId()), ex);
+                        continue;
+                    }
+                    startAppDebug(platform, task);
+                }
+            }
+        }
+        finally {
+            this.debugLock.writeLock().unlock();
+        }
+    }
+
+    @Override
+    public void debugPlatformApp(String platformId, String domainId, AppUpdateOperationInfo optInfo) throws ParamException, InterfaceCallException, LJPaasException, ApiException {
+        logger.debug(String.format("begin to debug %s at %s of %s", gson.toJson(optInfo), domainId, platformId));
         Assert.notNull(optInfo, "debug detail can not be null");
         String appName = optInfo.getAppName();
         String alias = optInfo.getAlias();
@@ -1967,95 +2015,133 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
         String checkResult = checkAppOperationParam(platform.getCcodVersion(), optInfo, setDefine, new ArrayList<>(), bkHostList);
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
+        AppModuleVo module = appManagerService.queryAppByVersion(appName, optInfo.getVersion(), true);
+        Integer timeout = optInfo.getTimeout() != null && optInfo.getTimeout() > 0 ? optInfo.getTimeout() : module.getTimeout();
+        timeout = timeout == null || timeout == 0 ? 150 : timeout;
+        optInfo.setTimeout(timeout);
+        optInfo.setPlatformId(platformId);
+        optInfo.setDomainId(domainId);
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
+        boolean isNsExist = this.k8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken);
+        Assert.isTrue(isNsExist, String.format("namespace %s not exist at %s", platformId, k8sApiUrl));
+        debugLock.writeLock().lock();
+        try{
+            AppDebugTaskVo task = new AppDebugTaskVo(debugTaskId, optInfo);
+            debugTaskId++;
+            debugQueue.add(task);
+        }
+        finally {
+            debugLock.writeLock().unlock();
+        }
+        logger.info(String.format("debug %s is added to queue", gson.toJson(optInfo)));
+    }
+
+    private void startAppDebug(PlatformPo platform, AppDebugTaskVo task)
+    {
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String jobId = DigestUtils.md5DigestAsHex(sf.format(now).getBytes());
-        boolean isNsExist = this.k8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken);
-        Assert.isTrue(isNsExist, String.format("namespace %s not exist at %s", platformId, k8sApiUrl));
-        this.isPlatformCheckOngoing = true;
-        this.platformDeployLogs.clear();
-        this.ongoingPlatformId = platformId;
+        logger.debug(String.format("start app debug %s with jobId=%s", gson.toJson(task), jobId));
         new Thread(()->{
-            try
-            {
-                List<AppDebugDetailPo> details = appDebugDetailMapper.select(platformId, optInfo.getDomainId(), optInfo.getAppName(), optInfo.getAlias());
-                AppDebugDetailPo detail;
-                if(details.size() == 0){
-                    detail = new AppDebugDetailPo();
-                    detail.setUpdateTime(now);
-                    detail.setDebugging(true);
-                    detail.setPlatformId(platformId);
-                    detail.setDomainId(domainId);
-                    detail.setDetail(optInfo);
-                    detail.setCreateTime(now);
-                    detail.setAppName(optInfo.getAppName());
-                    detail.setAlias(optInfo.getAlias());
-                    detail.setTryCount(1);
-                    appDebugDetailMapper.insert(detail);
-                }
-                else{
-                    detail = details.get(0);
-                    detail.setUpdateTime(now);
-                    detail.setDebugging(true);
-                    detail.setDetail(optInfo);
-                    detail.setTryCount(detail.getTryCount() + 1);
-                    appDebugDetailMapper.update(detail);
-                }
-                CCODPlatformStatus status = platform.getParams().containsKey(PlatformBase.statusBeforeDebugKey) ? CCODPlatformStatus.getEnum((String)platform.getParams().get(PlatformBase.statusBeforeDebugKey)) : platform.getStatus();
-                logger.debug(String.format("original status of platform %s is %s, changed to DEBUG now", platformId, status.name));
-                platform.getParams().put(PlatformBase.statusBeforeDebugKey, status.name);
-                platform.setStatus(CCODPlatformStatus.DEBUG);
-                platformMapper.update(platform);
-                AppModuleVo module = this.appManagerService.queryAppByVersion(appName, optInfo.getVersion(), true);
-                optInfo.setAppType(module.getAppType());
-//                AppModuleVo jarModule = appManagerService.queryAppByVersion("timeManager", "208947d5f133ca865e457e2df0fcdca7eb5d6181", true);
-//                optInfo.changeTo(jarModule);
-//                optInfo.setAppName(jarModule.getAppName());
-//                optInfo.setAppType(jarModule.getAppType());
-//                optInfo.setAlias("timermanager");
-//                optInfo.setCheckAt(null);
-                List<AppFileNexusInfo> domainCfg = optInfo.getDomainCfg();
-                if(domainCfg == null || domainCfg.size() == 0){
-                    DomainPo domainPo = this.domainMapper.selectByPrimaryKey(platformId, domainId);
-                    domainCfg = domainPo != null ? domainPo.getCfgs() : new ArrayList<>();
-                }
-                Integer startTimeout = timeout == null || timeout <= 0 ? module.getTimeout() : timeout;
-                if(startTimeout == null || startTimeout <= 0){
-                    startTimeout = debugTimeout;
-                }
-                List<K8sOperationInfo> steps = this.k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform, startTimeout);;
-                for(K8sOperationInfo step : steps) {
-                    K8sOperationPo execResult = execK8sOpt(platformDeployLogs, step, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
-                    if(!execResult.isSuccess()) {
-                        detail.setUpdateTime(new Date());
-                        detail.setDebugging(false);
-                        appDebugDetailMapper.update(detail);
-                        throw new ParamException(String.format("debug fail : %s", execResult.getComment()));
-                    }
-                }
-                logger.debug(String.format("DEBUG finish, change platform %s status from DEBUG to %s", platformId, status.name));
-                appDebugDetailMapper.delete(platformId, optInfo.getDomainId(), optInfo.getAppName(), optInfo.getAlias());
-                details = appDebugDetailMapper.select(platformId, null, null, null);
-                if(details.size() == 0){
-                    logger.debug(String.format("all debug app of %s has completed, change platform status to %s", platformId, status.name));
-                    platform.setStatus(status);
-                    platformMapper.update(platform);
-                }
-                PlatformAppDeployDetailVo deployApp = optInfo.getPlatformAppDetail(platformId, this.nexusHostUrl);
-                logger.info(String.format("deploy detail of debug app is %s", gson.toJson(deployApp)));
+            try{
+                List<K8sOperationInfo> steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), task.getDebugInfo().getDomainId(), task.getDebugInfo().getDomainCfg(), platform, task.getTimeout());
+                task.setSteps(steps);
+                execAppDebug(jobId, platform, task);
             }
-            catch (Exception ex) {
-                logger.error("debug exception", ex);
+            catch (Exception ex){
+                logger.error(String.format("debug exception"), ex);
+                List<K8sOperationPo> logs = debugLogsMap.get(task.getDebugTag());
+                if(logs.size() > 0){
+                    logs.get(logs.size()-1).fail(ex.getMessage());
+                }
+            }
+            debugLock.writeLock().lock();
+            try{
+                debugQueue.removeIf(t->t.getDebugTag().equals(task.getDebugTag()) && t.getStatus() == AppDebugTaskVo.RUNNING);
             }
             finally {
-                this.ongoingPlatformId = null;
-                this.isPlatformCheckOngoing = false;
+                debugLock.writeLock().unlock();
             }
         }).start();
     }
 
+    private void execAppDebug(String jobId, PlatformPo platform, AppDebugTaskVo task) throws ApiException, ParamException, IOException, InterfaceCallException
+    {
+        String platformId = platform.getPlatformId();
+        task.setStatus(AppDebugTaskVo.RUNNING);
+        task.setExecTime(new Date());
+        AppUpdateOperationInfo optInfo = task.getDebugInfo();
+        List<K8sOperationPo> execResults = task.getExecResults();
+        String appName = optInfo.getAppName();
+        String alias = optInfo.getAlias();
+        String domainId = optInfo.getDomainId();
+        List<AppFileNexusInfo> domainCfg = optInfo.getDomainCfg();
+        if(domainCfg == null || domainCfg.size() == 0){
+            DomainPo domainPo = this.domainMapper.selectByPrimaryKey(platformId, domainId);
+            domainCfg = domainPo != null ? domainPo.getCfgs() : new ArrayList<>();
+        }
+        int startTimeout = optInfo.getTimeout();
+        List<K8sOperationInfo> steps = task.getSteps();
+        debugLogsMap.put(task.getDebugTag(), task.getExecResults());
+        boolean success = false;
+        for(K8sOperationInfo step : steps){
+            K8sOperationPo execResult = callK8sApi(step, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+            boolean changed = false;
+            execResults.add(execResult);
+            if(step.getKind().equals(K8sKind.DEPLOYMENT) && step.getOperation().equals(K8sOperation.CREATE)){
+                execResult.fail("wait deployment change to ACTIVE");
+                int timeUsage = 0;
+                while(timeUsage < startTimeout){
+                    try{
+                        Thread.sleep(3000);
+                    }
+                    catch (Exception ex){
+                        ex.printStackTrace();
+                    }
+                    timeUsage += 3;
+                    debugLock.writeLock().lock();
+                    try{
+                        List<AppDebugTaskVo> tasks = debugQueue.stream().collect(Collectors.groupingBy(AppDebugTaskVo::getDebugTag))
+                                .get(task.getDebugTag()).stream().sorted(Comparator.comparing(AppDebugTaskVo::getId).reversed()).collect(Collectors.toList());
+                        if(tasks.size() > 1){
+                            task = tasks.get(0);
+                            for(int i = 1; i <= tasks.size()-1; i++) {
+                                logger.debug(String.format("debug %s is removed", gson.toJson(tasks.get(i))));
+                                debugQueue.remove(tasks.get(i));
+                            }
+                            optInfo = task.getDebugInfo();
+                            steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform, startTimeout);
+                            task.setSteps(steps);
+                            changed = true;;
+                        }
+                    }
+                    finally {
+                        debugLock.writeLock().unlock();
+                    }
+                    if(!changed){
+                        K8sStatus status = k8sApiService.readNamespacedDeploymentStatus(step.getName(), platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+                        logger.debug(String.format("deployment %s status is %s at %s seconds", step.getName(), status.name, timeUsage));
+                        if(status.equals(K8sStatus.ACTIVE)){
+                            success = true;
+                            execResult.setSuccess(true);
+                            execResult.setComment(String.format("deployment change to ACTIVE success"));
+                            break;
+                        }
+                    }
+                    else{
+                        execAppDebug(jobId, platform, task);
+                        return;
+                    }
+                }
+                if(!success && timeUsage > startTimeout){
+                    execResult.fail(String.format("start timeout with %s seconds", timeUsage));
+                    throw new ParamException(String.format("start %s(%s) timeout with %d seconds", alias, appName, timeUsage));
+                }
+            }
+        }
+        logger.info(String.format("debug %s : success", gson.toJson(optInfo)));
+    }
 
     private int getIndexFromAlias(String alias, String standAlias)
     {
@@ -3238,15 +3324,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return saveDir;
     }
 
-    private K8sOperationPo execK8sOpt(List<K8sOperationPo> execResults, K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ParamException
+    private K8sOperationPo callK8sApi(K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException
     {
-        if(optInfo.getOperation().equals(K8sOperation.CREATE) && optInfo.getOperation().equals(K8sOperation.DELETE))
-            throw new ParamException(String.format("current version not support %s %s %s",
-                    optInfo.getOperation().name, optInfo.getKind().name, optInfo.getName()));
         Object retVal = null;
         K8sOperationPo execResult = new K8sOperationPo(optInfo.getJobId(), platformId, optInfo.getDomainId(), optInfo.getKind(),
                 optInfo.getName(), optInfo.getOperation(), gson.toJson(optInfo.getObj()));
-        execResults.add(execResult);
         try
         {
             switch (optInfo.getKind())
@@ -3315,27 +3397,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     {
                         case CREATE:
                             retVal = this.k8sApiService.createNamespacedDeployment(platformId, (V1Deployment) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            if(optInfo.getTimeout() > 0)
-                            {
-                                int timeUsage = 0;
-                                while(timeUsage <= optInfo.getTimeout())
-                                {
-                                    Thread.sleep(3000);
-                                    logger.debug(String.format("wait deployment %s status to ACTIVE, timeUsage=%d", optInfo.getName(), (timeUsage+3)));
-                                    K8sStatus status = this.k8sApiService.readNamespacedDeploymentStatus(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
-                                    if(status.equals(K8sStatus.ACTIVE))
-                                    {
-                                        logger.debug(String.format("deployment %s status change to ACTIVE, timeUsage=%d", optInfo.getName(), (timeUsage+3)));
-                                        break;
-                                    }
-                                    timeUsage += 3;
-                                }
-                                if(timeUsage > optInfo.getTimeout()){
-                                    logger.error(String.format("start deployment %s timeout in %d seconds", optInfo.getName(), timeUsage));
-                                    if(optInfo.isKernal())
-                                        throw new ParamException(String.format("start deployment %s timeout in %d seconds", optInfo.getName(), timeUsage));
-                                }
-                            }
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
@@ -3394,6 +3455,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             String retJson = retVal != null ? gson.toJson(retVal) : null;
             execResult.success(retJson);
         }
+        catch (ApiException e) {
+            throw e;
+        }
         catch (Exception ex)
         {
             logger.error(String.format("exec %s exception", gson.toJson(optInfo)), ex);
@@ -3402,7 +3466,43 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResult;
     }
 
-    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps, PlatformAppDeployDetailVo deployGls) throws ParamException
+    private K8sOperationPo execK8sOpt(List<K8sOperationPo> execResults, K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException
+    {
+        K8sOperationPo execResult = callK8sApi(optInfo, platformId, k8sApiUrl, k8sAuthToken);
+        execResults.add(execResult);
+        if(execResult.isSuccess() && optInfo.getKind().equals(K8sKind.DEPLOYMENT) && optInfo.getTimeout() > 0){
+            int timeUsage = 0;
+            boolean isActive = false;
+            while(timeUsage <= optInfo.getTimeout())
+            {
+                try{
+                    Thread.sleep(3000);
+                }
+                catch (Exception ex){
+                    logger.error("sleep exception", ex);
+                }
+                logger.debug(String.format("wait deployment %s status to ACTIVE, timeUsage=%d", optInfo.getName(), (timeUsage+3)));
+                K8sStatus status = this.k8sApiService.readNamespacedDeploymentStatus(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                if(status.equals(K8sStatus.ACTIVE))
+                {
+                    logger.debug(String.format("deployment %s status change to ACTIVE in %d seconds", optInfo.getName(), timeUsage));
+                    isActive = true;
+                    break;
+                }
+                timeUsage += 3;
+            }
+            if(!isActive){
+                logger.error(String.format("deployment %s not change to ACTIVE in %s seconds", optInfo.getName(), timeUsage));
+                execResult.fail(String.format("deployment %s not change to ACTIVE in %s seconds", optInfo.getName(), timeUsage));
+            }
+            if(optInfo.isKernal() && !execResult.isSuccess()){
+                throw new ParamException(execResult.getComment());
+            }
+        }
+        return execResult;
+    }
+
+    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps, PlatformAppDeployDetailVo deployGls) throws ParamException, ApiException
     {
         String jobId = schema.getSchemaId();
         Date startTime = new Date();
@@ -3441,7 +3541,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResultVo;
     }
 
-    private void execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformAppDeployDetailVo deployGls) throws ParamException
+    private void execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformAppDeployDetailVo deployGls) throws ApiException, ParamException
     {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getK8sApiUrl();
@@ -3451,11 +3551,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         for(K8sOperationInfo k8sOpt : k8sOptList)
         {
             K8sOperationPo ret = execK8sOpt(execResults, k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
-            if(!ret.isSuccess())
-            {
-                logger.error(String.format("platform update schema exec fail : %s", ret.getComment()));
-                return;
-            }
             try
             {
                 if(k8sOpt.getKind().equals(K8sKind.SERVICE) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
@@ -3506,7 +3601,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         this.k8sApiService.replaceNamespacedDeployment(glsserver.getMetadata().getName(), platformId, glsserver, k8sApiUrl, k8sAuthToken);
                         int timeUsage = 0;
                         String glsserverName = glsserver.getMetadata().getName();
-                        while(timeUsage <= 30)
+                        while(timeUsage <= 60)
                         {
                             Thread.sleep(3000);
                             logger.debug(String.format("wait deployment %s status to ACTIVE, timeUsage=%d", glsserverName, (timeUsage+3)));
@@ -3518,7 +3613,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             }
                             timeUsage += 3;
                         }
-                        if(timeUsage > 30)
+                        if(timeUsage > 60)
                             throw new ParamException(String.format("restart deployment %s timeout in %d seconds", glsserverName, timeUsage));
                     }
                 }
@@ -3531,6 +3626,55 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
             execResults.add(ret);
         }
+    }
+
+    private void generateYamlForDeploy(String platformId, List<K8sOperationInfo> steps) throws IOException
+    {
+        StringBuffer sb = new StringBuffer();
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String basePath = String.format("%s/tmp/yaml/%s/%s", System.getProperty("user.dir"), platformId, sf.format(now));
+        String jobJson = "{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"metadata\":{\"labels\":{},\"name\":\"platform-base-init\",\"namespace\":\"pahjgs\"},\"spec\":{\"selector\":{\"matchLabels\":{}},\"template\":{\"metadata\":{\"labels\":{}},\"spec\":{\"containers\":[{\"args\":[\"mkdir /root/data/pahjgs/base-volume -p;cd /root/data/pahjgs/base-volume;wget http://10.130.41.218:8081/repository/platform_base_data/initSql/4.1/initPlatformData-2020-09-23.gz;tar -xvzf initPlatformData-2020-09-23.gz\"],\"command\":[\"/bin/bash\",\"-c\"],\"image\":\"nexus.io:5000/ccod-base/centos-tool:7.2.1511\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"base-init\",\"volumeMounts\":[]}],\"restartPolicy\":\"Never\",\"terminationGracePeriodSeconds\":30,\"volumes\":[]}}}}";
+        int index = 1;
+        Representer representer = new Representer() {
+            @Override
+            protected NodeTuple representJavaBeanProperty(Object javaBean, Property property, Object propertyValue, Tag customTag) {
+                // if value of property is null, ignore it.
+                if (propertyValue == null) {
+                    return null;
+                }
+                else {
+                    return super.representJavaBeanProperty(javaBean, property, propertyValue, customTag);
+                }
+            }
+        };
+        for(K8sOperationInfo step : steps){
+//            Yaml yaml = new Yaml(representer, new DumperOptions());
+            StringBuffer content = new StringBuffer();
+            String alias = step.getName().split("-")[0];
+            String domainId = step.getDomainId();
+            String saveDir = domainId == null ? basePath : String.format("%s/%s/%s", basePath, domainId, alias);
+            String fileName = String.format("%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase());
+            String tag = String.format("# create %s", step.getKind().name.toLowerCase());
+            content.append(tag).append("\n---\n").append(Yaml.dump(step.getObj())).append("\n\n");
+            FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
+            sb.append(content.toString());
+            if(step.getTimeout() > 0){
+                V1Job job = gson.fromJson(jobJson, V1Job.class);
+                job.getMetadata().setName(String.format("sleep-job-%d", index));
+                index++;
+                job.getMetadata().setNamespace(platformId);
+                job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(new String[]{String.format("sleep %d", step.getTimeout())}));
+                tag = "# create job for sleep";
+                content = new StringBuffer();
+                content.append(tag).append("\n---\n").append(Yaml.dump(job)).append("\n\n");
+                saveDir = basePath;
+                fileName = String.format("sleep-job-%d.yaml", index);
+                FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
+                sb.append(content.toString());
+            }
+        }
+        FileUtils.saveContextToFile(basePath, "platform_create.yaml", sb.toString(), true);
     }
 
     @Override

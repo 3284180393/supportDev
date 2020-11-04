@@ -2,8 +2,6 @@ package com.channelsoft.ccod.support.cmdb.k8s.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
-import com.channelsoft.ccod.support.cmdb.config.LocalDateSerializer;
-import com.channelsoft.ccod.support.cmdb.config.LocalTimeSerializer;
 import com.channelsoft.ccod.support.cmdb.constant.K8sStatus;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
@@ -24,10 +22,9 @@ import io.kubernetes.client.openapi.apis.ExtensionsV1beta1Api;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.util.ClientBuilder;
+import io.kubernetes.client.util.Yaml;
 import io.kubernetes.client.util.credentials.AccessTokenAuthentication;
 import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +39,11 @@ import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import org.springframework.util.Assert;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.introspector.Property;
+import org.yaml.snakeyaml.nodes.NodeTuple;
+import org.yaml.snakeyaml.nodes.Tag;
+import org.yaml.snakeyaml.representer.Representer;
 
 import javax.annotation.PostConstruct;
 
@@ -917,8 +919,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
             System.out.println(logPath);
 //            deployReplaceTest();
 //            namespaceCreateTest();
-//            createDeploymentTest();
-            createPVTest();
+            createDeploymentTest();
+//            createPVTest();
 //            createPVCTest();
 //            createSvcTest();
 //            streamTest();
@@ -967,9 +969,28 @@ public class K8sApiServiceImpl implements IK8sApiService {
         jsonStr = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"oracle\":\"oracle\",\"version\":\"32-xe-10g-1.0\"},\"name\":\"oracle\",\"namespace\":\"pahjgs\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"oracle\":\"oracle\"}},\"template\":{\"metadata\":{\"labels\":{\"oracle\":\"oracle\"}},\"spec\":{\"containers\":[{\"args\":[\"/tmp/init.sh pahjgs.ccod.com\"],\"command\":[\"/bin/bash\",\"-c\"],\"image\":\"nexus.io:5000/db/oracle-32-xe-10g:1.0\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"oracle\",\"ports\":[{\"containerPort\":1521,\"protocol\":\"TCP\"}],\"readinessProbe\":{\"exec\":{\"command\":[\"cat\",\"/readiness\"]},\"failureThreshold\":1,\"periodSeconds\":1,\"successThreshold\":1,\"timeoutSeconds\":1},\"resources\":{},\"volumeMounts\":[{\"mountPath\":\"/tmp\",\"name\":\"data\",\"subPath\":\"base-volume/db/oracle/sql\"}]}],\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"base-volume-pahjgs\"}}]}}}}";
 //        Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).registerTypeAdapter(LocalDate.class, new LocalDateSerializer())
 //                .registerTypeAdapter(LocalTime.class, new LocalTimeSerializer()).create();
-        V1Deployment deployment = gson.fromJson(jsonStr, V1Deployment.class);
-        deployment = this.createNamespacedDeployment(this.testPlatformId, deployment, this.testK8sApiUrl, this.testAuthToken);
-        System.out.println(gson.toJson(deployment));
+        V1Deployment deployment = templateParseGson.fromJson(jsonStr, V1Deployment.class);
+//        deployment = this.createNamespacedDeployment(this.testPlatformId, deployment, this.testK8sApiUrl, this.testAuthToken);
+//        System.out.println(gson.toJson(deployment));
+        Representer representer = new Representer() {
+            @Override
+            protected NodeTuple representJavaBeanProperty(Object javaBean, Property property, Object propertyValue, Tag customTag) {
+                // if value of property is null, ignore it.
+                if (propertyValue == null) {
+                    return null;
+                }
+                else {
+                    return super.representJavaBeanProperty(javaBean, property, propertyValue, customTag);
+                }
+            }
+        };
+//        Yaml yaml = new Yaml(representer, new DumperOptions());
+//        StringWriter writer = new StringWriter();
+//        System.out.println(yaml.dumpAs(deployment, Tag.MAP, null));
+//        yaml.dump(deployment, writer);
+//        System.out.println(writer.toString());
+        String json = Yaml.dump(deployment);
+        System.out.println(json);
     }
 
     private String streamTest() throws Exception

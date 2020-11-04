@@ -397,6 +397,9 @@ ci:
     msg-send-type: userName
     default-receiver: 兰海波|王寓锋|吴培豪
 
+jobs:
+  app-debug:
+    cron: 0/5 * * * * *
 
 
 windows: false
