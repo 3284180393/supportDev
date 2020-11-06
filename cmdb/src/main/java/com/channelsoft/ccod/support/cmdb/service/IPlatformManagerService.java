@@ -220,6 +220,18 @@ public interface IPlatformManagerService {
     PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
 
     /**
+     * 生成平台创建脚本
+     * @param paramVo 平台创建参数
+     * @return 生成的脚本存放路径
+     * @throws ParamException
+     * @throws NotSupportSetException
+     * @throws NotSupportAppException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     */
+    String generatePlatformCreateScript(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
+
+    /**
      * 是否平台部署正在进行
      * @param platformId 平台id
      * @return true正在进行，false已经结束

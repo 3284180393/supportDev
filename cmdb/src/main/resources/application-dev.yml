@@ -14,7 +14,7 @@ ccod:
   domain-id-regex: ^[0-9a-z][0-9a-z\\-]*[0-9a-z]$
   app-standard-alias-regex: ^[a-z]+[0-9a-z\\-]*[a-z0-9]$
   service-port-regex: ^\d+(\:\d+)?/(TCP|UDP)(,\d+(\:\d+)?/(TCP|UDP))*$
-  health-check-at-regex: ^.+/CMD$|^\d+/TCP$|^\d+(\:/.+)?/(HTTP|HTTPS)$
+  health-check-at-regex: ^.+/CMD$|^\d+/TCP$|^\d+/(HTTP|HTTPS)(\:.+)?$
   start-cmd-regex: (^|;)([^(\s|;)]+\s+)?[^;]*(/|\s+)%s(;|$|\s+[^;]+($|;))
   notCheckCfgApps:
     - cmsserver
@@ -49,6 +49,8 @@ ccod:
     fixedDomainId: gateway
     apps[0]:
       name: umg
+    apps[1]:
+      name: freeswitch
   set[2]:
     name: 域服务
     id: domainService
@@ -235,13 +237,26 @@ ccod:
       name: timeManager
     apps[44]:
       name: numberManager
+    apps[45]:
+      name: im
+    apps[46]:
+      name: webAgent
+    apps[47]:
+      name: chatDemoPc
+    apps[48]:
+      name: chatDemoVideo
   set[5]:
     name: 对外接口
     id: api
     isBasic: 1
     fixedDomainName: 接口
     fixedDomainId: api
-    apps:
+    apps[0]:
+      name: temporaryDataService
+    apps[1]:
+      name: zhongxin-apiadapter
+    apps[2]:
+      name: upload
   set[6]:
     name: 外拨模块
     id: apgModules
@@ -277,7 +292,6 @@ ccod:
     - mysql
   threePartServices:
     - umg
-some-test:
 
 nexus:
   user : admin
@@ -400,7 +414,6 @@ ci:
 jobs:
   app-debug:
     cron: 0/5 * * * * *
-
 
 windows: false
 

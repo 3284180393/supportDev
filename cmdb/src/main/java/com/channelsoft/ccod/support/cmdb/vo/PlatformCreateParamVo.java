@@ -24,6 +24,8 @@ public class PlatformCreateParamVo extends PlatformBase implements Serializable 
 
     private String params; //同平台创建相关的参数
 
+    private ServiceAccessMethod threePartAppServiceAccessMethod; //用来定义第三方服务的访问方式
+
     public String getParams() {
         return params;
     }
@@ -38,6 +40,14 @@ public class PlatformCreateParamVo extends PlatformBase implements Serializable 
 
     public void setSchemaId(String schemaId) {
         this.schemaId = schemaId;
+    }
+
+    public ServiceAccessMethod getThreePartAppServiceAccessMethod() {
+        return threePartAppServiceAccessMethod;
+    }
+
+    public void setThreePartAppServiceAccessMethod(ServiceAccessMethod threePartAppServiceAccessMethod) {
+        this.threePartAppServiceAccessMethod = threePartAppServiceAccessMethod;
     }
 
     public PlatformPo getCreatePlatform()

@@ -8,6 +8,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.utils.FileUtils;
+import com.channelsoft.ccod.support.cmdb.utils.ZipUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -24,14 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.DigestUtils;
-import org.yaml.snakeyaml.DumperOptions;
-import org.yaml.snakeyaml.introspector.Property;
-import org.yaml.snakeyaml.nodes.NodeTuple;
-import org.yaml.snakeyaml.nodes.Tag;
-import org.yaml.snakeyaml.representer.Representer;
 
 import javax.annotation.PostConstruct;
 import java.io.*;
@@ -323,9 +321,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
 //            updateK8sTemplate();
-            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-            logger.error(gson.toJson(schema));
-            updatePlatformUpdateSchema(schema);
+//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+//            logger.error(gson.toJson(schema));
+//            updatePlatformUpdateSchema(schema);
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -535,6 +533,30 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         topology.setThreePartAppList(threeAppList);
         topology.setThreePartServiceList(threeSvcList);
         return topology;
+    }
+
+    private void copyDeployScript(String fileSaveDir) throws IOException
+    {
+        Resource resource = new ClassPathResource(this.platformDeployScriptFileName);
+        InputStreamReader isr = new InputStreamReader(resource.getInputStream(), "UTF-8");
+        BufferedReader br = new BufferedReader(isr);
+        File saveDir = new File(fileSaveDir);
+        if(!saveDir.exists())
+        {
+            saveDir.mkdirs();
+        }
+        String savePath = String.format("%s/%s", fileSaveDir, platformDeployScriptFileName);
+        savePath = savePath.replaceAll("\\\\", "/");
+        File scriptFile = new File(savePath);
+        scriptFile.createNewFile();
+        BufferedWriter out = new BufferedWriter(new FileWriter(scriptFile));
+        String lineTxt = null;
+        while ((lineTxt = br.readLine()) != null)
+        {
+            out.write(lineTxt + "\n");
+        }
+        br.close();
+        out.close();
     }
 
     /**
@@ -1817,7 +1839,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         if(!status.equals(UpdateStatus.EXEC))
             return;
         try{
-            generateYamlForDeploy(platformId, steps);
+            generateYamlForDeploy(schema, steps);
         }
         catch (Exception ex){
             logger.error("generate platform create yaml exception", ex);
@@ -1981,6 +2003,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         logger.error(String.format("query %s platform exception", task.getDebugInfo().getPlatformId()), ex);
                         continue;
                     }
+                    task.setExecTime(new Date());
+                    task.setStatus(AppDebugTaskVo.RUNNING);
                     startAppDebug(platform, task);
                 }
             }
@@ -2052,7 +2076,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             catch (Exception ex){
                 logger.error(String.format("debug exception"), ex);
                 List<K8sOperationPo> logs = debugLogsMap.get(task.getDebugTag());
-                if(logs.size() > 0){
+                if(logs != null && logs.size() > 0){
                     logs.get(logs.size()-1).fail(ex.getMessage());
                 }
             }
@@ -2069,8 +2093,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private void execAppDebug(String jobId, PlatformPo platform, AppDebugTaskVo task) throws ApiException, ParamException, IOException, InterfaceCallException
     {
         String platformId = platform.getPlatformId();
-        task.setStatus(AppDebugTaskVo.RUNNING);
-        task.setExecTime(new Date());
         AppUpdateOperationInfo optInfo = task.getDebugInfo();
         List<K8sOperationPo> execResults = task.getExecResults();
         String appName = optInfo.getAppName();
@@ -2110,8 +2132,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                                 logger.debug(String.format("debug %s is removed", gson.toJson(tasks.get(i))));
                                 debugQueue.remove(tasks.get(i));
                             }
-                            optInfo = task.getDebugInfo();
-                            steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platform, startTimeout);
+                            task.setStatus(AppDebugTaskVo.RUNNING);
+                            task.setExecTime(new Date());
+                            steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), domainId, domainCfg, platform, startTimeout);
                             task.setSteps(steps);
                             changed = true;;
                         }
@@ -2130,6 +2153,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         }
                     }
                     else{
+                        task.setStatus(AppDebugTaskVo.RUNNING);
+                        task.setExecTime(new Date());
                         execAppDebug(jobId, platform, task);
                         return;
                     }
@@ -2403,6 +2428,21 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainName))
                 .forEach((k,v)->{if(v.size()>1)sb.append(String.format("update plan of %s multi define;", k));});
         return sb.toString();
+    }
+
+    @Override
+    public String generatePlatformCreateScript(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
+        logger.debug(String.format("create platform deploy script for %s", gson.toJson(paramVo)));
+        Assert.notNull(paramVo.getPlatformId(), "platformId can not be null");
+        Assert.notNull(paramVo.getK8sHostIp(), "k8sHostIp can not be null");
+        Assert.notNull(paramVo.getNfsServerIp(), "nfsServerIp can not be null");
+        Assert.notNull(paramVo.getParams(), "params should be id of cloned platform");
+        PlatformPo srcPlatform = getK8sPlatform(paramVo.getPlatformId());
+        LJHostInfo host = new LJHostInfo();
+        host.setHostInnerIp(paramVo.getK8sHostIp());
+        PlatformUpdateSchemaInfo schema = cloneExistPlatform(paramVo, Arrays.asList(new LJHostInfo[]{host}));
+//        List<K8sOperationInfo> steps = generateDomainDeploySteps()
+        return null;
     }
 
     @Override
@@ -3628,28 +3668,21 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
     }
 
-    private void generateYamlForDeploy(String platformId, List<K8sOperationInfo> steps) throws IOException
+    private String generateYamlForDeploy(PlatformUpdateSchemaInfo schema, List<K8sOperationInfo> steps) throws IOException
     {
+        String platformId = schema.getPlatformId();
         StringBuffer sb = new StringBuffer();
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-        String basePath = String.format("%s/tmp/yaml/%s/%s", System.getProperty("user.dir"), platformId, sf.format(now));
-        String jobJson = "{\"apiVersion\":\"batch/v1\",\"kind\":\"Job\",\"metadata\":{\"labels\":{},\"name\":\"platform-base-init\",\"namespace\":\"pahjgs\"},\"spec\":{\"selector\":{\"matchLabels\":{}},\"template\":{\"metadata\":{\"labels\":{}},\"spec\":{\"containers\":[{\"args\":[\"mkdir /root/data/pahjgs/base-volume -p;cd /root/data/pahjgs/base-volume;wget http://10.130.41.218:8081/repository/platform_base_data/initSql/4.1/initPlatformData-2020-09-23.gz;tar -xvzf initPlatformData-2020-09-23.gz\"],\"command\":[\"/bin/bash\",\"-c\"],\"image\":\"nexus.io:5000/ccod-base/centos-tool:7.2.1511\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"base-init\",\"volumeMounts\":[]}],\"restartPolicy\":\"Never\",\"terminationGracePeriodSeconds\":30,\"volumes\":[]}}}}";
-        int index = 1;
-        Representer representer = new Representer() {
-            @Override
-            protected NodeTuple representJavaBeanProperty(Object javaBean, Property property, Object propertyValue, Tag customTag) {
-                // if value of property is null, ignore it.
-                if (propertyValue == null) {
-                    return null;
-                }
-                else {
-                    return super.representJavaBeanProperty(javaBean, property, propertyValue, customTag);
-                }
-            }
-        };
+        String rootPath = String.format("%s/temp/yaml/%s", System.getProperty("user.dir"), platformId);
+        String basePath = String.format("%s/%s", rootPath, sf.format(now));
+        List<Map<String, Object>> execList = new ArrayList<>();
+        V1Deployment glsserver = null;
         for(K8sOperationInfo step : steps){
-//            Yaml yaml = new Yaml(representer, new DumperOptions());
+            if(step.getKind().equals(K8sKind.JOB))
+                continue;
+            if(step.getKind().equals(K8sKind.DEPLOYMENT) && step.getName().equals("glsserver-public01"))
+                glsserver = (V1Deployment)step.getObj();
             StringBuffer content = new StringBuffer();
             String alias = step.getName().split("-")[0];
             String domainId = step.getDomainId();
@@ -3659,22 +3692,54 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             content.append(tag).append("\n---\n").append(Yaml.dump(step.getObj())).append("\n\n");
             FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
             sb.append(content.toString());
-            if(step.getTimeout() > 0){
-                V1Job job = gson.fromJson(jobJson, V1Job.class);
-                job.getMetadata().setName(String.format("sleep-job-%d", index));
-                index++;
-                job.getMetadata().setNamespace(platformId);
-                job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(new String[]{String.format("sleep %d", step.getTimeout())}));
-                tag = "# create job for sleep";
+            Map<String, Object> param = new HashMap<>();
+            param.put("timeout", step.getTimeout());
+            param.put("filePath", domainId == null ? fileName : String.format("%s/%s/%s", domainId, alias, fileName));
+            execList.add(param);
+            if (step.getKind().equals(K8sKind.SERVICE) && step.getName().equals("ucds-cloud01-out")) {
                 content = new StringBuffer();
-                content.append(tag).append("\n---\n").append(Yaml.dump(job)).append("\n\n");
-                saveDir = basePath;
-                fileName = String.format("sleep-job-%d.yaml", index);
+                alias = "glsserver";
+                domainId = "public01";
+                saveDir = String.format("%s/%s/%s", basePath, domainId, alias);
+                fileName = String.format("%s-%s-restart.yaml", step.getName(), step.getKind().name.toLowerCase());
+                tag = String.format("# restart glsserver deployment");
+                glsserver.getMetadata().getLabels().put("restart-time", sf.format(new Date()));
+                content.append(tag).append("\n---\n").append(Yaml.dump(glsserver)).append("\n\n");
                 FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
                 sb.append(content.toString());
+                param = new HashMap<>();
+                param.put("timeout", 30);
+                param.put("filePath", String.format("%s/%s/%s", domainId, alias, fileName));
+                execList.add(param);
             }
+//            if(step.getTimeout() > 0){
+//                V1Job job = gson.fromJson(jobJson, V1Job.class);
+//                job.getMetadata().setName(String.format("sleep-job-%d", index));
+//                index++;
+//                job.getMetadata().setNamespace(platformId);
+//                job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(new String[]{String.format("sleep %d", step.getTimeout())}));
+//                tag = "# create job for sleep";
+//                content = new StringBuffer();
+//                content.append(tag).append("\n---\n").append(Yaml.dump(job)).append("\n\n");
+//                saveDir = basePath;
+//                fileName = String.format("sleep-job-%d.yaml", index);
+//                FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
+//                sb.append(content.toString());
+//            }
         }
+        Map<String, Object> params = new HashMap<>();
+        params.put("execSteps", execList);
+        params.put("platformParams", schema.getPlatformParam());
+        FileUtils.saveContextToFile(basePath, "start_param.txt", gson.toJson(params), true);
         FileUtils.saveContextToFile(basePath, "platform_create.yaml", sb.toString(), true);
+        copyDeployScript(basePath);
+        String zipFilePath = String.format("%s/%s.zip", rootPath, platformId);
+        File zipFile = new File(zipFilePath);
+        if(zipFile.exists()){
+            zipFile.delete();
+        }
+        ZipUtils.zipFolder(basePath, zipFilePath);
+        return zipFilePath;
     }
 
     @Override

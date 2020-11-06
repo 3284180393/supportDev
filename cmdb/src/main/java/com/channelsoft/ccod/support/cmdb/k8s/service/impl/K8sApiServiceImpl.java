@@ -488,9 +488,12 @@ public class K8sApiServiceImpl implements IK8sApiService {
         }
         V1ObjectMeta meta = new V1ObjectMeta();
         meta.setName(configMapName);
+        meta.setNamespace(namespace);
         V1ConfigMap body = new V1ConfigMap();
         body.setMetadata(meta);
         body.setData(dataMap);
+        body.setKind("ConfigMap");
+        body.setApiVersion("v1");
         logger.info(String.format("generate configMap %s for %s at %s from nexus SUCCESS", configMapName, appName, namespace));
         return body;
     }

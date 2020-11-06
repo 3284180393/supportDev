@@ -735,6 +735,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     return String.format("%d is illegal initialDelaySeconds for %s", appBase.getInitialDelaySeconds(), tag);
                 if(appBase.getPeriodSeconds() != null && appBase.getPeriodSeconds() <= 0)
                     return String.format("%d is illegal periodSeconds for %s", appBase.getPeriodSeconds(), tag);
+                if(appBase.getAppType() != null && appBase.getAppType().equals(AppType.JAR) && appBase.getBasePath() != null && appBase.getBasePath().equals("/root"))
+                    return String.format("basePath can not be /root for %s", tag);
             }
             if(needProp) {
                 StringBuffer sb = new StringBuffer();
@@ -759,6 +761,10 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     sb.append(String.format("ports is blank for %s;", tag));
                 if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
                     sb.append(String.format("cfgs of %s is empty;", tag));
+                if(appBase.getInitialDelaySeconds() == null)
+                    sb.append(String.format("initialDelaySeconds can not be null for %s", tag));
+                if(appBase.getPeriodSeconds() == null)
+                    sb.append(String.format("periodSeconds can not be null for %s", tag));
                 return sb.toString();
             }
             return "";
@@ -817,7 +823,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Assert.isTrue(StringUtils.isBlank(checkResult), checkResult);
         String appName = appModule.getAppName();
         String version = appModule.getVersion();
-        if(appModule.isHasImage()) {
+        if(appModule.isHasImage() != null && appModule.isHasImage()) {
             Assert.isTrue(imageExist(appName, version), String.format("not find image for %s version %s at nexus", appName, version));
         }
         this.appWriteLock.writeLock().lock();

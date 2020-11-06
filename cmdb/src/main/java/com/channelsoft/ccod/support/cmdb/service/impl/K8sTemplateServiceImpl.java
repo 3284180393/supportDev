@@ -349,6 +349,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         AppModuleVo module = this.appManagerService.queryAllRegisterAppModule(true).stream()
                 .collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName).stream()
                 .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+        appBase.setInstallPackage(module.getInstallPackage());
         AppType appType = module.getAppType();
         String ccodVersion = module.getCcodVersion();
         Map<String, String> selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.DEPLOYMENT);
@@ -976,6 +977,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String tag = String.format("%s[%s(%s)]", alias, appName, version);
         logger.debug(String.format("generate k8s object for %s, domainId=%s", gson.toJson(appBase), domainId));
         AppModuleVo module = this.appManagerService.queryAppByVersion(appName, version, true);
+        appBase.setInstallPackage(module.getInstallPackage());
         String ccodVersion = module.getCcodVersion();
         AppType appType = module.getAppType();
         String platformId = platform.getPlatformId();
@@ -1036,6 +1038,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         AppModuleVo module = this.appManagerService.queryAllRegisterAppModule(true).stream()
                 .filter(app->app.getAppName().equals(appName)&&app.getVersion().equals(version))
                 .collect(Collectors.toList()).get(0);
+        appBase.setInstallPackage(module.getInstallPackage());
         AppType appType = module.getAppType();
         if(!isNewPlatform)
         {

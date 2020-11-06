@@ -19,25 +19,27 @@ import java.util.Map;
  */
 public abstract class PlatformBase {
 
-    public static String glsDBTypeKey = "glsDBType";
+    public static final String glsDBTypeKey = "glsDBType";
 
-    public static String glsDBUserKey = "glsDBUser";
+    public static final String glsDBUserKey = "glsDBUser";
 
-    public static String glsDBPwdKey = "glsDBPwd";
+    public static final String glsDBPwdKey = "glsDBPwd";
 
-    public static String glsDBSidKey = "glsDBSid";
+    public static final String glsDBSidKey = "glsDBSid";
 
-    public static String k8sHostIpKey = "k8sHostIp";
+    public static final String glsDBServiceKey = "glsDBService";
 
-    public static String nfsServerIpKey = "nfsServerIp";
+    public static final String k8sHostIpKey = "k8sHostIp";
 
-    public static String dbPortKey = "dbPort";
+    public static final String nfsServerIpKey = "nfsServerIp";
 
-    public static String baseDataNexusRepositoryKey = "baseDataNexusRepository";
+    public static final String dbPortKey = "dbPort";
 
-    public static String baseDataNexusPathKey = "baseDataNexusPath";
+    public static final String baseDataNexusRepositoryKey = "baseDataNexusRepository";
 
-    public static String statusBeforeDebugKey = "statusBeforeDebugKey";
+    public static final String baseDataNexusPathKey = "baseDataNexusPath";
+
+    public static final String statusBeforeDebugKey = "statusBeforeDebugKey";
 
     protected String platformId; //平台id
 
@@ -64,6 +66,8 @@ public abstract class PlatformBase {
     protected String glsDBUser; //gls数据库的db用户
 
     protected String glsDBPwd; //gls数据库的登录密码
+
+    protected String glsDBService; //部署的gls数据库服务名
 
     protected String baseDataNexusRepository; //基础数据在nexus的存放仓库
 
@@ -275,6 +279,14 @@ public abstract class PlatformBase {
 
     public void setNfsServerIp(String nfsServerIp) {
         this.nfsServerIp = nfsServerIp;
+    }
+
+    public String getGlsDBService() {
+        return glsDBService;
+    }
+
+    public void setGlsDBService(String glsDBService) {
+        this.glsDBService = glsDBService;
     }
 
     public PlatformPo getCreatePlatform(String comment)
