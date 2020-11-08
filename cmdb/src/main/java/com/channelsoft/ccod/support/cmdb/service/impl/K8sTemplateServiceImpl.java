@@ -751,10 +751,17 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         runtimeContainer.getLivenessProbe().setTcpSocket(tcp);
         runtimeContainer.getLivenessProbe().setHttpGet(get);
         runtimeContainer.getLivenessProbe().setExec(exec);
-        if(initialDelaySeconds > 0)
+        runtimeContainer.getReadinessProbe().setTcpSocket(tcp);
+        runtimeContainer.getReadinessProbe().setHttpGet(get);
+        runtimeContainer.getReadinessProbe().setExec(exec);
+        if(initialDelaySeconds > 0){
             runtimeContainer.getLivenessProbe().setInitialDelaySeconds(initialDelaySeconds);
-        if(periodSeconds > 0)
+            runtimeContainer.getReadinessProbe().setInitialDelaySeconds(initialDelaySeconds);
+        }
+        if(periodSeconds > 0){
             runtimeContainer.getLivenessProbe().setPeriodSeconds(periodSeconds);
+            runtimeContainer.getReadinessProbe().setPeriodSeconds(periodSeconds);
+        }
         runtimeContainer.getReadinessProbe().setTcpSocket(tcp);
         runtimeContainer.getReadinessProbe().setHttpGet(get);
         runtimeContainer.getReadinessProbe().setExec(exec);
