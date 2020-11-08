@@ -2067,4 +2067,70 @@ public class CMDBController {
         }
         return "下载失败";
     }
+
+//    @GetMapping("/platformDeploy")
+    @RequestMapping(value = "/platformDeploy", method = RequestMethod.GET)
+    public String getPlatformDeployScript(HttpServletRequest request, HttpServletResponse response, String platformId,  String srcPlatformId, String hostUrl, String k8sHostIp, String nfsServerIp)
+    {
+        PlatformCreateParamVo param = new PlatformCreateParamVo();
+        param.setPlatformId(platformId);
+        param.setParams(srcPlatformId);
+        param.setHostUrl(hostUrl);
+        param.setNfsServerIp(nfsServerIp);
+        param.setK8sHostIp(k8sHostIp);
+        String uri = String.format("POST %s/platformDeploy, param=%s", this.apiBasePath, gson.toJson(param));
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo = null;
+        try
+        {
+            String zipFilePath = platformManagerService.generatePlatformCreateScript(param);
+            String fileName = zipFilePath.replaceAll(".*/", "");
+            File file = new File(zipFilePath);
+            if (file.exists()) {
+                response.setContentType("application/force-download");// 设置强制下载不打开
+                response.addHeader("Content-Disposition", "attachment;fileName=" + fileName);// 设置文件名
+                byte[] buffer = new byte[1024];
+                FileInputStream fis = null;
+                BufferedInputStream bis = null;
+                try {
+                    fis = new FileInputStream(file);
+                    bis = new BufferedInputStream(fis);
+                    OutputStream os = response.getOutputStream();
+                    int i = bis.read(buffer);
+                    while (i != -1) {
+                        os.write(buffer, 0, i);
+                        i = bis.read(buffer);
+                    }
+                    resultPo = new AjaxResultPo(true, "部署脚本下载成功", 1, null);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    resultPo = new AjaxResultPo(false, e.getMessage());
+                } finally {
+                    if (bis != null) {
+                        try {
+                            bis.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            resultPo = new AjaxResultPo(false, e.getMessage());
+                        }
+                    }
+                    if (fis != null) {
+                        try {
+                            fis.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            resultPo = new AjaxResultPo(false, e.getMessage());
+                        }
+                    }
+                }
+            }
+            logger.info(String.format("deploy script download success, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("qdeploy script download success, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return gson.toJson(resultPo);
+    }
 }

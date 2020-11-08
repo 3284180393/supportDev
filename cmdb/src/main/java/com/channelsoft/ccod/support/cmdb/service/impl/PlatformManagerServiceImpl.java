@@ -324,6 +324,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
 //            logger.error(gson.toJson(schema));
 //            updatePlatformUpdateSchema(schema);
+            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
+            paramVo.setParams("pahjgs");
+            paramVo.setNfsServerIp("10.130.41.218");
+            paramVo.setK8sHostIp("10.130.41.218");
+            paramVo.setPlatformId("script-test");
+            paramVo.setHostUrl("script-test.ccod.com");
+            System.out.println(gson.toJson(paramVo));
+//            String zipFilePath = generatePlatformCreateScript(paramVo);
+//            logger.debug(String.format("generate script saved to %s", zipFilePath));
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -1797,45 +1806,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
                 filter(plan->plan.getStatus().equals(status)).sorted(sort).collect(Collectors.toList());
         boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) || schema.getTaskType().equals(PlatformUpdateTaskType.RESTORE) ? true : false;
-        List<K8sOperationInfo> steps = new ArrayList<>();
         String platformId = platformPo.getPlatformId();
-        String ccodVersion = platformPo.getCcodVersion();
-        String jobId = schema.getSchemaId();
-        String hostUrl = platformPo.getHostUrl();
         CCODPlatformStatus platformStatus = platformPo.getStatus();
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         boolean clone = PlatformCreateMethod.CLONE.equals(schema.getCreateMethod()) ? true : false;
         schema.getDomainUpdatePlanList().stream()
                 .forEach(plan -> plan.getAppUpdateOperationList().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
-        PlatformAppDeployDetailVo deployGls;
-        if(isNewPlatform) {
-            String nfsServerIp = StringUtils.isBlank(schema.getNfsServerIp()) ? schema.getK8sHostIp() : schema.getNfsServerIp();
-            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
-                    null, null, schema.getThreePartApps(), schema.getThreePartServices(), nfsServerIp, platformPo);
-            steps.addAll(platformCreateSteps);
-            Map<String, List<AppUpdateOperationInfo>> optMap = schema.getDomainUpdatePlanList().stream()
-                    .flatMap(plan->plan.getAppUpdateOperationList().stream()).collect(Collectors.toList())
-                    .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-            if(!optMap.containsKey("glsServer"))
-                throw new ParamException(String.format("new platform must has glsServer"));
-            else if(optMap.get("glsServer").size() > 1)
-                throw new ParamException(String.format("glsServer multi deploy"));
-            deployGls = optMap.get("glsServer").get(0).getPlatformAppDetail(platformId, nexusHostUrl);
-        }
-        else {
-            deployGls = platformDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getAppName))
-                    .get("glsServer").get(0);
-        }
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream()
                 .collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
-        for(DomainUpdatePlanInfo plan : plans)
-        {
-            if(domainMap.containsKey(plan.getDomainId()) && (plan.getPublicConfig() == null || plan.getPublicConfig().size() == 0))
-                plan.setPublicConfig(domainMap.get(plan.getDomainId()).getCfgs());
-            List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(plan.getDomainId()) ? domainAppMap.get(plan.getDomainId()) : new ArrayList<>();
-            List<K8sOperationInfo> deploySteps = generateDomainDeploySteps(jobId, platformPo, plan, domainApps, isNewPlatform);
-            steps.addAll(deploySteps);
-        }
+        List<K8sOperationInfo> steps = generateExecStepForSchema(platformPo, schema, domainList, platformDeployApps);
         if(!status.equals(UpdateStatus.EXEC))
             return;
         try{
@@ -1866,7 +1845,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     Map<String, List<AppFileNexusInfo>> cfgMap = preprocessDomainApps(schema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, clone, date);
                     domainCfgMap.put(domainId, cfgMap);
                 }
-                PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(platformPo, steps, platformDeployLogs, schema, platformDeployApps, deployGls);
+                PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(platformPo, steps, platformDeployLogs, schema, platformDeployApps);
                 logger.info(String.format("platform schema execute result : %s", gson.toJson(execResultVo)));
                 if(!execResultVo.isSuccess()){
                     logger.error(String.format("schema execute fail : %s", execResultVo.getErrorMsg()));
@@ -1930,6 +1909,88 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 this.ongoingPlatformId = null;
             }
         }).start();
+    }
+
+    private List<K8sOperationInfo> generateExecStepForSchema(
+            PlatformPo platformPo, PlatformUpdateSchemaInfo schema, List<DomainPo> domainList,
+            List<PlatformAppDeployDetailVo> platformDeployApps)
+            throws ParamException, ApiException, InterfaceCallException, IOException, LJPaasException, NotSupportAppException, NexusException {
+        Map<String, Integer> setMap = new HashMap<>();
+        for(int i = 0; i < this.ccodBiz.getSet().size(); i++)
+            setMap.put(this.ccodBiz.getSet().get(i).getFixedDomainId(), i);
+        Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
+        UpdateStatus status = schema.getStatus();
+        List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
+                filter(plan->plan.getStatus().equals(status)).sorted(sort).collect(Collectors.toList());
+        boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) || schema.getTaskType().equals(PlatformUpdateTaskType.RESTORE) ? true : false;
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        String platformId = platformPo.getPlatformId();
+        String jobId = schema.getSchemaId();
+        Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
+        schema.getDomainUpdatePlanList().stream()
+                .forEach(plan -> plan.getAppUpdateOperationList().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
+        V1Deployment deployGls = null;
+        Map<String, List<AppUpdateOperationInfo>> optMap = plans.stream()
+                .flatMap(plan->plan.getAppUpdateOperationList().stream()).collect(Collectors.toList())
+                .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
+        List<AppUpdateOperationInfo> glsOpts = optMap.get("glsServer");
+        boolean hasUCDS = optMap.containsKey("UCDServer");
+        if(glsOpts != null && glsOpts.size() > 1)
+            throw new ParamException(String.format("operation of glsServer multi define"));
+        List<PlatformAppDeployDetailVo> deployedGlsList = platformDeployApps.stream().collect(Collectors.groupingBy(d->d.getAppName())).get("glsServer");
+        if(deployedGlsList != null && deployedGlsList.size() > 1){
+            throw new ParamException(String.format("glsserver of %s has been multi deployed", platformId));
+        }
+        if(isNewPlatform) {
+            if(hasUCDS && glsOpts == null){
+                throw new ParamException(String.format("new platform %s has not glsServer", platformId));
+            }
+            String nfsServerIp = StringUtils.isBlank(schema.getNfsServerIp()) ? schema.getK8sHostIp() : schema.getNfsServerIp();
+            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
+                    null, null, schema.getThreePartApps(), schema.getThreePartServices(), nfsServerIp, platformPo);
+            steps.addAll(platformCreateSteps);
+        }
+        else {
+            if(deployedGlsList != null && glsOpts != null && glsOpts.get(0).getOperation().equals(AppUpdateOperation.ADD)){
+                throw new ParamException(String.format("exist platform %s has a glsServer, can not be add new one", platformId));
+            }
+            if(hasUCDS){
+                if(deployedGlsList == null){
+                    throw new ParamException(String.format("exist platform %s has not glsServer", platformId));
+                }
+                else{
+                    Map<String, String> selector = new HashMap<>();
+                    selector.put("glsServer", deployedGlsList.get(0).getAlias());
+                    selector.put(domainIdLabel, deployedGlsList.get(0).getDomainId());
+                    List<V1Deployment> deploys = k8sApiService.selectNamespacedDeployment(platformId, selector, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
+                    if(deploys.size() == 0){
+                        throw new ParamException(String.format("not find glsServer deployment at exist platform %s", platformId));
+                    }
+                    else if(deploys.size() > 1){
+                        throw new ParamException(String.format("find %d glsServer deployment at exist platform %s", deploys.size(), platformId));
+                    }
+                    deployGls = deploys.get(0);
+                }
+            }
+        }
+        Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream()
+                .collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
+        for(DomainUpdatePlanInfo plan : plans)
+        {
+            if(domainMap.containsKey(plan.getDomainId()) && (plan.getPublicConfig() == null || plan.getPublicConfig().size() == 0))
+                plan.setPublicConfig(domainMap.get(plan.getDomainId()).getCfgs());
+            List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(plan.getDomainId()) ? domainAppMap.get(plan.getDomainId()) : new ArrayList<>();
+            List<K8sOperationInfo> deploySteps = generateDomainDeploySteps(jobId, platformPo, plan, domainApps, isNewPlatform, deployGls);
+            steps.addAll(deploySteps);
+            if(isNewPlatform && hasUCDS){
+                List<K8sOperationInfo> opts = steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT) && s.getOperation().equals(K8sOperation.CREATE) && s.getName().matches("^glsserver\\-.+"))
+                        .collect(Collectors.toList());
+                if(opts.size() > 0){
+                    deployGls = (V1Deployment)opts.get(0).getObj();
+                }
+            }
+        }
+        return steps;
     }
 
     @Override
@@ -2191,7 +2252,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private List<K8sOperationInfo> generateDomainDeploySteps(
             String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
-            boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException
+            boolean isNewPlatform, V1Deployment glsserver) throws ParamException, ApiException, InterfaceCallException, IOException
     {
         String domainId = plan.getDomainId();
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
@@ -2234,6 +2295,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     this.k8sTemplateService.generateAddPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platformPo, isNewPlatform)
                     : this.k8sTemplateService.generateUpdatePlatformAppSteps(jobId, optInfo, domainId, domainCfg, platformPo);
             steps.addAll(optSteps);
+            if(optInfo.getAppName().equals("UCDServer")){
+                String glsDomId = glsserver.getMetadata().getLabels().get(domainIdLabel);
+                glsserver = gson.fromJson(gson.toJson(glsserver), V1Deployment.class);
+                glsserver.getMetadata().getLabels().put("restart-reason", String.format("%s-deployment-created", optInfo.getAlias()));
+                K8sOperationInfo info = new K8sOperationInfo(jobId, platformId, glsDomId, K8sKind.DEPLOYMENT, glsserver.getMetadata().getName(), K8sOperation.REPLACE, glsserver);
+                info.setTimeout(60);
+                steps.add(info);
+            }
         }
         steps.forEach(s->s.setKernal(false));
         logger.info(String.format("deploy %s %d apps need %d steps", domainId, plan.getAppUpdateOperationList().size(), steps.size()));
@@ -2431,18 +2500,31 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public String generatePlatformCreateScript(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
+    public String generatePlatformCreateScript(PlatformCreateParamVo paramVo) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException {
         logger.debug(String.format("create platform deploy script for %s", gson.toJson(paramVo)));
-        Assert.notNull(paramVo.getPlatformId(), "platformId can not be null");
-        Assert.notNull(paramVo.getK8sHostIp(), "k8sHostIp can not be null");
-        Assert.notNull(paramVo.getNfsServerIp(), "nfsServerIp can not be null");
-        Assert.notNull(paramVo.getParams(), "params should be id of cloned platform");
-        PlatformPo srcPlatform = getK8sPlatform(paramVo.getPlatformId());
+        Assert.isTrue(StringUtils.isNotBlank(paramVo.getPlatformId()), "platformId can not be blank");
+        Assert.isTrue(paramVo.getPlatformId().matches(platformIdRegex), "must consist of lower case alphanumeric characters, '-', and must start with an alphanumeric character (e.g. 'script-test'");
+        Assert.isTrue(StringUtils.isNotBlank(paramVo.getK8sHostIp()), "k8sHostIp can not be blank");
+        Assert.isTrue(StringUtils.isNotBlank(paramVo.getNfsServerIp()), "nfsServerIp can not be blank");
+        Assert.isTrue(StringUtils.isNotBlank(paramVo.getParams()), "params should be id of cloned platform");
+        Assert.isTrue(StringUtils.isNotBlank(paramVo.getHostUrl()), "hostUrl can not be blank");
+        Assert.isTrue(paramVo.getHostUrl().matches("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*"), "must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'script-test.ccod.com')");
+        PlatformPo srcPlatform = getK8sPlatform(paramVo.getParams());
+        paramVo.setCcodVersion(srcPlatform.getCcodVersion());
+        paramVo.setSchemaId("hahaha");
+        paramVo.setCfgs(srcPlatform.getCfgs());
+        paramVo.setCreateMethod(PlatformCreateMethod.CLONE);
+//        paramVo.setParams(srcPlatform.getParams());
         LJHostInfo host = new LJHostInfo();
         host.setHostInnerIp(paramVo.getK8sHostIp());
         PlatformUpdateSchemaInfo schema = cloneExistPlatform(paramVo, Arrays.asList(new LJHostInfo[]{host}));
-//        List<K8sOperationInfo> steps = generateDomainDeploySteps()
-        return null;
+        schema.setTaskType(PlatformUpdateTaskType.CREATE);
+        schema.setType(PlatformType.K8S_CONTAINER);
+        schema.setK8sApiUrl(srcPlatform.getK8sApiUrl());
+        schema.setK8sAuthToken(srcPlatform.getK8sAuthToken());
+        List<K8sOperationInfo> steps = generateExecStepForSchema(schema.getCreatePlatform("test for generate script"), schema, new ArrayList<>(), new ArrayList<>());
+        String zipFilePath = generateYamlForDeploy(schema, steps);
+        return zipFilePath;
     }
 
     @Override
@@ -3542,14 +3624,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResult;
     }
 
-    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps, PlatformAppDeployDetailVo deployGls) throws ParamException, ApiException
+    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps) throws ParamException, ApiException
     {
         String jobId = schema.getSchemaId();
         Date startTime = new Date();
         String platformId = platformPo.getPlatformId();
         List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
         PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(jobId, platformId, k8sOptList);
-        execK8sDeploySteps(platformPo, k8sOptList, execResults, deployGls);
+        execK8sDeploySteps(platformPo, k8sOptList, execResults);
         boolean execSucc = execResults.get(execResults.size() - 1).isSuccess();
         logger.info(String.format("%s schema with jobId=%s execute : %b", platformId, jobId, execSucc));
         if(execSucc)
@@ -3581,13 +3663,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResultVo;
     }
 
-    private void execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformAppDeployDetailVo deployGls) throws ApiException, ParamException
+    private void execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults) throws ApiException, ParamException
     {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
         Map<String, Object> params = platform.getParams();
         DatabaseType glsDBType = DatabaseType.getEnum((String)platform.getParams().get(PlatformBase.glsDBTypeKey));
+        String glsDBService = (String)params.get(PlatformBase.glsDBServiceKey);
         for(K8sOperationInfo k8sOpt : k8sOptList)
         {
             K8sOperationPo ret = execK8sOpt(execResults, k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
@@ -3599,11 +3682,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     Map<String, String> labels = service.getMetadata().getLabels();
                     if(labels == null || labels.size() == 0 || !labels.containsKey(this.serviceTypeLabel) || !labels.containsKey(this.appNameLabel))
                         continue;
-                    if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name)
-                            && labels.get(this.appNameLabel).equals("oracle") && glsDBType.equals(DatabaseType.ORACLE))
+                    if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name))
                     {
-                        if((labels.get(this.appNameLabel).equals("oracle") && glsDBType.equals(DatabaseType.ORACLE))
-                                || (labels.get(this.appNameLabel).equals("mysql") && glsDBType.equals(DatabaseType.MYSQL)))
+                        if(k8sOpt.getName().equals(glsDBService))
                         {
                             V1Service dbSvc = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
                             int dbPort = getNodePortFromK8sService(dbSvc);
@@ -3612,7 +3693,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                                 throw new ApiException("create service for glsDB fail");
                             params.put(PlatformBase.dbPortKey, dbPort);
                         }
-
                     }
                     else if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.DOMAIN_OUT_SERVICE.name) && labels.get(this.appNameLabel).equals("UCDServer"))
                     {
@@ -3625,36 +3705,36 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         PreparedStatement ps = connect.prepareStatement(updateSql);
                         logger.debug(String.format("begin to update ucds port : %s", updateSql));
                         ps.executeUpdate();
-                        Map<String, String> selector = new HashMap<>();
-                        selector.put(this.appTypeLabel, AppType.BINARY_FILE.name);
-                        selector.put("glsServer", deployGls.getAlias());
-                        List<V1Deployment> deploys = this.k8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
-                        if(deploys.size() == 0)
-                            throw new ParamException(String.format("can not find glsserver from %s", platformId));
-                        else if(deploys.size() > 1)
-                            throw new ParamException(String.format("glsserver multi deploy at %s ", platformId));
-                        V1Deployment glsserver = deploys.get(0);
-                        glsserver = templateParseGson.fromJson(templateParseGson.toJson(glsserver), V1Deployment.class);
-                        Date now = new Date();
-                        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
-                        glsserver.getMetadata().getLabels().put("restart-time", sf.format(now));
-                        this.k8sApiService.replaceNamespacedDeployment(glsserver.getMetadata().getName(), platformId, glsserver, k8sApiUrl, k8sAuthToken);
-                        int timeUsage = 0;
-                        String glsserverName = glsserver.getMetadata().getName();
-                        while(timeUsage <= 60)
-                        {
-                            Thread.sleep(3000);
-                            logger.debug(String.format("wait deployment %s status to ACTIVE, timeUsage=%d", glsserverName, (timeUsage+3)));
-                            K8sStatus status = this.k8sApiService.readNamespacedDeploymentStatus(glsserverName, platformId, k8sApiUrl, k8sAuthToken);
-                            if(status.equals(K8sStatus.ACTIVE))
-                            {
-                                logger.debug(String.format("deployment %s status change to ACTIVE, timeUsage=%d", glsserverName, (timeUsage+3)));
-                                break;
-                            }
-                            timeUsage += 3;
-                        }
-                        if(timeUsage > 60)
-                            throw new ParamException(String.format("restart deployment %s timeout in %d seconds", glsserverName, timeUsage));
+//                        Map<String, String> selector = new HashMap<>();
+//                        selector.put(this.appTypeLabel, AppType.BINARY_FILE.name);
+//                        selector.put("glsServer", deployGls.getAlias());
+//                        List<V1Deployment> deploys = this.k8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
+//                        if(deploys.size() == 0)
+//                            throw new ParamException(String.format("can not find glsserver from %s", platformId));
+//                        else if(deploys.size() > 1)
+//                            throw new ParamException(String.format("glsserver multi deploy at %s ", platformId));
+//                        V1Deployment glsserver = deploys.get(0);
+//                        glsserver = templateParseGson.fromJson(templateParseGson.toJson(glsserver), V1Deployment.class);
+//                        Date now = new Date();
+//                        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+//                        glsserver.getMetadata().getLabels().put("restart-time", sf.format(now));
+//                        this.k8sApiService.replaceNamespacedDeployment(glsserver.getMetadata().getName(), platformId, glsserver, k8sApiUrl, k8sAuthToken);
+//                        int timeUsage = 0;
+//                        String glsserverName = glsserver.getMetadata().getName();
+//                        while(timeUsage <= 60)
+//                        {
+//                            Thread.sleep(3000);
+//                            logger.debug(String.format("wait deployment %s status to ACTIVE, timeUsage=%d", glsserverName, (timeUsage+3)));
+//                            K8sStatus status = this.k8sApiService.readNamespacedDeploymentStatus(glsserverName, platformId, k8sApiUrl, k8sAuthToken);
+//                            if(status.equals(K8sStatus.ACTIVE))
+//                            {
+//                                logger.debug(String.format("deployment %s status change to ACTIVE, timeUsage=%d", glsserverName, (timeUsage+3)));
+//                                break;
+//                            }
+//                            timeUsage += 3;
+//                        }
+//                        if(timeUsage > 60)
+//                            throw new ParamException(String.format("restart deployment %s timeout in %d seconds", glsserverName, timeUsage));
                     }
                 }
             }
@@ -3675,19 +3755,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Date now = new Date();
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String rootPath = String.format("%s/temp/yaml/%s", System.getProperty("user.dir"), platformId);
-        String basePath = String.format("%s/%s", rootPath, sf.format(now));
+        String basePath = String.format("%s/%s", rootPath, sf.format(now)).replaceAll("\\\\", "/");
         List<Map<String, Object>> execList = new ArrayList<>();
-        V1Deployment glsserver = null;
         for(K8sOperationInfo step : steps){
-            if(step.getKind().equals(K8sKind.JOB))
-                continue;
-            if(step.getKind().equals(K8sKind.DEPLOYMENT) && step.getName().equals("glsserver-public01"))
-                glsserver = (V1Deployment)step.getObj();
+//            if(step.getKind().equals(K8sKind.JOB))
+//                continue;
             StringBuffer content = new StringBuffer();
             String alias = step.getName().split("-")[0];
             String domainId = step.getDomainId();
             String saveDir = domainId == null ? basePath : String.format("%s/%s/%s", basePath, domainId, alias);
-            String fileName = String.format("%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase());
+            String fileName = step.getOperation().equals(K8sOperation.CREATE) ? String.format("%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase()) : String.format("%s-%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase(), step.getOperation().name);
             String tag = String.format("# create %s", step.getKind().name.toLowerCase());
             content.append(tag).append("\n---\n").append(Yaml.dump(step.getObj())).append("\n\n");
             FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
@@ -3696,22 +3773,22 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             param.put("timeout", step.getTimeout());
             param.put("filePath", domainId == null ? fileName : String.format("%s/%s/%s", domainId, alias, fileName));
             execList.add(param);
-            if (step.getKind().equals(K8sKind.SERVICE) && step.getName().equals("ucds-cloud01-out")) {
-                content = new StringBuffer();
-                alias = "glsserver";
-                domainId = "public01";
-                saveDir = String.format("%s/%s/%s", basePath, domainId, alias);
-                fileName = String.format("%s-%s-restart.yaml", step.getName(), step.getKind().name.toLowerCase());
-                tag = String.format("# restart glsserver deployment");
-                glsserver.getMetadata().getLabels().put("restart-time", sf.format(new Date()));
-                content.append(tag).append("\n---\n").append(Yaml.dump(glsserver)).append("\n\n");
-                FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
-                sb.append(content.toString());
-                param = new HashMap<>();
-                param.put("timeout", 30);
-                param.put("filePath", String.format("%s/%s/%s", domainId, alias, fileName));
-                execList.add(param);
-            }
+//            if (step.getKind().equals(K8sKind.SERVICE) && step.getName().matches("^ucds\\d*\\-.+?-out$")) {
+//                content = new StringBuffer();
+//                alias = "glsserver";
+//                domainId = "public01";
+//                saveDir = String.format("%s/%s/%s", basePath, domainId, alias);
+//                fileName = String.format("%s-%s-restart.yaml", glsserver.getMetadata().getName(), step.getKind().name.toLowerCase());
+//                tag = String.format("# restart glsserver deployment");
+//                glsserver.getMetadata().getLabels().put("restart-time", sf.format(new Date()));
+//                content.append(tag).append("\n---\n").append(Yaml.dump(glsserver)).append("\n\n");
+//                FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
+//                sb.append(content.toString());
+//                param = new HashMap<>();
+//                param.put("timeout", 30);
+//                param.put("filePath", String.format("%s/%s/%s", domainId, alias, fileName));
+//                execList.add(param);
+//            }
 //            if(step.getTimeout() > 0){
 //                V1Job job = gson.fromJson(jobJson, V1Job.class);
 //                job.getMetadata().setName(String.format("sleep-job-%d", index));
@@ -4076,6 +4153,26 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 break;
             case MYSQL:
                 connStr = String.format("jdbc:mysql://%s:%s/%s", ip, port, dbName);
+                Class.forName("com.mysql.jdbc.Driver");
+                break;
+            default:
+                throw new ParamException(String.format("unsupported dbType %s", dbType.name));
+
+        }
+        Connection conn = DriverManager.getConnection(connStr, user, pwd);
+        logger.debug(String.format("conn %s success", connStr));
+        return conn;
+    }
+
+    private Connection createDBConnection(DatabaseType dbType, String user, String pwd, String dbService, String dbName) throws ClassNotFoundException, SQLException, ParamException {
+        String connStr;
+        switch (dbType){
+            case ORACLE:
+                connStr = String.format("jdbc:oracle:thin:@%s:%s", dbService, dbName);
+                Class.forName("oracle.jdbc.driver.OracleDriver");
+                break;
+            case MYSQL:
+                connStr = String.format("jdbc:mysql://%s/%s", dbService, dbName);
                 Class.forName("com.mysql.jdbc.Driver");
                 break;
             default:

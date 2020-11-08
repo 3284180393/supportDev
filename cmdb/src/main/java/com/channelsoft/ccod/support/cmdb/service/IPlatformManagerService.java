@@ -224,12 +224,12 @@ public interface IPlatformManagerService {
      * @param paramVo 平台创建参数
      * @return 生成的脚本存放路径
      * @throws ParamException
-     * @throws NotSupportSetException
+     * @throws NexusException
      * @throws NotSupportAppException
      * @throws InterfaceCallException
      * @throws LJPaasException
      */
-    String generatePlatformCreateScript(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException;
+    String generatePlatformCreateScript(PlatformCreateParamVo paramVo) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException;
 
     /**
      * 是否平台部署正在进行

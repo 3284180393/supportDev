@@ -138,7 +138,7 @@ def get_start_param(param_file):
 
 def deploy_platform(deploy_params):
     params = deploy_params['platformParams']
-    for step in deploy_params['deploySteps']:
+    for step in deploy_params['execSteps']:
         command = "kubectl apply -f %s" % step['filePath']
         print(command)
         exec_result = run_shell_command(command)

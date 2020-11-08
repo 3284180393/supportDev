@@ -315,9 +315,16 @@ public abstract class PlatformBase {
         params.put(this.baseDataNexusPathKey, this.baseDataNexusPath);
         params.put(this.baseDataNexusRepositoryKey, this.baseDataNexusRepository);
         if(type.equals(PlatformType.K8S_CONTAINER))
-            params.put(this.k8sHostIpKey, this.k8sHostIp);
-        if(type.equals(PlatformType.K8S_CONTAINER))
-            params.put(this.nfsServerIp, StringUtils.isNotBlank(this.nfsServerIp) ? this.nfsServerIp : this.k8sHostIp);
+        {
+            params.put(k8sHostIpKey, this.k8sHostIp);
+            params.put(nfsServerIpKey, StringUtils.isNotBlank(this.nfsServerIp) ? this.nfsServerIp : this.k8sHostIp);
+            if(StringUtils.isBlank(this.glsDBService)){
+                if(this.glsDBType.equals(DatabaseType.ORACLE))
+                    params.put(this.glsDBServiceKey, "oracle");
+                else if(this.glsDBType.equals(DatabaseType.MYSQL))
+                    params.put(this.glsDBServiceKey, "mysql");
+            }
+        }
         return params;
     }
 }

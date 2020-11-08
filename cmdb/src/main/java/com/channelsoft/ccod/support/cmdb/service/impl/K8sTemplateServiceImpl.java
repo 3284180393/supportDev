@@ -405,6 +405,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         {
             logger.debug(String.format("modify deployment hostnames of hostAliases to %s", platform.getHostUrl()));
             deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).getHostnames().set(0, platform.getHostUrl());
+            deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).setIp(platform.getK8sHostIp());
         }
         logger.info(String.format("generated deployment for %s : %s", gson.toJson(appBase), gson.toJson(deploy)));
         return deploy;
