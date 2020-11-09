@@ -2500,7 +2500,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public String generatePlatformCreateScript(PlatformCreateParamVo paramVo) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException {
+    public PlatformUpdateSchemaInfo generateSchemaForScriptDeploy(PlatformCreateParamVo paramVo) {
         logger.debug(String.format("create platform deploy script for %s", gson.toJson(paramVo)));
         Assert.isTrue(StringUtils.isNotBlank(paramVo.getPlatformId()), "platformId can not be blank");
         Assert.isTrue(paramVo.getPlatformId().matches(platformIdRegex), "must consist of lower case alphanumeric characters, '-', and must start with an alphanumeric character (e.g. 'script-test'");
@@ -2522,6 +2522,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         schema.setType(PlatformType.K8S_CONTAINER);
         schema.setK8sApiUrl(srcPlatform.getK8sApiUrl());
         schema.setK8sAuthToken(srcPlatform.getK8sAuthToken());
+        return schema;
+    }
+
+    @Override
+    public String generatePlatformCreateScript(PlatformUpdateSchemaInfo schema) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException {
+        logger.debug(String.format("generate platform deploy script for %s", gson.toJson(schema)));
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(true);
+        LJHostInfo host = new LJHostInfo();
+        host.setHostInnerIp(schema.getK8sHostIp());
+        List<LJHostInfo> bkHostList = Arrays.asList(new LJHostInfo[]{host});
+        String platformCheckResult = checkPlatformUpdateSchema(schema.getCcodVersion(), schema, new ArrayList<>(), new ArrayList<>(), bkHostList, registerApps);
+        Assert.isTrue(StringUtils.isBlank(platformCheckResult), platformCheckResult);
         List<K8sOperationInfo> steps = generateExecStepForSchema(schema.getCreatePlatform("test for generate script"), schema, new ArrayList<>(), new ArrayList<>());
         String zipFilePath = generateYamlForDeploy(schema, steps);
         return zipFilePath;
@@ -3816,6 +3828,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             zipFile.delete();
         }
         ZipUtils.zipFolder(basePath, zipFilePath);
+        logger.debug(String.format("generated script for deploy platform %s has saved to %s", schema.getPlatformId(), zipFilePath));
         return zipFilePath;
     }
 

@@ -405,7 +405,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         {
             logger.debug(String.format("modify deployment hostnames of hostAliases to %s", platform.getHostUrl()));
             deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).getHostnames().set(0, platform.getHostUrl());
-            deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).setIp(platform.getK8sHostIp());
+            deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).setIp((String)platform.getParams().get(PlatformBase.k8sHostIpKey));
         }
         logger.info(String.format("generated deployment for %s : %s", gson.toJson(appBase), gson.toJson(deploy)));
         return deploy;
@@ -1321,6 +1321,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 K8sThreePartAppVo oracle = new K8sThreePartAppVo("oracle", "oracle", "32-xe-10g-1.0", oraDep, Arrays.asList(oraSvc), new ArrayList<>());
                 threePartApps.add(oracle);
             }
+            else if(ccodVersion.equals("4.8")){
+                V1Deployment oraDep = generateThreeAppDeployment(ccodVersion,"freeswitch", "oracle", "31.10.2:qn:002", platformId, hostUrl);
+                V1Service oraSvc = generateThreeAppService(ccodVersion,"freeswitch", "freeswitch", "1.10.2:qn:002", platformId);
+                K8sThreePartAppVo oracle = new K8sThreePartAppVo("oracle", "oracle", "32-xe-10g-1.0", oraDep, Arrays.asList(oraSvc), new ArrayList<>());
+                threePartApps.add(oracle);
+            }
         }
         metaMap = threePartApps.stream().map(app->app.getDeploy().getMetadata()).collect(Collectors.toList())
                 .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
@@ -1721,7 +1727,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                     details.add(detail);
                 }
                 catch (Exception ex){
-                    logger.error(String.format("get %s deploy detail for %s", init, platform.getPlatformName(), platform.getPlatformId()));
+                    logger.error(String.format("get %s deploy detail for %s exception", platform.getPlatformName(), platform.getPlatformId()), ex);
                 }
             }
 
@@ -1737,6 +1743,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
      */
     private boolean isCCODDomainAppDeployment(V1Deployment deployment)
     {
+        System.out.println(deployment.getMetadata().getName());
+        if(deployment.getMetadata().getName().equals("upload-api01"))
+            System.out.println("haha");
         String deployName = deployment.getMetadata().getName();
         String errTag = String.format("so %s is not ccod domain app deployment", deployName);
         Map<String, String> labels = deployment.getMetadata().getLabels();

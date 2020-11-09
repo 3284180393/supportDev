@@ -221,7 +221,7 @@ public interface IPlatformManagerService {
 
     /**
      * 生成平台创建脚本
-     * @param paramVo 平台创建参数
+     * @param schema 用来生成脚本的schema
      * @return 生成的脚本存放路径
      * @throws ParamException
      * @throws NexusException
@@ -229,7 +229,14 @@ public interface IPlatformManagerService {
      * @throws InterfaceCallException
      * @throws LJPaasException
      */
-    String generatePlatformCreateScript(PlatformCreateParamVo paramVo) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException;
+    String generatePlatformCreateScript(PlatformUpdateSchemaInfo schema) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException;
+
+    /**
+     * 为脚本部署生成schema
+     * @param paramVo 通过脚本部署的平台相关参数
+     * @return 生成的schema
+     */
+    PlatformUpdateSchemaInfo generateSchemaForScriptDeploy(PlatformCreateParamVo paramVo);
 
     /**
      * 是否平台部署正在进行
