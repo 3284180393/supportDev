@@ -18,6 +18,7 @@ import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.Yaml;
+import javafx.application.Platform;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -320,17 +321,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn(String.format("begin to exec %s", command));
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
-//            updateK8sTemplate();
+            updateK8sTemplate();
 //            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
 //            logger.error(gson.toJson(schema));
 //            updatePlatformUpdateSchema(schema);
-            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
-            paramVo.setParams("pahjgs");
-            paramVo.setNfsServerIp("10.130.41.218");
-            paramVo.setK8sHostIp("10.130.41.218");
-            paramVo.setPlatformId("script-test");
-            paramVo.setHostUrl("script-test.ccod.com");
-            System.out.println(gson.toJson(paramVo));
+//            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
+//            paramVo.setParams("pahjgs");
+//            paramVo.setNfsServerIp("10.130.41.218");
+//            paramVo.setK8sHostIp("10.130.41.218");
+//            paramVo.setPlatformId("script-test");
+//            paramVo.setHostUrl("script-test.ccod.com");
+//            System.out.println(gson.toJson(paramVo));
 //            String zipFilePath = generatePlatformCreateScript(paramVo);
 //            logger.debug(String.format("generate script saved to %s", zipFilePath));
 
@@ -443,12 +444,26 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        deployment.getMetadata().getLabels().put(appTypeLabel, AppType.JAR.name);
 //        po.setDeployJson(gson.toJson(deployment));
 //        templateList.add(po);
-        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(17)), K8sObjectTemplatePo.class);
-        po.getLabels().put(appNameLabel, "gls");
-        V1Deployment deployment = gson.fromJson(po.getDeployJson(), V1Deployment.class);
-        deployment.getSpec().getTemplate().getSpec().getContainers().get(0).setImage("ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-0");
+//        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(17)), K8sObjectTemplatePo.class);
+//        po.getLabels().put(appNameLabel, "gls");
+//        V1Deployment deployment = gson.fromJson(po.getDeployJson(), V1Deployment.class);
+//        deployment.getSpec().getTemplate().getSpec().getContainers().get(0).setImage("ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-0");
+//        po.setDeployJson(gson.toJson(deployment));
+//        templateList.add(18, po);
+        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(13)), K8sObjectTemplatePo.class);
+        String json= "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"freeswitch-wgw\",\"namespace\":\"test48\",\"labels\":{\"name\":\"freeswitch-wgw\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"freeswitch-wgw\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"freeswitch-wgw\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"record\",\"hostPath\":{\"path\":\"/home/kubernetes/volume/test48/record/\"}}],\"containers\":[{\"name\":\"freeswitch-wgw\",\"image\":\"ccod/freeswitch:1.10.2-qn-002\",\"hostNetwork\":true,\"volumeMounts\":[{\"mountPath\":\"/record\",\"name\":\"record\"}],\"workingDir\":\"/root/Platform\",\"command\":[\"/bin/sh\",\"-c\"],\"args\":[\"/usr/local/freeswitch/bin/start.sh WGW;\"]}]}}}}";
+        V1Deployment deployment = gson.fromJson(json, V1Deployment.class);
+        po.getLabels().put(appNameLabel, "wgw");
         po.setDeployJson(gson.toJson(deployment));
-        templateList.add(18, po);
+        po.setServiceJson(null);
+        templateList.add(po);
+        json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"freeswitch-sgw\",\"namespace\":\"test48\",\"labels\":{\"name\":\"freeswitch-sgw\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"freeswitch-sgw\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"freeswitch-sgw\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"record\",\"hostPath\":{\"path\":\"/home/kubernetes/volume/test48/record/\"}}],\"containers\":[{\"name\":\"freeswitch-sgw\",\"image\":\"ccod/freeswitch:1.10.2-qn-002\",\"hostNetwork\":true,\"volumeMounts\":[{\"mountPath\":\"/record\",\"name\":\"record\"}],\"workingDir\":\"/root/Platform\",\"command\":[\"/bin/sh\",\"-c\"],\"args\":[\"/usr/local/freeswitch/bin/start.sh SGW;\"]}]}}}}";
+        po = gson.fromJson(gson.toJson(templateList.get(13)), K8sObjectTemplatePo.class);
+        deployment = gson.fromJson(json, V1Deployment.class);
+        po.getLabels().put(appNameLabel, "sgw");
+        po.setDeployJson(gson.toJson(deployment));
+        po.setServiceJson(null);
+        templateList.add(po);
         logger.error(gson.toJson(templateList));
     }
 
@@ -2059,6 +2074,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     PlatformPo platform;
                     try{
                         platform = getK8sPlatform(task.getDebugInfo().getPlatformId());
+                        if(!platform.getStatus().equals(CCODPlatformStatus.DEBUG)){
+                            platform.getParams().put(PlatformBase.statusBeforeDebugKey, platform.getStatus().name);
+                            logger.debug(String.format("begin to debug %s platform and change status from to %s", platform.getPlatformId(), platform.getStatus().name, CCODPlatformStatus.DEBUG.name));
+                            platform.setStatus(CCODPlatformStatus.DEBUG);
+                            platformMapper.update(platform);
+                        }
                     }
                     catch (Exception ex){
                         logger.error(String.format("query %s platform exception", task.getDebugInfo().getPlatformId()), ex);
@@ -2144,6 +2165,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             debugLock.writeLock().lock();
             try{
                 debugQueue.removeIf(t->t.getDebugTag().equals(task.getDebugTag()) && t.getStatus() == AppDebugTaskVo.RUNNING);
+                if(debugQueue.stream().filter(t->t.getDebugInfo().getPlatformId().equals(platform.getPlatformId())).count() == 0){
+                    logger.info(String.format("%s all debug tasks has finish, change status from %s to %s",
+                            platform.getPlatformId(), platform.getStatus().name, platform.getParams().get(PlatformBase.statusBeforeDebugKey)));
+                    platform.setStatus(CCODPlatformStatus.getEnum((String)platform.getParams().get(PlatformBase.statusBeforeDebugKey)));
+                    platform.getParams().remove(PlatformBase.statusBeforeDebugKey);
+                    platformMapper.update(platform);
+                }
             }
             finally {
                 debugLock.writeLock().unlock();

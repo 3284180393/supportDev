@@ -723,7 +723,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             else
             {
                 exec = new V1ExecAction();
-                exec.setCommand(Arrays.asList(checkAt.replaceAll(String.format("/%s$", checkType), "")));
+                exec.setCommand(Arrays.asList(new String[]{"/bin/sh", "-c", check}));
             }
         }
         else
@@ -818,8 +818,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         deploy.getSpec().getSelector().getMatchLabels().put(appName, alias);
         deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
         deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
-        deploy.getSpec().getTemplate().getSpec().getVolumes().forEach(v->v.getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId)));
-        deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().forEach(m->m.setSubPath(String.format("%s/%s", platformId, m.getSubPath())));
+        if(appName.equals("oracle") || appName.equals("mysql")){
+            deploy.getSpec().getTemplate().getSpec().getVolumes().forEach(v->v.getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId)));
+            deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().forEach(m->m.setSubPath(String.format("%s/%s", platformId, m.getSubPath())));
+        }
+        else if(appName.equals("sgw") || appName.equals("wgw")){
+            deploy.getSpec().getTemplate().getSpec().getVolumes().stream().filter(v->v.getName().equals("record"))
+                    .forEach(v->v.getHostPath().setPath(String.format("/home/kubernetes/volume/%s/record/", platformId)));
+        }
         if(appName.equals("oracle")){
             deploy.getSpec().getTemplate().getSpec().getContainers().get(0).getArgs().set(0, String.format("/tmp/init.sh %s", hostUrl));
         }
@@ -1322,10 +1328,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 threePartApps.add(oracle);
             }
             else if(ccodVersion.equals("4.8")){
-                V1Deployment oraDep = generateThreeAppDeployment(ccodVersion,"freeswitch", "oracle", "31.10.2:qn:002", platformId, hostUrl);
-                V1Service oraSvc = generateThreeAppService(ccodVersion,"freeswitch", "freeswitch", "1.10.2:qn:002", platformId);
-                K8sThreePartAppVo oracle = new K8sThreePartAppVo("oracle", "oracle", "32-xe-10g-1.0", oraDep, Arrays.asList(oraSvc), new ArrayList<>());
-                threePartApps.add(oracle);
+                V1Deployment wgwDep = generateThreeAppDeployment(ccodVersion,"wgw", "wgw", "1.10.2-qn-002", platformId, hostUrl);
+                K8sThreePartAppVo wgw = new K8sThreePartAppVo("wgw", "wgw", "1.10.2-qn-002", wgwDep, new ArrayList<>(), new ArrayList<>());
+                threePartApps.add(wgw);
+                V1Deployment sgwDep = generateThreeAppDeployment(ccodVersion,"sgw", "sgw", "1.10.2-qn-002", platformId, hostUrl);
+                K8sThreePartAppVo sgw = new K8sThreePartAppVo("sgw", "sgw", "1.10.2-qn-002", sgwDep, new ArrayList<>(), new ArrayList<>());
+                threePartApps.add(sgw);
             }
         }
         metaMap = threePartApps.stream().map(app->app.getDeploy().getMetadata()).collect(Collectors.toList())
