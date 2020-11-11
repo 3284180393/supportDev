@@ -251,6 +251,8 @@ public interface IPlatformManagerService {
      */
     List<K8sOperationPo> getPlatformDeployLogs();
 
+    List<K8sOperationPo> getAppDebugLogs(String platformId, String domainId, String appName, String alias);
+
     /**
      * 获取最后一次平台部署任务状态
      * @return 部署状态

@@ -798,6 +798,26 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/appDebugLogs/{platformId}/{domainId}/{appName}/{alias}", method = RequestMethod.GET)
+    public AjaxResultPo getAppDebugLogs(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String appName, @PathVariable String alias)
+    {
+        String uri = String.format("GET %s/appDebugLogs", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<K8sOperationPo> logs = this.platformManagerService.getAppDebugLogs(platformId, domainId, appName, alias);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", 1, logs);
+            logger.info(String.format("query SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query platform deploy logs exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping(value = "/platformUpdateSchemas", method = RequestMethod.GET)
     public AjaxResultPo getAllPlatformUpdateSchemas()
     {

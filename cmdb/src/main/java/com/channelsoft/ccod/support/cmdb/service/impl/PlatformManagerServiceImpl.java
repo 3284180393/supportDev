@@ -18,7 +18,6 @@ import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.Yaml;
-import javafx.application.Platform;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -2060,9 +2059,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     @Override
     public void debugHandle() {
-        logger.debug(String.format("begin to handle app debug task"));
         this.debugLock.writeLock().lock();
         try{
+            logger.debug(String.format("begin to handle app debug task : there are %d tasks in queue", debugQueue.size()));
             Map<String, List<AppDebugTaskVo>> taskMap = debugQueue.stream().collect(Collectors.groupingBy(AppDebugTaskVo::getDebugTag));
             for(String tag : taskMap.keySet()){
                 List<AppDebugTaskVo> tasks = taskMap.get(tag).stream().sorted(Comparator.comparing(AppDebugTaskVo::getId).reversed()).collect(Collectors.toList());
@@ -2135,6 +2134,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         try{
             AppDebugTaskVo task = new AppDebugTaskVo(debugTaskId, optInfo);
             debugTaskId++;
+            logger.info(String.format("%s task %d : %s added to queue", task.getDebugTag(), task.getId(), gson.toJson(task.getDebugInfo())));
             debugQueue.add(task);
         }
         finally {
@@ -2165,7 +2165,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             debugLock.writeLock().lock();
             try{
                 debugQueue.removeIf(t->t.getDebugTag().equals(task.getDebugTag()) && t.getStatus() == AppDebugTaskVo.RUNNING);
-                if(debugQueue.stream().filter(t->t.getDebugInfo().getPlatformId().equals(platform.getPlatformId())).count() == 0){
+                long remains = debugQueue.stream().filter(t->t.getPlatformId().equals(platform.getPlatformId())).count();
+                if(remains == 0 || remains > 1){
                     logger.info(String.format("%s all debug tasks has finish, change status from %s to %s",
                             platform.getPlatformId(), platform.getStatus().name, platform.getParams().get(PlatformBase.statusBeforeDebugKey)));
                     platform.setStatus(CCODPlatformStatus.getEnum((String)platform.getParams().get(PlatformBase.statusBeforeDebugKey)));
@@ -2179,8 +2180,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }).start();
     }
 
-    private void execAppDebug(String jobId, PlatformPo platform, AppDebugTaskVo task) throws ApiException, ParamException, IOException, InterfaceCallException
+    private AppDebugTaskVo execAppDebug(String jobId, PlatformPo platform, AppDebugTaskVo task) throws ApiException, ParamException, IOException, InterfaceCallException
     {
+        logger.debug(String.format("begin to exec debug %s, index=%d", task.getDebugTag(), task.getId()));
         String platformId = platform.getPlatformId();
         AppUpdateOperationInfo optInfo = task.getDebugInfo();
         List<K8sOperationPo> execResults = task.getExecResults();
@@ -2216,9 +2218,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         List<AppDebugTaskVo> tasks = debugQueue.stream().collect(Collectors.groupingBy(AppDebugTaskVo::getDebugTag))
                                 .get(task.getDebugTag()).stream().sorted(Comparator.comparing(AppDebugTaskVo::getId).reversed()).collect(Collectors.toList());
                         if(tasks.size() > 1){
+                            logger.debug(String.format("%s has %d tasks in queue, change task from %d to %d", task.getDebugTag(), tasks.size(), task.getId(), tasks.get(0).getId()));
                             task = tasks.get(0);
                             for(int i = 1; i <= tasks.size()-1; i++) {
-                                logger.debug(String.format("debug %s is removed", gson.toJson(tasks.get(i))));
+                                logger.debug(String.format("debug %d of %s is removed", task.getId(), task.getDebugTag()));
                                 debugQueue.remove(tasks.get(i));
                             }
                             task.setStatus(AppDebugTaskVo.RUNNING);
@@ -2245,7 +2248,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         task.setStatus(AppDebugTaskVo.RUNNING);
                         task.setExecTime(new Date());
                         execAppDebug(jobId, platform, task);
-                        return;
+                        return task;
                     }
                 }
                 if(!success && timeUsage > startTimeout){
@@ -2255,6 +2258,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         logger.info(String.format("debug %s : success", gson.toJson(optInfo)));
+        return task;
     }
 
     private int getIndexFromAlias(String alias, String standAlias)
@@ -2643,6 +2647,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Override
     public List<K8sOperationPo> getPlatformDeployLogs() {
         return this.platformDeployLogs;
+    }
+
+    @Override
+    public List<K8sOperationPo> getAppDebugLogs(String platformId, String domainId, String appName, String alias) {
+        List<K8sOperationPo> logs = debugLogsMap.get(String.format("%s(%s) at %s(%s)", alias, appName, domainId, platformId));
+        Assert.notNull(logs, String.format("%s(%s) at %s(%s) has not any debug log", alias, appName, domainId, platformId));
+        return logs;
     }
 
     @Override

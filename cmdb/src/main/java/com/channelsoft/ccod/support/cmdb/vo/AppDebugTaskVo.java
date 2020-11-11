@@ -133,6 +133,22 @@ public class AppDebugTaskVo {
 
     public String getDebugTag()
     {
-        return String.format("%s#%s#%s#%s", debugInfo.getPlatformId(), debugInfo.getDomainId(), debugInfo.getAppName(), debugInfo.getAlias());
+        return String.format("%s(%s) at %s(%s)", debugInfo.getAlias(), debugInfo.getAppName(), debugInfo.getDomainId(), debugInfo.getPlatformId());
+    }
+
+    public String getPlatformId(){
+        return debugInfo != null ? debugInfo.getPlatformId() : null;
+    }
+
+    public String getDomainId(){
+        return debugInfo != null ? debugInfo.getDomainId() : null;
+    }
+
+    public String getAppName(){
+        return debugInfo != null ? debugInfo.getAppName() : null;
+    }
+
+    public String getAlias(){
+        return debugInfo != null ? debugInfo.getAlias() : null;
     }
 }
