@@ -8,6 +8,7 @@ import subprocess
 import re
 import time
 import cx_Oracle
+import pymysql
 
 
 reload(sys)
@@ -17,23 +18,39 @@ logging.basicConfig(filename='my.log', level=logging.DEBUG, format=LOG_FORMAT)
 gls_service_unit_table = 'GLS_SERVICE_UNIT'
 
 
-class OracleUtils(object):
+def create_db_connection(host, port, user, pwd, db_name, db_type='oracle'):
+    dbconfig = {'host': host,
+                port: port,
+                'user': user,
+                'password': pwd,
+                'database': db_name, }
+    if db_type == 'mysql':
+        conn = pymysql.connector.connect(**dbconfig)
+    else:
+        raise Exception('unsupported db type %s' % db_type)
+    return conn
 
-    def __init__(self, user, pwd, ip, port, sid):
-        conn_str = "%s/%s@%s:%d/%s" % (user, pwd, ip, port, sid)
-        logging.debug('oracle con_str : %s' % conn_str)
-        try:
-            time.sleep(60)
+
+class Gls_DB(object):
+
+    def __init__(self, user, pwd, ip, port, db_name, db_type='ORACLE'):
+        if db_type == 'MYSQL':
+            dbconfig = {'host': ip,
+                        'port': port,
+                        'user': user,
+                        'password': pwd,
+                        'database': db_name, }
+
+            self.connect = pymysql.connect(host=ip, port=port, user=user, passwd=pwd, db=db_name, charset='utf8')
+        elif db_type == 'ORACLE':
+            conn_str = "%s/%s@%s:%d/%s" % (user, pwd, ip, port, db_name)
             self.connect = cx_Oracle.connect(conn_str)
-            self.cursor = self.connect.cursor()
-        except Exception as e:
-            logging.error('create %s conn exception, 30s later try again : %s' % (conn_str, e.args[0]))
-            time.sleep(30)
-            self.connect = cx_Oracle.connect(conn_str)
-            self.cursor = self.connect.cursor()
-        logging.debug('oracle conn create success')
+        else:
+            raise Exception('unsupported gls db type %s' % db_type)
+        self.cursor = self.connect.cursor()
 
     """处理数据二维数组，转换为json数据返回"""
+
     def select(self, sql):
         lst = []
         self.cursor.execute(sql)
@@ -55,7 +72,7 @@ class OracleUtils(object):
 
     def insert(self, sql, list_param):
         try:
-            self.cursor.executemany(sql,list_param)
+            self.cursor.executemany(sql, list_param)
             self.connect.commit()
             print("插入ok")
         except Exception as e:
@@ -138,6 +155,7 @@ def get_start_param(param_file):
 
 def deploy_platform(deploy_params):
     params = deploy_params['platformParams']
+    db_type = params['glsDBType']
     for step in deploy_params['execSteps']:
         command = "kubectl apply -f %s" % step['filePath']
         print(command)
@@ -146,18 +164,19 @@ def deploy_platform(deploy_params):
         if step['timeout'] > 0:
             print('after exec %s, sleep %d seconds' % (command, step['timeout']))
             time.sleep(step['timeout'])
-        if re.match('^[^/]+/ucds\d*/ucds\d*-.+?-deployment.yml$', step['filePath']):
-            ucds = re.sub('-deployment.yml', '', step['filePath'].split('/')[2])
+        #       if re.match('^[^/]+/ucds\d*/ucds\d*-.+?-deployment.yml$', step['filePath']):
+        if step['filePath'] == 'cloud01/ucds/ucds-cloud01-out-service.yaml':
+            # ucds = re.sub('-deployment.yml', '', step['filePath'].split('/')[2])
+            ucds = 'ucds-cloud01-out'
             port = get_service_node_port(params['platformId'], params['glsDBService'])
             print('%s started, so update  ucds port in glsserver to %d' % (ucds, port))
-            if ['glsDBType'] == 'ORACLE':
-                db = OracleUtils(params['glsDBUser'], params['glsDBPwd'], params['k8sHostIp'], params['glsDBSid'], port)
-                update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" \
-                             % (params['glsDBName'], gls_service_unit_table, port, ucds)
-                db.update(update_sql)
-                print('%s port has been updated to %d' % (ucds, port))
+            db = Gls_DB(params['glsDBUser'], params['glsDBPwd'], params['k8sHostIp'], port, params['glsDBSid'], db_type)
+            if db_type == 'ORACLE':
+                update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s' % (params['glsDBName'], gls_service_unit_table, port, ucds)"""
             else:
-                raise Exception('%s glsserver not support' % params['glsDBType'])
+                update_sql = """UPDATE %s SET PARAM_UCDS_PORT = '%d' WHERE	NAME = '%s' % (gls_service_unit_table, port, ucds)"""
+            db.update(update_sql)
+            print('%s port has been updated to %d' % (ucds, port))
 
 
 if __name__ == '__main__':

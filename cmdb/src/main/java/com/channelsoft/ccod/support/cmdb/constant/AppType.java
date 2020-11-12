@@ -19,6 +19,8 @@ public enum AppType
 
     JAR(5, "JAR", "jar包形式的应用"),
 
+    NODEJS(6, "NODEJS", "nodejs开发的前端应用"),
+
     OTHER(99, "OTHER", "其它"),;
 
     public int id;

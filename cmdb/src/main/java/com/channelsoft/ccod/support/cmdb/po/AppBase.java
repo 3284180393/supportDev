@@ -248,6 +248,7 @@ public abstract class AppBase {
 
 
     public void changeTo(AppBase appBase) {
+        this.appType = appBase.getAppType() != null ? appBase.getAppType() : appType;
         this.version = StringUtils.isNotBlank(appBase.version) ? appBase.version : this.version;
         this.basePath = StringUtils.isNotBlank(appBase.basePath) ? appBase.basePath : this.basePath;
         this.checkAt = StringUtils.isNotBlank(appBase.checkAt) ? appBase.checkAt : this.checkAt;

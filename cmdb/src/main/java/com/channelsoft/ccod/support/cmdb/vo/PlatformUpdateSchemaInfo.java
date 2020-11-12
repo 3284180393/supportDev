@@ -47,6 +47,8 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
 
     private List<K8sThreePartServiceVo> threePartServices;
 
+    private String srcPlatformId;
+
     public PlatformUpdateSchemaInfo() {}
 
     public PlatformUpdateSchemaInfo(PlatformBase platformBase, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
@@ -158,5 +160,13 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
 
     public void setThreePartServices(List<K8sThreePartServiceVo> threePartServices) {
         this.threePartServices = threePartServices;
+    }
+
+    public String getSrcPlatformId() {
+        return srcPlatformId;
+    }
+
+    public void setSrcPlatformId(String srcPlatformId) {
+        this.srcPlatformId = srcPlatformId;
     }
 }

@@ -871,7 +871,7 @@ public class CMDBController {
         }
         catch (Exception e)
         {
-            logger.error(String.format("create demo schema exception"), e);
+            logger.error(String.format("update schema exception"), e);
             resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return resultPo;

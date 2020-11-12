@@ -449,19 +449,27 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        deployment.getSpec().getTemplate().getSpec().getContainers().get(0).setImage("ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-0");
 //        po.setDeployJson(gson.toJson(deployment));
 //        templateList.add(18, po);
-        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(13)), K8sObjectTemplatePo.class);
-        String json= "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"freeswitch-wgw\",\"namespace\":\"test48\",\"labels\":{\"name\":\"freeswitch-wgw\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"freeswitch-wgw\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"freeswitch-wgw\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"record\",\"hostPath\":{\"path\":\"/home/kubernetes/volume/test48/record/\"}}],\"containers\":[{\"name\":\"freeswitch-wgw\",\"image\":\"ccod/freeswitch:1.10.2-qn-002\",\"hostNetwork\":true,\"volumeMounts\":[{\"mountPath\":\"/record\",\"name\":\"record\"}],\"workingDir\":\"/root/Platform\",\"command\":[\"/bin/sh\",\"-c\"],\"args\":[\"/usr/local/freeswitch/bin/start.sh WGW;\"]}]}}}}";
-        V1Deployment deployment = gson.fromJson(json, V1Deployment.class);
-        po.getLabels().put(appNameLabel, "wgw");
-        po.setDeployJson(gson.toJson(deployment));
-        po.setServiceJson(null);
-        templateList.add(po);
-        json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"freeswitch-sgw\",\"namespace\":\"test48\",\"labels\":{\"name\":\"freeswitch-sgw\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"freeswitch-sgw\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"freeswitch-sgw\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"record\",\"hostPath\":{\"path\":\"/home/kubernetes/volume/test48/record/\"}}],\"containers\":[{\"name\":\"freeswitch-sgw\",\"image\":\"ccod/freeswitch:1.10.2-qn-002\",\"hostNetwork\":true,\"volumeMounts\":[{\"mountPath\":\"/record\",\"name\":\"record\"}],\"workingDir\":\"/root/Platform\",\"command\":[\"/bin/sh\",\"-c\"],\"args\":[\"/usr/local/freeswitch/bin/start.sh SGW;\"]}]}}}}";
-        po = gson.fromJson(gson.toJson(templateList.get(13)), K8sObjectTemplatePo.class);
-        deployment = gson.fromJson(json, V1Deployment.class);
-        po.getLabels().put(appNameLabel, "sgw");
-        po.setDeployJson(gson.toJson(deployment));
-        po.setServiceJson(null);
+//        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(13)), K8sObjectTemplatePo.class);
+//        String json= "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"freeswitch-wgw\",\"namespace\":\"test48\",\"labels\":{\"name\":\"freeswitch-wgw\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"freeswitch-wgw\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"freeswitch-wgw\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"record\",\"hostPath\":{\"path\":\"/home/kubernetes/volume/test48/record/\"}}],\"containers\":[{\"name\":\"freeswitch-wgw\",\"image\":\"ccod/freeswitch:1.10.2-qn-002\",\"hostNetwork\":true,\"volumeMounts\":[{\"mountPath\":\"/record\",\"name\":\"record\"}],\"workingDir\":\"/root/Platform\",\"command\":[\"/bin/sh\",\"-c\"],\"args\":[\"/usr/local/freeswitch/bin/start.sh WGW;\"]}]}}}}";
+//        V1Deployment deployment = gson.fromJson(json, V1Deployment.class);
+//        po.getLabels().put(appNameLabel, "wgw");
+//        po.setDeployJson(gson.toJson(deployment));
+//        po.setServiceJson(null);
+//        templateList.add(po);
+//        json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"freeswitch-sgw\",\"namespace\":\"test48\",\"labels\":{\"name\":\"freeswitch-sgw\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"freeswitch-sgw\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"freeswitch-sgw\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"record\",\"hostPath\":{\"path\":\"/home/kubernetes/volume/test48/record/\"}}],\"containers\":[{\"name\":\"freeswitch-sgw\",\"image\":\"ccod/freeswitch:1.10.2-qn-002\",\"hostNetwork\":true,\"volumeMounts\":[{\"mountPath\":\"/record\",\"name\":\"record\"}],\"workingDir\":\"/root/Platform\",\"command\":[\"/bin/sh\",\"-c\"],\"args\":[\"/usr/local/freeswitch/bin/start.sh SGW;\"]}]}}}}";
+//        po = gson.fromJson(gson.toJson(templateList.get(13)), K8sObjectTemplatePo.class);
+//        deployment = gson.fromJson(json, V1Deployment.class);
+//        po.getLabels().put(appNameLabel, "sgw");
+//        po.setDeployJson(gson.toJson(deployment));
+//        po.setServiceJson(null);
+//        templateList.add(po);
+        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(17)), K8sObjectTemplatePo.class);
+        po.getLabels().put(appTypeLabel, AppType.NODEJS.name);
+        V1Deployment deployment = gson.fromJson(po.getDeployJson(), V1Deployment.class);
+        deployment.getMetadata().getLabels().put(appTypeLabel, AppType.NODEJS.name);
+        String json = gson.toJson(deployment);
+        json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"dcms\":\"dcms\",\"dcms-alias\":\"dcms\",\"dcms-version\":\"11110\",\"domain-id\":\"manage01\",\"job-id\":\"73a8e02621\",\"type\":\"CCOD_DOMAIN_APP\",\"app-type\":\"NODEJS\"},\"name\":\"dcms-manage01\",\"namespace\":\"test-by-wyf\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"dcms\":\"dcms\",\"domain-id\":\"manage01\"}},\"template\":{\"metadata\":{\"labels\":{\"dcms\":\"dcms\",\"domain-id\":\"manage01\"}},\"spec\":{\"containers\":[{\"args\":[\"mkdir /root/resin-4.0.13/conf -p;cp /cfg/test-by-wyf/local_datasource.xml /root/resin-4.0.13/conf/local_datasource.xml;cp /cfg/test-by-wyf/local_jvm.xml /root/resin-4.0.13/conf/local_jvm.xml;mkdir /usr/local/lib -p;cp /cfg/test-by-wyf/tnsnames.ora /usr/local/lib/tnsnames.ora;cd /root/resin-4.0.13;keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/jre/lib/security/cacerts;./bin/resin.sh start;tail -F ./log/*.log\"],\"command\":[\"/bin/sh\",\"-c\"],\"image\":\"nexus.io:5000/ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-011\",\"imagePullPolicy\":\"IfNotPresent\",\"livenessProbe\":{\"failureThreshold\":3,\"httpGet\":{\"path\":\"/dcms-manage01\",\"port\":8080,\"scheme\":\"HTTP\"},\"initialDelaySeconds\":3,\"periodSeconds\":30,\"successThreshold\":1,\"timeoutSeconds\":1},\"name\":\"dcms-runtime\",\"ports\":[{\"containerPort\":8080,\"protocol\":\"TCP\"}],\"readinessProbe\":{\"failureThreshold\":3,\"httpGet\":{\"path\":\"/dcms-manage01\",\"port\":8080,\"scheme\":\"HTTP\"},\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"timeoutSeconds\":2},\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"},\"requests\":{\"cpu\":\"200m\",\"memory\":\"200Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/ssl\",\"name\":\"ssl\"},{\"mountPath\":\"/root/resin-4.0.13/log\",\"name\":\"ccod-runtime\",\"subPath\":\"dcms\"}]}],\"hostAliases\":[{\"hostnames\":[\"test-by-wyf.ccod.com\"],\"ip\":\"10.130.41.218\"}],\"initContainers\":[{\"command\":[\"/bin/sh\",\"-c\",\"mkdir /opt/webapps -p;cd /opt/webapps;mv /opt/dcms.war /opt/webapps/dcms.war;mkdir /opt/webapps/WEB-INF/classes/ -p;cp /cfg/dcms-cfg/config.properties /opt/webapps/WEB-INF/classes/config.properties;jar uf dcms.war WEB-INF/classes/config.properties;cp /cfg/dcms-cfg/Param-Config.xml /opt/webapps/WEB-INF/classes/Param-Config.xml;jar uf dcms.war WEB-INF/classes/Param-Config.xml;mkdir /opt/webapps/WEB-INF/ -p;cp /cfg/dcms-cfg/web.xml /opt/webapps/WEB-INF/web.xml;jar uf dcms.war WEB-INF/web.xml;mv /opt/webapps/dcms.war /war/dcms-manage01.war\"],\"image\":\"nexus.io:5000/ccod/dcms:11110\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"dcms\",\"resources\":{\"limits\":{\"cpu\":\"200m\",\"memory\":\"200Mi\"},\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"}},\"volumeMounts\":[]}],\"terminationGracePeriodSeconds\":30,\"volumes\":[{\"name\":\"ssl\",\"secret\":{\"defaultMode\":420,\"secretName\":\"ssl\"}},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test-by-wyf/manage01\",\"type\":\"DirectoryOrCreate\"},\"name\":\"ccod-runtime\"}]}}}}";
+        po.setDeployJson(json);
         templateList.add(po);
         logger.error(gson.toJson(templateList));
     }
@@ -1831,12 +1839,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<K8sOperationInfo> steps = generateExecStepForSchema(platformPo, schema, domainList, platformDeployApps);
         if(!status.equals(UpdateStatus.EXEC))
             return;
-        try{
-            generateYamlForDeploy(schema, steps);
-        }
-        catch (Exception ex){
-            logger.error("generate platform create yaml exception", ex);
-        }
         Assert.isTrue(!this.isPlatformCheckOngoing, "some platform collect or deploy task is ongoing");
         Map<String, List<AssemblePo>> domainAssembleMap = assembleList.stream().collect(Collectors.groupingBy(AssemblePo::getDomainId));
         this.isPlatformCheckOngoing = true;
@@ -2554,6 +2556,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         schema.setType(PlatformType.K8S_CONTAINER);
         schema.setK8sApiUrl(srcPlatform.getK8sApiUrl());
         schema.setK8sAuthToken(srcPlatform.getK8sAuthToken());
+        schema.setSrcPlatformId(paramVo.getParams());
         return schema;
     }
 
@@ -3811,6 +3814,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         for(K8sOperationInfo step : steps){
 //            if(step.getKind().equals(K8sKind.JOB))
 //                continue;
+            if(step.getKind().equals(K8sKind.JOB))
+                step.setTimeout(20);
             StringBuffer content = new StringBuffer();
             String alias = step.getName().split("-")[0];
             String domainId = step.getDomainId();
@@ -3818,7 +3823,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             String fileName = step.getOperation().equals(K8sOperation.CREATE) ? String.format("%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase()) : String.format("%s-%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase(), step.getOperation().name);
             String tag = String.format("# create %s", step.getKind().name.toLowerCase());
             content.append(tag).append("\n---\n").append(Yaml.dump(step.getObj())).append("\n\n");
-            FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
+            String yamlContent = StringUtils.isNotBlank(schema.getSrcPlatformId()) ? content.toString().replaceAll(schema.getSrcPlatformId(), schema.getPlatformId()) : content.toString();
+            FileUtils.saveContextToFile(saveDir, fileName, yamlContent, true);
             sb.append(content.toString());
             Map<String, Object> param = new HashMap<>();
             param.put("timeout", step.getTimeout());
@@ -3857,7 +3863,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         Map<String, Object> params = new HashMap<>();
         params.put("execSteps", execList);
-        params.put("platformParams", schema.getPlatformParam());
+        Map<String, Object> platParams = schema.getPlatformParam();
+        platParams.put("platformId", schema.getPlatformId());
+        params.put("platformParams", platParams);
         FileUtils.saveContextToFile(basePath, "start_param.txt", gson.toJson(params), true);
         FileUtils.saveContextToFile(basePath, "platform_create.yaml", sb.toString(), true);
         copyDeployScript(basePath);

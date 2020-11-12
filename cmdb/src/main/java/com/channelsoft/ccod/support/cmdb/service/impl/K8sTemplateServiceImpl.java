@@ -350,7 +350,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 .collect(Collectors.groupingBy(AppModuleVo::getAppName)).get(appName).stream()
                 .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
         appBase.setInstallPackage(module.getInstallPackage());
-        AppType appType = module.getAppType();
+        AppType appType = appBase.getAppType() == null ? module.getAppType() : appBase.getAppType();
         String ccodVersion = module.getCcodVersion();
         Map<String, String> selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.DEPLOYMENT);
         V1Deployment deploy = (V1Deployment)selectK8sObjectTemplate(ccodVersion, appType, appName, version, K8sKind.DEPLOYMENT);
@@ -382,7 +382,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1Container runtimeContainer = deploy.getSpec().getTemplate().getSpec().getContainers().get(0);
         logger.debug(String.format("set container name to %s-runtime", alias));
         runtimeContainer.setName(String.format("%s-runtime", alias));
-        if(appType.equals(AppType.JAR)){
+        if(appType.equals(AppType.JAR) || appType.equals(AppType.NODEJS)){
             runtimeContainer.setImage(image);
         }
         mounts = generateRuntimeContainerMount(runtimeContainer, appBase, platformId, domainId, platform.getCfgs(), domainCfg);
@@ -425,6 +425,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 switch (appType)
                 {
                     case BINARY_FILE:
+                    case NODEJS:
                         portVo.setTargetPort(portVo.getPort());
                         break;
                     case TOMCAT_WEB_APP:
@@ -478,11 +479,22 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         if(volumeMountMap.containsKey("binary-file")){
             volumeMountMap.get("binary-file").setMountPath(basePath);
         }
+        if(appType.equals(AppType.NODEJS)){
+            String mountName = String.format("%s-%s-volume", alias, domainId);
+            logger.debug(String.format("add app config mount %s to container", mountName));
+            V1VolumeMount mount = new V1VolumeMount();
+            mount.setName(mountName);
+            volumeMountMap.put(mountName, mount);
+            volumeMountMap.get(mountName).setMountPath(String.format("/cfg/%s-%s", alias, domainId));
+        }
         return new ArrayList<>(volumeMountMap.values());
     }
 
     private List<V1VolumeMount> generateInitContainerMount(V1Container initContainer, AppType appType, String alias, String domainId, String basePath, String deployPath) throws ParamException
     {
+        if(appType.equals(AppType.NODEJS)){
+            return new ArrayList<>();
+        }
         logger.debug(String.format("generate init container volume mount"));
         Map<String, V1VolumeMount> volumeMountMap = initContainer.getVolumeMounts().stream()
                 .collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()));
@@ -560,11 +572,17 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         if(appType.equals(AppType.JAR) && basePath.equals("/root")){
             throw new ParamException("base path of JAR can not be /root");
         }
-        String deployPath = getAbsolutePath(basePath, appBase.getDeployPath());
-        String execParam = String.format("cd %s", basePath);
-        if(appType.equals(AppType.JAR)){
-            execParam = String.format("mkdir %s -p;mv /root/%s %s;%s", deployPath, appBase.getInstallPackage().getFileName(), deployPath, execParam);
+        String deployPath = getAbsolutePath(basePath, appBase.getDeployPath()).replaceAll("/$", "");
+        String execParam;
+        switch (appType){
+            case JAR:
+                execParam = String.format("mkdir %s -p;mv /root/%s %s", deployPath, appBase.getInstallPackage().getFileName(), deployPath);
+                break;
+            default:
+                execParam = "";
+                break;
         }
+        execParam = String.format("%s;cd %s", execParam, basePath);
         if(platformCfg != null && platformCfg.size() > 0)
         {
             String mountPath = String.format("/cfg/%s", platformId);
@@ -589,9 +607,44 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 }
             }
         }
-        String cwd = appType.equals(AppType.BINARY_FILE) || appType.equals(AppType.JAR)? deployPath : basePath;
+        switch (appType){
+            case NODEJS:
+            {
+                String mountPath = String.format("/cfg/%s-%s", alias, domainId);
+                for(AppFileNexusInfo cfg : appBase.getCfgs()){
+                    String cfgSavePath = String.format("%s/%s", cfg.getDeployPath(), cfg.getFileName()).replaceAll("//", "/");
+                    execParam = String.format("%s;cd %s;cp %s/%s %s", execParam, basePath, mountPath, cfg.getFileName(), cfgSavePath);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+        String cwd;
+        switch (appType){
+            case BINARY_FILE:
+            case JAR:
+            case NODEJS:
+                cwd = deployPath;
+                break;
+            default:
+                cwd = basePath;
+                break;
+        }
         if(StringUtils.isNotBlank(appBase.getInitCmd()))
             execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getInitCmd());
+        switch (appType){
+            case NODEJS:
+                String deployDir = deployPath.replaceAll(".*/", "");
+                String newDir = String.format("%s-%s", alias, domainId);
+                execParam = String.format("%s;cd %s;mv %s %s", execParam, deployPath.replaceAll(String.format("/%s$", deployDir), ""), deployDir, newDir);
+                basePath = basePath.replaceAll(String.format("/%s$", deployDir), "/" + newDir);
+                cwd = deployPath.replaceAll(String.format("/%s$", deployDir), "/" + newDir);
+                deployPath = cwd;
+                break;
+            default:
+                break;
+        }
         execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getStartCmd());
         if(StringUtils.isNotBlank(appBase.getLogOutputCmd()))
             execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getLogOutputCmd());
@@ -602,6 +655,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     private List<String> generateCmdForInitContainer(AppBase appBase, String packageFileName, List<AppFileNexusInfo> appCfgs, String domainId) throws ParamException
     {
+        if(appBase.getAppType().equals(AppType.NODEJS)){
+            return Arrays.asList(new String[]{"/bin/sh", "-c", ""});
+        }
         String alias = appBase.getAlias();
         List<String> commands = new ArrayList<>();
         commands.add(0, "/bin/sh");
@@ -623,6 +679,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 execParam = String.format("mkdir %s -p;cd %s;mv /opt/%s %s/%s", deployPath, deployPath, packageFileName, deployPath, packageFileName);
                 break;
             case JAR:
+            case NODEJS:
                 break;
             default:
                 throw new ParamException(String.format("error appType %s", appType.name));
@@ -634,6 +691,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             {
                 case BINARY_FILE:
                 case JAR:
+                case NODEJS:
                     execParam = String.format("%s;mkdir %s -p", execParam, absolutePath);
                     break;
                 case RESIN_WEB_APP:
@@ -731,6 +789,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             int targetPort = portList.get(0).getTargetPort();
             switch (appType) {
                 case BINARY_FILE:
+                case NODEJS:
                     logger.debug(String.format("monitor port is %d/TCP", targetPort));
                     tcp = new V1TCPSocketAction();
                     tcp.setPort(new IntOrString(targetPort));
@@ -738,7 +797,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 case TOMCAT_WEB_APP:
                 case RESIN_WEB_APP:
                 case JAR:
-                    logger.debug(String.format("monitor port is %d/HTTPGet", targetPort));
+                    logger.debug(String.format("checked port is %d/HTTPGet", targetPort));
                     get = new V1HTTPGetAction();
                     get.setPort(new IntOrString(targetPort));
                     get.setPath(String.format("/%s-%s", alias, domainId));
@@ -1008,7 +1067,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             services.add(service);
         }
         ExtensionsV1beta1Ingress ingress = null;
-        if(appType.equals(AppType.TOMCAT_WEB_APP) || appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.JAR))
+        if(appType.equals(AppType.TOMCAT_WEB_APP) || appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.JAR) || appType.equals(AppType.NODEJS))
             ingress = this.generateIngress(ccodVersion, appType, appName, alias, platformId, domainId, platform.getHostUrl());
         K8sCCODDomainAppVo app = new K8sCCODDomainAppVo(alias, module, domainId, configMap, deploy, services, ingress);
         return app;
@@ -1053,7 +1112,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 .filter(app->app.getAppName().equals(appName)&&app.getVersion().equals(version))
                 .collect(Collectors.toList()).get(0);
         appBase.setInstallPackage(module.getInstallPackage());
-        AppType appType = module.getAppType();
+        AppType appType = appBase.getAppType() == null ? module.getAppType() : appBase.getAppType();
         if(!isNewPlatform)
         {
             if(this.ik8sApiService.isNamespacedConfigMapExist(name, platformId, k8sApiUrl, k8sAuthToken))
@@ -1592,7 +1651,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String volume = module.getAppType().equals(AppType.BINARY_FILE) || module.getAppType().equals(AppType.JAR) ? "binary-file" : "war";
         V1Container runtime = deploy.getSpec().getTemplate().getSpec().getContainers().stream()
                 .collect(Collectors.toMap(k->k.getName(), v->v)).get(String.format("%s-runtime", alias));
-        String basePath = runtime.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
+        String basePath = module.getAppType().equals(AppType.NODEJS) ? runtime.getCommand().get(2).replaceAll(";.*", "").replaceAll("^\\s*cd\\s+", "")
+                : runtime.getVolumeMounts().stream().collect(Collectors.toMap(V1VolumeMount::getName, Function.identity()))
                 .get(volume).getMountPath().replaceAll("/$", "");
         if(module.getAppType().equals(AppType.TOMCAT_WEB_APP) || module.getAppType().equals(AppType.RESIN_WEB_APP)){
             basePath = basePath.replaceAll("/webapps$", "");
@@ -1624,7 +1684,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             cmdTag = "startup.sh";
         else if(module.getAppType().equals(AppType.BINARY_FILE) || module.getAppType().equals(AppType.JAR))
             cmdTag = module.getInstallPackage().getFileName();
-        String cmdRegex = String.format(".*(/|\\s+)%s(\\s.+|$)", cmdTag);
+        else if(module.getAppType().equals(AppType.NODEJS))
+            cmdTag = "nginx";
+        String cmdRegex = String.format(".*(/|\\s+)?%s(\\s.+|$)", cmdTag);
         String startCmd = null;
         int index = 0;
         for(int i = 0; i < commands.size(); i++){
@@ -1771,6 +1833,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             case RESIN_WEB_APP:
             case TOMCAT_WEB_APP:
             case JAR:
+            case NODEJS:
                 break;
             default:
                 logger.warn(String.format("appType %s is not supported by ccod domain app, %s", appType.name, errTag));
@@ -1787,6 +1850,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             logger.warn(String.format("deployment %s has not any volume, %s", deployName, errTag));
             return false;
         }
+        if(appType.equals(AppType.NODEJS)){
+            return true;
+        }
         Map<String, V1Volume> volumeMap = deployment.getSpec().getTemplate().getSpec().getVolumes().stream()
                 .collect(Collectors.toMap(k->k.getName(), v->v));
         try{
@@ -1798,13 +1864,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                             , runtime.getName(), deployName, errTag));
                     return false;
                 }
+                if(runtime.getCommand() == null || runtime.getCommand().size() != 3 || !runtime.getCommand().get(0).equals("/bin/sh") || !runtime.getCommand().get(1).equals("-c")){
+                    logger.warn(String.format("deployment %s %s container command is not wanted, %s", deployName, runtime.getName(), errTag));
+                    return false;
+                }
+
                 if(init.getCommand() == null || init.getCommand().size() != 3 || !init.getCommand().get(0).equals("/bin/sh") || !init.getCommand().get(1).equals("-c")){
                     logger.warn(String.format("deployment %s %s container command is not wanted, %s",
                             deployName, init.getName(), errTag));
-                    return false;
-                }
-                if(runtime.getCommand() == null || runtime.getCommand().size() != 3 || !runtime.getCommand().get(0).equals("/bin/sh") || !runtime.getCommand().get(1).equals("-c")){
-                    logger.warn(String.format("deployment %s %s container command is not wanted, %s", deployName, runtime.getName(), errTag));
                     return false;
                 }
                 if(init.getVolumeMounts() == null || init.getVolumeMounts().size() == 0){
