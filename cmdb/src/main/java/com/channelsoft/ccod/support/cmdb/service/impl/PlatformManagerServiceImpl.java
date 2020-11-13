@@ -3865,7 +3865,30 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         params.put("execSteps", execList);
         Map<String, Object> platParams = schema.getPlatformParam();
         platParams.put("platformId", schema.getPlatformId());
+        String glsDBName = ((String)platParams.get(PlatformBase.glsDBTypeKey)).equals("ORACLE") ? "CCCOD" : "ucds";
+        if(!platParams.containsKey("glsDBName")){
+            platParams.put("glsDBName", glsDBName);
+        }
         params.put("platformParams", platParams);
+        Set<String> images = new HashSet<>();
+        steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT)).forEach(s->{
+           V1Deployment deploy = (V1Deployment)s.getObj();
+           if(deploy.getSpec().getTemplate().getSpec().getInitContainers() != null)
+               deploy.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->{
+                   images.add(c.getImage());
+                   if(c.getImage().equals("ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-0")){
+                       System.out.println("here!!!");
+                   }
+               });
+           if(deploy.getSpec().getTemplate().getSpec().getContainers() != null)
+               deploy.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
+                   images.add(c.getImage());
+                   if(c.getImage().equals("ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-0")){
+                       System.out.println("here!!!");
+                   }
+               });
+        });
+        params.put("images", new ArrayList<>(images));
         FileUtils.saveContextToFile(basePath, "start_param.txt", gson.toJson(params), true);
         FileUtils.saveContextToFile(basePath, "platform_create.yaml", sb.toString(), true);
         copyDeployScript(basePath);

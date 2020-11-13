@@ -18,7 +18,7 @@ ccod:
   start-cmd-regex: (^|;)([^(\s|;)]+\s+)?[^;]*(/|\s+)%s(;|$|\s+[^;]+($|;))
   notCheckCfgApps:
     - cmsserver
-  platform-deploy-template: auto_deploy_platform.py
+  platform-deploy-template: ccod.py
   set[0]:
     name: 公共组件
     id: publicModules

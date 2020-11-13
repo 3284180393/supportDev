@@ -162,6 +162,8 @@ def deploy_platform(deploy_params):
         exec_result = run_shell_command(command)
         print(exec_result)
         if step['timeout'] > 0:
+            if step['timeout'] > 60:
+                step['timeout'] = 60
             print('after exec %s, sleep %d seconds' % (command, step['timeout']))
             time.sleep(step['timeout'])
         #       if re.match('^[^/]+/ucds\d*/ucds\d*-.+?-deployment.yml$', step['filePath']):
@@ -171,15 +173,81 @@ def deploy_platform(deploy_params):
             port = get_service_node_port(params['platformId'], params['glsDBService'])
             print('%s started, so update  ucds port in glsserver to %d' % (ucds, port))
             db = Gls_DB(params['glsDBUser'], params['glsDBPwd'], params['k8sHostIp'], port, params['glsDBSid'], db_type)
+            port = get_service_node_port(params['platformId'], ucds)
+            ucds = 'ucds-cloud01'
             if db_type == 'ORACLE':
-                update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s' % (params['glsDBName'], gls_service_unit_table, port, ucds)"""
+                update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" % (params['glsDBName'], gls_service_unit_table, port, ucds)
             else:
-                update_sql = """UPDATE %s SET PARAM_UCDS_PORT = '%d' WHERE	NAME = '%s' % (gls_service_unit_table, port, ucds)"""
+                update_sql = """UPDATE %s SET PARAM_UCDS_PORT = '%d' WHERE	NAME = '%s'""" % (gls_service_unit_table, port, ucds)
             db.update(update_sql)
             print('%s port has been updated to %d' % (ucds, port))
 
 
+def save_image(images, save_dir):
+    print(len(images))
+    if not os.path.exists(save_dir):
+        raise Exception('%s directory not exist' % save_dir)
+    if not os.path.isdir(save_dir):
+        raise Exception('%s not directory' % save_dir)
+    for image in images:
+        image_tag = re.sub('.*/', '', image)
+        print('export %s image to %s/%s.tar' % (image, save_dir, image_tag))
+        command = 'docker save -o %s/%s.tar %s' % (save_dir, image_tag, image)
+        exec_result = run_shell_command(command)
+        print(exec_result)
+
+
+def load_image(images, save_dir):
+    if not os.path.exists(save_dir):
+        raise Exception('%s directory not exist' % save_dir)
+    if not os.path.isdir(save_dir):
+        raise Exception('%s not directory' % save_dir)
+    for image in images:
+        image_tag = re.sub('.*/', '', image)
+        # if image_tag != 'im:bb6b0816':
+        #     continue
+        print('import %s image from %s/%s.tar' % (image, save_dir, image_tag))
+        command = 'docker load -i %s/%s.tar' % (save_dir, image_tag)
+        exec_result = run_shell_command(command)
+        print(exec_result)
+
+
+def show_help():
+    print('error command input, for example:')
+    print('python ccod.py create : auto create ccod platform')
+    print('python ccod.py image -e /tmp/ccod/images : export all necessary images to /tmp/ccod/images directory')
+    print('python ccod.py image -i /tmp/ccod/images : import all necessary images from /tmp/ccod/images directory')
+
+
 if __name__ == '__main__':
     exec_params = get_start_param("start_param.txt")
-    print('deploy platform need %d steps' % len(exec_params))
-    deploy_platform(exec_params)
+    print(len(sys.argv))
+    if len(sys.argv) < 2:
+        show_help()
+    elif len(sys.argv) == 2:
+        if sys.argv[1] == 'create':
+            deploy_platform(exec_params)
+        else:
+            show_help()
+    elif len(sys.argv) == 4:
+        if sys.argv[1] == 'image' and sys.argv[2] == '-e':
+            save_image(exec_params['images'], sys.argv[3])
+        elif sys.argv[1] == 'image' and sys.argv[2] == '-i':
+            load_image(exec_params['images'], sys.argv[3])
+        else:
+            show_help()
+    else:
+        show_help()
+    # print('deploy platform need %d steps' % len(exec_params))
+    # deploy_platform(exec_params)
+    # db = Gls_DB('ucds', 'ucds', '10.130.41.218', 32402, 'ucds',
+    #             'MYSQL')
+    # update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" \
+    #              % ('ucds', gls_service_unit_table, 32172, 'ucds-cloud01')
+    # update_sql = """UPDATE GLS_SERVICE_UNIT SET PARAM_UCDS_PORT = '32333' WHERE	NAME = 'ucds-cloud01'"""
+    # db.update(update_sql)
+    # print('%s port has been updated to %d' % ('ucds-cloud01', 32333))
+    # need_images = exec_params['images']
+    # print(need_images)
+    # # save_image(need_images, '/tmp/lhb/images')
+    # load_image(need_images, '/tmp/images')
