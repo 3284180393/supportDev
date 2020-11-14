@@ -9,6 +9,7 @@ import re
 import time
 import cx_Oracle
 import pymysql
+import datetime
 
 
 reload(sys)
@@ -107,38 +108,45 @@ def get_service_node_port(platform_id, service_name):
     exec_command = "kubectl get svc -n %s | grep -E '^%s\s+' | awk '{print $5}' | awk -F ':' '{print $2}' | awk -F '/' '{print $1}'" \
                    % (platform_id, service_name)
     exec_result = run_shell_command(exec_command, None)
-    print('nodePort of %s is %s' % (service_name, exec_result))
-    node_port = None
-    if exec_result and exec_result.isdigit():
-        node_port = int(exec_result)
-    logging.debug('nodePort of %s''s %s is %s' % (platform_id, service_name, node_port))
-    return node_port
+    logging.debug('nodePort of %s is %s' % (service_name, exec_result))
+    return int(exec_result)
 
 
-def run_shell_command(command, cwd=None):
+def get_deployment_status(platform_id, deployment_name):
+    exec_command = "kubectl -n %s get deployment %s | grep %s" % (platform_id, deployment_name, deployment_name)
+    exec_result = run_shell_command(exec_command)
+    return re.split(r'\s+', exec_result)[1]
+
+
+def run_shell_command(command, cwd=None, accept_err=False):
     """
     执行一条脚本命令,并返回执行结果输出
     :param command:执行命令,可执行文件/脚本可以是相对cwd的相对路径
     :param command:执行命令的cwd
+    :param accept_err: 是否接受错误输出，如果为True将错误结果输出，否则抛出异常
     :return:返回结果
     """
     logging.info("准备执行命令:%s" % command)
     if cwd:
         logging.info('cwd=%s' % cwd)
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd,
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd,
                                    close_fds=True)
     else:
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True)
-    out = process.communicate()[0]
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+    out, err = process.communicate()
     if process.stdin:
         process.stdin.close()
     if process.stdout:
         process.stdout.close()
     if process.stderr:
         process.stderr.close()
-    result = out.decode().encode('utf-8')
-    str_info = re.compile("(\n)*$")
-    result = str_info.sub('', result)
+    if err:
+        if accept_err:
+            result = err
+        else:
+            raise Exception(err)
+    else:
+        result = out
     logging.info("命令执行结果\n:%s" % result)
     return result
 
@@ -154,33 +162,60 @@ def get_start_param(param_file):
 
 
 def deploy_platform(deploy_params):
+    now = datetime.datetime.now()
     params = deploy_params['platformParams']
     db_type = params['glsDBType']
+    platform_id = params['platformId']
+    print("**** begin to create %s platform by script ****" % platform_id)
+    logging.info("begin to create %s platform by script" % platform_id)
     for step in deploy_params['execSteps']:
-        command = "kubectl apply -f %s" % step['filePath']
+        file_path = step['filePath']
+        file_name = re.sub('.*/', '', file_path)
+        arr = file_name.split('.')[0].split('-')
+        k8s_opt = arr[-1]
+        k8s_type = arr[-2]
+        obj_name = re.sub('-[^-]+-[^-]+$', '', file_name)
+        print('%s %s %s with %s' % (k8s_opt, k8s_type, obj_name, file_path))
+        command = "kubectl apply -f %s" % file_path
         print(command)
         exec_result = run_shell_command(command)
         print(exec_result)
         if step['timeout'] > 0:
-            if step['timeout'] > 60:
-                step['timeout'] = 60
-            print('after exec %s, sleep %d seconds' % (command, step['timeout']))
-            time.sleep(step['timeout'])
-        #       if re.match('^[^/]+/ucds\d*/ucds\d*-.+?-deployment.yml$', step['filePath']):
-        if step['filePath'] == 'cloud01/ucds/ucds-cloud01-out-service.yaml':
-            # ucds = re.sub('-deployment.yml', '', step['filePath'].split('/')[2])
-            ucds = 'ucds-cloud01-out'
-            port = get_service_node_port(params['platformId'], params['glsDBService'])
-            print('%s started, so update  ucds port in glsserver to %d' % (ucds, port))
+            if k8s_type == 'deployment':
+                time_usage = 0
+                while time_usage <= step['timeout']:
+                    deploy_status = get_deployment_status(platform_id, obj_name)
+                    print('%s deployment status is %s at %d seconds' % (obj_name, deploy_status, time_usage))
+                    if deploy_status == '1/1':
+                        print('%s deployment change to ACTIVE with %d seconds usage' % (obj_name, time_usage))
+                        break
+                    elif time_usage >= step['timeout']:
+                        print('%s deployment start timeout with %d seconds usage' % (obj_name, time_usage))
+                        break
+                    time.sleep(3)
+                    time_usage += 3
+            else:
+                print('after exec %s, sleep %d seconds' % (command, step['timeout']))
+                time.sleep(step['timeout'])
+        if k8s_type == 'service' and re.match('^ucds\d*.*-out$', obj_name):
+            port = get_service_node_port(platform_id, params['glsDBService'])
             db = Gls_DB(params['glsDBUser'], params['glsDBPwd'], params['k8sHostIp'], port, params['glsDBSid'], db_type)
-            port = get_service_node_port(params['platformId'], ucds)
-            ucds = 'ucds-cloud01'
+            port = get_service_node_port(params['platformId'], obj_name)
+            print('%s started, so update  ucds port in glsserver to %d' % (obj_name, port))
+            ucds = re.sub('-out$', '', obj_name)
             if db_type == 'ORACLE':
                 update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" % (params['glsDBName'], gls_service_unit_table, port, ucds)
             else:
                 update_sql = """UPDATE %s SET PARAM_UCDS_PORT = '%d' WHERE	NAME = '%s'""" % (gls_service_unit_table, port, ucds)
             db.update(update_sql)
             print('%s port has been updated to %d' % (ucds, port))
+    time_usage = 0
+    while time_usage <= 120:
+        print('wait front module to startup')
+        time.sleep(3)
+        time_usage += 3
+    print('**** %s create finish, use time %d seconds ****' % (platform_id, (datetime.datetime.now() - now).seconds))
+    logging.info('%s create finish, use time %d seconds' % (platform_id, (datetime.datetime.now() - now).seconds))
 
 
 def save_image(images, save_dir):
@@ -221,7 +256,6 @@ def show_help():
 
 if __name__ == '__main__':
     exec_params = get_start_param("start_param.txt")
-    print(len(sys.argv))
     if len(sys.argv) < 2:
         show_help()
     elif len(sys.argv) == 2:
@@ -238,16 +272,4 @@ if __name__ == '__main__':
             show_help()
     else:
         show_help()
-    # print('deploy platform need %d steps' % len(exec_params))
-    # deploy_platform(exec_params)
-    # db = Gls_DB('ucds', 'ucds', '10.130.41.218', 32402, 'ucds',
-    #             'MYSQL')
-    # update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" \
-    #              % ('ucds', gls_service_unit_table, 32172, 'ucds-cloud01')
-    # update_sql = """UPDATE GLS_SERVICE_UNIT SET PARAM_UCDS_PORT = '32333' WHERE	NAME = 'ucds-cloud01'"""
-    # db.update(update_sql)
-    # print('%s port has been updated to %d' % ('ucds-cloud01', 32333))
-    # need_images = exec_params['images']
-    # print(need_images)
-    # # save_image(need_images, '/tmp/lhb/images')
-    # load_image(need_images, '/tmp/images')
+

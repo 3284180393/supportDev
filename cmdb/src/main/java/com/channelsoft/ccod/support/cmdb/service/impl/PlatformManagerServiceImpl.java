@@ -3820,7 +3820,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             String alias = step.getName().split("-")[0];
             String domainId = step.getDomainId();
             String saveDir = domainId == null ? basePath : String.format("%s/%s/%s", basePath, domainId, alias);
-            String fileName = step.getOperation().equals(K8sOperation.CREATE) ? String.format("%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase()) : String.format("%s-%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase(), step.getOperation().name);
+            String fileName = String.format("%s-%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase(), step.getOperation().name.toLowerCase());
             String tag = String.format("# create %s", step.getKind().name.toLowerCase());
             content.append(tag).append("\n---\n").append(Yaml.dump(step.getObj())).append("\n\n");
             String yamlContent = StringUtils.isNotBlank(schema.getSrcPlatformId()) ? content.toString().replaceAll(schema.getSrcPlatformId(), schema.getPlatformId()) : content.toString();
@@ -3876,16 +3876,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
            if(deploy.getSpec().getTemplate().getSpec().getInitContainers() != null)
                deploy.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->{
                    images.add(c.getImage());
-                   if(c.getImage().equals("ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-0")){
-                       System.out.println("here!!!");
-                   }
                });
            if(deploy.getSpec().getTemplate().getSpec().getContainers() != null)
                deploy.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
                    images.add(c.getImage());
-                   if(c.getImage().equals("ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-0")){
-                       System.out.println("here!!!");
-                   }
                });
         });
         params.put("images", new ArrayList<>(images));
