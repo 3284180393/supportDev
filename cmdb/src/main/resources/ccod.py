@@ -36,12 +36,6 @@ class Gls_DB(object):
 
     def __init__(self, user, pwd, ip, port, db_name, db_type='ORACLE'):
         if db_type == 'MYSQL':
-            dbconfig = {'host': ip,
-                        'port': port,
-                        'user': user,
-                        'password': pwd,
-                        'database': db_name, }
-
             self.connect = pymysql.connect(host=ip, port=port, user=user, passwd=pwd, db=db_name, charset='utf8')
         elif db_type == 'ORACLE':
             conn_str = "%s/%s@%s:%d/%s" % (user, pwd, ip, port, db_name)
@@ -232,6 +226,16 @@ def save_image(images, save_dir):
         print(exec_result)
 
 
+def clear_image(images):
+    for image in images:
+        repository = re.sub('\\:[^\\:]+$', '', image)
+        tag = re.sub('^.*\\:', '', image)
+        print('delete image %s from docker' % image)
+        command = """docker images|grep "%s"|grep "%s"|awk '{print $3}'|xargs docker rmi""" % (repository, tag)
+        exec_result = run_shell_command(command, accept_err=True)
+        print(exec_result)
+
+
 def load_image(images, save_dir):
     if not os.path.exists(save_dir):
         raise Exception('%s directory not exist' % save_dir)
@@ -252,6 +256,7 @@ def show_help():
     print('python ccod.py create : auto create ccod platform')
     print('python ccod.py image -e /tmp/ccod/images : export all necessary images to /tmp/ccod/images directory')
     print('python ccod.py image -i /tmp/ccod/images : import all necessary images from /tmp/ccod/images directory')
+    print('python ccod.py image -d : clear exist images in docker')
 
 
 if __name__ == '__main__':
@@ -270,6 +275,23 @@ if __name__ == '__main__':
             load_image(exec_params['images'], sys.argv[3])
         else:
             show_help()
+    elif len(sys.argv) == 3:
+        if sys.argv[1] == 'image' and sys.argv[2] == '-d':
+            clear_image(exec_params['images'])
+        else:
+            show_help()
     else:
         show_help()
-
+    # print('deploy platform need %d steps' % len(exec_params))
+    # deploy_platform(exec_params)
+    # db = Gls_DB('ucds', 'ucds', '10.130.41.218', 32402, 'ucds',
+    #             'MYSQL')
+    # update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" \
+    #              % ('ucds', gls_service_unit_table, 32172, 'ucds-cloud01')
+    # update_sql = """UPDATE GLS_SERVICE_UNIT SET PARAM_UCDS_PORT = '32333' WHERE	NAME = 'ucds-cloud01'"""
+    # db.update(update_sql)
+    # print('%s port has been updated to %d' % ('ucds-cloud01', 32333))
+    # need_images = exec_params['images']
+    # print(need_images)
+    # # save_image(need_images, '/tmp/lhb/images')
+    # load_image(need_images, '/tmp/images')

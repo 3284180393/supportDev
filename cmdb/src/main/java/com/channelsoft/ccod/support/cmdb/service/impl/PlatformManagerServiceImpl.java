@@ -3882,6 +3882,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                    images.add(c.getImage());
                });
         });
+        steps.stream().filter(s->s.getKind().equals(K8sKind.JOB)).forEach(s->{
+            V1Job job = (V1Job)s.getObj();
+            if(job.getSpec().getTemplate().getSpec().getContainers() != null)
+                job.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
+                    images.add(c.getImage());
+                });
+        });
         params.put("images", new ArrayList<>(images));
         FileUtils.saveContextToFile(basePath, "start_param.txt", gson.toJson(params), true);
         FileUtils.saveContextToFile(basePath, "platform_create.yaml", sb.toString(), true);
