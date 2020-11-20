@@ -941,17 +941,32 @@ public class AppManagerServiceImpl implements IAppManagerService {
         module.setVersionControlUrl(gitUrl);
         module.setAppType(appType);
         String deployPath;
+        String basePath;
         switch (appType){
             case BINARY_FILE:
+                basePath = "/root/Platform";
                 deployPath = "./bin";
                 break;
             case TOMCAT_WEB_APP:
-            case RESIN_WEB_APP:
+                basePath = "/usr/local/tomcat";
                 deployPath = "./webapps";
+                break;
+            case RESIN_WEB_APP:
+                basePath = "/root/resin";
+                deployPath = "./webapps";
+                break;
+            case NODEJS:
+                basePath = String.format("/usr/share/nginx/html/%s", assetMap.get(path).getNexusAssetFileName().split("\\.")[0]);
+                deployPath = "./";
+                break;
+            case JAR:
+                basePath = "/root/Platform";
+                deployPath = "./";
                 break;
             default:
                 throw new ParamException(String.format("not support appType %s", appType.name));
         }
+        module.setBasePath(basePath);
         module.setInstallPackage(new AppFileNexusInfo(assetMap.get(path), deployPath));
         registerCIAppModule(module);
         logger.info(String.format("app from ci register success"));

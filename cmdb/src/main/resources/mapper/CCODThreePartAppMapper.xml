@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.CCODThreePartAppMapper" >
+    <resultMap id="CCODThreePartAppMap" type="com.channelsoft.ccod.support.cmdb.po.CCODThreePartAppPo" >
+        <id column="id" property="id" jdbcType="INTEGER" />
+        <result column="platform_name" property="platformName" jdbcType="VARCHAR" />
+        <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
+        <result column="tag" property="tag" jdbcType="VARCHAR" />
+        <result column="app_name" property="appName" jdbcType="VARCHAR" />
+        <result column="params" property="params" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
+        <result column="volume" property="volume" jdbcType="VARCHAR" />
+        <result column="mount_sub_path" property="mountSubPath" jdbcType="VARCHAR" />
+    </resultMap>
+    <sql id="Base_Column_List" >
+        id,
+        ccod_version,
+        tag,
+        app_name,
+        alias,
+        params,
+        volume,
+        mount_sub_path
+    </sql>
+    <select id="select" resultMap="CCODThreePartAppMap" >
+        select
+        <include refid="Base_Column_List" />
+        from ccod_three_part_app
+        where 1=1
+        <if test="ccodVersion!=null">
+            And ccod_version=#{ccodVersion,jdbcType=VARCHAR}
+        </if>
+        <if test="tag!=null">
+            And tag=#{tag,jdbcType=VARCHAR}
+        </if>
+        <if test="appName!=null">
+            And app_name=#{appName,jdbcType=VARCHAR}
+        </if>
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.CCODThreePartAppPo">
+        insert into ccod_three_part_app(
+            ccod_version,
+            tag,
+            app_name,
+            alias,
+            params,
+            volume,
+            mount_sub_path)
+        values (
+            #{ccodVersion,jdbcType=VARCHAR},
+            #{tag,jdbcType=VARCHAR},
+            #{appName,jdbcType=VARCHAR},
+            #{alias,jdbcType=VARCHAR},
+            #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
+            #{volume,jdbcType=VARCHAR},
+            #{mountSubPath,jdbcType=VARCHAR})
+    </insert>
+    <delete id="delete" parameterType="java.lang.String">
+        delete
+        from ccod_three_part_app
+        where 1=1
+        And ccod_version=#{ccodVersion,jdbcType=VARCHAR}
+        And tag=#{tag,jdbcType=VARCHAR}
+        <if test="appName!=null">
+            And app_name=#{appName,jdbcType=VARCHAR}
+        </if>
+        <if test="alias!=null">
+            And alias=#{alias,jdbcType=VARCHAR}
+        </if>
+    </delete>
+</mapper>

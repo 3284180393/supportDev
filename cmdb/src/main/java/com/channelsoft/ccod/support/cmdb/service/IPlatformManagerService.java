@@ -4,10 +4,7 @@ import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformDeployStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.exception.*;
-import com.channelsoft.ccod.support.cmdb.po.AppDebugDetailPo;
-import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformAppPo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
@@ -290,6 +287,14 @@ public interface IPlatformManagerService {
      * 定时处理ccod应用模块调试
      */
     void debugHandle();
+
+    /**
+     * 获取指定版本ccod平台所依赖的第三方应用
+     * @param ccodVersion ccod大版本号
+     * @param tag 用来细分指定大版本平台的标签
+     * @return 指定条件的记录
+     */
+    List<CCODThreePartAppPo> getThreePartAppDepend(String ccodVersion, String tag);
 
     /**
      * 从k8s恢复出平台拓扑

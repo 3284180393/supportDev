@@ -10,6 +10,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.AppBase;
+import com.channelsoft.ccod.support.cmdb.po.CCODThreePartAppPo;
 import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
@@ -57,25 +58,21 @@ public interface IK8sTemplateService {
 
     /**
      * 生成第三方应用的deployment
-     * @param ccodVersion 平台的ccod大版本
-     * @param appName 第三方应用名
-     * @param alias 第三方应用别名
-     * @param version 版本号
-     * @param platformId 平台id
-     * @param hostUrl 平台的访问域名
+     * @param threePartAppPo 需要生成deployment的第三方应用
+     * @param platform 平台基本信息
+     * @param isBase 第三方应用是否和ccod模块部署在同一个命名空间，true是，false否，第三方应用将会被部署在base-platform.platformId命名空间里
      * @return 第三方应用的deployment
      */
-    V1Deployment generateThreeAppDeployment(String ccodVersion, String appName, String alias, String version, String platformId, String hostUrl) throws ParamException;
+    List<V1Deployment> generateThreeAppDeployment(CCODThreePartAppPo threePartAppPo, PlatformPo platform, boolean isBase) throws ParamException;
 
     /**
      * 为指定的平台生成namespace
      * @param ccodVersion 平台的ccodVersion
      * @param platformId 平台id
-     * @param platformName 平台名
      * @return 生成的命名空间
      * @throws ParamException
      */
-    V1Namespace generateNamespace(String ccodVersion, String platformId, String platformName) throws ParamException;
+    V1Namespace generateNamespace(String ccodVersion, String platformId) throws ParamException;
 
     V1Secret generateSecret(String ccodVersion, String platformId, String name) throws ParamException;
 
@@ -88,15 +85,23 @@ public interface IK8sTemplateService {
      */
     V1PersistentVolume generatePersistentVolume(PlatformPo platform, String nfsServerIp) throws ParamException;
 
-    V1PersistentVolumeClaim generatePersistentVolumeClaim(String ccodVersion, String platformId) throws ParamException;
+    /**
+     * 生成指定的平台pvc
+     * @param platform 平台信息
+     * @param isBase 该pvc是用于platform.platformId还是base-platform.platformId
+     * @return 生成的pvc
+     * @throws ParamException
+     */
+    V1PersistentVolumeClaim generatePersistentVolumeClaim(PlatformPo platform, boolean isBase) throws ParamException;
 
     /**
      * 生成平台初始job
      * @param platform 需要生成初始job的平台
+     * @param isBase 该job是运行于base-platform.platformId命名空间还是platform.platformId命名空间
      * @return 平台初始job
      * @throws ParamException
      */
-    V1Job generatePlatformInitJob(PlatformPo platform) throws ParamException;
+    V1Job generatePlatformInitJob(PlatformPo platform, boolean isBase) throws ParamException;
 
     /**
      * 获取已经部署的ccod域应用在k8s上的部署详情
@@ -239,7 +244,30 @@ public interface IK8sTemplateService {
      * @throws IOException
      * @throws InterfaceCallException
      */
-    List<K8sOperationInfo> generatePlatformCreateSteps(String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<K8sThreePartAppVo> threePartApps, List<K8sThreePartServiceVo> threePartServices, String nfsServerIp, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException;
+    List<K8sOperationInfo> generatePlatformCreateSteps(String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<CCODThreePartAppPo> threePartApps, List<K8sThreePartServiceVo> threePartServices, String nfsServerIp, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException;
+
+    /**
+     * 生成只运行第三方应用的基础平台创建步骤
+     * @param jobId 创建平台的任务id
+     * @param job 创建平台需要预执行的job
+     * @param namespace 创建平台的namespace信息，如果为空将根据现有模板自动创建
+     * @param secrets 平台的相关secret，如果为空将自动创建ssl cert
+     * @param pv 平台使用的pv,如果为空将通过模板自动创建
+     * @param pvc 平台使用的pvc,如果为空将通过模板自动创建
+     * @param threePartApps 平台依赖的第三方应用，如果为空将根据模板自动创建oracle和mysql
+     * @param nfsServerIp 挂载的nfs的server ip
+     * @param baseNamespaceId 基础平台id
+     * @param platform 需要被创建的平台
+     * @return 平台创建所需执行的步骤
+     * @throws ApiException
+     * @throws ParamException
+     * @throws IOException
+     * @throws InterfaceCallException
+     */
+    List<K8sOperationInfo> generateBasePlatformCreateSteps(
+            String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
+            V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<CCODThreePartAppPo> threePartApps,
+            String nfsServerIp, String baseNamespaceId, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException;
 
     /**
      * 生成一组用于测试的第三方服务

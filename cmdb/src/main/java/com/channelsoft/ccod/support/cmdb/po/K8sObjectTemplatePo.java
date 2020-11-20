@@ -160,4 +160,16 @@ public class K8sObjectTemplatePo {
         po.persistentVolumeClaimJson = persistentVolumeClaimJson;
         return po;
     }
+
+    @Override
+    public String toString()
+    {
+        if(labels == null || labels.size() == 0)
+            return "";
+        StringBuffer sb = new StringBuffer();
+        for(String key : labels.keySet()){
+            sb.append(String.format("%s=%s;", key, labels.get(key)));
+        }
+        return sb.toString().replaceAll(";$", "");
+    }
 }

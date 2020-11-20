@@ -154,6 +154,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     AppDebugDetailMapper appDebugDetailMapper;
 
     @Autowired
+    CCODThreePartAppMapper ccodThreePartAppMapper;
+
+    @Autowired
     CCODBiz ccodBiz;
 
     @Autowired
@@ -320,10 +323,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn(String.format("begin to exec %s", command));
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
-            updateK8sTemplate();
-//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-//            logger.error(gson.toJson(schema));
-//            updatePlatformUpdateSchema(schema);
+//            updateK8sTemplate();
+            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+            logger.error(gson.toJson(schema));
+            updatePlatformUpdateSchema(schema);
 //            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
 //            paramVo.setParams("pahjgs");
 //            paramVo.setNfsServerIp("10.130.41.218");
@@ -333,6 +336,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            System.out.println(gson.toJson(paramVo));
 //            String zipFilePath = generatePlatformCreateScript(paramVo);
 //            logger.debug(String.format("generate script saved to %s", zipFilePath));
+//            initThreePartAppDepend();
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -368,6 +372,32 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         list = appDebugDetailMapper.select("test", "domain01", "ucxserver", "ucx01");
         System.out.println(gson.toJson(list));
 //        appDebugDetailMapper.delete("test", "domain01", "cmsserver", "cms01");
+    }
+
+    private void initThreePartAppDepend()
+    {
+        List<CCODThreePartAppPo> list = new ArrayList<>();
+        CCODThreePartAppPo appPo = new CCODThreePartAppPo("3.9", null, "mysql", "mysql");
+        list.add(appPo);
+        appPo = new CCODThreePartAppPo("3.9", null, "oracle", "oracle");
+        list.add(appPo);
+        appPo = new CCODThreePartAppPo("4.1", null, "mysql", "mysql");
+        list.add(appPo);
+        appPo = new CCODThreePartAppPo("4.1", null, "oracle", "oracle");
+        list.add(appPo);
+        appPo = new CCODThreePartAppPo("4.8", null, "mysql", "mysql");
+        list.add(appPo);
+        appPo = new CCODThreePartAppPo("4.8", null, "wgw", "wgw");
+        list.add(appPo);
+        appPo = new CCODThreePartAppPo("4.8", null, "sgw", "sgw");
+        list.add(appPo);
+//        list.forEach(a->ccodThreePartAppMapper.insert(a));
+        List<CCODThreePartAppPo> results = ccodThreePartAppMapper.select("3.9", "standard", null);
+        System.out.println(gson.toJson(results));
+        results = ccodThreePartAppMapper.select("4.1", "standard", null);
+        System.out.println(gson.toJson(results));
+        results = ccodThreePartAppMapper.select("4.8", "standard", null);
+        System.out.println(gson.toJson(results));
     }
 
     private void updateK8sTemplate() throws Exception{
@@ -463,14 +493,45 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        po.setDeployJson(gson.toJson(deployment));
 //        po.setServiceJson(null);
 //        templateList.add(po);
-        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(17)), K8sObjectTemplatePo.class);
-        po.getLabels().put(appTypeLabel, AppType.NODEJS.name);
-        V1Deployment deployment = gson.fromJson(po.getDeployJson(), V1Deployment.class);
-        deployment.getMetadata().getLabels().put(appTypeLabel, AppType.NODEJS.name);
-        String json = gson.toJson(deployment);
-        json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"dcms\":\"dcms\",\"dcms-alias\":\"dcms\",\"dcms-version\":\"11110\",\"domain-id\":\"manage01\",\"job-id\":\"73a8e02621\",\"type\":\"CCOD_DOMAIN_APP\",\"app-type\":\"NODEJS\"},\"name\":\"dcms-manage01\",\"namespace\":\"test-by-wyf\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"dcms\":\"dcms\",\"domain-id\":\"manage01\"}},\"template\":{\"metadata\":{\"labels\":{\"dcms\":\"dcms\",\"domain-id\":\"manage01\"}},\"spec\":{\"containers\":[{\"args\":[\"mkdir /root/resin-4.0.13/conf -p;cp /cfg/test-by-wyf/local_datasource.xml /root/resin-4.0.13/conf/local_datasource.xml;cp /cfg/test-by-wyf/local_jvm.xml /root/resin-4.0.13/conf/local_jvm.xml;mkdir /usr/local/lib -p;cp /cfg/test-by-wyf/tnsnames.ora /usr/local/lib/tnsnames.ora;cd /root/resin-4.0.13;keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/jre/lib/security/cacerts;./bin/resin.sh start;tail -F ./log/*.log\"],\"command\":[\"/bin/sh\",\"-c\"],\"image\":\"nexus.io:5000/ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-011\",\"imagePullPolicy\":\"IfNotPresent\",\"livenessProbe\":{\"failureThreshold\":3,\"httpGet\":{\"path\":\"/dcms-manage01\",\"port\":8080,\"scheme\":\"HTTP\"},\"initialDelaySeconds\":3,\"periodSeconds\":30,\"successThreshold\":1,\"timeoutSeconds\":1},\"name\":\"dcms-runtime\",\"ports\":[{\"containerPort\":8080,\"protocol\":\"TCP\"}],\"readinessProbe\":{\"failureThreshold\":3,\"httpGet\":{\"path\":\"/dcms-manage01\",\"port\":8080,\"scheme\":\"HTTP\"},\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"timeoutSeconds\":2},\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"},\"requests\":{\"cpu\":\"200m\",\"memory\":\"200Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/ssl\",\"name\":\"ssl\"},{\"mountPath\":\"/root/resin-4.0.13/log\",\"name\":\"ccod-runtime\",\"subPath\":\"dcms\"}]}],\"hostAliases\":[{\"hostnames\":[\"test-by-wyf.ccod.com\"],\"ip\":\"10.130.41.218\"}],\"initContainers\":[{\"command\":[\"/bin/sh\",\"-c\",\"mkdir /opt/webapps -p;cd /opt/webapps;mv /opt/dcms.war /opt/webapps/dcms.war;mkdir /opt/webapps/WEB-INF/classes/ -p;cp /cfg/dcms-cfg/config.properties /opt/webapps/WEB-INF/classes/config.properties;jar uf dcms.war WEB-INF/classes/config.properties;cp /cfg/dcms-cfg/Param-Config.xml /opt/webapps/WEB-INF/classes/Param-Config.xml;jar uf dcms.war WEB-INF/classes/Param-Config.xml;mkdir /opt/webapps/WEB-INF/ -p;cp /cfg/dcms-cfg/web.xml /opt/webapps/WEB-INF/web.xml;jar uf dcms.war WEB-INF/web.xml;mv /opt/webapps/dcms.war /war/dcms-manage01.war\"],\"image\":\"nexus.io:5000/ccod/dcms:11110\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"dcms\",\"resources\":{\"limits\":{\"cpu\":\"200m\",\"memory\":\"200Mi\"},\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"}},\"volumeMounts\":[]}],\"terminationGracePeriodSeconds\":30,\"volumes\":[{\"name\":\"ssl\",\"secret\":{\"defaultMode\":420,\"secretName\":\"ssl\"}},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test-by-wyf/manage01\",\"type\":\"DirectoryOrCreate\"},\"name\":\"ccod-runtime\"}]}}}}";
-        po.setDeployJson(json);
-        templateList.add(po);
+//        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(17)), K8sObjectTemplatePo.class);
+//        po.getLabels().put(appTypeLabel, AppType.NODEJS.name);
+//        V1Deployment deployment = gson.fromJson(po.getDeployJson(), V1Deployment.class);
+//        deployment.getMetadata().getLabels().put(appTypeLabel, AppType.NODEJS.name);
+//        String json = gson.toJson(deployment);
+//        json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"dcms\":\"dcms\",\"dcms-alias\":\"dcms\",\"dcms-version\":\"11110\",\"domain-id\":\"manage01\",\"job-id\":\"73a8e02621\",\"type\":\"CCOD_DOMAIN_APP\",\"app-type\":\"NODEJS\"},\"name\":\"dcms-manage01\",\"namespace\":\"test-by-wyf\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"dcms\":\"dcms\",\"domain-id\":\"manage01\"}},\"template\":{\"metadata\":{\"labels\":{\"dcms\":\"dcms\",\"domain-id\":\"manage01\"}},\"spec\":{\"containers\":[{\"args\":[\"mkdir /root/resin-4.0.13/conf -p;cp /cfg/test-by-wyf/local_datasource.xml /root/resin-4.0.13/conf/local_datasource.xml;cp /cfg/test-by-wyf/local_jvm.xml /root/resin-4.0.13/conf/local_jvm.xml;mkdir /usr/local/lib -p;cp /cfg/test-by-wyf/tnsnames.ora /usr/local/lib/tnsnames.ora;cd /root/resin-4.0.13;keytool -import -v -trustcacerts -noprompt -storepass changeit -alias test -file /ssl/tls.crt -keystore $JAVA_HOME/jre/lib/security/cacerts;./bin/resin.sh start;tail -F ./log/*.log\"],\"command\":[\"/bin/sh\",\"-c\"],\"image\":\"nexus.io:5000/ccod-base/resin-jdk:resin-4.0.13_jdk-1.7.0_10-011\",\"imagePullPolicy\":\"IfNotPresent\",\"livenessProbe\":{\"failureThreshold\":3,\"httpGet\":{\"path\":\"/dcms-manage01\",\"port\":8080,\"scheme\":\"HTTP\"},\"initialDelaySeconds\":3,\"periodSeconds\":30,\"successThreshold\":1,\"timeoutSeconds\":1},\"name\":\"dcms-runtime\",\"ports\":[{\"containerPort\":8080,\"protocol\":\"TCP\"}],\"readinessProbe\":{\"failureThreshold\":3,\"httpGet\":{\"path\":\"/dcms-manage01\",\"port\":8080,\"scheme\":\"HTTP\"},\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"timeoutSeconds\":2},\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"},\"requests\":{\"cpu\":\"200m\",\"memory\":\"200Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/ssl\",\"name\":\"ssl\"},{\"mountPath\":\"/root/resin-4.0.13/log\",\"name\":\"ccod-runtime\",\"subPath\":\"dcms\"}]}],\"hostAliases\":[{\"hostnames\":[\"test-by-wyf.ccod.com\"],\"ip\":\"10.130.41.218\"}],\"initContainers\":[{\"command\":[\"/bin/sh\",\"-c\",\"mkdir /opt/webapps -p;cd /opt/webapps;mv /opt/dcms.war /opt/webapps/dcms.war;mkdir /opt/webapps/WEB-INF/classes/ -p;cp /cfg/dcms-cfg/config.properties /opt/webapps/WEB-INF/classes/config.properties;jar uf dcms.war WEB-INF/classes/config.properties;cp /cfg/dcms-cfg/Param-Config.xml /opt/webapps/WEB-INF/classes/Param-Config.xml;jar uf dcms.war WEB-INF/classes/Param-Config.xml;mkdir /opt/webapps/WEB-INF/ -p;cp /cfg/dcms-cfg/web.xml /opt/webapps/WEB-INF/web.xml;jar uf dcms.war WEB-INF/web.xml;mv /opt/webapps/dcms.war /war/dcms-manage01.war\"],\"image\":\"nexus.io:5000/ccod/dcms:11110\",\"imagePullPolicy\":\"IfNotPresent\",\"name\":\"dcms\",\"resources\":{\"limits\":{\"cpu\":\"200m\",\"memory\":\"200Mi\"},\"requests\":{\"cpu\":\"100m\",\"memory\":\"100Mi\"}},\"volumeMounts\":[]}],\"terminationGracePeriodSeconds\":30,\"volumes\":[{\"name\":\"ssl\",\"secret\":{\"defaultMode\":420,\"secretName\":\"ssl\"}},{\"hostPath\":{\"path\":\"/var/ccod-runtime/test-by-wyf/manage01\",\"type\":\"DirectoryOrCreate\"},\"name\":\"ccod-runtime\"}]}}}}";
+//        po.setDeployJson(json);
+//        templateList.add(po);
+//        templateList.forEach(t->{
+//            if(t.getDeployJson() != null){
+//                V1Deployment d = gson.fromJson(t.getDeployJson(), V1Deployment.class);
+//                t.setDeployJson(gson.toJson(Arrays.asList(d)));
+//            }
+//            if(t.getServiceJson() != null){
+//                V1Service s = gson.fromJson(t.getServiceJson(), V1Service.class);
+//                t.setServiceJson(gson.toJson(Arrays.asList(s)));
+//            }
+//            if(t.getIngressJson() != null){
+//                ExtensionsV1beta1Ingress i = gson.fromJson(t.getIngressJson(), ExtensionsV1beta1Ingress.class);
+//                t.setIngressJson(gson.toJson(Arrays.asList(i)));
+//            }
+//            if(t.getEndpointsJson() != null){
+//                V1Endpoints e = gson.fromJson(t.getEndpointsJson(), V1Endpoints.class);
+//                t.setEndpointsJson(gson.toJson(Arrays.asList(e)));
+//            }
+//        });
+//        templateList.forEach(t->{
+//            if(t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name))
+//                if(t.getLabels().get(appNameLabel).equals("umg"))
+//                    t.setDeployJson(gson.toJson(new ArrayList<>()));
+//                else
+//                    t.setEndpointsJson(gson.toJson(new ArrayList<>()));
+//        });
+        templateList.forEach(t->{
+            if(t.getIngressJson() != null){
+                List<ExtensionsV1beta1Ingress> ingresses = gson.fromJson(t.getIngressJson(), new TypeToken<List<ExtensionsV1beta1Ingress>>() {}.getType());
+                t.setIngressJson(gson.toJson(ingresses.get(0)));
+            }
+        });
         logger.error(gson.toJson(templateList));
     }
 
@@ -486,6 +547,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         return schemaList;
+    }
+
+    @Override
+    public List<CCODThreePartAppPo> getThreePartAppDepend(String ccodVersion, String tag){
+        logger.debug(String.format("begin to query depend of ccodVersion=%s and tag=%s", ccodVersion, tag));
+        List<CCODThreePartAppPo> list = ccodThreePartAppMapper.select(ccodVersion, tag, null);
+        Assert.isTrue(list.size() > 0, String.format("can not find three part app depend for ccodVersion=%s and tag=%s", ccodVersion, tag));
+        logger.info(String.format("ccodVersion=%s and tag=%s three part app depend is %s", ccodVersion, tag, gson.toJson(list)));
+        return list;
     }
 
     @Override
@@ -1915,7 +1985,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 this.paasService.syncClientCollectResultToPaas(platformPo.getBkBizId(), platformPo.getPlatformId(), platformPo.getBkCloudId());
             }
             catch (Exception ex) {
-                logger.error(String.format("schema execute fail : %s", ex.getMessage()));
+                logger.error(String.format("schema execute fail"), ex);
                 logger.debug(String.format("status of platform %s has been restored to %s", platformId, status.name));
                 platformPo.setStatus(platformStatus);
                 platformMapper.update(platformPo);
@@ -1961,9 +2031,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             if(hasUCDS && glsOpts == null){
                 throw new ParamException(String.format("new platform %s has not glsServer", platformId));
             }
+            List<CCODThreePartAppPo> threePartApps = ccodThreePartAppMapper.select(schema.getCcodVersion(), null, null);
             String nfsServerIp = StringUtils.isBlank(schema.getNfsServerIp()) ? schema.getK8sHostIp() : schema.getNfsServerIp();
+            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
+                    null, null, threePartApps, nfsServerIp, String.format("base-%s", platformPo.getPlatformId()), platformPo);
+            steps.addAll(baseCreateSteps);
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
-                    null, null, schema.getThreePartApps(), schema.getThreePartServices(), nfsServerIp, platformPo);
+                    null, null, threePartApps, schema.getThreePartServices(), nfsServerIp, platformPo);
             steps.addAll(platformCreateSteps);
         }
         else {
@@ -2201,7 +2275,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         debugLogsMap.put(task.getDebugTag(), task.getExecResults());
         boolean success = false;
         for(K8sOperationInfo step : steps){
-            K8sOperationPo execResult = callK8sApi(step, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+            K8sOperationPo execResult = callK8sApi(step, platform.getK8sApiUrl(), platform.getK8sAuthToken());
             boolean changed = false;
             execResults.add(execResult);
             if(step.getKind().equals(K8sKind.DEPLOYMENT) && step.getOperation().equals(K8sOperation.CREATE)){
@@ -3500,9 +3574,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return saveDir;
     }
 
-    private K8sOperationPo callK8sApi(K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException
+    private K8sOperationPo callK8sApi(K8sOperationInfo optInfo, String k8sApiUrl, String k8sAuthToken) throws ApiException
     {
         Object retVal = null;
+        String platformId = optInfo.getPlatformId();
         K8sOperationPo execResult = new K8sOperationPo(optInfo.getJobId(), platformId, optInfo.getDomainId(), optInfo.getKind(),
                 optInfo.getName(), optInfo.getOperation(), gson.toJson(optInfo.getObj()));
         try
@@ -3642,9 +3717,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResult;
     }
 
-    private K8sOperationPo execK8sOpt(List<K8sOperationPo> execResults, K8sOperationInfo optInfo, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException
+    private K8sOperationPo execK8sOpt(List<K8sOperationPo> execResults, K8sOperationInfo optInfo, String k8sApiUrl, String k8sAuthToken) throws ApiException, ParamException
     {
-        K8sOperationPo execResult = callK8sApi(optInfo, platformId, k8sApiUrl, k8sAuthToken);
+        K8sOperationPo execResult = callK8sApi(optInfo, k8sApiUrl, k8sAuthToken);
         execResults.add(execResult);
         if(execResult.isSuccess() && optInfo.getKind().equals(K8sKind.DEPLOYMENT) && optInfo.getTimeout() > 0){
             int timeUsage = 0;
@@ -3658,7 +3733,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     logger.error("sleep exception", ex);
                 }
                 logger.debug(String.format("wait deployment %s status to ACTIVE, timeUsage=%d", optInfo.getName(), (timeUsage+3)));
-                K8sStatus status = this.k8sApiService.readNamespacedDeploymentStatus(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                K8sStatus status = this.k8sApiService.readNamespacedDeploymentStatus(optInfo.getName(), optInfo.getPlatformId(), k8sApiUrl, k8sAuthToken);
                 if(status.equals(K8sStatus.ACTIVE))
                 {
                     logger.debug(String.format("deployment %s status change to ACTIVE in %d seconds", optInfo.getName(), timeUsage));
@@ -3727,10 +3802,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String glsDBService = (String)params.get(PlatformBase.glsDBServiceKey);
         for(K8sOperationInfo k8sOpt : k8sOptList)
         {
-            K8sOperationPo ret = execK8sOpt(execResults, k8sOpt, platformId, k8sApiUrl, k8sAuthToken);
+            K8sOperationPo ret = execK8sOpt(execResults, k8sOpt, k8sApiUrl, k8sAuthToken);
             try
             {
-                if(k8sOpt.getKind().equals(K8sKind.SERVICE) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
+                if(k8sOpt.getKind().equals(K8sKind.DEPLOYMENT) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
                 {
                     V1Service service = gson.fromJson(ret.getRetJson(), V1Service.class);
                     Map<String, String> labels = service.getMetadata().getLabels();
@@ -3903,6 +3978,50 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return zipFilePath;
     }
 
+    private void generateYamlForDeploy(List<K8sOperationInfo> steps, String name, String basePath, Map<String, Object> deployParams) throws IOException{
+        StringBuffer sb = new StringBuffer();
+        List<Map<String, Object>> execList = new ArrayList<>();
+        for(K8sOperationInfo step : steps){
+//            if(step.getKind().equals(K8sKind.JOB))
+//                continue;
+            if(step.getKind().equals(K8sKind.JOB))
+                step.setTimeout(20);
+            StringBuffer content = new StringBuffer();
+            String alias = step.getName().split("-")[0];
+            String domainId = step.getDomainId();
+            String saveDir = domainId == null ? basePath : String.format("%s/%s/%s", basePath, domainId, alias);
+            String fileName = String.format("%s-%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase(), step.getOperation().name.toLowerCase());
+            String tag = String.format("# create %s", step.getKind().name.toLowerCase());
+            content.append(tag).append("\n---\n").append(Yaml.dump(step.getObj())).append("\n\n");
+            FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
+            sb.append(content.toString());
+            Map<String, Object> param = new HashMap<>();
+            param.put("timeout", step.getTimeout());
+            param.put("filePath", domainId == null ? fileName : String.format("%s/%s/%s", domainId, alias, fileName));
+            execList.add(param);
+        }
+        Set<String> images = deployParams.containsKey("images") ? new HashSet<>((List<String>)deployParams.get("images")) : new HashSet<>();
+        steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT)).forEach(s->{
+            V1Deployment deploy = (V1Deployment)s.getObj();
+            if(deploy.getSpec().getTemplate().getSpec().getInitContainers() != null)
+                deploy.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->{
+                    images.add(c.getImage());
+                });
+            if(deploy.getSpec().getTemplate().getSpec().getContainers() != null)
+                deploy.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
+                    images.add(c.getImage());
+                });
+        });
+        steps.stream().filter(s->s.getKind().equals(K8sKind.JOB)).forEach(s->{
+            V1Job job = (V1Job)s.getObj();
+            if(job.getSpec().getTemplate().getSpec().getContainers() != null)
+                job.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
+                    images.add(c.getImage());
+                });
+        });
+        deployParams.put(String.format("%s-steps", name), steps);
+    }
+
     @Override
     public PlatformUpdateRecordVo rollbackPlatform(String platformId, List<String> domainIds) throws ParamException, ApiException {
         logger.debug(String.format("rollback domain %s of %s to previous status", platformId, String.join(",", domainIds)));
@@ -3991,7 +4110,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             for(K8sOperationInfo optInfo : optList)
             {
-                K8sOperationPo execResult = execK8sOpt(this.platformDeployLogs, optInfo, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+                K8sOperationPo execResult = execK8sOpt(this.platformDeployLogs, optInfo, platform.getK8sApiUrl(), platform.getK8sAuthToken());
                 rollbackResults.add(execResult);
                 if(!execResult.isSuccess()) {
                     logger.error(String.format("rollback step exec fail : %s", gson.toJson(execResult)));

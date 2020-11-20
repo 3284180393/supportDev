@@ -15,6 +15,10 @@ public class PlatformThreePartAppPo {
 
     private String appName;
 
+    private String alias;
+
+    private String version;
+
     private int replicas; //运行副本数目
 
     private int availableReplicas; //可用副本数目
@@ -88,4 +92,6 @@ public class PlatformThreePartAppPo {
     public void setAvailableReplicas(int availableReplicas) {
         this.availableReplicas = availableReplicas;
     }
+
+
 }

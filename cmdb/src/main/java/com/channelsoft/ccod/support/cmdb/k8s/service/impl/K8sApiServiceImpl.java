@@ -917,6 +917,10 @@ public class K8sApiServiceImpl implements IK8sApiService {
     {
         try
         {
+            String fileName = "hahaha.tar.gz";
+            System.out.println(fileName.split("\\.")[0]);
+            fileName = "hahaha.tar";
+            System.out.println(fileName.split("\\.")[0]);
             String path = "/root/Platform/bin";
             String logPath = path.replaceAll("/[^/]+$", "/logs");
             System.out.println(logPath);

@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.k8s.vo;
 
 import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
 import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1Endpoints;
 import io.kubernetes.client.openapi.models.V1Service;
 
 import java.util.List;
@@ -21,20 +22,20 @@ public class K8sThreePartAppVo {
 
     private String version; //版本
 
-    private V1Deployment deploy; //关联k8s的deployment
+    private List<V1Deployment> deploys; //关联k8s的deployment
 
     private List<V1Service> services; //关联k8s的一组服务
 
-    private List<ExtensionsV1beta1Ingress> ingresses; //如果有关联的ingress，关联的ingress
+    private List<V1Endpoints> endpoints; //引用的外部服务
 
-    public K8sThreePartAppVo(String appName, String alias, String version, V1Deployment deploy, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses)
+    public K8sThreePartAppVo(String appName, String alias, String version, List<V1Deployment> deploys, List<V1Service> services, List<V1Endpoints> endpoints)
     {
         this.appName = appName;
         this.alias = alias;
         this.version = version;
-        this.deploy = deploy;
+        this.deploys = deploys;
         this.services = services;
-        this.ingresses = ingresses;
+        this.endpoints = endpoints;
     }
 
     public String getAppName() {
@@ -61,12 +62,12 @@ public class K8sThreePartAppVo {
         this.version = version;
     }
 
-    public V1Deployment getDeploy() {
-        return deploy;
+    public List<V1Deployment> getDeploys() {
+        return deploys;
     }
 
-    public void setDeploy(V1Deployment deploy) {
-        this.deploy = deploy;
+    public void setDeploys(List<V1Deployment> deploys) {
+        this.deploys = deploys;
     }
 
     public List<V1Service> getServices() {
@@ -77,11 +78,11 @@ public class K8sThreePartAppVo {
         this.services = services;
     }
 
-    public List<ExtensionsV1beta1Ingress> getIngresses() {
-        return ingresses;
+    public List<V1Endpoints> getEndpoints() {
+        return endpoints;
     }
 
-    public void setIngresses(List<ExtensionsV1beta1Ingress> ingresses) {
-        this.ingresses = ingresses;
+    public void setEndpoints(List<V1Endpoints> endpoints) {
+        this.endpoints = endpoints;
     }
 }
