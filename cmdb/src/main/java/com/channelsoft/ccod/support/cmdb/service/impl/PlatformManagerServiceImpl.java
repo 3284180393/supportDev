@@ -2039,6 +2039,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
                     null, null, threePartApps, schema.getThreePartServices(), nfsServerIp, platformPo);
             steps.addAll(platformCreateSteps);
+            generateYamlForDeploy(schema, steps);
         }
         else {
             if(deployedGlsList != null && glsOpts != null && glsOpts.get(0).getOperation().equals(AppUpdateOperation.ADD)){
@@ -3761,6 +3762,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
         PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(jobId, platformId, k8sOptList);
         execK8sDeploySteps(platformPo, k8sOptList, execResults);
+        boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) || schema.getTaskType().equals(PlatformUpdateTaskType.RESTORE) ? true : false;
+        if(isNewPlatform){
+            String workDir = String.format("/home/kubernetes/volume/%s/base-volume", platformPo.getPlatformId());
+            String rep = StringUtils.isNotBlank(platformPo.getBaseDataNexusRepository()) ? platformPo.getBaseDataNexusRepository() : (String)platformPo.getParams().get(PlatformBase.baseDataNexusRepositoryKey);
+            String path = StringUtils.isNotBlank(platformPo.getBaseDataNexusPath()) ? platformPo.getBaseDataNexusPath() : (String)platformPo.getParams().get(PlatformBase.baseDataNexusPathKey);
+            StringBuffer command = new StringBuffer();
+            command.append(String.format("rm -rf %s;mkdir %s -p;cd %s;", workDir, workDir, workDir));
+            command.append(String.format("wget http://%s/repository/%s/%s;", nexusHostUrl, rep, path));
+            command.append(String.format("tar -xvzf %s", path.replaceAll(".*/", "")));
+            logger.debug(String.format("init command=%s", command.toString()));
+            System.out.println(command.toString());
+        }
         boolean execSucc = execResults.get(execResults.size() - 1).isSuccess();
         logger.info(String.format("%s schema with jobId=%s execute : %b", platformId, jobId, execSucc));
         if(execSucc)
@@ -3794,7 +3807,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private void execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults) throws ApiException, ParamException
     {
-        String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
         Map<String, Object> params = platform.getParams();
@@ -3805,17 +3817,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             K8sOperationPo ret = execK8sOpt(execResults, k8sOpt, k8sApiUrl, k8sAuthToken);
             try
             {
+                String platformId = k8sOpt.getPlatformId();
                 if(k8sOpt.getKind().equals(K8sKind.DEPLOYMENT) && k8sOpt.getOperation().equals(K8sOperation.CREATE))
                 {
-                    V1Service service = gson.fromJson(ret.getRetJson(), V1Service.class);
-                    Map<String, String> labels = service.getMetadata().getLabels();
+                    V1Deployment deploy = gson.fromJson(ret.getRetJson(), V1Deployment.class);
+                    Map<String, String> labels = deploy.getMetadata().getLabels();
                     if(labels == null || labels.size() == 0 || !labels.containsKey(this.serviceTypeLabel) || !labels.containsKey(this.appNameLabel))
                         continue;
                     if(labels.get(this.serviceTypeLabel).equals(K8sServiceType.THREE_PART_APP.name))
                     {
                         if(k8sOpt.getName().equals(glsDBService))
                         {
-                            V1Service dbSvc = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            V1Service dbSvc = this.k8sApiService.readNamespacedService(deploy.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
                             int dbPort = getNodePortFromK8sService(dbSvc);
                             boolean isConn = databaseConnectTest(glsDBType, (String)params.get(PlatformBase.glsDBUserKey), (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey), dbPort, (String)params.get(PlatformBase.glsDBSidKey), 240);
                             if(!isConn)
@@ -3828,7 +3841,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         Connection connect = createDBConnection(DatabaseType.getEnum((String)platform.getParams().get(PlatformBase.glsDBTypeKey)), (String)params.get(PlatformBase.glsDBUserKey),
                                 (String)params.get(PlatformBase.glsDBPwdKey), (String)params.get(PlatformBase.k8sHostIpKey),
                                 (int)params.get(PlatformBase.dbPortKey), (String)params.get(PlatformBase.glsDBSidKey));
-                        V1Service ucdsOutService = this.k8sApiService.readNamespacedService(service.getMetadata().getName(), platformId, k8sApiUrl, k8sAuthToken);
+                        V1Service ucdsOutService = this.k8sApiService.readNamespacedService(String.format("%s-out", deploy.getMetadata().getName()), platformId, k8sApiUrl, k8sAuthToken);
                         int ucdsPort = getNodePortFromK8sService(ucdsOutService);
                         String updateSql = String.format("update \"CCOD\".\"GLS_SERVICE_UNIT\" set PARAM_UCDS_PORT=%d where NAME='ucds-cloud01'", ucdsPort);
                         PreparedStatement ps = connect.prepareStatement(updateSql);

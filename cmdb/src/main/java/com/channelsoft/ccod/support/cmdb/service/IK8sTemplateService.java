@@ -79,11 +79,11 @@ public interface IK8sTemplateService {
     /**
      * 为指定平台生成缺省pv
      * @param platform 平台信息
-     * @param nfsServerIp nfs的server ip
+     * @param isBase 该pv是用于platform.platformId还是base-platform.platformId
      * @return 生成的pv
      * @throws ParamException
      */
-    V1PersistentVolume generatePersistentVolume(PlatformPo platform, String nfsServerIp) throws ParamException;
+    V1PersistentVolume generatePersistentVolume(PlatformPo platform, boolean isBase) throws ParamException;
 
     /**
      * 生成指定的平台pvc

@@ -936,13 +936,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1PersistentVolume generatePersistentVolume(PlatformPo platform, String nfsServerIp) throws ParamException {
+    public V1PersistentVolume generatePersistentVolume(PlatformPo platform, boolean isBase) throws ParamException {
         String platformId = platform.getPlatformId();
         String ccodVersion = platform.getCcodVersion();
+        String nfsServerIp = StringUtils.isBlank(platform.getNfsServerIp()) ? (String)platform.getParams().get(PlatformBase.nfsServerIpKey) : platform.getNfsServerIp();
         V1PersistentVolume pv = (V1PersistentVolume)selectK8sObjectTemplate(ccodVersion, null, null, null, K8sKind.PV);
         String name = String.format("base-volume-%s", platformId);
         pv.getMetadata().setName(name);
-        pv.getSpec().getClaimRef().setNamespace(platformId);
+        pv.getSpec().getClaimRef().setNamespace(isBase ? String.format("base-%s", platformId) : platformId);
         pv.getSpec().getClaimRef().setName(name);
         pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s", platform.getPlatformId()));
         pv.getSpec().getNfs().setServer(nfsServerIp);
@@ -1013,8 +1014,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String fileName = baseDataNexusPath.replaceAll("^.*/", "");
         job.getMetadata().setNamespace(platformId);
         String workDir = String.format("/root/data/base-volume");
-        String arg = String.format("cd %s;wget %s/repository/%s/%s;tar -xvzf %s",
-                workDir, nexusHostUrl, platformBaseDataRepository, baseDataNexusPath, fileName);
+        String arg = String.format("mkdir %s -p;cd %s;wget %s/repository/%s/%s;tar -xvzf %s",
+                workDir, workDir, nexusHostUrl, platformBaseDataRepository, baseDataNexusPath, fileName);
         job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(arg));
         job.getSpec().getTemplate().getSpec().getVolumes().stream().collect(Collectors.toMap(V1Volume::getName, Function.identity()))
                 .get("data").getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platformId));
@@ -1425,11 +1426,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             steps.add(step);
         }
         if(pv == null)
-            pv = generatePersistentVolume(platform, nfsServerIp);
+            pv = generatePersistentVolume(platform, true);
         step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PV, pv.getMetadata().getName(), K8sOperation.CREATE, pv);
         steps.add(step);
         if(pvc == null)
-            pvc = generatePersistentVolumeClaim(platform, false);
+            pvc = generatePersistentVolumeClaim(platform, true);
         step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pvc);
         steps.add(step);
         job = job == null ? generatePlatformInitJob(platform, true) : job;
@@ -1491,8 +1492,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             s.getMetadata().setNamespace(platformId);
             if(services.size() == 1)
                 s.getMetadata().setName(threePartAppPo.getAlias());
-            s.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
-            s.getSpec().getSelector().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
+            Map<String, String> selector = new HashMap<>();
+            selector.put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
+            s.getSpec().setSelector(selector);
         });
         List<V1Deployment> deployments = generateThreeAppDeployment(threePartAppPo, platform, isBase);
         List<V1Endpoints> endpoints = (List<V1Endpoints>)selectK8sObjectTemplate(threePartAppPo.getCcodVersion(), AppType.THREE_PART_APP, threePartAppPo.getAppName(), threePartAppPo.getVersion(), threePartAppPo.getParams(), K8sKind.ENDPOINTS);
