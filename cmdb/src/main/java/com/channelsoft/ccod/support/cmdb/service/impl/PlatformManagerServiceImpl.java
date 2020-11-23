@@ -323,10 +323,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn(String.format("begin to exec %s", command));
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
-//            updateK8sTemplate();
-            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-            logger.error(gson.toJson(schema));
-            updatePlatformUpdateSchema(schema);
+            updateK8sTemplate();
+//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+//            logger.error(gson.toJson(schema));
+//            updatePlatformUpdateSchema(schema);
 //            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
 //            paramVo.setParams("pahjgs");
 //            paramVo.setNfsServerIp("10.130.41.218");
@@ -337,6 +337,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            String zipFilePath = generatePlatformCreateScript(paramVo);
 //            logger.debug(String.format("generate script saved to %s", zipFilePath));
 //            initThreePartAppDepend();
+            updateThreePartApp();
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -374,30 +375,55 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        appDebugDetailMapper.delete("test", "domain01", "cmsserver", "cms01");
     }
 
-    private void initThreePartAppDepend()
-    {
-        List<CCODThreePartAppPo> list = new ArrayList<>();
-        CCODThreePartAppPo appPo = new CCODThreePartAppPo("3.9", null, "mysql", "mysql");
-        list.add(appPo);
-        appPo = new CCODThreePartAppPo("3.9", null, "oracle", "oracle");
-        list.add(appPo);
-        appPo = new CCODThreePartAppPo("4.1", null, "mysql", "mysql");
-        list.add(appPo);
-        appPo = new CCODThreePartAppPo("4.1", null, "oracle", "oracle");
-        list.add(appPo);
-        appPo = new CCODThreePartAppPo("4.8", null, "mysql", "mysql");
-        list.add(appPo);
-        appPo = new CCODThreePartAppPo("4.8", null, "wgw", "wgw");
-        list.add(appPo);
-        appPo = new CCODThreePartAppPo("4.8", null, "sgw", "sgw");
-        list.add(appPo);
-//        list.forEach(a->ccodThreePartAppMapper.insert(a));
-        List<CCODThreePartAppPo> results = ccodThreePartAppMapper.select("3.9", "standard", null);
-        System.out.println(gson.toJson(results));
-        results = ccodThreePartAppMapper.select("4.1", "standard", null);
-        System.out.println(gson.toJson(results));
-        results = ccodThreePartAppMapper.select("4.8", "standard", null);
-        System.out.println(gson.toJson(results));
+//    private void initThreePartAppDepend()
+//    {
+//        List<CCODThreePartAppPo> list = new ArrayList<>();
+//        CCODThreePartAppPo appPo = new CCODThreePartAppPo("3.9", null, "mysql", "mysql");
+//        list.add(appPo);
+//        appPo = new CCODThreePartAppPo("3.9", null, "oracle", "oracle");
+//        list.add(appPo);
+//        appPo = new CCODThreePartAppPo("4.1", null, "mysql", "mysql");
+//        list.add(appPo);
+//        appPo = new CCODThreePartAppPo("4.1", null, "oracle", "oracle");
+//        list.add(appPo);
+//        appPo = new CCODThreePartAppPo("4.8", null, "mysql", "mysql");
+//        list.add(appPo);
+//        appPo = new CCODThreePartAppPo("4.8", null, "wgw", "wgw");
+//        list.add(appPo);
+//        appPo = new CCODThreePartAppPo("4.8", null, "sgw", "sgw");
+//        list.add(appPo);
+////        list.forEach(a->ccodThreePartAppMapper.insert(a));
+//        List<CCODThreePartAppPo> results = ccodThreePartAppMapper.select("3.9", "standard", null);
+//        System.out.println(gson.toJson(results));
+//        results = ccodThreePartAppMapper.select("4.1", "standard", null);
+//        System.out.println(gson.toJson(results));
+//        results = ccodThreePartAppMapper.select("4.8", "standard", null);
+//        System.out.println(gson.toJson(results));
+//    }
+
+    private void updateThreePartApp(){
+//        List<String> versions = Arrays.asList(new String[]{"3.9", "4.1", "4.8"});
+//        List<String> names = Arrays.asList(new String[]{"umg41", "umg141", "umg147"});
+//        List<String> ips = Arrays.asList(new String[]{"10.130.41.41", "10.130.41.141", "10.130.41.147"});
+//        for(String ccodVersion : versions){
+//            for(int i = 0; i <= 2; i++){
+//                CCODThreePartAppPo appPo = new CCODThreePartAppPo();
+//                appPo.setAlias(names.get(i));
+//                appPo.setAppName("umg");
+//                appPo.setCcodVersion(ccodVersion);
+//                appPo.setParams(new HashMap<>());
+//                appPo.setTimeout(20);
+//                Map<String, String> cfgs = new HashMap<>();
+//                cfgs.put("ip", ips.get(i));
+//                cfgs.put("protocol", "TCP");
+//                appPo.setCfgs(cfgs);
+//                appPo.setKind(K8sKind.ENDPOINTS);
+//                appPo.setTag("standard");
+//                ccodThreePartAppMapper.insert(appPo);
+//            }
+//        }
+//        List<CCODThreePartAppPo> list = ccodThreePartAppMapper.select(null, null, null);
+
     }
 
     private void updateK8sTemplate() throws Exception{
@@ -526,12 +552,31 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //                else
 //                    t.setEndpointsJson(gson.toJson(new ArrayList<>()));
 //        });
-        templateList.forEach(t->{
-            if(t.getIngressJson() != null){
-                List<ExtensionsV1beta1Ingress> ingresses = gson.fromJson(t.getIngressJson(), new TypeToken<List<ExtensionsV1beta1Ingress>>() {}.getType());
-                t.setIngressJson(gson.toJson(ingresses.get(0)));
-            }
-        });
+//        templateList.forEach(t->{
+//            if(t.getIngressJson() != null){
+//                List<ExtensionsV1beta1Ingress> ingresses = gson.fromJson(t.getIngressJson(), new TypeToken<List<ExtensionsV1beta1Ingress>>() {}.getType());
+//                t.setIngressJson(gson.toJson(ingresses.get(0)));
+//            }
+//        });
+//        String json = "{\"metadata\":{\"name\":\"umg141\",\"namespace\":\"k8s-test\"},\"subsets\":[{\"addresses\":[{\"ip\":\"10.130.41.141\"}],\"ports\":[{\"port\":12000,\"protocol\":\"TCP\"}]}]}";
+//        K8sObjectTemplatePo po = gson.fromJson(gson.toJson(templateList.get(1)), K8sObjectTemplatePo.class);
+//        po.getLabels().put(appNameLabel, "umg");
+//        po.setDeployJson(gson.toJson(new ArrayList<>()));
+//        po.setServiceJson(gson.toJson(new ArrayList<>()));
+//        po.setEndpointsJson(json);
+//        templateList.add(po);
+//        po = gson.fromJson(gson.toJson(templateList.get(7)), K8sObjectTemplatePo.class);
+//        po.getLabels().put(appNameLabel, "umg");
+//        po.setDeployJson(gson.toJson(new ArrayList<>()));
+//        po.setServiceJson(gson.toJson(new ArrayList<>()));
+//        po.setEndpointsJson(json);
+//        templateList.add(po);
+//        po = gson.fromJson(gson.toJson(templateList.get(13)), K8sObjectTemplatePo.class);
+//        po.getLabels().put(appNameLabel, "umg");
+//        po.setDeployJson(gson.toJson(new ArrayList<>()));
+//        po.setServiceJson(gson.toJson(new ArrayList<>()));
+//        po.setEndpointsJson(json);
+//        templateList.add(po);
         logger.error(gson.toJson(templateList));
     }
 
@@ -3754,26 +3799,30 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResult;
     }
 
-    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps) throws ParamException, ApiException
+    private PlatformSchemaExecResultVo execPlatformUpdateSteps(PlatformPo platformPo, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults, PlatformUpdateSchemaInfo schema, List<PlatformAppDeployDetailVo> platformApps) throws ParamException, ApiException, IOException
     {
         String jobId = schema.getSchemaId();
         Date startTime = new Date();
         String platformId = platformPo.getPlatformId();
         List<PlatformUpdateRecordPo> lastRecords = this.platformUpdateRecordMapper.select(platformId, true);
-        PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(jobId, platformId, k8sOptList);
-        execK8sDeploySteps(platformPo, k8sOptList, execResults);
         boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) || schema.getTaskType().equals(PlatformUpdateTaskType.RESTORE) ? true : false;
         if(isNewPlatform){
-            String workDir = String.format("/home/kubernetes/volume/%s/base-volume", platformPo.getPlatformId());
-            String rep = StringUtils.isNotBlank(platformPo.getBaseDataNexusRepository()) ? platformPo.getBaseDataNexusRepository() : (String)platformPo.getParams().get(PlatformBase.baseDataNexusRepositoryKey);
-            String path = StringUtils.isNotBlank(platformPo.getBaseDataNexusPath()) ? platformPo.getBaseDataNexusPath() : (String)platformPo.getParams().get(PlatformBase.baseDataNexusPathKey);
-            StringBuffer command = new StringBuffer();
-            command.append(String.format("rm -rf %s;mkdir %s -p;cd %s;", workDir, workDir, workDir));
-            command.append(String.format("wget http://%s/repository/%s/%s;", nexusHostUrl, rep, path));
-            command.append(String.format("tar -xvzf %s", path.replaceAll(".*/", "")));
-            logger.debug(String.format("init command=%s", command.toString()));
-            System.out.println(command.toString());
+//            String workDir = String.format("/home/kubernetes/volume/%s/base-volume", platformPo.getPlatformId());
+//            String rep = StringUtils.isNotBlank(platformPo.getBaseDataNexusRepository()) ? platformPo.getBaseDataNexusRepository() : (String)platformPo.getParams().get(PlatformBase.baseDataNexusRepositoryKey);
+//            String path = StringUtils.isNotBlank(platformPo.getBaseDataNexusPath()) ? platformPo.getBaseDataNexusPath() : (String)platformPo.getParams().get(PlatformBase.baseDataNexusPathKey);
+//            StringBuffer command = new StringBuffer();
+//            command.append(String.format("rm -rf %s;mkdir %s -p;cd %s;", workDir, workDir, workDir));
+//            command.append(String.format("wget %s/repository/%s/%s;", nexusHostUrl, rep, path));
+//            command.append(String.format("tar -xvzf %s", path.replaceAll(".*/", "")));
+//            logger.debug(String.format("init command=%s", command.toString()));
+//            System.out.println(command.toString());
+//            Runtime runtime = Runtime.getRuntime();
+//            logger.debug(String.format("begin to exec %s", command));
+//            runtime.exec(command.toString());
+//            logger.debug("exec command success");
         }
+        PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(jobId, platformId, k8sOptList);
+        execK8sDeploySteps(platformPo, k8sOptList, execResults);
         boolean execSucc = execResults.get(execResults.size() - 1).isSuccess();
         logger.info(String.format("%s schema with jobId=%s execute : %b", platformId, jobId, execSucc));
         if(execSucc)

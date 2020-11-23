@@ -7,9 +7,13 @@
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="tag" property="tag" jdbcType="VARCHAR" />
         <result column="app_name" property="appName" jdbcType="VARCHAR" />
+        <result column="alias" property="alias" jdbcType="VARCHAR" />
+        <result column="version" property="version" jdbcType="VARCHAR" />
         <result column="params" property="params" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
+        <result column="cfgs" property="cfgs" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
         <result column="volume" property="volume" jdbcType="VARCHAR" />
         <result column="mount_sub_path" property="mountSubPath" jdbcType="VARCHAR" />
+        <result column="timeout" property="timeout" jdbcType="INTEGER" />
     </resultMap>
     <sql id="Base_Column_List" >
         id,
@@ -17,9 +21,13 @@
         tag,
         app_name,
         alias,
+        version,
+        kind,
         params,
+        cfgs,
         volume,
-        mount_sub_path
+        mount_sub_path,
+        timeout
     </sql>
     <select id="select" resultMap="CCODThreePartAppMap" >
         select
@@ -42,17 +50,25 @@
             tag,
             app_name,
             alias,
+            version,
+            kind,
             params,
+            cfgs,
             volume,
-            mount_sub_path)
+            mount_sub_path,
+            timeout)
         values (
             #{ccodVersion,jdbcType=VARCHAR},
             #{tag,jdbcType=VARCHAR},
             #{appName,jdbcType=VARCHAR},
             #{alias,jdbcType=VARCHAR},
+            #{version,jdbcType=VARCHAR},
+            #{kind,jdbcType=VARCHAR},
             #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
+            #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
             #{volume,jdbcType=VARCHAR},
-            #{mountSubPath,jdbcType=VARCHAR})
+            #{mountSubPath,jdbcType=VARCHAR},
+            #{timeout,jdbcType=INTEGER})
     </insert>
     <delete id="delete" parameterType="java.lang.String">
         delete

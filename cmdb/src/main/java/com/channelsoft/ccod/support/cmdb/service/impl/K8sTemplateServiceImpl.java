@@ -1451,7 +1451,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             K8sThreePartAppVo vo = generateK8sThreePartApp(platform, threePartAppPo, true);
             vo.getEndpoints().forEach(e->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.ENDPOINTS, e.getMetadata().getName(), K8sOperation.CREATE, e)));
             vo.getServices().forEach(s->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.SERVICE, s.getMetadata().getName(), K8sOperation.CREATE, s)));
-            vo.getDeploys().forEach(d->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.DEPLOYMENT, d.getMetadata().getName(), K8sOperation.CREATE, d)));
+            vo.getDeploys().forEach(d->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.DEPLOYMENT, d.getMetadata().getName(), K8sOperation.CREATE, d, threePartAppPo.getTimeout())));
         }
         return steps;
     }
@@ -1500,8 +1500,17 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<V1Endpoints> endpoints = (List<V1Endpoints>)selectK8sObjectTemplate(threePartAppPo.getCcodVersion(), AppType.THREE_PART_APP, threePartAppPo.getAppName(), threePartAppPo.getVersion(), threePartAppPo.getParams(), K8sKind.ENDPOINTS);
         endpoints.forEach(e->{
             e.getMetadata().setNamespace(platform.getPlatformId());
-            if(endpoints.size() == 1)
-                e.getMetadata().setName(threePartAppPo.getAlias());
+            e.getMetadata().setName(threePartAppPo.getAlias());
+            e.setKind("Endpoints");
+            e.setApiVersion("v1");
+            List<V1EndpointAddress> addresses = new ArrayList<>();
+            List<String> ips = gson.fromJson(threePartAppPo.getCfgs().get("ipList"), new TypeToken<List<String>>() {}.getType());
+            for(String ip : ips){
+                V1EndpointAddress address = gson.fromJson(gson.toJson(e.getSubsets().get(0).getAddresses().get(0)), V1EndpointAddress.class);
+                address.setIp(ip);
+                addresses.add(address);
+            }
+            e.getSubsets().get(0).setAddresses(addresses);
         });
         K8sThreePartAppVo appVo = new K8sThreePartAppVo(threePartAppPo.getAppName(), threePartAppPo.getAlias(), threePartAppPo.getVersion(), deployments, services, endpoints);
         return appVo;

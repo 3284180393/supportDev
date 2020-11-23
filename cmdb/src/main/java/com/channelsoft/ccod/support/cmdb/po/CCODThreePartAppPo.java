@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import org.apache.commons.lang3.StringUtils;
 import java.util.Map;
 
@@ -24,11 +25,17 @@ public class CCODThreePartAppPo {
 
     private String version; //应用版本
 
+    private K8sKind kind;  //提供服务方式，目前只支持POD和ENDPOINTS，POD：通过本地pod提供服务,ENDPOINTS通过endpoints提供服务
+
     private Map<String, String> params; //特定参数
 
     private String volume; //数据卷名
 
     private String mountSubPath; //挂载子目录
+
+    private int timeout;  //deployment启动超时时长
+
+    private Map<String, String> cfgs; //相关配置
 
     public CCODThreePartAppPo()
     {}
@@ -111,5 +118,29 @@ public class CCODThreePartAppPo {
 
     public void setMountSubPath(String mountSubPath) {
         this.mountSubPath = mountSubPath;
+    }
+
+    public int getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(int timeout) {
+        this.timeout = timeout;
+    }
+
+    public Map<String, String> getCfgs() {
+        return cfgs;
+    }
+
+    public void setCfgs(Map<String, String> cfgs) {
+        this.cfgs = cfgs;
+    }
+
+    public K8sKind getKind() {
+        return kind;
+    }
+
+    public void setKind(K8sKind kind) {
+        this.kind = kind;
     }
 }

@@ -42,6 +42,19 @@ public class K8sOperationInfo {
         this.name = name;
         this.operation = operation;
         this.obj = obj;
+        this.timeout = 0;
+    }
+
+    public K8sOperationInfo(String jobId, String platformId, String domainId, K8sKind kind, String name, K8sOperation operation, Object obj, int timeout)
+    {
+        this.jobId = jobId;
+        this.platformId = platformId;
+        this.domainId = domainId;
+        this.kind = kind;
+        this.name = name;
+        this.operation = operation;
+        this.obj = obj;
+        this.timeout = timeout;
     }
 
     public K8sOperationInfo(K8sOperationPo operationPo){
