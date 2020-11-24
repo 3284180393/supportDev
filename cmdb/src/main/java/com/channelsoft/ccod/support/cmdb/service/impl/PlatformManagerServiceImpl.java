@@ -323,10 +323,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.warn(String.format("begin to exec %s", command));
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
-            updateK8sTemplate();
-//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-//            logger.error(gson.toJson(schema));
-//            updatePlatformUpdateSchema(schema);
+//            updateK8sTemplate();
+            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+            logger.error(gson.toJson(schema));
+            updatePlatformUpdateSchema(schema);
 //            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
 //            paramVo.setParams("pahjgs");
 //            paramVo.setNfsServerIp("10.130.41.218");
@@ -337,7 +337,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            String zipFilePath = generatePlatformCreateScript(paramVo);
 //            logger.debug(String.format("generate script saved to %s", zipFilePath));
 //            initThreePartAppDepend();
-            updateThreePartApp();
+//            updateThreePartApp();
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -577,6 +577,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        po.setServiceJson(gson.toJson(new ArrayList<>()));
 //        po.setEndpointsJson(json);
 //        templateList.add(po);
+        String json = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"job-id\":\"73a8e02621\",\"name\":\"umg41\",\"type\":\"THREE_PART_SERVICE\"},\"name\":\"umg41\",\"namespace\":\"test-by-wyf\"},\"spec\":{\"ports\":[{\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"type\":\"ClusterIP\"}}";
+        templateList.forEach(t->{
+            if(t.getLabels().containsKey(appNameLabel) && t.getLabels().get(appNameLabel).equals("umg")){
+//                V1Endpoints endpoints = gson.fromJson(t.getEndpointsJson(), V1Endpoints.class);
+//                t.setEndpointsJson(gson.toJson(Arrays.asList(endpoints)));
+                t.setServiceJson(gson.toJson(Arrays.asList(gson.fromJson(json, V1Service.class))));
+            }
+        });
         logger.error(gson.toJson(templateList));
     }
 

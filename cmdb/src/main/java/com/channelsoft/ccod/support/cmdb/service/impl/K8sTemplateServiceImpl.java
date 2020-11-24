@@ -1499,13 +1499,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<V1Deployment> deployments = generateThreeAppDeployment(threePartAppPo, platform, isBase);
         List<V1Endpoints> endpoints = (List<V1Endpoints>)selectK8sObjectTemplate(threePartAppPo.getCcodVersion(), AppType.THREE_PART_APP, threePartAppPo.getAppName(), threePartAppPo.getVersion(), threePartAppPo.getParams(), K8sKind.ENDPOINTS);
         endpoints.forEach(e->{
-            e.getMetadata().setNamespace(platform.getPlatformId());
+            e.getMetadata().setNamespace(platformId);
             e.getMetadata().setName(threePartAppPo.getAlias());
             e.setKind("Endpoints");
             e.setApiVersion("v1");
             List<V1EndpointAddress> addresses = new ArrayList<>();
-            List<String> ips = gson.fromJson(threePartAppPo.getCfgs().get("ipList"), new TypeToken<List<String>>() {}.getType());
-            for(String ip : ips){
+            for(String ip : threePartAppPo.getCfgs().get("ip").split(";")){
                 V1EndpointAddress address = gson.fromJson(gson.toJson(e.getSubsets().get(0).getAddresses().get(0)), V1EndpointAddress.class);
                 address.setIp(ip);
                 addresses.add(address);
