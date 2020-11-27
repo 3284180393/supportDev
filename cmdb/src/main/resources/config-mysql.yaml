@@ -1,0 +1,49 @@
+# 平台id，由小写字母，数字以及-组成，且开始和结尾只能是小写字母，且该id不能同k8s系统内其它命名空间冲突
+platform-id: countrybank
+# 执行脚本服务器ip
+host-ip: 10.130.41.218
+# 用来挂载数据盘的nfs ip
+nfs-ip: 10.130.41.218
+# 平台的访问域名
+host-name: countrybank.ccod.com
+image:
+  # 是否主动执行docker load来加载必须的镜像,yes为加载，no为不加载
+  load: no
+  # 如果需要主动加载镜像，所有镜像的存储路径
+  save-dir: /data/images
+depend-cloud:
+  # 是否创建依赖云，yes为创建，no为不创建
+  create: yes
+  # 依赖云的基础数据存储路径
+  base-data-dir: /tmp/lhb/baseData
+# 用来配置glsserver相关信息
+glsserver:
+  db:
+    # 数据库类型
+    type: MYSQL
+    # 数据库服务名
+    service:
+      value: mysql
+      key: glsserverDBServiceName
+    # 连接数据库名
+    name:
+      value: ucds
+      key: mysqlDB
+    # 数据库用户
+    user:
+      value: ucds
+      key: mysqlUser
+    # 用户密码
+    password:
+      value: ucds
+      key: mysqlpaaswd
+    # 数据库端口
+    port:
+      value: 3306
+      key: mysqlPort
+    # 域名
+    host:
+      value: mysql
+      key: mysqlHost
+
+

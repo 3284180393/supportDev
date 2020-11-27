@@ -222,6 +222,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${ccod.platform-deploy-template}")
     private String platformDeployScriptFileName;
 
+    @Value("${ccod.platform-deploy-cfg}")
+    private String platformDeployCfgFileName;
+
+    @Value("${ccod.platform-deploy-mysql-cfg}")
+    private String platformDeployMysqlCfgFileName;
+
     @Value("${nexus.image-repository}")
     private String imageRepository;
 
@@ -324,9 +330,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
 //            updateK8sTemplate();
-            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-            logger.error(gson.toJson(schema));
-            updatePlatformUpdateSchema(schema);
+//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+//            logger.error(gson.toJson(schema));
+//            updatePlatformUpdateSchema(schema);
 //            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
 //            paramVo.setParams("pahjgs");
 //            paramVo.setNfsServerIp("10.130.41.218");
@@ -689,9 +695,40 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return topology;
     }
 
-    private void copyDeployScript(String fileSaveDir) throws IOException
+//    private void copySourceFile(String sourceFileName, String fileSaveDir) throws IOException
+//    {
+//        Resource resource = new ClassPathResource(sourceFileName);
+//        InputStreamReader isr = new InputStreamReader(resource.getInputStream(), "UTF-8");
+//        BufferedReader br = new BufferedReader(isr);
+//        File saveDir = new File(fileSaveDir);
+//        if(!saveDir.exists())
+//        {
+//            saveDir.mkdirs();
+//        }
+//        String savePath = String.format("%s/%s", fileSaveDir, sourceFileName);
+//        savePath = savePath.replaceAll("\\\\", "/");
+//        File scriptFile = new File(savePath);
+//        scriptFile.createNewFile();
+//        BufferedWriter out = new BufferedWriter(new FileWriter(scriptFile));
+//        String lineTxt = null;
+//        while ((lineTxt = br.readLine()) != null)
+//        {
+//            out.write(lineTxt + "\n");
+//        }
+//        br.close();
+//        out.close();
+//    }
+
+    /**
+     * 将source下指定文件拷贝到指定目目录
+     * @param sourceFileName 需要被拷贝的source下指定文件
+     * @param fileSaveDir 指定目录
+     * @param fileName 拷贝后的文件名
+     * @throws IOException
+     */
+    private void copySourceFile(String sourceFileName, String fileSaveDir, String fileName) throws IOException
     {
-        Resource resource = new ClassPathResource(this.platformDeployScriptFileName);
+        Resource resource = new ClassPathResource(sourceFileName);
         InputStreamReader isr = new InputStreamReader(resource.getInputStream(), "UTF-8");
         BufferedReader br = new BufferedReader(isr);
         File saveDir = new File(fileSaveDir);
@@ -699,7 +736,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         {
             saveDir.mkdirs();
         }
-        String savePath = String.format("%s/%s", fileSaveDir, platformDeployScriptFileName);
+        String savePath = String.format("%s/%s", fileSaveDir, fileName);
         savePath = savePath.replaceAll("\\\\", "/");
         File scriptFile = new File(savePath);
         scriptFile.createNewFile();
@@ -3956,61 +3993,42 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String rootPath = String.format("%s/temp/yaml/%s", System.getProperty("user.dir"), platformId);
         String basePath = String.format("%s/%s", rootPath, sf.format(now)).replaceAll("\\\\", "/");
         List<Map<String, Object>> execList = new ArrayList<>();
+        List<Map<String, Object>> baseExecList = new ArrayList<>();
         for(K8sOperationInfo step : steps){
-//            if(step.getKind().equals(K8sKind.JOB))
-//                continue;
+            if(step.getKind().equals(K8sKind.JOB))
+                continue;
             if(step.getKind().equals(K8sKind.JOB))
                 step.setTimeout(20);
             StringBuffer content = new StringBuffer();
             String alias = step.getName().split("-")[0];
             String domainId = step.getDomainId();
-            String saveDir = domainId == null ? basePath : String.format("%s/%s/%s", basePath, domainId, alias);
-            String fileName = String.format("%s-%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase(), step.getOperation().name.toLowerCase());
+            boolean isBase = step.getPlatformId().equals(String.format("base-%s", schema.getPlatformId())) ? true : false;
+            String subDir = domainId == null ? String.format("%s", isBase ? "base":"") : String.format("%s/%s", domainId, alias);
+            String saveDir = String.format("%s/%s", basePath, subDir).replaceAll("/$", "");
+            String fileName = String.format("%s-%s-%s.%s", step.getName(), step.getKind().name.toLowerCase(), step.getOperation().name.toLowerCase(), !step.getKind().equals(K8sKind.CONFIGMAP) ? "yaml" : "json");
             String tag = String.format("# create %s", step.getKind().name.toLowerCase());
             content.append(tag).append("\n---\n").append(Yaml.dump(step.getObj())).append("\n\n");
-            String yamlContent = StringUtils.isNotBlank(schema.getSrcPlatformId()) ? content.toString().replaceAll(schema.getSrcPlatformId(), schema.getPlatformId()) : content.toString();
+            String yamlContent = !step.getKind().equals(K8sKind.CONFIGMAP) ? content.toString() : gson.toJson(step.getObj());
             FileUtils.saveContextToFile(saveDir, fileName, yamlContent, true);
             sb.append(content.toString());
             Map<String, Object> param = new HashMap<>();
             param.put("timeout", step.getTimeout());
-            param.put("filePath", domainId == null ? fileName : String.format("%s/%s/%s", domainId, alias, fileName));
-            execList.add(param);
-//            if (step.getKind().equals(K8sKind.SERVICE) && step.getName().matches("^ucds\\d*\\-.+?-out$")) {
-//                content = new StringBuffer();
-//                alias = "glsserver";
-//                domainId = "public01";
-//                saveDir = String.format("%s/%s/%s", basePath, domainId, alias);
-//                fileName = String.format("%s-%s-restart.yaml", glsserver.getMetadata().getName(), step.getKind().name.toLowerCase());
-//                tag = String.format("# restart glsserver deployment");
-//                glsserver.getMetadata().getLabels().put("restart-time", sf.format(new Date()));
-//                content.append(tag).append("\n---\n").append(Yaml.dump(glsserver)).append("\n\n");
-//                FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
-//                sb.append(content.toString());
-//                param = new HashMap<>();
-//                param.put("timeout", 30);
-//                param.put("filePath", String.format("%s/%s/%s", domainId, alias, fileName));
-//                execList.add(param);
-//            }
-//            if(step.getTimeout() > 0){
-//                V1Job job = gson.fromJson(jobJson, V1Job.class);
-//                job.getMetadata().setName(String.format("sleep-job-%d", index));
-//                index++;
-//                job.getMetadata().setNamespace(platformId);
-//                job.getSpec().getTemplate().getSpec().getContainers().get(0).setArgs(Arrays.asList(new String[]{String.format("sleep %d", step.getTimeout())}));
-//                tag = "# create job for sleep";
-//                content = new StringBuffer();
-//                content.append(tag).append("\n---\n").append(Yaml.dump(job)).append("\n\n");
-//                saveDir = basePath;
-//                fileName = String.format("sleep-job-%d.yaml", index);
-//                FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
-//                sb.append(content.toString());
-//            }
+            param.put("filePath", String.format("%s/%s", subDir, fileName).replaceAll("//", "/").replaceAll("^/", ""));
+            param.put("kind", step.getKind().name);
+            param.put("operation", step.getOperation().name);
+            if(isBase){
+                baseExecList.add(param);
+            }
+            else{
+                execList.add(param);
+            }
         }
         Map<String, Object> params = new HashMap<>();
         params.put("execSteps", execList);
+        params.put("baseExecSteps", baseExecList);
         Map<String, Object> platParams = schema.getPlatformParam();
         platParams.put("platformId", schema.getPlatformId());
-        String glsDBName = ((String)platParams.get(PlatformBase.glsDBTypeKey)).equals("ORACLE") ? "CCCOD" : "ucds";
+        String glsDBName = ((String)platParams.get(PlatformBase.glsDBTypeKey)).equals("ORACLE") ? "CCOD" : "ucds";
         if(!platParams.containsKey("glsDBName")){
             platParams.put("glsDBName", glsDBName);
         }
@@ -4035,9 +4053,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 });
         });
         params.put("images", new ArrayList<>(images));
+        params.put("configCenterData", schema.getConfigCenterData() == null ? new HashMap<>() : schema.getConfigCenterData());
         FileUtils.saveContextToFile(basePath, "start_param.txt", gson.toJson(params), true);
         FileUtils.saveContextToFile(basePath, "platform_create.yaml", sb.toString(), true);
-        copyDeployScript(basePath);
+        copySourceFile(this.platformDeployScriptFileName, basePath, this.platformDeployScriptFileName);
+        if(((String)platParams.get(PlatformBase.glsDBTypeKey)).equals("ORACLE")){
+            copySourceFile(this.platformDeployCfgFileName, basePath, this.platformDeployCfgFileName);
+        }
+        else{
+            copySourceFile(this.platformDeployMysqlCfgFileName, basePath, this.platformDeployCfgFileName);
+        }
+
         String zipFilePath = String.format("%s/%s.zip", rootPath, platformId);
         File zipFile = new File(zipFilePath);
         if(zipFile.exists()){
@@ -4052,8 +4078,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         StringBuffer sb = new StringBuffer();
         List<Map<String, Object>> execList = new ArrayList<>();
         for(K8sOperationInfo step : steps){
-//            if(step.getKind().equals(K8sKind.JOB))
-//                continue;
+            if(step.getKind().equals(K8sKind.JOB))
+                continue;
             if(step.getKind().equals(K8sKind.JOB))
                 step.setTimeout(20);
             StringBuffer content = new StringBuffer();

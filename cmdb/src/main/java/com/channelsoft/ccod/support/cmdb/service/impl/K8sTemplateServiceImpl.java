@@ -875,6 +875,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             deploy.getMetadata().setLabels(new HashMap<>());
             deploy.getMetadata().getLabels().put(appName, alias);
             deploy.getMetadata().getLabels().put(this.appVersionLabel, version);
+            if(StringUtils.isBlank(version)){
+                deploy.getMetadata().getLabels().remove(this.appVersionLabel);
+            }
             deploy.getSpec().getSelector().setMatchLabels(new HashMap<>());
             deploy.getSpec().getSelector().getMatchLabels().put(appName, alias);
             deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());

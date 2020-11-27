@@ -10,6 +10,7 @@ import time
 import cx_Oracle
 import pymysql
 import datetime
+import yaml
 
 
 reload(sys)
@@ -17,28 +18,20 @@ sys.setdefaultencoding('utf8')
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 logging.basicConfig(filename='my.log', level=logging.DEBUG, format=LOG_FORMAT)
 gls_service_unit_table = 'GLS_SERVICE_UNIT'
-
-
-def create_db_connection(host, port, user, pwd, db_name, db_type='oracle'):
-    dbconfig = {'host': host,
-                port: port,
-                'user': user,
-                'password': pwd,
-                'database': db_name, }
-    if db_type == 'mysql':
-        conn = pymysql.connector.connect(**dbconfig)
-    else:
-        raise Exception('unsupported db type %s' % db_type)
-    return conn
+platform_id_regex = "^[a-z]+(\\-?[0-9a-z]+)*$"
+yaml_line_match_regex = "^\\s+%s:\\s+[^\\s]+$"
+sub_pattern = "%s:\\s+[^\\s]+$"
+sub_value = "%s: %s"
 
 
 class Gls_DB(object):
 
-    def __init__(self, user, pwd, ip, port, db_name, db_type='ORACLE'):
+    def __init__(self, user, pwd, port, db_name, ip, db_type='ORACLE'):
+        conn_str = "%s/%s@%s:%d/%s" % (user, pwd, ip, port, db_name)
+        logging.debug('conn_str=%s, dbType=%s' % (conn_str, db_type))
         if db_type == 'MYSQL':
             self.connect = pymysql.connect(host=ip, port=port, user=user, passwd=pwd, db=db_name, charset='utf8')
         elif db_type == 'ORACLE':
-            conn_str = "%s/%s@%s:%d/%s" % (user, pwd, ip, port, db_name)
             self.connect = cx_Oracle.connect(conn_str)
         else:
             raise Exception('unsupported gls db type %s' % db_type)
@@ -116,7 +109,7 @@ def run_shell_command(command, cwd=None, accept_err=False):
     """
     执行一条脚本命令,并返回执行结果输出
     :param command:执行命令,可执行文件/脚本可以是相对cwd的相对路径
-    :param command:执行命令的cwd
+    :param cwd:执行命令的cwd
     :param accept_err: 是否接受错误输出，如果为True将错误结果输出，否则抛出异常
     :return:返回结果
     """
@@ -155,14 +148,13 @@ def get_start_param(param_file):
         return []
 
 
-def deploy_platform(deploy_params):
+def deploy_platform(platform_id, cfgs, steps, is_base=False):
     now = datetime.datetime.now()
-    params = deploy_params['platformParams']
-    db_type = params['glsDBType']
-    platform_id = params['platformId']
+    db_cfg = cfgs['glsserver']['db']
+    db_type = db_cfg['type']
     print("**** begin to create %s platform by script ****" % platform_id)
     logging.info("begin to create %s platform by script" % platform_id)
-    for step in deploy_params['execSteps']:
+    for step in steps:
         file_path = step['filePath']
         file_name = re.sub('.*/', '', file_path)
         arr = file_name.split('.')[0].split('-')
@@ -192,20 +184,25 @@ def deploy_platform(deploy_params):
                 print('after exec %s, sleep %d seconds' % (command, step['timeout']))
                 time.sleep(step['timeout'])
         if k8s_type == 'service' and re.match('^ucds\d*.*-out$', obj_name):
-            port = get_service_node_port(platform_id, params['glsDBService'])
-            db = Gls_DB(params['glsDBUser'], params['glsDBPwd'], params['k8sHostIp'], port, params['glsDBSid'], db_type)
-            port = get_service_node_port(params['platformId'], obj_name)
+            port = get_service_node_port('base-%s' % platform_id, db_cfg['service']['value'])
+            if db_type == 'ORACLE':
+                db = Gls_DB(db_cfg['user']['value'], db_cfg['password']['value'], port, db_cfg['sid']['value'],
+                            cfgs['host-ip'], db_type=db_type)
+            else:
+                db = Gls_DB(db_cfg['user']['value'], db_cfg['password']['value'], port, db_cfg['name']['value'],
+                            cfgs['host-ip'], db_type=db_type)
+            port = get_service_node_port(platform_id, obj_name)
             print('%s started, so update  ucds port in glsserver to %d' % (obj_name, port))
             ucds = re.sub('-out$', '', obj_name)
-            if db_type == 'ORACLE':
-                update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" % (params['glsDBName'], gls_service_unit_table, port, ucds)
+            if db_type == 'oralce':
+                update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" % (db_cfg['name']['value'], gls_service_unit_table, port, ucds)
             else:
                 update_sql = """UPDATE %s SET PARAM_UCDS_PORT = '%d' WHERE	NAME = '%s'""" % (gls_service_unit_table, port, ucds)
             db.update(update_sql)
             print('%s port has been updated to %d' % (ucds, port))
     time_usage = 0
-    while time_usage <= 120:
-        print('wait front module to startup')
+    while not is_base and time_usage <= 120:
+        print('wait frontend module to startup')
         time.sleep(3)
         time_usage += 3
     print('**** %s create finish, use time %d seconds ****' % (platform_id, (datetime.datetime.now() - now).seconds))
@@ -251,6 +248,83 @@ def load_image(images, save_dir):
         print(exec_result)
 
 
+def sub_yaml_line(line, key, value):
+    if re.match(yaml_line_match_regex % key, line):
+        line = re.sub(sub_pattern % key, sub_value % (key, value), line)
+    return line
+
+
+def yaml_line_replace(line, kind, platform_id, nfs_ip, host_name, cfg_data, proto_platform_id):
+    if not line:
+        return line
+    if kind == "PV":
+        line = sub_yaml_line(line, 'server', nfs_ip)
+    elif kind == 'DEPLOYMENT':
+        line = sub_yaml_line(line, '\\- /tmp/init.sh', host_name)
+    elif kind == 'SERVICE':
+        if re.match(yaml_line_match_regex % 'externalName', line):
+            arr = re.split("\\:\\s+", line)[1].split(".")
+            arr[1] = 'base-%s' % platform_id
+            line = sub_yaml_line(line, 'externalName', '.'.join(arr))
+    elif kind == 'CONFIGMAP':
+        line = re.sub('/%s"' % proto_platform_id, '/%s"' % platform_id, line)
+        line = re.sub('"%s"' % proto_platform_id, '"%s"' % platform_id, line)
+        line = re.sub(' %s"' % proto_platform_id, ' %s"' % platform_id, line)
+        line = re.sub('\\-%s"' % proto_platform_id, '-%s"' % platform_id, line)
+        for key in cfg_data.keys():
+            if line.find("##[]%s##" % key) >= 0:
+                line = line.replace("##[]%s##" % key, '%s' % cfg_data[key])
+            line = line.replace("##[]%s##" % key, '%s' % cfg_data[key])
+    line = re.sub('/%s/' % proto_platform_id, '/%s/' % platform_id, line)
+    line = re.sub('/%s$' % proto_platform_id, '/%s' % platform_id, line)
+    line = re.sub('/%s;' % proto_platform_id, '/%s;' % platform_id, line)
+    line = re.sub(' %s$' % proto_platform_id, ' %s' % platform_id, line)
+    line = re.sub('\\-%s$' % proto_platform_id, '-%s' % platform_id, line)
+    line = re.sub(' %s\\-' % proto_platform_id, ' %s-' % platform_id, line)
+    line = re.sub('\\.%s\\.' % src_platform_id, '.%s.' % platform_id, line)
+    line = re.sub(' %s\\.' % src_platform_id, ' %s.' % platform_id, line)
+    line = re.sub('\\.%s ' % src_platform_id, '.%s ' % platform_id, line)
+    return line
+
+
+def replace_yaml_file(file_path, save_path, kind, platform_id, nfs_ip, host_name, cfg_data, proto_platform_id):
+    save_dir = re.sub('/[^/]+$', '', save_path)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    with open(file_path, 'r') as in_f:
+        lines = in_f.readlines()
+        with open(save_path, 'w') as out_f:
+            for line in lines:
+                line = yaml_line_replace(line, kind, platform_id, nfs_ip, host_name, cfg_data, proto_platform_id)
+                out_f.write(line)
+
+
+def get_deploy_cfgs():
+    with open('config.yaml', 'r') as in_f:
+        cfgs = yaml.load(in_f)
+    return cfgs
+
+
+def generate_deploy_script(deploy_params, deploy_cfgs, proto_platform_id):
+    sub_path = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    cfg_data = deploy_params['configCenterData']
+    platform_id = deploy_cfgs['platform-id']
+    nfs_ip = deploy_cfgs['nfs-ip']
+    host_name = deploy_cfgs['host-name']
+    for step in deploy_params['baseExecSteps']:
+        file_path = step['filePath']
+        save_path = '%s/%s' % (sub_path, file_path)
+        kind = step['kind']
+        replace_yaml_file(file_path, save_path, kind, platform_id, nfs_ip, host_name, cfg_data, proto_platform_id)
+        step['filePath'] = save_path
+    for step in deploy_params['execSteps']:
+        file_path = step['filePath']
+        save_path = '%s/%s' % (sub_path, file_path)
+        kind = step['kind']
+        replace_yaml_file(file_path, save_path, kind, platform_id, nfs_ip, host_name, cfg_data, proto_platform_id)
+        step['filePath'] = save_path
+
+
 def show_help():
     print('error command input, for example:')
     print('python ccod.py create : auto create ccod platform')
@@ -261,37 +335,48 @@ def show_help():
 
 if __name__ == '__main__':
     exec_params = get_start_param("start_param.txt")
-    if len(sys.argv) < 2:
-        show_help()
-    elif len(sys.argv) == 2:
-        if sys.argv[1] == 'create':
-            deploy_platform(exec_params)
-        else:
-            show_help()
-    elif len(sys.argv) == 4:
-        if sys.argv[1] == 'image' and sys.argv[2] == '-e':
-            save_image(exec_params['images'], sys.argv[3])
-        elif sys.argv[1] == 'image' and sys.argv[2] == '-i':
-            load_image(exec_params['images'], sys.argv[3])
-        else:
-            show_help()
-    elif len(sys.argv) == 3:
-        if sys.argv[1] == 'image' and sys.argv[2] == '-d':
-            clear_image(exec_params['images'])
-        else:
-            show_help()
+    exec_cfgs = get_deploy_cfgs()
+    create_platform_id = exec_cfgs['platform-id']
+    src_platform_id = exec_params['platformParams']['platformId']
+    print(json.dumps(exec_cfgs))
+    if exec_cfgs['image'] and exec_cfgs['image']['load']:
+        load_images = True
+        image_save_dir = exec_cfgs['image']['save-dir']
+        if not os.path.exists(image_save_dir):
+            raise Exception("image directory %s not exist" % image_save_dir)
+        elif not os.path.isdir(image_save_dir):
+            raise Exception("image directory %s not directory" % image_save_dir)
     else:
-        show_help()
-    # print('deploy platform need %d steps' % len(exec_params))
-    # deploy_platform(exec_params)
-    # db = Gls_DB('ucds', 'ucds', '10.130.41.218', 32402, 'ucds',
-    #             'MYSQL')
-    # update_sql = """update "%s"."%s" set PARAM_UCDS_PORT='%d' where NAME='%s'""" \
-    #              % ('ucds', gls_service_unit_table, 32172, 'ucds-cloud01')
-    # update_sql = """UPDATE GLS_SERVICE_UNIT SET PARAM_UCDS_PORT = '32333' WHERE	NAME = 'ucds-cloud01'"""
-    # db.update(update_sql)
-    # print('%s port has been updated to %d' % ('ucds-cloud01', 32333))
-    # need_images = exec_params['images']
-    # print(need_images)
-    # # save_image(need_images, '/tmp/lhb/images')
-    # load_image(need_images, '/tmp/images')
+        load_images = False
+    print('load_image=%s' % load_images)
+    if exec_cfgs['depend-cloud'] and exec_cfgs['depend-cloud']['create']:
+        create_cloud = True
+        base_data = exec_cfgs['depend-cloud']['base-data-dir']
+        if not os.path.exists(base_data):
+            raise Exception("base data directory %s for init not exist" % base_data)
+        elif not os.path.isdir(base_data):
+            raise Exception("base data directory %s for init not directory" % base_data)
+    else:
+        create_cloud = False
+    exec_params['configCenterData']['platform_id'] = create_platform_id
+    exec_params['configCenterData']['domain_name'] = exec_cfgs['host-name']
+    gls_db_cfgs = exec_cfgs['glsserver']['db']
+    logging.debug('glsdb=%s' % json.dumps(gls_db_cfgs))
+    for k in gls_db_cfgs.keys():
+        if k == 'type':
+            continue
+        exec_params['configCenterData'][gls_db_cfgs[k]['key']] = gls_db_cfgs[k]['value']
+    logging.info('configCenterData=%s' % json.dumps(exec_params['configCenterData']))
+    print('create_base_cloud=%s' % create_cloud)
+    generate_deploy_script(exec_params, exec_cfgs, src_platform_id)
+    if load_images:
+        print('load image from %s' % image_save_dir)
+        load_image(exec_params['images'], image_save_dir)
+    if create_cloud:
+        work_dir = '/home/kubernetes/volume/%s/base-volume' % create_platform_id
+        command = "rm -rf %s;mkdir %s -p;cp %s/. %s -R;cd %s;tar -xvzf *.gz" % (work_dir, work_dir, base_data, work_dir, work_dir)
+        run_shell_command(command.replace("//", "/"))
+        print('begin to deploy cloud apps for %s' % create_platform_id)
+        deploy_platform('base-%s' % create_platform_id, exec_cfgs, exec_params['baseExecSteps'], is_base=True)
+    print('begin to deploy ccod platform %s' % create_platform_id)
+    deploy_platform(create_platform_id, exec_cfgs, exec_params['execSteps'])

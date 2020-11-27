@@ -1,5 +1,8 @@
 package com.channelsoft.ccod.support.cmdb.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -14,6 +17,8 @@ import java.io.IOException;
  */
 public class FileUtils {
 
+    private final static Logger logger = LoggerFactory.getLogger(FileUtils.class);
+
     /**
      * 将文本添加到指定文件里
      * @param saveDir 文件存储路径
@@ -25,6 +30,7 @@ public class FileUtils {
      */
     public static String saveContextToFile(String saveDir, String fileName, String content, boolean createNew) throws IOException
     {
+        logger.debug(String.format("save content to %s/%s", saveDir, fileName));
         saveDir = saveDir.replaceAll("/$", "");
         File dir = new File(saveDir);
         if(!dir.exists()){

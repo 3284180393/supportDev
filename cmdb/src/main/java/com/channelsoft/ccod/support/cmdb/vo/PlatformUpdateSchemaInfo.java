@@ -49,6 +49,8 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
 
     private String srcPlatformId;
 
+    private Map<String, String> configCenterData; //用来定义配置中心化的所有（k,v）对
+
     public PlatformUpdateSchemaInfo() {}
 
     public PlatformUpdateSchemaInfo(PlatformBase platformBase, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
@@ -60,6 +62,7 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
         this.status = status;
         this.domainUpdatePlanList = new ArrayList<>();
         this.threePartApps = new ArrayList<>();
+        this.configCenterData = new HashMap<>();
     }
 
     public PlatformUpdateSchemaInfo(PlatformBase platformBase, Map<String, Object> params, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
@@ -72,6 +75,7 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
         this.domainUpdatePlanList = new ArrayList<>();
         this.threePartApps = new ArrayList<>();
         this.threePartServices = new ArrayList<>();
+        this.configCenterData = new HashMap<>();
     }
 
     public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
@@ -168,5 +172,13 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
 
     public void setSrcPlatformId(String srcPlatformId) {
         this.srcPlatformId = srcPlatformId;
+    }
+
+    public Map<String, String> getConfigCenterData() {
+        return configCenterData;
+    }
+
+    public void setConfigCenterData(Map<String, String> configCenterData) {
+        this.configCenterData = configCenterData;
     }
 }

@@ -19,6 +19,8 @@ ccod:
   notCheckCfgApps:
     - cmsserver
   platform-deploy-template: ccod.py
+  platform-deploy-cfg: config.yaml
+  platform-deploy-mysql-cfg: config-mysql.yaml
   set[0]:
     name: 公共组件
     id: publicModules
