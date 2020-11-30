@@ -7,7 +7,6 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
-import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.AppBase;
 import com.channelsoft.ccod.support.cmdb.po.CCODThreePartAppPo;

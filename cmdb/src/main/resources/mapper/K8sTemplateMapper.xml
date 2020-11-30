@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.channelsoft.ccod.support.cmdb.dao.K8sTemplateMapper" >
+    <resultMap id="k8sTemplateMap" type="com.channelsoft.ccod.support.cmdb.po.K8sTemplatePo" >
+        <id column="id" property="id" jdbcType="INTEGER" />
+        <result column="labels" property="labels" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
+        <result column="object_template" property="objectTemplate" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.K8sObjectTemplateHandler"/>
+    </resultMap>
+    <sql id="Base_Column_List" >
+        id,
+        labels,
+        object_template
+    </sql>
+    <select id="select" resultMap="k8sTemplateMap" >
+        select
+        <include refid="Base_Column_List" />
+        from k8s_template
+        where 1=1
+    </select>
+    <insert id="insert" parameterType="com.channelsoft.ccod.support.cmdb.po.K8sTemplatePo"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into k8s_template
+        (
+            labels,
+            object_template
+        )
+        values
+        (
+            #{labels,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
+            #{objectTemplate,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.K8sObjectTemplateHandler}
+        )
+    </insert>
+    <delete id="delete" parameterType="java.lang.Integer">
+        delete
+        from k8s_template
+        where id = #{id,jdbcType=INTEGER}
+    </delete>
+    <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.K8sTemplatePo" >
+    update k8s_template set
+        labels = #{labels,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
+        object_template = #{objectTemplate,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.K8sObjectTemplateHandler}
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+</mapper>

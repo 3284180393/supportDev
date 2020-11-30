@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.constant.*;
+import com.channelsoft.ccod.support.cmdb.dao.K8sTemplateMapper;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
 import java.io.*;
@@ -58,6 +60,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Autowired
     INexusService nexusService;
+
+    @Autowired
+    K8sTemplateMapper k8sTemplateMapper;
 
     @Value("${nexus.platform-app-cfg-repository}")
     private String platformAppCfgRepository;
@@ -161,6 +166,17 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Override
     public List<K8sObjectTemplatePo> getK8sTemplates() {
         return this.objectTemplateList;
+    }
+
+
+    public K8sTemplatePo addNewAppK8sTemplateFromExistNamespace(Map<String, String> labels, Map<String, String> selector, String namespace, String k8sApiUrl, String k8sAuthToken)throws ApiException, ParamException{
+        for(K8sObjectTemplatePo po : objectTemplateList){
+            if(isEqual(po.getLabels(), labels)){
+                throw new ParamException(String.format("k8s template for %s exist", gson.toJson(labels)));
+            }
+            List<V1Deployment> deployments = ik8sApiService.selectNamespacedDeployment(namespace, selector, k8sApiUrl, k8sAuthToken);
+        }
+        return null;
     }
 
     private List<K8sObjectTemplatePo> generatePlatformObjectTemplate(String srcPlatformId, String ccodVersion, String binaryApp, String tomcatApp, String resinApp) throws ApiException
@@ -973,6 +989,20 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         if(selector == null || selector.size() == 0 || labels == null || labels.size() == 0)
             return  false;
         if(selector.size() > labels.size())
+            return false;
+        for(String key : selector.keySet())
+        {
+            if(!labels.containsKey(key) || !labels.get(key).equals(selector.get(key)))
+                return false;
+        }
+        return true;
+    }
+
+    private boolean isEqual(Map<String, String> selector, Map<String, String> labels)
+    {
+        if(selector == null || selector.size() == 0 || labels == null || labels.size() == 0)
+            return  false;
+        if(selector.size() != labels.size())
             return false;
         for(String key : selector.keySet())
         {
