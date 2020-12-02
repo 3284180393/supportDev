@@ -583,14 +583,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        po.setServiceJson(gson.toJson(new ArrayList<>()));
 //        po.setEndpointsJson(json);
 //        templateList.add(po);
-        String json = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"job-id\":\"73a8e02621\",\"name\":\"umg41\",\"type\":\"THREE_PART_SERVICE\"},\"name\":\"umg41\",\"namespace\":\"test-by-wyf\"},\"spec\":{\"ports\":[{\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"type\":\"ClusterIP\"}}";
-        templateList.forEach(t->{
-            if(t.getLabels().containsKey(appNameLabel) && t.getLabels().get(appNameLabel).equals("umg")){
-//                V1Endpoints endpoints = gson.fromJson(t.getEndpointsJson(), V1Endpoints.class);
-//                t.setEndpointsJson(gson.toJson(Arrays.asList(endpoints)));
-                t.setServiceJson(gson.toJson(Arrays.asList(gson.fromJson(json, V1Service.class))));
-            }
-        });
+//        String json = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"job-id\":\"73a8e02621\",\"name\":\"umg41\",\"type\":\"THREE_PART_SERVICE\"},\"name\":\"umg41\",\"namespace\":\"test-by-wyf\"},\"spec\":{\"ports\":[{\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"type\":\"ClusterIP\"}}";
+//        templateList.forEach(t->{
+//            if(t.getLabels().containsKey(appNameLabel) && t.getLabels().get(appNameLabel).equals("umg")){
+////                V1Endpoints endpoints = gson.fromJson(t.getEndpointsJson(), V1Endpoints.class);
+////                t.setEndpointsJson(gson.toJson(Arrays.asList(endpoints)));
+//                t.setServiceJson(gson.toJson(Arrays.asList(gson.fromJson(json, V1Service.class))));
+//            }
+//        });
         logger.error(gson.toJson(templateList));
     }
 
@@ -3995,7 +3995,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         List<Map<String, Object>> execList = new ArrayList<>();
         List<Map<String, Object>> baseExecList = new ArrayList<>();
         for(K8sOperationInfo step : steps){
-            if(step.getKind().equals(K8sKind.JOB))
+            if(step.getKind().equals(K8sKind.JOB) || step.getKind().equals(K8sKind.SECRET))
                 continue;
             if(step.getKind().equals(K8sKind.JOB))
                 step.setTimeout(20);
@@ -4015,7 +4015,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             param.put("timeout", step.getTimeout());
             param.put("filePath", String.format("%s/%s", subDir, fileName).replaceAll("//", "/").replaceAll("^/", ""));
             param.put("kind", step.getKind().name);
-            param.put("operation", step.getOperation().name);
+            param.put("operation", step.getOperation());
             if(isBase){
                 baseExecList.add(param);
             }

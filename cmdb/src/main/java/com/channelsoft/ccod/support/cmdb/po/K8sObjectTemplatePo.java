@@ -1,8 +1,12 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import io.kubernetes.client.openapi.models.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,44 +18,31 @@ import java.util.Map;
  */
 public class K8sObjectTemplatePo {
 
-    private int templateId;
+    private final static Gson gson = new Gson();
 
     private Map<String, String> labels;
 
-    private String deployJson;
+    private List<V1Deployment> deployments;
 
-    private String serviceJson;
+    private List<V1StatefulSet> statefulSets;
 
-    private String ingressJson;
+    private List<V1Service> services;
 
-    private String endpointsJson;
+    private ExtensionsV1beta1Ingress ingress;
 
-    private String podJson;
+    private List<V1Endpoints> endpoints;
 
-    private String namespaceJson;
+    private List<V1Pod> pods;
 
-    private String jobJson;
+    private V1Namespace namespaces;
 
-    private String secretJson;
+    private List<V1Job> jobs;
 
-    private String persistentVolumeJson;
+    private List<V1Secret> secrets;
 
-    private String persistentVolumeClaimJson;
+    private List<V1PersistentVolume> pvList;
 
-    public int getTemplateId() {
-        return templateId;
-    }
-
-    public K8sObjectTemplatePo(){}
-
-    public K8sObjectTemplatePo(Map<String, String> labels)
-    {
-        this.labels = labels;
-    }
-
-    public void setTemplateId(int templateId) {
-        this.templateId = templateId;
-    }
+    private List<V1PersistentVolumeClaim> pvcList;
 
     public Map<String, String> getLabels() {
         return labels;
@@ -61,84 +52,92 @@ public class K8sObjectTemplatePo {
         this.labels = labels;
     }
 
-    public String getDeployJson() {
-        return deployJson;
+    public List<V1Deployment> getDeployments() {
+        return deployments == null ? null : gson.fromJson(gson.toJson(deployments), new TypeToken<List<V1Deployment>>() {}.getType());
     }
 
-    public void setDeployJson(String deployJson) {
-        this.deployJson = deployJson;
+    public void setDeployments(List<V1Deployment> deployments) {
+        this.deployments = deployments;
     }
 
-    public String getServiceJson() {
-        return serviceJson;
+    public List<V1StatefulSet> getStatefulSets() {
+        return statefulSets == null ? null : gson.fromJson(gson.toJson(statefulSets), new TypeToken<List<V1StatefulSet>>() {}.getType());
     }
 
-    public void setServiceJson(String serviceJson) {
-        this.serviceJson = serviceJson;
+    public void setStatefulSets(List<V1StatefulSet> statefulSets) {
+        this.statefulSets = statefulSets;
     }
 
-    public String getIngressJson() {
-        return ingressJson;
+    public List<V1Service> getServices() {
+        return services == null ? null : gson.fromJson(gson.toJson(services), new TypeToken<List<V1Service>>() {}.getType());
     }
 
-    public void setIngressJson(String ingressJson) {
-        this.ingressJson = ingressJson;
+    public void setServices(List<V1Service> services) {
+        this.services = services;
     }
 
-    public String getEndpointsJson() {
-        return endpointsJson;
+    public ExtensionsV1beta1Ingress getIngress() {
+        return ingress == null ? null : gson.fromJson(gson.toJson(ingress), ExtensionsV1beta1Ingress.class);
     }
 
-    public void setEndpointsJson(String endpointsJson) {
-        this.endpointsJson = endpointsJson;
+    public void setIngress(ExtensionsV1beta1Ingress ingress) {
+        this.ingress = ingress;
     }
 
-    public String getNamespaceJson() {
-        return namespaceJson;
+    public List<V1Endpoints> getEndpoints() {
+        return endpoints == null ? null : gson.fromJson(gson.toJson(endpoints), new TypeToken<List<V1Endpoints>>() {}.getType());
     }
 
-    public void setNamespaceJson(String namespaceJson) {
-        this.namespaceJson = namespaceJson;
+    public void setEndpoints(List<V1Endpoints> endpoints) {
+        this.endpoints = endpoints;
     }
 
-    public String getSecretJson() {
-        return secretJson;
+    public List<V1Pod> getPods() {
+        return pods == null ? null : gson.fromJson(gson.toJson(pods), new TypeToken<List<V1Pod>>() {}.getType());
     }
 
-    public void setSecretJson(String secretJson) {
-        this.secretJson = secretJson;
+    public void setPods(List<V1Pod> pods) {
+        this.pods = pods;
     }
 
-    public String getPodJson() {
-        return podJson;
+    public V1Namespace getNamespaces() {
+        return namespaces == null ? null : gson.fromJson(gson.toJson(namespaces), V1Namespace.class);
     }
 
-    public void setPodJson(String podJson) {
-        this.podJson = podJson;
+    public void setNamespaces(V1Namespace namespaces) {
+        this.namespaces = namespaces;
     }
 
-    public String getPersistentVolumeJson() {
-        return persistentVolumeJson;
+    public List<V1Job> getJobs() {
+        return jobs == null ? null : gson.fromJson(gson.toJson(jobs), new TypeToken<List<V1Job>>() {}.getType());
     }
 
-    public void setPersistentVolumeJson(String persistentVolumeJson) {
-        this.persistentVolumeJson = persistentVolumeJson;
+    public void setJobs(List<V1Job> jobs) {
+        this.jobs = jobs;
     }
 
-    public String getPersistentVolumeClaimJson() {
-        return persistentVolumeClaimJson;
+    public List<V1Secret> getSecrets() {
+        return secrets == null ? null : gson.fromJson(gson.toJson(secrets), new TypeToken<List<V1Secret>>() {}.getType());
     }
 
-    public void setPersistentVolumeClaimJson(String persistentVolumeClaimJson) {
-        this.persistentVolumeClaimJson = persistentVolumeClaimJson;
+    public void setSecrets(List<V1Secret> secrets) {
+        this.secrets = secrets;
     }
 
-    public String getJobJson() {
-        return jobJson;
+    public List<V1PersistentVolume> getPvList() {
+        return pvList == null ? null : gson.fromJson(gson.toJson(pvList), new TypeToken<List<V1PersistentVolume>>() {}.getType());
     }
 
-    public void setJobJson(String jobJson) {
-        this.jobJson = jobJson;
+    public void setPvList(List<V1PersistentVolume> pvList) {
+        this.pvList = pvList;
+    }
+
+    public List<V1PersistentVolumeClaim> getPvcList() {
+        return pvcList == null ? null : gson.fromJson(gson.toJson(pvcList), new TypeToken<List<V1PersistentVolumeClaim>>() {}.getType());
+    }
+
+    public void setPvcList(List<V1PersistentVolumeClaim> pvcList) {
+        this.pvcList = pvcList;
     }
 
     @Autowired
@@ -147,17 +146,6 @@ public class K8sObjectTemplatePo {
         K8sObjectTemplatePo po = new K8sObjectTemplatePo();
         po.setLabels(new HashMap<>());
         labels.forEach((k,v)->po.getLabels().put(k, v));
-        po.templateId = templateId;
-        po.deployJson = deployJson;
-        po.serviceJson = serviceJson;
-        po.ingressJson = ingressJson;
-        po.endpointsJson = endpointsJson;
-        po.podJson = podJson;
-        po.namespaceJson = namespaceJson;
-        po.jobJson = jobJson;
-        po.secretJson = secretJson;
-        po.persistentVolumeJson = persistentVolumeJson;
-        po.persistentVolumeClaimJson = persistentVolumeClaimJson;
         return po;
     }
 

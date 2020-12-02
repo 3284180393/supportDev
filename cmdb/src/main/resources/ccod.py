@@ -157,9 +157,9 @@ def deploy_platform(platform_id, cfgs, steps, is_base=False):
     for step in steps:
         file_path = step['filePath']
         file_name = re.sub('.*/', '', file_path)
-        arr = file_name.split('.')[0].split('-')
-        k8s_opt = arr[-1]
-        k8s_type = arr[-2]
+        k8s_opt = step['operation']
+        k8s_type = step['kind']
+        print('kind=%s' % k8s_type)
         obj_name = re.sub('-[^-]+-[^-]+$', '', file_name)
         print('%s %s %s with %s' % (k8s_opt, k8s_type, obj_name, file_path))
         command = "kubectl apply -f %s" % file_path
@@ -167,7 +167,7 @@ def deploy_platform(platform_id, cfgs, steps, is_base=False):
         exec_result = run_shell_command(command)
         print(exec_result)
         if step['timeout'] > 0:
-            if k8s_type == 'deployment':
+            if k8s_type == 'DEPLOYMENT':
                 time_usage = 0
                 while time_usage <= step['timeout']:
                     deploy_status = get_deployment_status(platform_id, obj_name)
@@ -183,7 +183,7 @@ def deploy_platform(platform_id, cfgs, steps, is_base=False):
             else:
                 print('after exec %s, sleep %d seconds' % (command, step['timeout']))
                 time.sleep(step['timeout'])
-        if k8s_type == 'service' and re.match('^ucds\d*.*-out$', obj_name):
+        if k8s_type == 'SERVICE' and re.match('^ucds\d*.*-out$', obj_name):
             port = get_service_node_port('base-%s' % platform_id, db_cfg['service']['value'])
             if db_type == 'ORACLE':
                 db = Gls_DB(db_cfg['user']['value'], db_cfg['password']['value'], port, db_cfg['sid']['value'],
@@ -200,6 +200,8 @@ def deploy_platform(platform_id, cfgs, steps, is_base=False):
                 update_sql = """UPDATE %s SET PARAM_UCDS_PORT = '%d' WHERE	NAME = '%s'""" % (gls_service_unit_table, port, ucds)
             db.update(update_sql)
             print('%s port has been updated to %d' % (ucds, port))
+        elif k8s_type == 'NAMESPACE' and not is_base:
+            create_tls_cert(cfgs['host-name'], platform_id, 'ssl')
     time_usage = 0
     while not is_base and time_usage <= 120:
         print('wait frontend module to startup')
@@ -254,7 +256,7 @@ def sub_yaml_line(line, key, value):
     return line
 
 
-def yaml_line_replace(line, kind, platform_id, nfs_ip, host_name, cfg_data, proto_platform_id):
+def yaml_line_replace(line, kind, platform_id, src_platform_id, nfs_ip, host_name, cfg_data, proto_platform_id):
     if not line:
         return line
     if kind == "PV":
@@ -295,7 +297,7 @@ def replace_yaml_file(file_path, save_path, kind, platform_id, nfs_ip, host_name
         lines = in_f.readlines()
         with open(save_path, 'w') as out_f:
             for line in lines:
-                line = yaml_line_replace(line, kind, platform_id, nfs_ip, host_name, cfg_data, proto_platform_id)
+                line = yaml_line_replace(line, kind, platform_id, proto_platform_id, nfs_ip, host_name, cfg_data, proto_platform_id)
                 out_f.write(line)
 
 
@@ -325,15 +327,16 @@ def generate_deploy_script(deploy_params, deploy_cfgs, proto_platform_id):
         step['filePath'] = save_path
 
 
-def show_help():
-    print('error command input, for example:')
-    print('python ccod.py create : auto create ccod platform')
-    print('python ccod.py image -e /tmp/ccod/images : export all necessary images to /tmp/ccod/images directory')
-    print('python ccod.py image -i /tmp/ccod/images : import all necessary images from /tmp/ccod/images directory')
-    print('python ccod.py image -d : clear exist images in docker')
+def create_tls_cert(host_name, namespace, name='ssl'):
+    cmd = 'openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=*.%s"' % re.sub('^.*?\\.', '', host_name)
+    print('create ssl cert for https')
+    run_shell_command(cmd, accept_err=True)
+    print('load ssl cert to k8s')
+    cmd = 'kubectl -n %s create secret tls %s --key tls.key --cert tls.crt' % (namespace, name)
+    run_shell_command(cmd)
 
 
-if __name__ == '__main__':
+def exec_deploy(exec_params, exec_cfgs):
     exec_params = get_start_param("start_param.txt")
     exec_cfgs = get_deploy_cfgs()
     create_platform_id = exec_cfgs['platform-id']
@@ -374,9 +377,24 @@ if __name__ == '__main__':
         load_image(exec_params['images'], image_save_dir)
     if create_cloud:
         work_dir = '/home/kubernetes/volume/%s/base-volume' % create_platform_id
-        command = "rm -rf %s;mkdir %s -p;cp %s/. %s -R;cd %s;tar -xvzf *.gz" % (work_dir, work_dir, base_data, work_dir, work_dir)
+        command = "rm -rf %s;mkdir %s -p;cp %s/. %s -R;cd %s;tar -xvzf *.gz" % (
+            work_dir, work_dir, base_data, work_dir, work_dir)
         run_shell_command(command.replace("//", "/"))
         print('begin to deploy cloud apps for %s' % create_platform_id)
         deploy_platform('base-%s' % create_platform_id, exec_cfgs, exec_params['baseExecSteps'], is_base=True)
     print('begin to deploy ccod platform %s' % create_platform_id)
     deploy_platform(create_platform_id, exec_cfgs, exec_params['execSteps'])
+
+
+def show_help():
+    print('error command input, for example:')
+    print('python ccod.py create : auto create ccod platform')
+    print('python ccod.py image -e /tmp/ccod/images : export all necessary images to /tmp/ccod/images directory')
+    print('python ccod.py image -i /tmp/ccod/images : import all necessary images from /tmp/ccod/images directory')
+    print('python ccod.py image -d : clear exist images in docker')
+
+
+if __name__ == '__main__':
+    platform_params = get_start_param("start_param.txt")
+    platform_cfgs = get_deploy_cfgs()
+    exec_deploy(platform_params, platform_cfgs)

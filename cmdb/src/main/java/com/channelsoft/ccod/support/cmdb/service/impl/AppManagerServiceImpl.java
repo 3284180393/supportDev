@@ -658,7 +658,6 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     imageExist = true;
                     break;
                 }
-
             }
         }
         catch (Exception ex)

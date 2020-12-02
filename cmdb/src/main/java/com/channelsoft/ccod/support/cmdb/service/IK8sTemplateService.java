@@ -82,7 +82,7 @@ public interface IK8sTemplateService {
      * @return 生成的pv
      * @throws ParamException
      */
-    V1PersistentVolume generatePersistentVolume(PlatformPo platform, boolean isBase) throws ParamException;
+    List<V1PersistentVolume> generatePersistentVolume(PlatformPo platform, boolean isBase) throws ParamException;
 
     /**
      * 生成指定的平台pvc
@@ -91,7 +91,7 @@ public interface IK8sTemplateService {
      * @return 生成的pvc
      * @throws ParamException
      */
-    V1PersistentVolumeClaim generatePersistentVolumeClaim(PlatformPo platform, boolean isBase) throws ParamException;
+    List<V1PersistentVolumeClaim> generatePersistentVolumeClaim(PlatformPo platform, boolean isBase) throws ParamException;
 
     /**
      * 生成平台初始job

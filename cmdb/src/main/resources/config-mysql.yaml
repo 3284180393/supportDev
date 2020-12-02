@@ -15,7 +15,7 @@ depend-cloud:
   # 是否创建依赖云，yes为创建，no为不创建
   create: yes
   # 依赖云的基础数据存储路径
-  base-data-dir: /tmp/lhb/baseData
+  base-data-dir: /tmp/lhb/baseData/4.8
 # 用来配置glsserver相关信息
 glsserver:
   db:
