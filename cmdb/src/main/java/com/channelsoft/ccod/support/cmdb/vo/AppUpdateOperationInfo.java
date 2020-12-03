@@ -9,6 +9,7 @@ import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 /**
  * @ClassName: AppUpdateOperationInfo
@@ -42,6 +43,8 @@ public class AppUpdateOperationInfo extends AppBase {
     private List<AppFileNexusInfo> domainCfg;  //域公共配置，该字段主要用于调试应用
 
     private Integer timeout; //指定应用启动超时时长
+
+    private Map<String, Object> runtime;  //应用的运行环境
 
     public AppUpdateOperationInfo(AppBase appBase)
     {
@@ -144,6 +147,14 @@ public class AppUpdateOperationInfo extends AppBase {
 
     public void setPlatformId(String platformId) {
         this.platformId = platformId;
+    }
+
+    public Map<String, Object> getRuntime() {
+        return runtime;
+    }
+
+    public void setRuntime(Map<String, Object> runtime) {
+        this.runtime = runtime;
     }
 
     public PlatformAppPo getPlatformApp(int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId)

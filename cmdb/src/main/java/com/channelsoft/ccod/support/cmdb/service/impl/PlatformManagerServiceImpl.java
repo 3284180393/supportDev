@@ -2123,10 +2123,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
             List<CCODThreePartAppPo> threePartApps = ccodThreePartAppMapper.select(schema.getCcodVersion(), null, null);
             String nfsServerIp = StringUtils.isBlank(schema.getNfsServerIp()) ? schema.getK8sHostIp() : schema.getNfsServerIp();
-            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
+            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), new ArrayList<>(),
                     null, null, threePartApps, nfsServerIp, String.format("base-%s", platformPo.getPlatformId()), platformPo);
             steps.addAll(baseCreateSteps);
-            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), schema.getK8sSecrets(),
+            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), new ArrayList<>(),
                     null, null, threePartApps, schema.getThreePartServices(), nfsServerIp, platformPo);
             steps.addAll(platformCreateSteps);
             generateYamlForDeploy(schema, steps);
@@ -2181,40 +2181,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Assert.isTrue(isExist, String.format("namespace %s not exist at %s", platformId, k8sApiUrl));
 
         return null;
-    }
-
-    private void resetSchema(PlatformUpdateSchemaInfo schema)
-    {
-        schema.setNamespace(null);
-        schema.setK8sSecrets(null);
-        schema.setThreePartApps(null);
-        schema.setThreePartServices(null);
-        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(true).stream()
-                .collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        for(DomainUpdatePlanInfo plan : schema.getDomainUpdatePlanList())
-        {
-            plan.setIngresses(null);
-            plan.setDeployments(null);
-            plan.setServices(null);
-            for(AppUpdateOperationInfo optInfo : plan.getAppUpdateOperationList())
-            {
-                AppModuleVo module = registerAppMap.get(optInfo.getAppName()).stream()
-                        .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getVersion());
-                AppType appType = module.getAppType();
-                optInfo.setPeriodSeconds(module.getPeriodSeconds());
-                optInfo.setInitialDelaySeconds(module.getInitialDelaySeconds());
-                optInfo.setResources(module.getResources());
-                optInfo.setLogOutputCmd(module.getLogOutputCmd());
-                optInfo.setInitCmd(module.getInitCmd());
-                optInfo.setStartCmd(module.getStartCmd());
-                optInfo.setNodePorts(module.getNodePorts());
-                optInfo.setPorts(module.getPorts());
-                optInfo.setAssembleTag(String.format("%s-%s", optInfo.getAlias(), plan.getDomainId()));
-                String envLoadCmd = StringUtils.isNotBlank(module.getEnvLoadCmd()) ? module.getEnvLoadCmd() : String.format("echo \"hello, %s\"", optInfo.getAlias());
-                optInfo.setEnvLoadCmd(envLoadCmd);
-                optInfo.setCheckAt(module.getCheckAt());
-            }
-        }
     }
 
     @Override
@@ -3982,6 +3948,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
             execResults.add(ret);
         }
+    }
+
+    private void generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir)
+    {
+        Map<String, List<AppUpdateOperationInfo>> hostAppMap = schema.getDomainUpdatePlanList().stream()
+                .flatMap(d->d.getAppUpdateOperationList().stream()).collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
+        Map<String, Map<String, Object>> params = new HashMap<>();
+        for(String ip : hostAppMap.keySet()){
+
+        }
+
     }
 
     private String generateYamlForDeploy(PlatformUpdateSchemaInfo schema, List<K8sOperationInfo> steps) throws IOException

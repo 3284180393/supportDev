@@ -43,6 +43,8 @@ ccod:
       name: dcmsCntLimit
     apps[5]:
       name: DataKeeper
+    apps[6]:
+      name: tsr2
   set[1]:
     name: 网关接入
     id: gatewayAccess
@@ -96,25 +98,23 @@ ccod:
     apps[9]:
       name: tsrecadsrv
     apps[10]:
-      name: tsr2
-    apps[11]:
       name: EAService
-    apps[12]:
+    apps[11]:
       name: fpsvr
-    apps[13]:
+    apps[12]:
       name: psr
-    apps[14]:
+    apps[13]:
       name: slee
-    apps[15]:
+    apps[14]:
       name: StatSchedule
       alias: ss
+    apps[15]:
+      name: UCGateway
     apps[16]:
       name: AppGateWay
     apps[17]:
       name: DialEngine
     apps[18]:
-      name: UCGateway
-    apps[19]:
       name: MonitorProxy
   set[3]:
     name: 运营门户
@@ -278,6 +278,28 @@ ccod:
       name: dcmsDialerRQ
     apps[5]:
       name: dcmsDialerNew
+  set[7]:
+    name: 前端模块
+    id: vue
+    isBasic: 0
+    fixedDomainName: UI门户
+    fixedDomainId: ui
+    apps[0]:
+      name: bic-ui
+  set[8]:
+    name: 后端模块
+    id: backend
+    isBasic: 0
+    fixedDomainName: 后端模块
+    fixedDomainId: backend
+    apps[0]:
+      name: bic-process
+    apps[1]:
+      name: bic-portal
+    apps[2]:
+      name: cbs-cbs
+    apps[3]:
+      name: cbs-ccs
   startChains:
     chains[0]:
       name: glsServer

@@ -1,9 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.k8s.vo;
 
-import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
-import io.kubernetes.client.openapi.models.V1Deployment;
-import io.kubernetes.client.openapi.models.V1Endpoints;
-import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.*;
 
 import java.util.List;
 
@@ -24,18 +21,24 @@ public class K8sThreePartAppVo {
 
     private List<V1Deployment> deploys; //关联k8s的deployment
 
+    private List<V1StatefulSet> statefulSets; //关联k8s的statefulSet
+
     private List<V1Service> services; //关联k8s的一组服务
 
     private List<V1Endpoints> endpoints; //引用的外部服务
 
-    public K8sThreePartAppVo(String appName, String alias, String version, List<V1Deployment> deploys, List<V1Service> services, List<V1Endpoints> endpoints)
+    private List<V1ConfigMap> configMaps; //对应的第三方应用配置
+
+    public K8sThreePartAppVo(String appName, String alias, String version, List<V1Deployment> deploys, List<V1StatefulSet> statefulSets, List<V1Service> services, List<V1Endpoints> endpoints, List<V1ConfigMap> configMaps)
     {
         this.appName = appName;
         this.alias = alias;
         this.version = version;
         this.deploys = deploys;
+        this.statefulSets = statefulSets;
         this.services = services;
         this.endpoints = endpoints;
+        this.configMaps = configMaps;
     }
 
     public String getAppName() {
@@ -84,5 +87,21 @@ public class K8sThreePartAppVo {
 
     public void setEndpoints(List<V1Endpoints> endpoints) {
         this.endpoints = endpoints;
+    }
+
+    public List<V1ConfigMap> getConfigMaps() {
+        return configMaps;
+    }
+
+    public void setConfigMaps(List<V1ConfigMap> configMaps) {
+        this.configMaps = configMaps;
+    }
+
+    public List<V1StatefulSet> getStatefulSets() {
+        return statefulSets;
+    }
+
+    public void setStatefulSets(List<V1StatefulSet> statefulSets) {
+        this.statefulSets = statefulSets;
     }
 }

@@ -160,9 +160,58 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //        List<K8sThreePartServiceVo> threeSvcs = getThreePartServices("test-by-wyf", testK8sApiUrl, testAuthToken);
 //        logger.warn(this.templateParseGson.toJson(threeSvcs));
 //        this.testThreePartServices.addAll(threeSvcs);
-        k8sTemplateMapper.select().forEach(t->objectTemplateList.add(t.getObjectTemplate()));
+//        k8sTemplateMapper.select().forEach(t->{
+//            String appType = t.getLabels().get(appTypeLabel);
+//            if(appType != null && appType.equals(AppType.THREE_PART_APP.name)){
+//                t.getObjectTemplate().setConfigMaps(new ArrayList<>());
+//                k8sTemplateMapper.update(t);
+//            }
+//        });
+        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
+        templateList.forEach(t->objectTemplateList.add(t.getObjectTemplate()));
         List<K8sThreePartServiceVo> threeSvcs = parseTestThreePartServiceFromFile(this.testThreePartServiceSavePath);
         this.testThreePartServices.addAll(threeSvcs);
+        try{
+//            updateTemplate();
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
+        }
+    }
+
+
+    private void updateTemplate() throws Exception
+    {
+        Map<String, String> labels = new HashMap<>();
+        labels.put(ccodVersionLabel, "4.8");
+        labels.put(appTypeLabel, AppType.THREE_PART_APP.name);
+        labels.put(appNameLabel, "umg");
+        String json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\",\"labels\":{\"name\":\"umg\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"umg\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"umg\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"config\",\"configMap\":{\"name\":\"umg\"}},{\"name\":\"ccod-runtime\",\"hostPath\":{\"path\":\"/var/ccod-runtime/default/ssr\"}},{\"name\":\"core\",\"hostPath\":{\"path\":\"/var/ccod-runtime/default/core/ssr\"}}],\"containers\":[{\"name\":\"umg\",\"imagePullPolicy\":\"Always\",\"image\":\"ccod/ssr-umg:225-3543_225-22317\",\"ports\":[{\"containerPort\":12000},{\"containerPort\":11500}],\"volumeMounts\":[{\"mountPath\":\"/root/ATS/config\",\"name\":\"config\"},{\"mountPath\":\"/root/ATS/runlog\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"livenessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"readinessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"resources\":{\"requests\":{\"memory\":\"1000Mi\",\"cpu\":\"1000m\"},\"limits\":{\"memory\":\"1000Mi\",\"cpu\":\"1000m\"}},\"workingDir\":\"/root/ATS/bin\",\"command\":[\"/bin/bash\",\"-c\"],\"args\":[\"./umgdaemon;\",\"tail -F /root/ATS/runlog/*;\"]}]}}}}";
+        V1Deployment deployment = gson.fromJson(json, V1Deployment.class);
+        json = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\"},\"spec\":{\"ports\":[{\"name\":\"umg\",\"port\":11500,\"protocol\":\"TCP\",\"targetPort\":11500},{\"name\":\"ssr\",\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"type\":\"ClusterIP\"}}";
+        V1Service service = gson.fromJson(json, V1Service.class);
+        json = "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\"},\"data\":{\"ATSEConfigData.cfg\":\"<?xml version=\\\"1.0\\\" encoding=\\\"GB2312\\\"?>\\n<ATSE>\\n  <AttributeSet MediaServerIP=\\\"\\\" AutoAnswer = \\\"true\\\" StatisticsLevel=\\\"3\\\" IsDebug=\\\"true\\\" LogLevel=\\\"DT\\\" RunLog=\\\"true\\\" UseDRWRClient=\\\"true\\\" WriteUserDefinedCallID=\\\"true\\\" AutoClear = \\\"5\\\" MaxUserIdleSeconds=\\\"\\\" SMSMediaServerIP=\\\"\\\" SupportFileOnUnix=\\\"true\\\">\\n    <SSR2 IP=\\\"127.0.0.1\\\" Port=\\\"12000\\\" SLEEName=\\\"Slee1_name\\\" SLEEPassword=\\\"Slee1_pwd\\\"/>\\n    <SNMPAgent TargetAddress=\\\"127.0.0.1\\\" ListenPort=\\\"10015\\\" TargetPort=\\\"10061\\\" NodeId=\\\"100\\\" NodeLocation=\\\"wuxz_notebook\\\" NodeName=\\\"slee100\\\"/>\\n    <SDR NodeCode=\\\"1001\\\" DeviceCode=\\\"001001\\\"/>\\n  </AttributeSet>\\n  <DNGroups>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"outbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"3001\\\" EndDN=\\\"3001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"b.usml\\\" IsInbound=\\\"false\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n    </ResGroup>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"inbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"5001\\\" EndDN=\\\"5001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"inbound.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n      </ResGroup>\\n        <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"App\\\">\\n          <DNList>\\n            <ComplexDN StartDN=\\\"7003\\\" EndDN=\\\"7003\\\"/>\\n          </DNList>\\n          <RunTime>\\n            <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n              <Application Name=\\\"ATS服务\\\" XMLFile=\\\"a3.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n            </RunPeriod>\\n          </RunTime>\\n    </ResGroup>\\n  </DNGroups>\\n  <Components>\\n    <Component ProgID=\\\"QNWriteFileCOM.clsWriteFile\\\"     ClassName=\\\"com.channelsoft.reusable.comobj.writefilecom.WriteFileCom\\\">    \\n      <Config>\\n        <Entry Key=\\\"WriteFilePath\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"QNDBCOM.clsQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QuerySQL.CQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QNNetCOM.clsHttp\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"PublicUnity.CHTTP\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"MSSOAP.SoapClient30\\\" ClassName=\\\"com.channelsoft.reusable.comobj.ws.SoapClientByWSIF\\\"/>\\n    <Component ProgID=\\\"QnINICOM.ini\\\" ClassName=\\\"com.channelsoft.reusable.comobj.inicom.IniCom\\\"/>\\n    <Component ProgID=\\\"MD5Com.MD5Entity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.md5com.Md5Com\\\"/>            \\n    <Component ProgID=\\\"JMSCom.JMSEntity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.jmscom.JmsCom\\\"/>    \\n    <Component ProgID=\\\"CCOD.AssociatedData\\\" ClassName=\\\"com.channelsoft.slee.callagent.ccod.servicedata.V2_ServiceData\\\"/>\\n    <Component ProgID=\\\"CONFNODE.ConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"TConfCom.TConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"QnFaxForAgent.clsOprTask\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"TDP.IVRInterface\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>    \\n    <Component ProgID=\\\"Microsoft.XMLDOM\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"MSXML2.DOMDocument.4.0\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"CASRouterClient\\\" ClassName=\\\"com.channelsoft.reusable.comobj.cas.RouterClient\\\">\\n      <Config>\\n        <Entry Key=\\\"CASServerIP\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"CASServerPort\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"ListenServerPort\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n  </Components>\\n  <ServiceProviders>\\n    <ReasoningProvider>\\n      <ClassName>com.channelsoft.reusable.debugproxy.DebugAgent</ClassName>\\n      <Enabled>false</Enabled>\\n    </ReasoningProvider>\\n  </ServiceProviders>\\n</ATSE>  \",\"SSR.ini\":\"[System]\\nUMGIP=127.0.0.1\\nUMGPort=11500\\nRouteStratgy_1=ani\\nRouteStratgy_2=dnis\\nRouteStratgy_3=oriani\\nRouteStratgy_4=ani\\nRouteStratgy_5=mediatype\\nRouteStratgy_6=weight\\nRouteStratgy_7=average\\nClientCount=2\\nListenPort=12000\\nLog_path=../runlog\\nLog_level=debug\\n[Client1]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\\n[Client2]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\",\"UMG.ini\":\"[SYSTEM]\\nlog_path=../runlog/\\nlog_level=debug\\nHWType=freeswitch\\nVGCP_listen_port=11500\\nchannel_worker_number=16\\nDefaultCallingNumber=1000\\nAccept_Route_Play=yes\\nMultiProcess=No\\nVolume=0\\nMax_Time_Drop_Enable=yes #是否启用超时挂断\\nMax_Drop_Time=7200 #超时挂断事件（S）该事件最低为300s，配置低于300默认为300\\nU2UInfo_for_OriANI = yes\\nRedis_Location = redis-headless:27379,redis-headless:27379,redis-headless:27379\\n[CPRLIST]\\ntotal=0\\ntone_clamp=yes\\necho_cancel=yes\\nneed_record=yes\\n[FilePath_Transfer]\\norig_path=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\\\ndest_path=/data/record/recording/\\norig_path_fax=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\Document\\\\\\ndest_path_fax=./\\nnew_record_path = umg69\\n[PSR]\\nConnect_PSR = no\\nMasterEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11280\\nSlaveEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11481\\nEventServer = PSREventServer:tcp_-h_127.0.0.1_-p_14681\\nUMG4PSREndpoint = UMG:tcp_-h_10.9.43.75_-p_10072\\n[XoIP]\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nRegister_Period=3000\\nRegister_Expires=3600\\nRegister_Num_Begin=1000\\nRegister_Count=20\\nRegister_PhoneNumInterval=2\\nrtp_media_coding0=g711a\\nrtp_media_coding1=g711mu\\n[ModNumber]\\nIsNeedModNumber=yes #yes/no \\nModules_Params = ../hlr/hlr.13x, ../hlr/hlr.14x, ../hlr/hlr.15x, ../hlr/hlr.17x, ../hlr/hlr.18x\\n#[TRUNK_GROUP$]\\n#sip_server_address=user #客户交本地注册用户\\n[AccessExtMoudle] #iceserver链接配置 回呼\\nuse=true\\nIce_server=127.0.0.1\\nIce_port = 8001\\nIce_timeout = 5000\\n[StreamPlay] #流式放音\\nsupport =no                                                              \\nuri=10.9.43.75:8000\\n[StreamRecord] #流式录音\\nsupport = no\\nuri=10.9.43.75:8000\\nuser=source\\npasswd=hackme\\n[TRUNK_GROUP]\\ntotal=7\\n#linkChannels=960,962,964,966,968,970,972,974,976,978,980,982,984,986,988\\n#linkChannels=1025,1026,1027,1028,1029,1030,1032,1034,1036,1038,1040,1042,1044,1046,1048,1050,1052,1054,1055\\n[TRUNK_GROUP1]\\ntac=s\\nstart_number=0\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\n#sip_server_address=\\n#sip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP2]\\ntac=t\\nstart_number=5096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\nModNumber_Rules=../config/mod_number/beijing.xml\\n[TRUNK_GROUP3]\\ntac=w\\nstart_number=6096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP4]\\ntac=z\\nstart_number=7096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.15.145 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\n#sip_server_address=10.9.43.75\\n#sip_server_port=6090\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal-ylxt\\n[TRUNK_GROUP5]\\ntac=o\\nstart_number=8096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.58.178 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\nbillingcode=cd693\\nis_need_csr=yes\\nfstrunck=gateway/zealcomm\\n[TRUNK_GROUP6]\\ntac=m\\nstart_number=9096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75\\nsip_server_port=7080\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP7]\\ntac=n\\nstart_number=10096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.0.243\\nsip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[CDR]\\nsupport_cdr=yes\\ndevice_code=010VG1\\n[IvrMonitor]\\nsupported=no\\nivrmonitor_port=4321\\n[CtiAdapter]\\nsupported=yes\\nEndPoint=QRServer:tcp_-h_10.9.26.79_-p_11480 #tsr地址\\nLocalPath=/data/shdujian/\\nRemoteUrl=/data/wuzj/\\nTimeOut=3000\\nKeepAlive=false\\nLogFile=../runlog/\\n[SpecialAniAddrNature]\\naddr_nature=3\\nANI=95511,95533\\n[CloudData]\\nsupport =no\\nNodeID = 23\\nUMG_IP = 10.9.43.75 #中信测试环境未部署云接入\\nUMG_Port = 12000\\nzookeeper_ip = 10.130.41.140\\nzookeeper_port =2181\\nUMGName4Zookeeper=umg_fs_141\\nZooKeeperPath=/umg_cloud/cluster\\ntrunk_num = 2\\n[CloudData_Trunk1]\\nTac = s\\nType = SIP\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd691\\n[CloudData_Trunk2]\\nTac = t\\nType = PSTN\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd692\\n[Monitor]\\nIsNeedMonitor = no # 是否启用运行监控消息输出\\nMonitorFilePath = ../cctrack/umg # 运行监控消息输出目录，需要手动建立\\nMonitorFileName = UMG_TEST69 # 运行监控消息输出文件名\\nModuleName = UMG_TEST69 # 运行监控消息输出服务名  \\n[UUINFO]\\nvalue=\\\"ANI:15210508909|ID:2255|CLIENTNO:1002|CTINO:1002|SYSTEM:253648\\\"\\n[SS7ANI4BJLT]\\nSetSS7AniType=1 #use:1  nouse:0\\n[GLS]\\nConnect_GLS = yes\\nServiceName = UMG-DEMO\\nGlsLocation = GLSServer:tcp_-h_10.9.26.79_-p_17020\\n[FrontCode]\\nsupport = yes\\nCode = 9999\\nANIFile = ../config/ANIFile.cfg\\n[DataBase]\\nUSE_ICE=0\\n[IceServer]\\nIce_server=10.130.41.35\\nIce_port=10000\\n[FSW]\\nInboundTrunkTac=s\\nFSWServerAddr=127.0.0.1 #SGW地址\\nFSWServerPort=8021 #SGW端口\\nrecordingpath=/data/record/recording/\\nrecordedpath=/data/record/recorded/\\nsplitfileext=.wav\\nmixfileext=.wav\\nneed_add_alert=true\\n[Anon]\\nEnable=yes\\nExcTimeout=5\\nConTimeout=5\\nAgentid=010\\nUrl=http://ccod1:8082/ccod/getSerialNumber\\nAppID=ccodprivate\\nAppPWD=7cd3f4920ac00fad603a8205309c6e4c\\nRule=TEL:99\",\"drwr_client.cfg\":\"#######################################################################\\n# 话单存储器配置文件\\n# 林维志，2005-12-12\\n# 青牛（北京）技术有限公司 版权所有\\n#######################################################################\\n# ===========================\\n# 下面指定话单文件相关参数\\n# ===========================\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/sdr/temp/DRWRClient.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 10\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 10000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/sdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 1\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\n#drwr_file_backup_path = $USBOSS_HOME/sdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 1\\n# ===========================\\n# 下面指定服务器相关参数\\n# ===========================\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 1\\n# 服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 134.96.71.108\\n# 服务器的端口\\ndrwr_server_port = 9091\\n# ===========================\\n# 下面指定日志参数\\n# ===========================\\n# 日志文件名，最好为全路径名，且不需要指定扩展名。若此参数为空则不写日志。\\ndrwr_log_filename = $USBOSS_HOME/sdr/Log/\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = INFO\",\"umg_cdr.cfg\":\"###############################################################################\\n#\\n#    话单存储器配置文件\\n#    林维志，2005-12-12\\n#    北京青牛软件技术有限责任公司　版权所有\\n#\\n###############################################################################\\n###############################################################################\\n# 以下话单收发模块drwr_client的配置\\n###############################################################################\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 0\\n# 话单接收服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 127.0.0.1\\n# 话单接收服务器的端口,\\ndrwr_server_port = 9092\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/cdr/temp/DRWRClientTest.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 60\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 20000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/cdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 0\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\ndrwr_file_backup_path = $USBOSS_HOME/cdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 2\\n# 日志文件名，最好为全路径名\\ndrwr_log_filename = $USBOSS_HOME/cdr/log/drwr_client.log\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = 700\\n###############################################################################\\n# 以下为实时话单接收器drwr_server的配置\\n###############################################################################\\n# drwr_server使用的本地的IP地址\\ndrwr_local_ip = 127.0.0.1\\n# drwr_server使用的本地的端口\\ndrwr_local_port = 9091\\n# drwr_server的线程池的大小\\ndrwr_thread_pool_size = 30\\n# 允许访问drwr_server的客户端的IP数量\\n#drwr_allow_ip_count = 0\\n# 允许访问drwr_server的客户端的IP\\n#drwr_allow_id_1 =\"}}";
+        V1ConfigMap configMap = gson.fromJson(json, V1ConfigMap.class);
+        updateAppK8sTemplate(labels, Arrays.asList(deployment), new ArrayList<>(), Arrays.asList(service), null, new ArrayList<>(), Arrays.asList(configMap));
+//        k8sTemplateMapper.select().forEach(t->{
+//            if (t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP)) {
+//
+//                K8sObjectTemplatePo o = t.getObjectTemplate();
+//                if(o.getDeployments() == null){
+//                    o.setDeployments(new ArrayList<>());
+//                }
+//                if(o.getEndpoints() == null){
+//                    o.setEndpoints(new ArrayList<>());
+//                }
+//                if(o.getConfigMaps() == null){
+//                    o.setConfigMaps(new ArrayList<>());
+//                }
+//                if(o.getStatefulSets() == null){
+//                    o.setStatefulSets(new ArrayList<>());
+//                }
+//                k8sTemplateMapper.update(t);
+//            }
+//        });
     }
 
     @Override
@@ -170,6 +219,71 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return this.objectTemplateList;
     }
 
+
+    public K8sTemplatePo addNewAppK8sTemplate(Map<String, String> labels, List<V1Deployment> deployments, List<V1StatefulSet> statefulSets, List<V1Service> services, ExtensionsV1beta1Ingress ingress, List<V1Endpoints> endpoints, List<V1ConfigMap> configMaps) throws ParamException
+    {
+        logger.debug(String.format("create template for %s : deployments=%s, statefulSets=%s, services=%s, ingress=%s, endpoints=%s, configMaps=%s",
+                gson.toJson(deployments), gson.toJson(statefulSets), gson.toJson(services), gson.toJson(ingress), gson.toJson(endpoints), gson.toJson(configMaps) ));
+        if(!labels.containsKey(ccodVersionLabel)){
+            throw new ParamException(String.format("labels for new add app template mush has %s key", ccodVersionLabel));
+        }
+        else if(!labels.containsKey(appTypeLabel)){
+            throw new ParamException(String.format("labels for new add app template mush has %s key", appTypeLabel));
+        }
+        for(K8sObjectTemplatePo template : objectTemplateList){
+            if(isEqual(template.getLabels(), labels)){
+                throw new ParamException(String.format("template for %s has been defined", gson.toJson(labels)));
+            }
+        }
+        K8sObjectTemplatePo po = new K8sObjectTemplatePo();
+        po.setLabels(labels);
+        po.setConfigMaps(configMaps);
+        po.setDeployments(deployments);
+        po.setStatefulSets(statefulSets);
+        po.setServices(services);
+        po.setIngress(ingress);
+        po.setEndpoints(endpoints);
+        K8sTemplatePo templatePo = new K8sTemplatePo(po);
+        k8sTemplateMapper.insert(templatePo);
+        logger.info("template for %s has been added : %s", gson.toJson(labels), gson.toJson(templatePo));
+        return templatePo;
+    }
+
+    public K8sTemplatePo updateAppK8sTemplate(Map<String, String> labels, List<V1Deployment> deployments, List<V1StatefulSet> statefulSets, List<V1Service> services, ExtensionsV1beta1Ingress ingress, List<V1Endpoints> endpoints, List<V1ConfigMap> configMaps) throws ParamException
+    {
+        logger.debug(String.format("updated template for %s : deployments=%s, statefulSets=%s, services=%s, ingress=%s, endpoints=%s, configMaps=%s",
+                gson.toJson(labels), gson.toJson(deployments), gson.toJson(statefulSets), gson.toJson(services), gson.toJson(ingress), gson.toJson(endpoints), gson.toJson(configMaps) ));
+        if(!labels.containsKey(ccodVersionLabel)){
+            throw new ParamException(String.format("labels for new add app template mush has %s key", ccodVersionLabel));
+        }
+        else if(!labels.containsKey(appTypeLabel)){
+            throw new ParamException(String.format("labels for new add app template mush has %s key", appTypeLabel));
+        }
+        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
+        K8sTemplatePo po = null;
+        for(K8sTemplatePo template : templateList){
+            if(isEqual(template.getLabels(), labels)){
+                po = template;
+                break;
+            }
+        }
+        if(po == null){
+            throw new ParamException(String.format("can not find template to be updated for %s", gson.toJson(labels)));
+        }
+        po.setLabels(labels);
+        po.getObjectTemplate().setConfigMaps(configMaps);
+        po.getObjectTemplate().setDeployments(deployments);
+        po.getObjectTemplate().setStatefulSets(statefulSets);
+        po.getObjectTemplate().setServices(services);
+        po.getObjectTemplate().setIngress(ingress);
+        po.getObjectTemplate().setEndpoints(endpoints);
+        k8sTemplateMapper.update(po);
+        logger.info("template for %s has been updated : %s", gson.toJson(labels), gson.toJson(po));
+        templateList = k8sTemplateMapper.select();
+        objectTemplateList.clear();
+        templateList.forEach(t->objectTemplateList.add(t.getObjectTemplate()));
+        return po;
+    }
 
     public K8sTemplatePo addNewAppK8sTemplateFromExistNamespace(Map<String, String> labels, Map<String, String> selector, String namespace, String k8sApiUrl, String k8sAuthToken)throws ApiException, ParamException{
         for(K8sObjectTemplatePo po : objectTemplateList){
@@ -785,6 +899,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             throw new ParamException(String.format("can not match deployment for %s", gson.toJson(selector)));
         for(V1Deployment deploy : deploys){
             deploy.getMetadata().setNamespace(platformId);
+            deploy.getMetadata().setName(alias);
             deploy.getMetadata().setLabels(new HashMap<>());
             deploy.getMetadata().getLabels().put(appName, alias);
             deploy.getMetadata().getLabels().put(this.appVersionLabel, version);
@@ -797,18 +912,20 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
             List<V1Volume> volumes = deploy.getSpec().getTemplate().getSpec().getVolumes().stream()
                     .collect(Collectors.groupingBy(V1Volume::getName)).get(threePartAppPo.getVolume());
-            if(volumes == null){
-                throw new ParamException(String.format("not find %s volume from %s yaml", threePartAppPo.getVolume(), threePartAppPo.getAppName()));
-            }
-            else if(volumes.size() > 1){
-                throw new ParamException(String.format("%s volume from %s yaml multi defined", threePartAppPo.getVolume(), threePartAppPo.getAppName()));
-            }
-            V1Volume volume = volumes.get(0);
-            if(volume.getHostPath() != null){
-                volume.getHostPath().setPath(String.format("/home/kubernetes/volume/%s/%s", platform.getPlatformId(), threePartAppPo.getMountSubPath()).replaceAll("//", "/"));
-            }
-            else if(volume.getPersistentVolumeClaim() != null){
-                volume.getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platform.getPlatformId()));
+//            if(volumes == null){
+//                throw new ParamException(String.format("not find %s volume from %s yaml", threePartAppPo.getVolume(), threePartAppPo.getAppName()));
+//            }
+//            else if(volumes.size() > 1){
+//                throw new ParamException(String.format("%s volume from %s yaml multi defined", threePartAppPo.getVolume(), threePartAppPo.getAppName()));
+//            }
+            if(volumes != null && volumes.size() > 0){
+                V1Volume volume = volumes.get(0);
+                if(volume.getHostPath() != null){
+                    volume.getHostPath().setPath(String.format("/home/kubernetes/volume/%s/%s", platform.getPlatformId(), threePartAppPo.getMountSubPath()).replaceAll("//", "/"));
+                }
+                else if(volume.getPersistentVolumeClaim() != null){
+                    volume.getPersistentVolumeClaim().setClaimName(String.format("base-volume-%s", platform.getPlatformId()));
+                }
             }
         }
         if(appName.equals("oracle")){
@@ -1423,9 +1540,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         steps.add(k8sOpt);
         for(CCODThreePartAppPo threePartAppPo : threePartApps){
             K8sThreePartAppVo vo = generateK8sThreePartApp(platform, threePartAppPo, true);
+            vo.getConfigMaps().forEach(c->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP, c.getMetadata().getName(), K8sOperation.CREATE, c)));
             vo.getEndpoints().forEach(e->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.ENDPOINTS, e.getMetadata().getName(), K8sOperation.CREATE, e)));
             vo.getServices().forEach(s->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.SERVICE, s.getMetadata().getName(), K8sOperation.CREATE, s)));
             vo.getDeploys().forEach(d->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.DEPLOYMENT, d.getMetadata().getName(), K8sOperation.CREATE, d, threePartAppPo.getTimeout())));
+            vo.getStatefulSets().forEach(s->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.STATEFULSET, s.getMetadata().getName(), K8sOperation.CREATE, s)));
         }
         return steps;
     }
@@ -1485,7 +1604,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             }
             e.getSubsets().get(0).setAddresses(addresses);
         });
-        K8sThreePartAppVo appVo = new K8sThreePartAppVo(threePartAppPo.getAppName(), threePartAppPo.getAlias(), threePartAppPo.getVersion(), deployments, services, endpoints);
+        List<V1ConfigMap> configMaps = (List<V1ConfigMap>)selectK8sObjectTemplate(threePartAppPo.getCcodVersion(), AppType.THREE_PART_APP, threePartAppPo.getAppName(), threePartAppPo.getVersion(), threePartAppPo.getParams(), K8sKind.CONFIGMAP);
+        configMaps.forEach(c->c.getMetadata().setNamespace(platformId));
+        List<V1StatefulSet> statefulSets = (List<V1StatefulSet>)selectK8sObjectTemplate(threePartAppPo.getCcodVersion(), AppType.THREE_PART_APP, threePartAppPo.getAppName(), threePartAppPo.getVersion(), threePartAppPo.getParams(), K8sKind.STATEFULSET);
+        K8sThreePartAppVo appVo = new K8sThreePartAppVo(threePartAppPo.getAppName(), threePartAppPo.getAlias(), threePartAppPo.getVersion(), deployments, statefulSets, services, endpoints, configMaps);
         return appVo;
     }
 
@@ -1646,6 +1768,13 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                     case SECRET:
                         if(templatePo.getSecrets() != null)
                             return templatePo.getSecrets();
+                        break;
+                    case CONFIGMAP:
+                        if(templatePo.getConfigMaps() != null)
+                            return templatePo.getConfigMaps();
+                    case STATEFULSET:
+                        if(templatePo.getStatefulSets() != null)
+                            return templatePo.getStatefulSets();
                         break;
                 }
             }

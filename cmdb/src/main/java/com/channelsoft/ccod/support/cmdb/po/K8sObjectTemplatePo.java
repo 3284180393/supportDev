@@ -34,6 +34,8 @@ public class K8sObjectTemplatePo {
 
     private List<V1Pod> pods;
 
+    private List<V1ConfigMap> configMaps;
+
     private V1Namespace namespaces;
 
     private List<V1Job> jobs;
@@ -140,6 +142,14 @@ public class K8sObjectTemplatePo {
         this.pvcList = pvcList;
     }
 
+    public List<V1ConfigMap> getConfigMaps() {
+        return configMaps;
+    }
+
+    public void setConfigMaps(List<V1ConfigMap> configMaps) {
+        this.configMaps = configMaps;
+    }
+
     @Autowired
     public K8sObjectTemplatePo clone()
     {
@@ -155,9 +165,7 @@ public class K8sObjectTemplatePo {
         if(labels == null || labels.size() == 0)
             return "";
         StringBuffer sb = new StringBuffer();
-        for(String key : labels.keySet()){
-            sb.append(String.format("%s=%s;", key, labels.get(key)));
-        }
+        labels.forEach((k,v)->sb.append(String.format("%s=%s;", k, v)));
         return sb.toString().replaceAll(";$", "");
     }
 }

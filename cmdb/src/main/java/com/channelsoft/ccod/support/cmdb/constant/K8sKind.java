@@ -29,7 +29,9 @@ public enum K8sKind {
 
     JOB(10, "JOB", "job of k8s"),
 
-    ENDPOINTS(11, "ENDPOINTS", "end points of k8s"),;
+    ENDPOINTS(11, "ENDPOINTS", "endPoints of k8s"),
+
+    STATEFULSET(11, "STATEFULSET", "statefulSet of k8s"),;
 
     public int id;
 

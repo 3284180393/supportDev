@@ -47,4 +47,10 @@ public class K8sTemplatePo {
     public void setObjectTemplate(K8sObjectTemplatePo objectTemplate) {
         this.objectTemplate = objectTemplate;
     }
+
+    @Override
+    public String toString()
+    {
+        return objectTemplate.toString();
+    }
 }
