@@ -2175,6 +2175,26 @@ public class CMDBController {
         return resultPo;
     }
 
+    @RequestMapping(value = "/hostDeployPlatform", method = RequestMethod.POST)
+    public AjaxResultPo createPlatformByHostDeploy(@RequestBody PlatformUpdateSchemaInfo schema)
+    {
+        String uri = String.format("Post %s/hostDeployPlatform", this.apiBasePath);
+        logger.debug(String.format("enter %s controller, params=%s", uri, gson.toJson(schema)));
+        AjaxResultPo resultPo;
+        try
+        {
+           this.platformManagerService.deployPlatformByHostScript(schema);
+            resultPo = new AjaxResultPo(true, "generate schema success", 0, null);
+            logger.info(String.format("deploy platform success, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("deploy platform by host script exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
     @RequestMapping(value = "/platformDeployScript", method = RequestMethod.POST)
     public String generateScriptForDeploy(HttpServletRequest request, HttpServletResponse response, @RequestBody PlatformUpdateSchemaInfo schema)
     {

@@ -1,0 +1,4 @@
+jdk7: /opt/jdk1.7.0_79
+jdk8: /opt/jdk1.8.0_131
+resin4: /opt/resin-4.0.13.gz
+tomcat6: /opt/tomcat-6.0.53.gz

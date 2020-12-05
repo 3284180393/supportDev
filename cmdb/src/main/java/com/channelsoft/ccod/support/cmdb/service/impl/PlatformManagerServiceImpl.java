@@ -19,6 +19,7 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.Yaml;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.ibatis.annotations.Param;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -219,14 +220,20 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${k8s.volume-names.binary-file}")
     private String binaryFileVolumeName;
 
-    @Value("${ccod.platform-deploy-template}")
+    @Value("${ccod.host-deploy-template}")
     private String platformDeployScriptFileName;
+
+    @Value("${ccod.platform-deploy-template}")
+    private String hostDeployScriptFileName;
 
     @Value("${ccod.platform-deploy-cfg}")
     private String platformDeployCfgFileName;
 
     @Value("${ccod.platform-deploy-mysql-cfg}")
     private String platformDeployMysqlCfgFileName;
+
+    @Value("${ccod.host-script-deploy-cfg}")
+    private String hostScriptDeployCfgFileName;
 
     @Value("${nexus.image-repository}")
     private String imageRepository;
@@ -3950,17 +3957,82 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
     }
 
-    private void generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir)
-    {
-        Map<String, List<AppUpdateOperationInfo>> hostAppMap = schema.getDomainUpdatePlanList().stream()
-                .flatMap(d->d.getAppUpdateOperationList().stream()).collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
-        Map<String, Map<String, Object>> params = new HashMap<>();
-        for(String ip : hostAppMap.keySet()){
-
-        }
-
+    @Override
+    public void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws NexusException, InterfaceCallException, IOException, ParamException {
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        String fileSaveDir = String.format("%s/temp/script/%s/%s", System.getProperty("user.dir"), schema.getPlatformId(), sf.format(now));
+        List<String> scriptZipList = generatePythonScriptForPlatformDeploy(schema, fileSaveDir);
+        logger.info(String.format("generate zip is %s", gson.toJson(scriptZipList)));
     }
 
+    private List<String> generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir) throws ParamException, InterfaceCallException, NexusException, IOException
+    {
+        Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
+        List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
+                sorted(sort).collect(Collectors.toList());
+        List<String> ipList = new ArrayList<>();
+        Map<String, List<AppUpdateOperationInfo>> hostAppMap = new HashMap<>();
+        for(DomainUpdatePlanInfo plan : plans){
+            String domainId = plan.getDomainId();
+            BizSetDefine setDefine = getBizSetForDomainId(domainId);
+            Comparator<AppBase> appSort = getAppSort(setDefine);
+            List<AppUpdateOperationInfo> optList = plan.getAppUpdateOperationList().stream().sorted(appSort).collect(Collectors.toList());
+            for(AppUpdateOperationInfo o : optList){
+                o.setDomainId(plan.getDomainId());
+                o.setPlatformId(schema.getPlatformId());
+                AppModuleVo module = appManagerService.queryAppByVersion(o.getAppName(), o.getVersion(), true);
+                o.fill(module);
+                if(!ipList.contains(o.getHostIp())){
+                    ipList.add(o.getHostIp());
+                }
+                if(!hostAppMap.containsKey(o.getHostIp())){
+                    hostAppMap.put(o.getHostIp(), new ArrayList<>());
+                }
+                hostAppMap.get(o.getHostIp()).add(o);
+            }
+        }
+        List<String> scriptList = new ArrayList<>();
+        for(String ip : ipList){
+            String scriptPath = generateScriptForHostDeploy(ip, hostAppMap.get(ip), fileSaveDir);
+            scriptList.add(scriptPath);
+        }
+        return scriptList;
+    }
+
+    private String generateScriptForHostDeploy(String hostIp, List<AppUpdateOperationInfo> optList, String fileSaveDir) throws NexusException, InterfaceCallException, IOException
+    {
+        String saveDir = String.format("%s/%s", fileSaveDir, hostIp);
+        Map<String, Object> params = new HashMap<>();
+        for(AppUpdateOperationInfo optInfo : optList){
+            nexusService.downloadFile(nexusUserName, nexusPassword, optInfo.getInstallPackage().getFileNexusDownloadUrl(nexusHostUrl),
+                    String.format("%s/%s/package", saveDir, optInfo.getAlias()), optInfo.getInstallPackage().getFileName());
+            for(AppFileNexusInfo cfg : optInfo.getCfgs()){
+                nexusService.downloadFile(nexusUserName, nexusPassword, cfg.getFileNexusDownloadUrl(nexusHostUrl),
+                        String.format("%s/%s/cfg", saveDir, optInfo.getAlias()), cfg.getFileName());
+            }
+        }
+        params.put("deploySteps", optList);
+        FileUtils.saveContextToFile(saveDir, "deploy_param.txt", gson.toJson(params), true);
+        copySourceFile(this.hostScriptDeployCfgFileName, saveDir, this.platformDeployCfgFileName);
+        copySourceFile(this.hostDeployScriptFileName, saveDir, this.platformDeployScriptFileName);
+        String zipFilePath = String.format("%s/%s.zip", fileSaveDir, hostIp.replaceAll("\\.", "-"));
+        File zipFile = new File(zipFilePath);
+        if(zipFile.exists()){
+            zipFile.delete();
+        }
+        ZipUtils.zipFolder(saveDir, zipFilePath);
+        logger.debug(String.format("generated script for host deploy has saved to %s", zipFilePath));
+        return zipFilePath;
+    }
+
+    /**
+     * 生成平台部署yaml
+     * @param schema 平台规划
+     * @param steps 平台创建步骤
+     * @return 生成的平台部署yaml的zip包地址
+     * @throws IOException
+     */
     private String generateYamlForDeploy(PlatformUpdateSchemaInfo schema, List<K8sOperationInfo> steps) throws IOException
     {
         String platformId = schema.getPlatformId();

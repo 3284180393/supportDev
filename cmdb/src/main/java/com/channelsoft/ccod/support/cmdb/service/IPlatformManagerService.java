@@ -235,6 +235,8 @@ public interface IPlatformManagerService {
      */
     PlatformUpdateSchemaInfo generateSchemaForScriptDeploy(PlatformCreateParamVo paramVo);
 
+    void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws NexusException, InterfaceCallException, IOException, ParamException;
+
     /**
      * 是否平台部署正在进行
      * @param platformId 平台id
