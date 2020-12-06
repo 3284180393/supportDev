@@ -157,6 +157,10 @@ public class AppUpdateOperationInfo extends AppBase {
         this.runtime = runtime;
     }
 
+    public String getDeployName(){
+        return String.format("%s-%s", alias, domainId);
+    }
+
     public PlatformAppPo getPlatformApp(int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId)
     {
         PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner);

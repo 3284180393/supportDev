@@ -3968,11 +3968,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private List<String> generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir) throws ParamException, InterfaceCallException, NexusException, IOException
     {
+        Map<String, String> hosts = schema.getDomainUpdatePlanList().stream().flatMap(p->p.getAppUpdateOperationList().stream())
+                .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp, Collectors.mapping(AppUpdateOperationInfo::getDeployName, Collectors.joining(" "))));
+        Map<String, Object> platformParams = new HashMap<>();
+        platformParams.put("hosts", hosts);
+        platformParams.put("hostname", schema.getHostUrl());
         Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
+        List<String> scriptList = new ArrayList<>();
         List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
                 sorted(sort).collect(Collectors.toList());
-        List<String> ipList = new ArrayList<>();
-        Map<String, List<AppUpdateOperationInfo>> hostAppMap = new HashMap<>();
         for(DomainUpdatePlanInfo plan : plans){
             String domainId = plan.getDomainId();
             BizSetDefine setDefine = getBizSetForDomainId(domainId);
@@ -3983,24 +3987,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 o.setPlatformId(schema.getPlatformId());
                 AppModuleVo module = appManagerService.queryAppByVersion(o.getAppName(), o.getVersion(), true);
                 o.fill(module);
-                if(!ipList.contains(o.getHostIp())){
-                    ipList.add(o.getHostIp());
-                }
-                if(!hostAppMap.containsKey(o.getHostIp())){
-                    hostAppMap.put(o.getHostIp(), new ArrayList<>());
-                }
-                hostAppMap.get(o.getHostIp()).add(o);
             }
-        }
-        List<String> scriptList = new ArrayList<>();
-        for(String ip : ipList){
-            String scriptPath = generateScriptForHostDeploy(ip, hostAppMap.get(ip), fileSaveDir);
-            scriptList.add(scriptPath);
+            Map<String, List<AppUpdateOperationInfo>> hostAppMap = optList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
+            for(String ip : hostAppMap.keySet()){
+                String scriptPath = generateScriptForHostDeploy(ip, plan.getDomainId(), hostAppMap.get(ip), fileSaveDir, platformParams);
+                scriptList.add(scriptPath);
+            }
         }
         return scriptList;
     }
 
-    private String generateScriptForHostDeploy(String hostIp, List<AppUpdateOperationInfo> optList, String fileSaveDir) throws NexusException, InterfaceCallException, IOException
+    private String generateScriptForHostDeploy(String hostIp, String domainId, List<AppUpdateOperationInfo> optList, String fileSaveDir, Map<String, Object> platformParams) throws NexusException, InterfaceCallException, IOException
     {
         String saveDir = String.format("%s/%s", fileSaveDir, hostIp);
         Map<String, Object> params = new HashMap<>();
@@ -4013,10 +4010,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         params.put("deploySteps", optList);
+        platformParams.forEach((k,v)->params.put(k,v));
         FileUtils.saveContextToFile(saveDir, "deploy_param.txt", gson.toJson(params), true);
         copySourceFile(this.hostScriptDeployCfgFileName, saveDir, this.platformDeployCfgFileName);
         copySourceFile(this.hostDeployScriptFileName, saveDir, this.platformDeployScriptFileName);
-        String zipFilePath = String.format("%s/%s.zip", fileSaveDir, hostIp.replaceAll("\\.", "-"));
+        String zipFilePath = String.format("%s/%s@%s.zip", fileSaveDir, domainId, hostIp.replaceAll("\\.", "-"));
         File zipFile = new File(zipFilePath);
         if(zipFile.exists()){
             zipFile.delete();
