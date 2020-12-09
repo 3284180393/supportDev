@@ -1,4 +1,17 @@
 jdk7: /opt/jdk1.7.0_79
 jdk8: /opt/jdk1.8.0_131
-resin4: /opt/resin-4.0.13.gz
-tomcat6: /opt/tomcat-6.0.53.gz
+resin4: /opt/resin
+tomcat6: /opt/tomcat
+skip-apps:
+  - gls
+  - dcms
+nginx:
+  conf-dir: /etc/nginx/conf.d
+  listen: 80
+  server-name: localhost 127.0.0.1
+  root: /usr/share/nginx/html
+  index: index.html index.htm
+  proxy-set-header:
+    - Host $host
+    - X-Real-IP $remote_addr
+    - X-Forwarded-For $proxy_add_x_forwarded_for

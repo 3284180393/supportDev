@@ -21,7 +21,9 @@ public enum PlatformCreateMethod {
 
     K8S_API_CLONE(6, "K8S_API_CLONE", "通过k8s api克隆"),
 
-    RESTORE_FROM_CMDB(7, "RESTORE_FROM_CMDB", "通过cmdb记录恢复"),;
+    RESTORE_FROM_CMDB(7, "RESTORE_FROM_CMDB", "通过cmdb记录恢复"),
+
+    HOST_BY_SCRIPT(8, "HOST_BY_SCRIPT", "通过脚本在主机部署"),;
 
     public int id;
 

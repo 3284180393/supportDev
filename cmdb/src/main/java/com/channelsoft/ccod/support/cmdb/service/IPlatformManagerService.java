@@ -235,7 +235,22 @@ public interface IPlatformManagerService {
      */
     PlatformUpdateSchemaInfo generateSchemaForScriptDeploy(PlatformCreateParamVo paramVo);
 
-    void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws NexusException, InterfaceCallException, IOException, ParamException;
+    /**
+     * 通过脚本在主机上部署规划平台
+     * @param schema 规划好的平台
+     * @throws NotSupportSetException
+     * @throws NotSupportAppException
+     * @throws ParamException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     * @throws NexusException
+     * @throws IOException
+     * @throws ApiException
+     * @throws K8sDataException
+     * @throws ClassNotFoundException
+     * @throws SQLException
+     */
+    void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException;
 
     /**
      * 是否平台部署正在进行

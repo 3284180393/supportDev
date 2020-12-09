@@ -11,6 +11,8 @@ import json
 import signal
 import functools
 import yaml
+import telnetlib
+import nginx
 
 
 class TimeoutError(Exception):
@@ -21,6 +23,20 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 logger.basicConfig(filename='my.log', level=logger.DEBUG, format=LOG_FORMAT)
+# define a Handler which writes INFO messages or higher to the sys.stderr
+#
+console = logger.StreamHandler()
+console.setLevel(logger.DEBUG)
+# set a format which is simpler for console use
+#设置格式
+formatter = logger.Formatter('%(name)-2s: %(levelname)-2s %(message)s')
+# tell the handler to use this format
+#告诉handler使用这个格式
+console.setFormatter(formatter)
+# add the handler to the root logger
+#为root logger添加handler
+logger.getLogger('').addHandler(console)
+
 
 remote_dir = '/var/tmp/app_manager'
 script_24_support_version = '^Python 2\.4\.3$'
@@ -100,8 +116,105 @@ class CCODPlatform:
             for ip in self.params['hosts'].keys():
                 cmd = "echo '%s %s' >> /etc/hosts" % (ip, self.params['hosts'][ip])
                 SystemUtils.run_shell_command(cmd)
+        skip_apps = []
+        if 'skip-apps' in self.config.keys() and self.config['skip-apps']:
+            skip_apps = self.config['skip-apps']
+            logger.debug('app %s will be skipped' % ','.join(self.config['skip-apps']))
         for app_cfg in self.apps:
+            if app_cfg.alias in skip_apps:
+                logger.debug('%s skip to deploy' % app_cfg.alias)
+                continue
             app_cfg.deploy(self.config)
+        self.config_nginx()
+
+    def redeploy_apps(self, apps=None):
+        app_list = self.get_apps(apps)
+        for app_cfg in app_list:
+            app_cfg.deploy(self.config)
+
+    def restart_apps(self, apps=None):
+        """
+        重启指定应用模块，如果没有指定将重启所有的模块
+        :param apps: 指定重启的应用模块
+        :return: 重启后的状态
+        """
+        app_list = self.get_apps(apps)
+        for app_cfg in app_list:
+            app_cfg.restart()
+
+    def restart_app(self, alias, init_cmd=None, start_cmd=None):
+        app_cfg = self.get_app_cfg(alias)
+        if not app_cfg:
+            raise Exception('%s not exist' % alias)
+        app_cfg.restart(init_cmd=init_cmd, start_cmd=start_cmd)
+
+    def get_app_cfg(self, alias):
+        for app_cfg in self.apps:
+            if app_cfg.alias == alias:
+                return app_cfg
+        return None
+
+    def list_status(self, apps=None):
+        """
+        列出指定模块的状态，如果未指定模块将列出所有
+        :param apps: 指定的应用模块
+        :return: 指定模块的运行状态
+        """
+        result_list = []
+        if not apps:
+            app_list = self.apps
+        else:
+            app_list = []
+            for app in apps:
+                app_cfg = self.get_app_cfg(app)
+                if not app_cfg:
+                    result_list.append((False, '%s not exit' % app))
+                else:
+                    app_list.append(app_cfg)
+        for app_cfg in app_list:
+            status, desc = app_cfg.check_status()
+            result_list.append((status, desc))
+        return result_list
+
+    def config_nginx(self):
+        update_nginx = False
+        for app_cfg in self.apps:
+            if app_cfg.app_type == 'NODEJS' or app_cfg.app_type == 'JAR' or app_cfg.app_type == 'RESIN_WEB_APP' or app_cfg.app_type == 'TOMCAT_WEB_APP':
+                update_nginx = True
+                break
+        if not update_nginx:
+            logger.debug('domain %s not need update nginx' % self.apps[0].domain_id)
+            return None
+        nginx_cfg = self.config['nginx']
+        c = nginx.Conf()
+        s = nginx.Server()
+        s.add(
+            nginx.Key('listen', '%s' % nginx_cfg['listen']),
+            nginx.Key('server_name', self.apps[0].domain_id),
+            nginx.Comment('nginx conf for %s domain ccod modules' % self.apps[0].domain_id)
+        )
+        for app_cfg in self.apps:
+            if app_cfg.alias == 'gls' or app_cfg.alias == 'dcms':
+                continue
+            location = app_cfg.get_nginx_location(nginx_cfg)
+            if location:
+                s.add(location)
+        c.add(s)
+        nginx.dumpf(c, '%s/%s.conf' % (nginx_cfg['conf-dir'], self.apps[0].domain_id))
+        logger.debug('reload nginx')
+        SystemUtils.run_shell_command('nginx -s reload')
+        return c
+
+    def get_apps(self, apps=None):
+        if not apps:
+            return self.apps
+        app_list = []
+        for alias in apps:
+            app_cfg = self.get_app_cfg(alias)
+            if not app_cfg:
+                raise Exception('%s not exist' % alias)
+            app_list.append(app_cfg)
+        return app_list
 
 
 class DomainAppManager:
@@ -113,6 +226,8 @@ class DomainAppManager:
         self.alias = app_cfg['alias']
         self.app_type = app_cfg['appType']
         self.package = app_cfg['installPackage']
+        self.version = app_cfg['version']
+        self.ip = app_cfg['hostIp']
         if 'initCmd' in app_cfg.keys():
             self.init_cmd = app_cfg['initCmd']
         else:
@@ -125,21 +240,17 @@ class DomainAppManager:
             self.log_cmd = None
         if self.app_type != 'NODEJS':
             self.home = '/home/ccodrunner/%s' % self.alias
-            if self.app_type == 'BINARY_FILE' or self.app_type == 'JAR':
-                self.start_cmd = 'cd bin;chmod 777 %s;%s' % (self.package['fileName'], app_cfg['startCmd'])
-                self.base_path = self.home
+            if self.app_type == 'BINARY_FILE':
+                self.start_cmd = 'cd bin;%s' % app_cfg['startCmd']
+            elif self.app_type == 'JAR':
+                self.start_cmd = app_cfg['startCmd']
             elif self.app_type == 'RESIN_WEB_APP':
                 self.start_cmd = 'cd resin;%s' % app_cfg['startCmd']
-                self.base_path = '%s/resin' % self.home
-                # self.start_cmd = './bin/resin.sh start'
             elif self.app_type == 'TOMCAT_WEB_APP':
                 self.start_cmd = 'cd tomcat;%s' % app_cfg['startCmd']
-                self.base_path = '%s/tomcat' % self.home
-                # self.start_cmd = './bin/startup.sh'
         else:
             self.start_cmd = app_cfg['startCmd']
             self.home = '/usr/share/nginx/html'
-            self.base_path = '%s/%s' % (self.home, self.name)
         self.port = app_cfg['ports']
         if 'checkAt' in app_cfg.keys():
             self.check_at = app_cfg['checkAt']
@@ -155,22 +266,39 @@ class DomainAppManager:
         self.work_dir = work_dir
 
     def deploy(self, deploy_cfg):
-        print('begin to deploy %s(%s)' % (self.alias, self.name))
+        logger.debug('begin to deploy %s(%s)' % (self.alias, self.name))
+        if self.app_type != 'NODEJS':
+            user = self.alias
+        else:
+            user = None
         try:
-            self.__init_runtime(deploy_cfg)
-            # if self.init_cmd:
-            #     SystemUtils.run_shell_command(self.init_cmd)
-            if self.app_type == 'NODEJS':
-                SystemUtils.run_shell_command(self.start_cmd, exit_time=5)
-            else:
-                SystemUtils.run_shell_command(self.start_cmd, self.alias, exit_time=5)
-            # if self.log_cmd:
-            #     SystemUtils.run_shell_command(self.log_cmd)
+            self.init_runtime(deploy_cfg)
+            if self.init_cmd:
+                SystemUtils.run_shell_command(self.init_cmd, user=user)
+            SystemUtils.run_shell_command(self.start_cmd, user=user, exit_time=5)
         except Exception, e:
             print('部署%s失败:%s' % (self.alias, e))
             logger.error('部署%s异常:%s' % (self.alias, e), exc_info=True)
 
-    def __init_runtime(self, deploy_cfg):
+    def restart(self, init_cmd=None, start_cmd=None):
+        SystemUtils.kill_process(self.alias)
+        if self.app_type != 'NODEJS':
+            user = self.alias
+        else:
+            user = None
+        if init_cmd:
+            SystemUtils.run_shell_command(init_cmd, user=user)
+        elif self.init_cmd:
+            SystemUtils.run_shell_command(self.init_cmd, user=user)
+        if start_cmd:
+            SystemUtils.run_shell_command(start_cmd, user=user, exit_time=5)
+        else:
+            SystemUtils.run_shell_command(self.start_cmd, user=user, exit_time=5)
+
+    def init_runtime(self, deploy_cfg):
+        if self.app_type != 'NODEJS':
+            SystemUtils.kill_process(self.alias)
+            SystemUtils.add_user(self.alias, self.home, delete=True)
         timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
         if self.app_type == 'BINARY_FILE':
             self.__init_binary_file_runtime()
@@ -181,7 +309,59 @@ class DomainAppManager:
         elif self.app_type == 'NODEJS':
             self.__init_nodejs_runtime()
         else:
-            raise Exception('unsupport app type %s' % self.app_type)
+            raise Exception('unsupported app type %s' % self.app_type)
+
+    def check_status(self):
+        info = '%s[%s(%s)]' % (self.alias, self.name, self.version)
+        if self.app_type == 'NODEJS':
+            return False, '%s : UNKNOWN' % info
+        pids = SystemUtils.list_process(self.alias)
+        if not pids:
+            return False, '%s: STOP' % info
+        check_port = None
+        check_cmd = None
+        if not self.check_at:
+            check_port = int(re.sub('/.*', '', self.port))
+        else:
+            if re.match('.*/CMD', self.check_at):
+                check_cmd = re.sub('/CMD$', '', self.check_at)
+            else:
+                check_port = int(re.sub('/[^/].+$', '', self.check_at))
+        if check_port:
+            scan_result = SystemUtils.scan_port('127.0.0.1', check_port)
+            if scan_result:
+                return True, '%s: port %d is open' % (info, check_port)
+            else:
+                return False, '%s: port %d is not open' % (info, check_port)
+        try:
+            SystemUtils.run_shell_command(check_cmd, user=self.alias)
+            return True, '%s: OK' % info
+        except Exception as e:
+            return False, '%s: ERROR' % info
+
+    def get_nginx_location(self, nginx_cfg):
+        if self.app_type == 'JAR' or self.app_type == 'RESIN_WEB_APP' or self.app_type == 'TOMCAT_WEB_APP':
+            location = nginx.Location(
+                '/%s-%s' % (self.alias, self.domain_id),
+                nginx.Key('proxy_pass', 'http://%s:%s/%s-%s' % (self.ip, re.sub('/.*', '', self.port), self.alias, self.domain_id))
+            )
+            for header in nginx_cfg['proxy-set-header']:
+                location.add(nginx.Key('proxy_set_header', header))
+            return location
+        elif self.app_type != 'NODEJS':
+            location = nginx.Location(
+                '=/%s-%s' % (self.alias, self.domain_id),
+                nginx.Key('root', self.home),
+                nginx.Key('index', 'index.html index.htm')
+            )
+            return location
+        else:
+            return None
+
+    def __str_replace(self, src_str, dst_str, cfg_file_path, is_str=True):
+        if is_str:
+            cmd = """sed -i \\"s/%s/%s/g\\" %s""" % (src_str, dst_str, cfg_file_path)
+        SystemUtils.run_shell_command(cmd, user=self.alias)
 
     def __init_container_runtime(self, timestamp, deploy_cfg):
         """
@@ -211,7 +391,6 @@ class DomainAppManager:
         if con_ver not in deploy_cfg.keys():
             raise Exception('container version %s not configured' % con_ver)
         war_path = self.__update_war_cfg(work_dir, timestamp,deploy_cfg)
-        SystemUtils.add_user(self.alias, self.home, delete=True)
         cmd = SystemUtils.modify_user_jdk(deploy_cfg[jdk])
         SystemUtils.run_shell_command(cmd, user=self.alias)
         cmd = 'cp %s ./ -R' % deploy_cfg[con_ver]
@@ -221,16 +400,21 @@ class DomainAppManager:
         if 'env' in self.runtime.keys() and len(self.runtime['env']) > 0:
             cmd = SystemUtils.modify_user_env(self.runtime['env'])
             SystemUtils.run_shell_command(cmd, self.alias)
+        http_port = int(re.sub('/.*', '', self.port))
         if container == 'resin':
-            cfg_file = 'resin/conf/resin.xml'
+            self.__str_replace('8080', '%d' % http_port, 'resin/conf/resin.xml')
+            self.__str_replace('6800', '%d' % (http_port-8080+6800), 'resin/conf/resin.xml')
+            self.__str_replace('6800', '%d' % (http_port-8080+6800), 'resin/conf/local_server.xml')
+            self.__str_replace('6600', '%d' % (http_port-8080+6600), 'resin/conf/local_server.xml')
+            self.__str_replace('9999', '%d' % (http_port-8080+9999), 'resin/conf/local_jvm.xml')
         else:
-            cfg_file = 'tomcat/conf/server.xml'
-        cmd = """sed -i \\"s/port=\\\\\\"8080\\\\\\"/port=\\\\\\"%s\\\\\\"/g\\" %s""" % (re.sub('/.*', '', self.port), cfg_file)
-        SystemUtils.run_shell_command(cmd, user=self.alias)
+            self.__str_replace('8080', '%d' % http_port, 'tomcat/conf/server.xml')
+            self.__str_replace('8443', '%d' % (http_port-8080+8443), 'tomcat/conf/server.xml')
+            self.__str_replace('8009', '%d' % (http_port-8080+8009), 'tomcat/conf/server.xml')
 
     def __init_jar_runtime(self, deploy_cfg):
-        SystemUtils.add_user(self.alias, self.home, delete=True)
-        cmd = 'mkdir %s -p;cp %s/%s/package/%s %s/%s' % (self.package['deployPath'], self.work_dir, self.alias, self.package['fileName'], self.package['deployPath'], self.package['fileName'])
+        cmd = 'mkdir %s -p;cp %s/%s/package/%s %s/%s;chmod 777 %s/%s' \
+              % (self.package['deployPath'], self.work_dir, self.alias, self.package['fileName'], self.package['deployPath'], self.package['fileName'], self.package['deployPath'], self.package['fileName'])
         for cfg in self.cfgs:
             cmd = '%s;mkdir %s -p;cp %s/%s/cfg/%s %s/%s' % (cmd, cfg['deployPath'], self.work_dir, self.alias, cfg['fileName'], cfg['deployPath'], cfg['fileName'])
         SystemUtils.run_shell_command(re.sub('//', '/', cmd), user=self.alias)
@@ -241,8 +425,8 @@ class DomainAppManager:
             SystemUtils.run_shell_command(cmd, user=self.alias)
 
     def __init_binary_file_runtime(self):
-        SystemUtils.add_user(self.alias, self.home, delete=True)
-        cmd = 'mkdir %s -p;cp %s/%s/package/%s %s/%s' % (self.package['deployPath'], self.work_dir, self.alias, self.package['fileName'], self.package['deployPath'], self.package['fileName'])
+        cmd = 'mkdir %s -p;cp %s/%s/package/%s %s/%s;chmod 777 %s/%s' \
+              % (self.package['deployPath'], self.work_dir, self.alias, self.package['fileName'], self.package['deployPath'], self.package['fileName'], self.package['deployPath'], self.package['fileName'])
         for cfg in self.cfgs:
             cmd = '%s;mkdir %s -p;cp %s/%s/cfg/%s %s/%s' % (cmd, cfg['deployPath'], self.work_dir, self.alias, cfg['fileName'], cfg['deployPath'], cfg['fileName'])
         SystemUtils.run_shell_command(re.sub('//', '/', cmd), user=self.alias)
@@ -323,7 +507,8 @@ class SystemUtils:
             seconds_passed = time.time() - t_beginning
             if exit_time and seconds_passed > exit_time:
                 logger.info("命令%s %s秒内无错误返回，执行正常" % (command, seconds_passed))
-                return process.stdin.readlines()
+                # return process.stdin.readlines()
+                return "running"
             if timeout and seconds_passed > timeout:
                 logger.info("命令%s秒内无返回，执行超时" % seconds_passed)
                 raise Exception('exec timeout: exec %s %s seconds without return' % (command, seconds_passed))
@@ -338,9 +523,13 @@ class SystemUtils:
         :param delete: 如果该用户已经存在是删除后新建还是保留
         :return:
         """
-        if name == 'root':
+        if not name:
+            raise Exception('user to be created can not be None')
+        elif name == 'root':
             raise Exception('can not create user root')
-        if home == '/':
+        elif not home:
+            raise Exception('home of %s can not be None')
+        elif home == '/':
             raise Exception('home of %s can not be /' % name)
         cmd = """cat /etc/passwd|grep -v nologin|grep -v halt|grep -v shutdown|awk -F":" '{ print $1 }'|grep -E '^%s$'""" % name
         exec_result = SystemUtils.run_shell_command(cmd)
@@ -350,18 +539,52 @@ class SystemUtils:
                 return
             else:
                 logger.debug('%s user exist, delete it first' % name)
-                cmd = """ps -u %s | grep -E "\\d+" |awk -F" " '{ print $1 }'""" % name
-                exec_result = SystemUtils.run_shell_command(cmd)
-                if exec_result:
-                    logger.debug('some process still running at user %s, kill them fisrt' % name)
-                    cmd = "kill -9 %s" % re.sub("\\n", " ", exec_result)
-                    SystemUtils.run_shell_command(cmd)
                 cmd = 'userdel -r %s;rm -rf %s' % (name, home)
                 SystemUtils.run_shell_command(cmd, accept_err=True)
         cmd = "useradd %s -d %s -m" % (name, home)
         SystemUtils.run_shell_command(cmd)
         logger.debug('user %s been created, home=%s' % (name, home))
 
+    @staticmethod
+    def kill_process(user):
+        """
+        如果用户下面有进程正在运行，kill掉该用户下所有进程
+        :param user:
+        :return:
+        """
+        if not user:
+            raise Exception('user of been kill process can not be blank')
+        elif user == 'root':
+            raise Exception('can not kill process for root')
+        cmd = """ps -u %s |awk -F" " '{ print $1 }' | grep -v 'PID'""" % user
+        exec_result = SystemUtils.run_shell_command(cmd)
+        if exec_result:
+            logger.debug('pid %s for %s still running, kill them' % (re.sub('\\n', ' ', exec_result), user))
+            cmd = 'kill -9 %s' % re.sub('\\n', ' ', exec_result)
+            SystemUtils.run_shell_command(cmd, user=user)
+        else:
+            logger.debug('%s has not any process running' % user)
+
+    @staticmethod
+    def list_process(user):
+        if not user:
+            raise Exception('user can not be None')
+        cmd = """ps -u %s |awk -F" " '{ print $1 }' | grep -v 'PID'""" % user
+        exec_result = SystemUtils.run_shell_command(cmd)
+        if not exec_result:
+            logger.debug('%s has not any process running' % user)
+            return None
+        else:
+            logger.debug('%s has pid %s running' % (user, re.sub('\\n', ' ', exec_result)))
+            return re.sub('\\n', ' ', exec_result)
+
+    @staticmethod
+    def get_pid_info(user, pid):
+        cmd = "ps -aux| grep -E ' %s '| grep '^%s ' | grep -v grep" % (pid, user)
+        exec_result = SystemUtils.run_shell_command(cmd)
+        if not exec_result:
+            return None
+        return exec_result
 
     @staticmethod
     def modify_user_jdk(jdk, system_type='suse'):
@@ -370,8 +593,8 @@ class SystemUtils:
         else:
             res_file = '.bashrc'
         cmd = "echo 'JAVA_HOME=%s' >> %s" % (jdk, res_file)
-        cmd = "%s;echo 'PATH=$JAVA_HOME/bin:$PATH' >> %s" % (cmd, res_file)
-        cmd = "%s;echo 'CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar' >> %s" % (cmd, res_file)
+        cmd = "%s;echo 'PATH=\\$JAVA_HOME/bin:\\$PATH' >> %s" % (cmd, res_file)
+        cmd = "%s;echo 'CLASSPATH=.:\\$JAVA_HOME/lib/dt.jar:\\$JAVA_HOME/lib/tools.jar' >> %s" % (cmd, res_file)
         cmd = "%s;echo 'export JAVA_HOME' >> %s" % (cmd, res_file)
         cmd = "%s;echo 'export PATH' >> %s" % (cmd, res_file)
         cmd = "%s;echo 'export CLASSPATH' >> %s" % (cmd, res_file)
@@ -390,9 +613,63 @@ class SystemUtils:
         cmd = "%s;source %s" % (cmd, res_file)
         return re.sub('^;', '', cmd)
 
+    @staticmethod
+    def scan_port(ip, port):
+        try:
+            server = telnetlib.Telnet()
+            server.open(ip, port)
+            logger.info('port %d at %s is open' % (port, ip))
+            return True
+        except Exception as e:
+            logger.error('port %d at %s not open' % (port, ip))
+            return False
+
+
+def show_help():
+    print(u'错误的输入格式:')
+    print(u'python ccod.py create: 完成域模块部署')
+    print(u'pythron ccod.py restart: 重新启动所有的域模块')
+    print(u'python ccod.py restart app1 app2...appN: 将顺序重启指定的域模块，app1、app2..为指定域模块的别名')
+    print(u'python ccod.py deploy app1 app2...appN: 将顺序重新部署指定的域模块，app1、app2..为指定域模块的别名')
+    print(u'python ccod.py list: 列出所有域模块的当前状态')
+    print(u'python ccod.py list app1 app2...appN: 列出指定的域模块当前状态，app1、app2..为指定域模块的别名')
+    print(u'python ccod.py nginx: 更新域模块相关nginx配置')
+
 
 if __name__ == '__main__':
     platform = CCODPlatform(deploy_param_file, deploy_config_file)
-    platform.test()
-    platform.create()
-
+    current_domain_id = platform.apps[0].domain_id
+    print('**********************************')
+    if len(sys.argv) == 2 and sys.argv[1] == 'create':
+        platform.test()
+        print('begin to create domain %s' % current_domain_id)
+        platform.create()
+        print('create domain %s finish' % current_domain_id)
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'restart':
+        if len(sys.argv) == 2:
+            print('begin to restart all apps at domain %s' % current_domain_id)
+            input_list = None
+        else:
+            print('begin to restart %s at domain %s' % (','.join(sys.argv[2:]), current_domain_id))
+            input_list = sys.argv[2:]
+        platform.restart_apps(input_list)
+    elif len(sys.argv) >= 3 and sys.argv[1] == 'deploy':
+        platform.redeploy_apps(sys.argv[2:])
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'list':
+        if len(sys.argv) == 2:
+            print('begin to check all apps status at domain %s' % current_domain_id)
+            input_list = None
+        else:
+            print('begin to check %s status at domain %s' % (','.join(sys.argv[2:]), current_domain_id))
+            input_list = sys.argv[2:]
+        apps_status_result = platform.list_status(input_list)
+        print('**********************************')
+        for app_status_result in apps_status_result:
+            print(app_status_result[1])
+    elif len(sys.argv) == 2 and sys.argv[1] == 'nginx':
+        print('begin to update nginx for domain %s' % platform.apps[0].domain_id)
+        platform.config_nginx()
+        print('update nginx of domain %s finish' % platform.apps[0].domain_id)
+    else:
+        show_help()
+    print('**********************************')

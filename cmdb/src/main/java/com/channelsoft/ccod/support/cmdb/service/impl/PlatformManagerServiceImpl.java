@@ -220,10 +220,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     @Value("${k8s.volume-names.binary-file}")
     private String binaryFileVolumeName;
 
-    @Value("${ccod.host-deploy-template}")
+    @Value("${ccod.platform-deploy-template}")
     private String platformDeployScriptFileName;
 
-    @Value("${ccod.platform-deploy-template}")
+    @Value("${ccod.host-deploy-template}")
     private String hostDeployScriptFileName;
 
     @Value("${ccod.platform-deploy-cfg}")
@@ -3958,39 +3958,71 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws NexusException, InterfaceCallException, IOException, ParamException {
+    public void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException {
         Date now = new Date();
+        schema.setTaskType(PlatformUpdateTaskType.CREATE);
+        schema.setCreateMethod(PlatformCreateMethod.HOST_BY_SCRIPT);
+        schema.setStatus(UpdateStatus.CREATE);
+        updatePlatformUpdateSchema(schema);
         SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
         String fileSaveDir = String.format("%s/temp/script/%s/%s", System.getProperty("user.dir"), schema.getPlatformId(), sf.format(now));
         List<String> scriptZipList = generatePythonScriptForPlatformDeploy(schema, fileSaveDir);
         logger.info(String.format("generate zip is %s", gson.toJson(scriptZipList)));
     }
 
-    private List<String> generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir) throws ParamException, InterfaceCallException, NexusException, IOException
+    private List<String> generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException
     {
-        Map<String, String> hosts = schema.getDomainUpdatePlanList().stream().flatMap(p->p.getAppUpdateOperationList().stream())
-                .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp, Collectors.mapping(AppUpdateOperationInfo::getDeployName, Collectors.joining(" "))));
-        Map<String, Object> platformParams = new HashMap<>();
-        platformParams.put("hosts", hosts);
-        platformParams.put("hostname", schema.getHostUrl());
         Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
         List<String> scriptList = new ArrayList<>();
         List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
                 sorted(sort).collect(Collectors.toList());
         for(DomainUpdatePlanInfo plan : plans){
-            String domainId = plan.getDomainId();
-            BizSetDefine setDefine = getBizSetForDomainId(domainId);
-            Comparator<AppBase> appSort = getAppSort(setDefine);
-            List<AppUpdateOperationInfo> optList = plan.getAppUpdateOperationList().stream().sorted(appSort).collect(Collectors.toList());
-            for(AppUpdateOperationInfo o : optList){
+            for(AppUpdateOperationInfo o : plan.getAppUpdateOperationList()){
                 o.setDomainId(plan.getDomainId());
                 o.setPlatformId(schema.getPlatformId());
                 AppModuleVo module = appManagerService.queryAppByVersion(o.getAppName(), o.getVersion(), true);
                 o.fill(module);
             }
-            Map<String, List<AppUpdateOperationInfo>> hostAppMap = optList.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
+        }
+        Map<String, String> hosts = schema.getDomainUpdatePlanList().stream().flatMap(p->p.getAppUpdateOperationList().stream())
+                .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp, Collectors.mapping(AppUpdateOperationInfo::getDeployName, Collectors.joining(" "))));
+        Map<String, Object> platformParams = new HashMap<>();
+        platformParams.put("hosts", hosts);
+        platformParams.put("hostname", schema.getHostUrl());
+//        List<AppUpdateOperationInfo> portAppList = schema.getDomainUpdatePlanList().stream().flatMap(d->d.getAppUpdateOperationList().stream().filter(a->a.getAppType().equals(AppType.JAR) || a.getAppType().equals(AppType.TOMCAT_WEB_APP) || a.getAppType().equals(AppType.RESIN_WEB_APP))).collect(Collectors.toList());
+//        int startPort = 45800;
+//        for(AppUpdateOperationInfo opt : portAppList){
+//            if(opt.getAlias().equals("gls")){
+//                opt.setPorts("8081/TCP");
+//                opt.setCheckAt("8081/TCP");
+//                continue;
+//            }
+//            if(opt.getAlias().equals("dcms")){
+//                opt.setPorts("8082/TCP");
+//                opt.setCheckAt("8082/TCP");
+//                continue;
+//            }
+//            switch (opt.getAppType()){
+//                case JAR:
+//                    opt.setStartCmd(String.format("%s --server.port=%d", opt.getStartCmd(), startPort));
+//                case RESIN_WEB_APP:
+//                case TOMCAT_WEB_APP:
+//                    opt.setPorts(String.format("%d/TCP", startPort));
+//                    opt.setCheckAt(String.format("%d/TCP", startPort));
+//                    startPort++;
+//                    break;
+//            }
+//        }
+//        logger.error(String.format("schema=%s", gson.toJson(schema)));
+        updatePlatformUpdateSchema(schema);
+        for(DomainUpdatePlanInfo plan : plans){
+            String domainId = plan.getDomainId();
+            BizSetDefine setDefine = getBizSetForDomainId(domainId);
+            Comparator<AppBase> appSort = getAppSort(setDefine);
+            Map<String, List<AppUpdateOperationInfo>> hostAppMap = plan.getAppUpdateOperationList().stream().sorted(appSort)
+                    .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
             for(String ip : hostAppMap.keySet()){
-                String scriptPath = generateScriptForHostDeploy(ip, plan.getDomainId(), hostAppMap.get(ip), fileSaveDir, platformParams);
+                String scriptPath = generateScriptForHostDeploy(ip, domainId, hostAppMap.get(ip), fileSaveDir, platformParams);
                 scriptList.add(scriptPath);
             }
         }
@@ -3999,7 +4031,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private String generateScriptForHostDeploy(String hostIp, String domainId, List<AppUpdateOperationInfo> optList, String fileSaveDir, Map<String, Object> platformParams) throws NexusException, InterfaceCallException, IOException
     {
-        String saveDir = String.format("%s/%s", fileSaveDir, hostIp);
+        String saveDir = String.format("%s/%s/%s", fileSaveDir, hostIp, domainId);
         Map<String, Object> params = new HashMap<>();
         for(AppUpdateOperationInfo optInfo : optList){
             nexusService.downloadFile(nexusUserName, nexusPassword, optInfo.getInstallPackage().getFileNexusDownloadUrl(nexusHostUrl),
