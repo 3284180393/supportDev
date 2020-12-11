@@ -19,7 +19,6 @@ import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.Yaml;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.ibatis.annotations.Param;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -79,6 +78,32 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     || f.getName().contains("dnsPolicy") || f.getName().contains("securityContext") || f.getName().contains("schedulerName")
                     || f.getName().contains("restartPolicy") || f.getName().contains("clusterIP")
                     || f.getName().contains("sessionAffinity") || f.getName().contains("nodePort");
+        }
+
+        @Override
+        public boolean shouldSkipClass(Class<?> clazz) {
+            //过滤掉 类名包含 Bean的类
+            return clazz.getName().contains("Bean");
+        }
+    }).registerTypeAdapter(DateTime.class, new GsonDateUtil()).disableHtmlEscaping().create();
+
+    private Gson hostSchemaGson = new GsonBuilder().setExclusionStrategies(new ExclusionStrategy() {
+        @Override
+        public boolean shouldSkipField(FieldAttributes f) {
+            //过滤掉字段名包含"age"
+            return f.getName().contains("schemaId") || f.getName().contains("taskType") || f.getName().contains("status") || f.getName().contains("title") || f.getName().contains("comment")
+                    || f.getName().contains("namespace") || f.getName().contains("k8sSecrets") || f.getName().contains("k8sJob")
+                    || f.getName().contains("srcPlatformId") || f.getName().contains("type")
+                    || f.getName().contains("func") || f.getName().contains("createMethod") || f.getName().contains("bkBizId")
+                    || f.getName().contains("glsDBType") || f.getName().contains("glsDBUser")
+                    || f.getName().contains("glsDBPwd") || f.getName().contains("glsDBService")
+                    || f.getName().contains("baseDataNexusRepository") || f.getName().contains("baseDataNexusPath") || f.getName().contains("k8sHostIp")
+                    || f.getName().contains("k8sApiUrl") || f.getName().contains("k8sAuthToken")
+                    || f.getName().contains("nfsServerIp")|| f.getName().contains("nexusRepository") || f.getName().contains("nexusPath")
+                    || f.getName().contains("nexusAssetId") || f.getName().contains("basePath") || f.getName().contains("initialDelaySeconds")
+                    || f.getName().contains("periodSeconds") || f.getName().contains("ext") || f.getName().contains("assembleTag")
+                    || f.getName().contains("originalAlias") || f.getName().contains("originalVersion") || f.getName().contains("appRunner")
+                    || f.getName().contains("basePath");
         }
 
         @Override
@@ -4015,6 +4040,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        }
 //        logger.error(String.format("schema=%s", gson.toJson(schema)));
         updatePlatformUpdateSchema(schema);
+        PlatformUpdateSchemaInfo cloneSchema = hostSchemaGson.fromJson(hostSchemaGson.toJson(schema), PlatformUpdateSchemaInfo.class);
+        String json = hostSchemaGson.toJson(schema);
+        System.out.println(json);
         for(DomainUpdatePlanInfo plan : plans){
             String domainId = plan.getDomainId();
             BizSetDefine setDefine = getBizSetForDomainId(domainId);
@@ -4054,6 +4082,161 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         ZipUtils.zipFolder(saveDir, zipFilePath);
         logger.debug(String.format("generated script for host deploy has saved to %s", zipFilePath));
         return zipFilePath;
+    }
+
+    private Map<String, Object> generateHostDeployParam(PlatformUpdateSchemaInfo schema)
+    {
+        Map<String, Object> params = new HashMap<>();
+        Map<String, Object> base = getHostPlatformBaseParam(schema);
+        params.put("platform", base);
+        Map<String, Object> hosts = getHostPlatformHostParam(schema);
+        params.put("hosts", hosts);
+        Map<String, Object> nginx = getHostPlatformNiginxParam(schema);
+        params.put("nginx", nginx);
+        Map<String, Object> depend = getHostPlatformDependParam(schema);
+        params.put("depend", depend);
+        Map<String, Object> paramCfg = getHostPlatformParamCfg(schema);
+        params.put("param-cfg", paramCfg);
+        return params;
+    }
+
+    private Map<String, Object> getHostPlatformDependParam(PlatformUpdateSchemaInfo schema)
+    {
+        Map<String, Object> params = new HashMap<>();
+        Map<String, Object> mysql = new HashMap<>();
+        mysql.put("ip", getKeyParamMap("ip", "10.130.25.173"));
+        mysql.put("port", getKeyParamMap("port", 1536));
+        mysql.put("user", getKeyParamMap("user", "ucds"));
+        mysql.put("password", getKeyParamMap("port", "ucds"));
+        mysql.put("db-name", getKeyParamMap("dbName", "ucds"));
+        params.put("mysql", mysql);
+        Map<String, Object> redis = new HashMap<>();
+        redis.put("method", getKeyParamMap("method", "sentinel"));
+        redis.put("ip", getKeyParamMap("ip", "10.130.25.173:27379;10.130.25.173:27380;10.130.25.173:27381"));
+        redis.put("master-name", getKeyParamMap("master-name", "server-1M"));
+        redis.put("password", getKeyParamMap("password", "gonghang"));
+        params.put("redis", redis);
+        return params;
+    }
+
+    private Map<String, Object> getHostPlatformParamCfg(PlatformUpdateSchemaInfo schema)
+    {
+        Map<String, Object> params = new HashMap<>();
+        Map<String, Object> umg = new HashMap<>();
+        umg.put("location-string", getKeyParamMap("LocationString", "umg"));
+        umg.put("password", getKeyParamMap("password", "icbc-cms1"));
+        params.put("umg", umg);
+        return params;
+    }
+
+    private Map<String, Object> getKeyParamMap(String k, Object v)
+    {
+        Map<String, Object> params = new HashMap<>();
+        params.put("key", k);
+        params.put("value", v);
+        return params;
+    }
+
+    private Map<String, Object> getHostPlatformBaseParam(PlatformUpdateSchemaInfo schema)
+    {
+        Map<String, Object> params = new HashMap<>();
+        params.put("name", schema.getPlatformName());
+        params.put("id", schema.getPlatformId());
+        params.put("version", schema.getCcodVersion());
+        params.put("host", schema.getHostUrl());
+        List<AppFileNexusInfo> publicCfgs = schema.getCfgs() == null ? new ArrayList<>() : schema.getCfgs();
+        List<Map<String, Object>> cfgMaps = new ArrayList<>();
+        for(AppFileNexusInfo cfg : publicCfgs){
+            Map<String, Object> cfgMap = new HashMap<>();
+            cfgMap.put("name", cfg.getFileName());
+            cfgMap.put("path", cfg.getDeployPath());
+            cfgMaps.add(cfgMap);
+        }
+        params.put("public-cfg", cfgMaps);
+        return params;
+    }
+
+    private Map<String, Object> getHostDomainParam(DomainUpdatePlanInfo plan)
+    {
+        Map<String, Object> params = new HashMap<>();
+        params.put("name", plan.getDomainName());
+        params.put("id", plan.getDomainId());
+        List<AppFileNexusInfo> publicCfgs = plan.getPublicConfig() == null ? new ArrayList<>() : plan.getPublicConfig();
+        List<Map<String, Object>> cfgMaps = new ArrayList<>();
+        for(AppFileNexusInfo cfg : publicCfgs){
+            Map<String, Object> cfgMap = new HashMap<>();
+            cfgMap.put("name", cfg.getFileName());
+            cfgMap.put("path", cfg.getDeployPath());
+            cfgMaps.add(cfgMap);
+        }
+        params.put("public-cfg", cfgMaps);
+        List<Map<String, Object>> appList = new ArrayList<>();
+        for(AppUpdateOperationInfo opt : plan.getAppUpdateOperationList()){
+            Map<String, Object> optMap = new HashMap<>();
+            optMap.put("name", opt.getAppName());
+            optMap.put("alias", opt.getAlias());
+            optMap.put("type", opt.getAppType().name);
+            optMap.put("version", opt.getVersion());
+            optMap.put("ip", opt.getHostIp());
+            optMap.put("port", opt.getPorts());
+            optMap.put("init-cmd", opt.getInitCmd());
+            optMap.put("start-cmd", opt.getStartCmd());
+            optMap.put("log-output-cmd", opt.getLogOutputCmd());
+            if(opt.getTimeout() != null && opt.getTimeout() > 0){
+                optMap.put("timeout", opt.getTimeout());
+            }
+            Map<String, Object> pkg = new HashMap<>();
+            pkg.put("name", opt.getInstallPackage().getFileName());
+            pkg.put("path", opt.getInstallPackage().getDeployPath());
+            pkg.put("md5", opt.getInstallPackage().getMd5());
+            optMap.put("package", pkg);
+            List<AppFileNexusInfo> appCfgs = opt.getCfgs() == null ? new ArrayList<>() : opt.getCfgs();
+            List<Map<String, Object>> appCfgList = new ArrayList<>();
+            for(AppFileNexusInfo cfg : appCfgs){
+                Map<String, Object> optCfgMap = new HashMap<>();
+                optCfgMap.put("name", cfg.getFileName());
+                optCfgMap.put("path", cfg.getDeployPath());
+                optCfgMap.put("md5", cfg.getMd5());
+                appCfgList.add(optCfgMap);
+            }
+            optMap.put("cfg-file", appCfgList);
+            appList.add(optMap);
+        }
+        params.put("app", appList);
+        return params;
+    }
+
+    private Map<String, Object> getHostPlatformHostParam(PlatformUpdateSchemaInfo schema)
+    {
+        Map<String, Object> params = new HashMap<>();
+        Set<String> ipSet = schema.getDomainUpdatePlanList().stream().flatMap(d->d.getAppUpdateOperationList().stream())
+                .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp)).keySet();
+        for(String ip : ipSet){
+            Map<String, Object> host = new HashMap<>();
+            host.put("ip", ip);
+            host.put("user", "root");
+            host.put("password", "ccodccod2020A");
+            Map<String, String> env = new HashMap<>();
+            env.put("jdk7", "/opt/jdk1.7.0_79");
+            env.put("jdk8", "/opt/jdk1.8.0_131");
+            env.put("resin4", "/opt/resin");
+            env.put("tomcat6", "/opt/tomcat");
+            params.put("env", env);
+        }
+        return params;
+    }
+
+    private Map<String, Object> getHostPlatformNiginxParam(PlatformUpdateSchemaInfo schema)
+    {
+        Map<String, Object> params = new HashMap<>();
+        params.put("conf", "/etc/nginx/conf.d/default.conf");
+        Map<String, Object> listen = new HashMap<>();
+        listen.put("http", 80);
+        listen.put("https", "443 ssl");
+        params.put("listen", listen);
+        List<String> headers = Arrays.asList(new String[]{"Host $host", "X-Real-IP $remote_addr", "X-Forwarded-For $proxy_add_x_forwarded_for"});
+        params.put("proxy-set-header", headers);
+        return params;
     }
 
     /**

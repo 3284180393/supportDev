@@ -6,11 +6,10 @@ skip-apps:
   - gls
   - dcms
 nginx:
-  conf-dir: /etc/nginx/conf.d
-  listen: 80
-  server-name: localhost 127.0.0.1
-  root: /usr/share/nginx/html
-  index: index.html index.htm
+  conf: /etc/nginx/conf.d/default.conf
+  listen:
+    http: 80
+    https: 443 ssl
   proxy-set-header:
     - Host $host
     - X-Real-IP $remote_addr
