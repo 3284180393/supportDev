@@ -4,6 +4,7 @@ import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformBase;
+import com.google.gson.Gson;
 import io.kubernetes.client.openapi.models.*;
 import org.springframework.validation.annotation.Validated;
 
@@ -25,7 +26,7 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
     private String schemaId; //id由发起升级计划的生成的用来标识计划的唯一标识
 
     @Valid
-    private List<DomainUpdatePlanInfo> domainUpdatePlanList; //域升级方案列表
+    private List<DomainUpdatePlanInfo> domains; //域升级方案列表
 
     @NotNull(message = "taskType can not be null")
     private PlatformUpdateTaskType taskType; //升级计划的任务类型,由PlatformUpdateTaskType枚举定义
@@ -51,6 +52,12 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
 
     private Map<String, String> configCenterData; //用来定义配置中心化的所有（k,v）对
 
+    private List<HostConfig> hosts; //用来定义主机相关配置
+
+    private NginxConfig nginx;   //在主机上部署时，用来定义nginx配置
+
+    private List<ThreePartAppConfig> depend; //用来定义依赖的第三应用相关配置
+
     public PlatformUpdateSchemaInfo() {}
 
     public PlatformUpdateSchemaInfo(PlatformBase platformBase, PlatformUpdateTaskType taskType, UpdateStatus status, String title, String comment)
@@ -60,7 +67,7 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
         this.title = title;
         this.comment = comment;
         this.status = status;
-        this.domainUpdatePlanList = new ArrayList<>();
+        this.domains = new ArrayList<>();
         this.threePartApps = new ArrayList<>();
         this.configCenterData = new HashMap<>();
     }
@@ -72,18 +79,18 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
         this.title = title;
         this.comment = comment;
         this.status = status;
-        this.domainUpdatePlanList = new ArrayList<>();
+        this.domains = new ArrayList<>();
         this.threePartApps = new ArrayList<>();
         this.threePartServices = new ArrayList<>();
         this.configCenterData = new HashMap<>();
     }
 
-    public List<DomainUpdatePlanInfo> getDomainUpdatePlanList() {
-        return domainUpdatePlanList;
+    public List<DomainUpdatePlanInfo> getDomains() {
+        return domains;
     }
 
-    public void setDomainUpdatePlanList(List<DomainUpdatePlanInfo> domainUpdatePlanList) {
-        this.domainUpdatePlanList = domainUpdatePlanList;
+    public void setDomains(List<DomainUpdatePlanInfo> domains) {
+        this.domains = domains;
     }
 
     public PlatformUpdateTaskType getTaskType() {
@@ -181,4 +188,29 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
     public void setConfigCenterData(Map<String, String> configCenterData) {
         this.configCenterData = configCenterData;
     }
+
+    public List<HostConfig> getHosts() {
+        return hosts;
+    }
+
+    public void setHosts(List<HostConfig> hosts) {
+        this.hosts = hosts;
+    }
+
+    public NginxConfig getNginx() {
+        return nginx;
+    }
+
+    public void setNginx(NginxConfig nginx) {
+        this.nginx = nginx;
+    }
+
+    public List<ThreePartAppConfig> getDepend() {
+        return depend;
+    }
+
+    public void setDepend(List<ThreePartAppConfig> depend) {
+        this.depend = depend;
+    }
+
 }

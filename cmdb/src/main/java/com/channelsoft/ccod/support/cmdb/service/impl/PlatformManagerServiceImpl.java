@@ -103,7 +103,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     || f.getName().contains("nexusAssetId") || f.getName().contains("basePath") || f.getName().contains("initialDelaySeconds")
                     || f.getName().contains("periodSeconds") || f.getName().contains("ext") || f.getName().contains("assembleTag")
                     || f.getName().contains("originalAlias") || f.getName().contains("originalVersion") || f.getName().contains("appRunner")
-                    || f.getName().contains("basePath");
+                    || f.getName().contains("basePath") || f.getName().contains("bkCloudId");
         }
 
         @Override
@@ -1841,7 +1841,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        logger.warn(gson.toJson(updateSchema));
         PlatformUpdateTaskType taskType = updateSchema.getTaskType();
         UpdateStatus status = updateSchema.getStatus();
-        checkPlatformBase(updateSchema, taskType, updateSchema.getDomainUpdatePlanList(), status);
+        checkPlatformBase(updateSchema, taskType, updateSchema.getDomains(), status);
         PlatformUpdateRecordPo rcd = this.platformUpdateRecordMapper.selectByJobId(updateSchema.getSchemaId());
         if(rcd != null)
             throw new ParamException(String.format("schema id %s has been used", updateSchema.getSchemaId()));
@@ -2017,15 +2017,15 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             setMap.put(this.ccodBiz.getSet().get(i).getFixedDomainId(), i);
         Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
         UpdateStatus status = schema.getStatus();
-        List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
+        List<DomainUpdatePlanInfo> plans = schema.getDomains().stream().
                 filter(plan->plan.getStatus().equals(status)).sorted(sort).collect(Collectors.toList());
         boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) || schema.getTaskType().equals(PlatformUpdateTaskType.RESTORE) ? true : false;
         String platformId = platformPo.getPlatformId();
         CCODPlatformStatus platformStatus = platformPo.getStatus();
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         boolean clone = PlatformCreateMethod.CLONE.equals(schema.getCreateMethod()) ? true : false;
-        schema.getDomainUpdatePlanList().stream()
-                .forEach(plan -> plan.getAppUpdateOperationList().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
+        schema.getDomains().stream()
+                .forEach(plan -> plan.getApps().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream()
                 .collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         List<K8sOperationInfo> steps = generateExecStepForSchema(platformPo, schema, domainList, platformDeployApps);
@@ -2049,8 +2049,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     DomainPo domainPo = StringUtils.isNotBlank(plan.getDomainId()) && domainMap.containsKey(plan.getDomainId()) ? domainMap.get(domainId) : plan.getDomain(platformId);
                     List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
                     logger.debug(String.format("preprocess %s %d apps with isCreate=%b and %d deployed apps",
-                            gson.toJson(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-                    Map<String, List<AppFileNexusInfo>> cfgMap = preprocessDomainApps(schema.getPlatformId(), plan.getAppUpdateOperationList(), domainAppList, domainPo, clone, date);
+                            gson.toJson(domainPo), plan.getApps().size(), isCreate, domainAppList.size()));
+                    Map<String, List<AppFileNexusInfo>> cfgMap = preprocessDomainApps(schema.getPlatformId(), plan.getApps(), domainAppList, domainPo, clone, date);
                     domainCfgMap.put(domainId, cfgMap);
                 }
                 PlatformSchemaExecResultVo execResultVo = execPlatformUpdateSteps(platformPo, steps, platformDeployLogs, schema, platformDeployApps);
@@ -2072,7 +2072,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     platformMapper.update(platformPo);
                     return;
                 }
-                schema.setDomainUpdatePlanList(schema.getDomainUpdatePlanList().stream()
+                schema.setDomains(schema.getDomains().stream()
                         .filter(plan->!plan.getStatus().equals(UpdateStatus.EXEC)).collect(Collectors.toList()));
                 for (DomainUpdatePlanInfo plan : plans) {
                     String domainId = plan.getDomainId();
@@ -2083,10 +2083,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     List<PlatformAppDeployDetailVo> domainAppList = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
                     List<AssemblePo> assembles = domainAssembleMap.containsKey(domainId) ? domainAssembleMap.get(domainId) : new ArrayList<>();
                     logger.debug(String.format("handle %s %d apps with isCreate=%b and %d deployed apps",
-                            gson.toJson(domainPo), plan.getAppUpdateOperationList().size(), isCreate, domainAppList.size()));
-                    handleDomainApps(platformId, domainPo, plan.getAppUpdateOperationList(), assembles, domainAppList, registerApps, domainCfgMap.get(domainId));
+                            gson.toJson(domainPo), plan.getApps().size(), isCreate, domainAppList.size()));
+                    handleDomainApps(platformId, domainPo, plan.getApps(), assembles, domainAppList, registerApps, domainCfgMap.get(domainId));
                 }
-                boolean closeSchema = status.equals(UpdateStatus.EXEC) && schema.getDomainUpdatePlanList().size() == 0 ? true : false;
+                boolean closeSchema = status.equals(UpdateStatus.EXEC) && schema.getDomains().size() == 0 ? true : false;
                 this.platformUpdateSchemaMap.put(schema.getPlatformId(), schema);
                 this.platformUpdateSchemaMapper.delete(schema.getPlatformId());
                 if(closeSchema) {
@@ -2128,18 +2128,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             setMap.put(this.ccodBiz.getSet().get(i).getFixedDomainId(), i);
         Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
         UpdateStatus status = schema.getStatus();
-        List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
+        List<DomainUpdatePlanInfo> plans = schema.getDomains().stream().
                 filter(plan->plan.getStatus().equals(status)).sorted(sort).collect(Collectors.toList());
         boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) || schema.getTaskType().equals(PlatformUpdateTaskType.RESTORE) ? true : false;
         List<K8sOperationInfo> steps = new ArrayList<>();
         String platformId = platformPo.getPlatformId();
         String jobId = schema.getSchemaId();
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
-        schema.getDomainUpdatePlanList().stream()
-                .forEach(plan -> plan.getAppUpdateOperationList().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
+        schema.getDomains().stream()
+                .forEach(plan -> plan.getApps().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
         V1Deployment deployGls = null;
         Map<String, List<AppUpdateOperationInfo>> optMap = plans.stream()
-                .flatMap(plan->plan.getAppUpdateOperationList().stream()).collect(Collectors.toList())
+                .flatMap(plan->plan.getApps().stream()).collect(Collectors.toList())
                 .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
         List<AppUpdateOperationInfo> glsOpts = optMap.get("glsServer");
         boolean hasUCDS = optMap.containsKey("UCDServer");
@@ -2459,7 +2459,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String k8sApiUrl = platformPo.getK8sApiUrl();
         String k8sAuthToken = platformPo.getK8sAuthToken();
         Map<String, PlatformAppDeployDetailVo> aliasAppMap = domainApps.stream().collect(Collectors.toMap(o->o.getAlias(), v->v));
-        plan.getAppUpdateOperationList().stream().filter(o->o.getOperation().equals(AppUpdateOperation.UPDATE))
+        plan.getApps().stream().filter(o->o.getOperation().equals(AppUpdateOperation.UPDATE))
                 .forEach(o->o.fill(aliasAppMap.get(o.getAlias())));
         List<AppFileNexusInfo> domainCfg = plan.getPublicConfig();
         if(!isNewPlatform && domainCfg != null && domainCfg.size() > 0) {
@@ -2476,7 +2476,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, domainId, K8sOperation.CREATE, configMap);
             steps.add(optInfo);
         }
-        List<AppUpdateOperationInfo> deleteList = plan.getAppUpdateOperationList().stream()
+        List<AppUpdateOperationInfo> deleteList = plan.getApps().stream()
                 .filter(opt->opt.getOperation().equals(AppUpdateOperation.DELETE)).sorted(sort.reversed())
                 .collect(Collectors.toList());
         for(AppUpdateOperationInfo optInfo : deleteList) {
@@ -2484,7 +2484,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     optInfo.getAlias(), optInfo.getVersion(), domainId, platformId, k8sApiUrl, k8sAuthToken);
             steps.addAll(deleteSteps);
         }
-        List<AppUpdateOperationInfo> addAndUpdateList = plan.getAppUpdateOperationList().stream()
+        List<AppUpdateOperationInfo> addAndUpdateList = plan.getApps().stream()
                 .filter(opt->opt.getOperation().equals(AppUpdateOperation.ADD) || opt.getOperation().equals(AppUpdateOperation.UPDATE))
                 .sorted(sort).collect(Collectors.toList());
         for(AppUpdateOperationInfo optInfo : addAndUpdateList) {
@@ -2502,7 +2502,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         steps.forEach(s->s.setKernal(false));
-        logger.info(String.format("deploy %s %d apps need %d steps", domainId, plan.getAppUpdateOperationList().size(), steps.size()));
+        logger.info(String.format("deploy %s %d apps need %d steps", domainId, plan.getApps().size(), steps.size()));
         return steps;
     }
 
@@ -2550,17 +2550,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     private void makeupDomainIdAndAliasForSchema(PlatformUpdateSchemaInfo schemaInfo, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> deployAppList, boolean clone) throws ParamException {
-        if(schemaInfo.getTaskType().equals(PlatformUpdateTaskType.RESTORE) || schemaInfo.getDomainUpdatePlanList() == null || schemaInfo.getDomainUpdatePlanList().size() == 0)
+        if(schemaInfo.getTaskType().equals(PlatformUpdateTaskType.RESTORE) || schemaInfo.getDomains() == null || schemaInfo.getDomains().size() == 0)
             return;
-        List<DomainUpdatePlanInfo> addDomainList = schemaInfo.getDomainUpdatePlanList().stream().filter(plan->plan.getUpdateType().equals(DomainUpdateType.ADD))
+        List<DomainUpdatePlanInfo> addDomainList = schemaInfo.getDomains().stream().filter(plan->plan.getUpdateType().equals(DomainUpdateType.ADD))
                 .collect(Collectors.toList());
         if(addDomainList.size() > 0)
             generateId4AddDomain(schemaInfo.getPlatformId(), addDomainList, existDomainList, clone);
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = deployAppList.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
         Map<String, DomainPo> domainMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
-        for (DomainUpdatePlanInfo planInfo : schemaInfo.getDomainUpdatePlanList()) {
+        for (DomainUpdatePlanInfo planInfo : schemaInfo.getDomains()) {
             String domainId = planInfo.getDomainId();
-            List<AppUpdateOperationInfo> addOptList = planInfo.getAppUpdateOperationList().stream().filter(p->p.getOperation().equals(AppUpdateOperation.ADD))
+            List<AppUpdateOperationInfo> addOptList = planInfo.getApps().stream().filter(p->p.getOperation().equals(AppUpdateOperation.ADD))
                     .collect(Collectors.toList());
             logger.debug(String.format("%s has not new add module", domainId, addDomainList.size()));
             if (addOptList.size() > 0) {
@@ -2617,7 +2617,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      * @return 检查结果
      */
     private String checkPlatformUpdateSchema(String ccodVersion, PlatformUpdateSchemaInfo updateSchema, List<DomainPo> existDomainList, List<PlatformAppDeployDetailVo> deployApps, List<LJHostInfo> hostList, List<AppModuleVo> registerApps) {
-        if(updateSchema.getDomainUpdatePlanList() == null || updateSchema.getDomainUpdatePlanList().size() == 0 || updateSchema.getTaskType().equals(PlatformUpdateTaskType.RESTORE))
+        if(updateSchema.getDomains() == null || updateSchema.getDomains().size() == 0 || updateSchema.getTaskType().equals(PlatformUpdateTaskType.RESTORE))
             return "";
         StringBuffer sb = new StringBuffer();
         hostList.stream().collect(Collectors.groupingBy(LJHostInfo::getHostInnerIp))
@@ -2625,7 +2625,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, BizSetDefine> setDefineMap = this.ccodBiz.getSet().stream().collect(Collectors.toMap(BizSetDefine::getName, Function.identity()));
         Map<String, DomainPo> domainIdMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         Map<String, DomainPo> domainNameMap = existDomainList.stream().collect(Collectors.toMap(DomainPo::getDomainName, Function.identity()));
-        Map<DomainUpdateType, List<DomainUpdatePlanInfo>> typePlanMap = updateSchema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getUpdateType));
+        Map<DomainUpdateType, List<DomainUpdatePlanInfo>> typePlanMap = updateSchema.getDomains().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getUpdateType));
         List<DomainUpdatePlanInfo> deleteList = typePlanMap.containsKey(DomainUpdateType.DELETE) ? typePlanMap.get(DomainUpdateType.DELETE) : new ArrayList<>();
         Map<String, LJHostInfo> hostMap = hostList.stream().collect(Collectors.toMap(LJHostInfo::getHostInnerIp, Function.identity()));
         for(DomainUpdatePlanInfo planInfo : deleteList)
@@ -2635,7 +2635,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 sb.append("domainId of DELETE domain is blank;");
             else if(!domainIdMap.containsKey(domainId))
                 sb.append(String.format("DELETE domain %s not exist;", domainId));
-            else if(planInfo.getAppUpdateOperationList() != null && planInfo.getAppUpdateOperationList().size() > 0)
+            else if(planInfo.getApps() != null && planInfo.getApps().size() > 0)
                 sb.append(String.format("appUpdateOperationList of DELETED domain %s should be empty;", domainId));
         }
         List<DomainUpdatePlanInfo> addList = typePlanMap.containsKey(DomainUpdateType.ADD) ? typePlanMap.get(DomainUpdateType.ADD) : new ArrayList<>();
@@ -2651,12 +2651,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 sb.append(String.format("bkSetName of ADD domain %s is blank;", domainName));
             else if(!setDefineMap.containsKey(bkSetName))
                 sb.append(String.format("bkSetName %s of %s is illegal;", bkSetName, domainName));
-            else if(planInfo.getAppUpdateOperationList().stream().filter(opt->!opt.getOperation().equals(AppUpdateOperation.ADD))
+            else if(planInfo.getApps().stream().filter(opt->!opt.getOperation().equals(AppUpdateOperation.ADD))
                     .collect(Collectors.toList()).size() > 0)
                 sb.append(String.format("app operation of CREATED domain %s should be ADD;", domainName));
             else {
                 BizSetDefine setDefine = setDefineMap.get(bkSetName);
-                for(AppUpdateOperationInfo opt : planInfo.getAppUpdateOperationList()) {
+                for(AppUpdateOperationInfo opt : planInfo.getApps()) {
                     String optCheckResult = checkAppOperationParam(ccodVersion, opt, setDefine, new ArrayList<>(), hostList);
                     if(StringUtils.isBlank(optCheckResult)) {
                         if(StringUtils.isBlank(opt.getHostIp()))
@@ -2681,16 +2681,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             else {
                 BizSetDefine setDefine = setDefineMap.get(domainIdMap.get(domainId).getBizSetName());
                 List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(domainId) ? domainAppMap.get(domainId) : new ArrayList<>();
-                planInfo.getAppUpdateOperationList()
+                planInfo.getApps()
                         .forEach(opt->sb.append(checkAppOperationParam(ccodVersion, opt, setDefine, domainApps, hostList)));
             }
         }
         if(StringUtils.isNotBlank(sb.toString()))
             return sb.toString();
-        updateSchema.getDomainUpdatePlanList().stream().filter(plan -> StringUtils.isNotBlank(plan.getDomainId()))
+        updateSchema.getDomains().stream().filter(plan -> StringUtils.isNotBlank(plan.getDomainId()))
                 .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainId))
                 .forEach((k,v)->{if(v.size()>1)sb.append(String.format("update plan of %s multi define;", k));});
-        updateSchema.getDomainUpdatePlanList().stream().filter(plan -> StringUtils.isNotBlank(plan.getDomainName()))
+        updateSchema.getDomains().stream().filter(plan -> StringUtils.isNotBlank(plan.getDomainName()))
                 .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getDomainName))
                 .forEach((k,v)->{if(v.size()>1)sb.append(String.format("update plan of %s multi define;", k));});
         return sb.toString();
@@ -2796,9 +2796,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 continue;
             }
             DomainUpdatePlanInfo planInfo = generateCloneExistDomain(domain);
-            planInfo.setAppUpdateOperationList(deployApps.stream().map(d->d.getOperationInfo(AppUpdateOperation.ADD)).collect(Collectors.toList()));
+            planInfo.setApps(deployApps.stream().map(d->d.getOperationInfo(AppUpdateOperation.ADD)).collect(Collectors.toList()));
             planInfo.setStatus(UpdateStatus.EXEC);
-            schemaInfo.getDomainUpdatePlanList().add(planInfo);
+            schemaInfo.getDomains().add(planInfo);
         }
         return schemaInfo;
     }
@@ -2903,7 +2903,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 }
                 AppUpdateOperationInfo opt = deployApp.getOperationInfo(AppUpdateOperation.ADD);
                 opt.setHostIp(hostIp);
-                planMap.get(domainId).getAppUpdateOperationList().add(opt);
+                planMap.get(domainId).getApps().add(opt);
             }
             i++;
         }
@@ -2921,7 +2921,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         planInfo.setDomainName(clonedDomain.getDomainName());
         planInfo.setBkSetName(clonedDomain.getBizSetName());
         planInfo.setStatus(UpdateStatus.CREATE);
-        planInfo.setAppUpdateOperationList(new ArrayList<>());
+        planInfo.setApps(new ArrayList<>());
         planInfo.setMaxOccurs(clonedDomain.getMaxOccurs());
         planInfo.setOccurs(clonedDomain.getOccurs());
         planInfo.setTags(clonedDomain.getTags());
@@ -3999,22 +3999,22 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     {
         Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
         List<String> scriptList = new ArrayList<>();
-        List<DomainUpdatePlanInfo> plans = schema.getDomainUpdatePlanList().stream().
+        List<DomainUpdatePlanInfo> plans = schema.getDomains().stream().
                 sorted(sort).collect(Collectors.toList());
         for(DomainUpdatePlanInfo plan : plans){
-            for(AppUpdateOperationInfo o : plan.getAppUpdateOperationList()){
+            for(AppUpdateOperationInfo o : plan.getApps()){
                 o.setDomainId(plan.getDomainId());
                 o.setPlatformId(schema.getPlatformId());
                 AppModuleVo module = appManagerService.queryAppByVersion(o.getAppName(), o.getVersion(), true);
                 o.fill(module);
             }
         }
-        Map<String, String> hosts = schema.getDomainUpdatePlanList().stream().flatMap(p->p.getAppUpdateOperationList().stream())
+        Map<String, String> hosts = schema.getDomains().stream().flatMap(p->p.getApps().stream())
                 .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp, Collectors.mapping(AppUpdateOperationInfo::getDeployName, Collectors.joining(" "))));
         Map<String, Object> platformParams = new HashMap<>();
         platformParams.put("hosts", hosts);
         platformParams.put("hostname", schema.getHostUrl());
-//        List<AppUpdateOperationInfo> portAppList = schema.getDomainUpdatePlanList().stream().flatMap(d->d.getAppUpdateOperationList().stream().filter(a->a.getAppType().equals(AppType.JAR) || a.getAppType().equals(AppType.TOMCAT_WEB_APP) || a.getAppType().equals(AppType.RESIN_WEB_APP))).collect(Collectors.toList());
+//        List<AppUpdateOperationInfo> portAppList = schema.getDomains().stream().flatMap(d->d.getApps().stream().filter(a->a.getAppType().equals(AppType.JAR) || a.getAppType().equals(AppType.TOMCAT_WEB_APP) || a.getAppType().equals(AppType.RESIN_WEB_APP))).collect(Collectors.toList());
 //        int startPort = 45800;
 //        for(AppUpdateOperationInfo opt : portAppList){
 //            if(opt.getAlias().equals("gls")){
@@ -4040,14 +4040,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        }
 //        logger.error(String.format("schema=%s", gson.toJson(schema)));
         updatePlatformUpdateSchema(schema);
-        PlatformUpdateSchemaInfo cloneSchema = hostSchemaGson.fromJson(hostSchemaGson.toJson(schema), PlatformUpdateSchemaInfo.class);
-        String json = hostSchemaGson.toJson(schema);
-        System.out.println(json);
+//        PlatformUpdateSchemaInfo cloneSchema = hostSchemaGson.fromJson(hostSchemaGson.toJson(schema), PlatformUpdateSchemaInfo.class);
+        makeupHostSchema(schema);
+        List<Map<String, Object>> yamlItems = generateHostYamlItems(schema);
+        FileWriter writer = new FileWriter("/temp/config.yaml", false);
+        Yaml.dumpAll(yamlItems.iterator(), writer);
         for(DomainUpdatePlanInfo plan : plans){
             String domainId = plan.getDomainId();
             BizSetDefine setDefine = getBizSetForDomainId(domainId);
             Comparator<AppBase> appSort = getAppSort(setDefine);
-            Map<String, List<AppUpdateOperationInfo>> hostAppMap = plan.getAppUpdateOperationList().stream().sorted(appSort)
+            Map<String, List<AppUpdateOperationInfo>> hostAppMap = plan.getApps().stream().sorted(appSort)
                     .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
             for(String ip : hostAppMap.keySet()){
                 String scriptPath = generateScriptForHostDeploy(ip, domainId, hostAppMap.get(ip), fileSaveDir, platformParams);
@@ -4055,6 +4057,39 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             }
         }
         return scriptList;
+    }
+
+    private List<Map<String, Object>> generateHostYamlItems(PlatformUpdateSchemaInfo schema){
+        List<Map<String, Object>> items = new ArrayList<>();
+        Map<String, Object> info = new HashMap<>();
+        info.put("platformName", schema.getPlatformName());
+        info.put("platformId", schema.getPlatformId());
+        info.put("ccodVersion", schema.getCcodVersion());
+        info.put("hostUrl", schema.getHostUrl());
+        items.add(info);
+        List<Map<String, String>> cfgs = schema.getCfgs().stream().map(c->c.getHostFileInfo()).collect(Collectors.toList());
+        items.add(createYamlItem("hosts", schema.getHosts()));
+        items.add(createYamlItem("depend", schema.getDepend()));
+        items.add(createYamlItem("cfgs", cfgs));
+        items.add(createYamlItem("nginx", schema.getNginx()));
+        List<Map<String, Object>> domains = schema.getDomains().stream().map(d->d.getHostDomainInfo()).collect(Collectors.toList());;
+        items.add(createYamlItem("domains", domains));
+        items.add(createYamlItem("configCenterData", schema.getConfigCenterData()));
+        return items;
+    }
+
+    private Map<String, Object> createYamlItem(String key, Object value){
+        Map<String, Object> item = new HashMap<>();
+        item.put(key, value);
+        return item;
+    }
+
+    public List<Map<String, Object>> getSchemaYamlIterator(PlatformUpdateSchemaInfo schema){
+        List<Map<String, Object>> list = new ArrayList<>();
+        Map<String, Object> item = new HashMap<>();
+        item.put("platformName", schema.getPlatformName());
+        item.put("platformId", schema.getPlatformId());
+        return null;
     }
 
     private String generateScriptForHostDeploy(String hostIp, String domainId, List<AppUpdateOperationInfo> optList, String fileSaveDir, Map<String, Object> platformParams) throws NexusException, InterfaceCallException, IOException
@@ -4082,6 +4117,75 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         ZipUtils.zipFolder(saveDir, zipFilePath);
         logger.debug(String.format("generated script for host deploy has saved to %s", zipFilePath));
         return zipFilePath;
+    }
+
+    private void makeupHostSchema(PlatformUpdateSchemaInfo schema)
+    {
+        if(schema.getHosts() == null || schema.getHosts().size() == 0){
+            schema.setHosts(new ArrayList<>());
+            schema.getDomains().stream().flatMap(d->d.getApps().stream()).collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp))
+                    .keySet().forEach(ip->{
+                        HostConfig host = new HostConfig();
+                        host.setIp(ip);
+                        host.setUser("root");
+                        host.setPassword("ccodccod2020A");
+                        host.setInitCmd(String.format("echo 'hello %s'", ip));
+                        Map<String, String> cfg = new HashMap<>();
+                        cfg.put("jdk7", "/opt/jdk1.7.0_79");
+                        cfg.put("jdk8", "/opt/jdk1.8.0_131");
+                        cfg.put("resin4", "/opt/resin");
+                        cfg.put("tomcat6", "/opt/tomcat");
+                        host.setCfg(cfg);
+                        Map<String, String> env = new HashMap<>();
+                        env.put("ENVTEST", "OK");
+                        host.setEnv(env);
+                        schema.getHosts().add(host);
+            });
+        }
+        if(schema.getNginx() == null){
+            NginxConfig config = new NginxConfig();
+            config.setConf("/etc/nginx/conf.d/default.conf");
+            List<String> headers = Arrays.asList(new String[]{"Host $host", "X-Real-IP $remote_addr", "X-Forwarded-For $proxy_add_x_forwarded_for"});
+            config.setHeaders(headers);
+            config.setHttp("80");
+            config.setHttps("443 ssl");
+            String ip = schema.getDomains().stream().flatMap(d->d.getApps().stream())
+                    .filter(o->o.getAppType().equals(AppType.RESIN_WEB_APP) || o.getAppType().equals(AppType.TOMCAT_WEB_APP) || o.getAppType().equals(AppType.JAR))
+                    .collect(Collectors.toList()).get(0).getHostIp();
+            config.setIp(ip);
+            schema.setNginx(config);
+        }
+        if(schema.getDepend() == null || schema.getDepend().size() == 0){
+            schema.setDepend(new ArrayList<>());
+            if(schema.getCcodVersion().equals("4.8")){
+                ThreePartAppConfig config = new ThreePartAppConfig();
+                config.setName("mysql");
+                config.setAlias("mysql");
+                List<ConfigKey> keys = new ArrayList<>();
+                keys.add(new ConfigKey("ip", "10.130.25.169", "mysql-ip"));
+                keys.add(new ConfigKey("port", "1536", "mysql-ip"));
+                keys.add(new ConfigKey("user", "ucds", "mysql-user"));
+                keys.add(new ConfigKey("password", "ucds", "mysql-password"));
+                keys.add(new ConfigKey("dbName", "ucds", "mysql-db-name"));
+                config.setCfg(keys);
+                schema.getDepend().add(config);
+                config = new ThreePartAppConfig();
+                config.setName("redis");
+                config.setAlias("redis");
+                keys = new ArrayList<>();
+                keys.add(new ConfigKey("method", "sentinel", "redis-method"));
+                keys.add(new ConfigKey("ip", "10.130.25.173:27379;10.130.25.173:27380;10.130.25.173:27381", "redis-ip"));
+                keys.add(new ConfigKey("masterName", "server-1M", "redis-master-name"));
+                keys.add(new ConfigKey("password", "gonghang", "redis-password"));
+                keys.add(new ConfigKey("dbName", "ucds", "mysql-db-name"));
+                config.setCfg(keys);
+                schema.getDepend().add(config);
+            }
+        }
+        if(schema.getConfigCenterData() == null || schema.getConfigCenterData().size() == 0){
+            schema.setConfigCenterData(new HashMap<>());
+            schema.getConfigCenterData().put("dnis", "01088884321");
+        }
     }
 
     private Map<String, Object> generateHostDeployParam(PlatformUpdateSchemaInfo schema)
@@ -4171,7 +4275,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         params.put("public-cfg", cfgMaps);
         List<Map<String, Object>> appList = new ArrayList<>();
-        for(AppUpdateOperationInfo opt : plan.getAppUpdateOperationList()){
+        for(AppUpdateOperationInfo opt : plan.getApps()){
             Map<String, Object> optMap = new HashMap<>();
             optMap.put("name", opt.getAppName());
             optMap.put("alias", opt.getAlias());
@@ -4209,7 +4313,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private Map<String, Object> getHostPlatformHostParam(PlatformUpdateSchemaInfo schema)
     {
         Map<String, Object> params = new HashMap<>();
-        Set<String> ipSet = schema.getDomainUpdatePlanList().stream().flatMap(d->d.getAppUpdateOperationList().stream())
+        Set<String> ipSet = schema.getDomains().stream().flatMap(d->d.getApps().stream())
                 .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp)).keySet();
         for(String ip : ipSet){
             Map<String, Object> host = new HashMap<>();
@@ -4336,50 +4440,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return zipFilePath;
     }
 
-    private void generateYamlForDeploy(List<K8sOperationInfo> steps, String name, String basePath, Map<String, Object> deployParams) throws IOException{
-        StringBuffer sb = new StringBuffer();
-        List<Map<String, Object>> execList = new ArrayList<>();
-        for(K8sOperationInfo step : steps){
-            if(step.getKind().equals(K8sKind.JOB))
-                continue;
-            if(step.getKind().equals(K8sKind.JOB))
-                step.setTimeout(20);
-            StringBuffer content = new StringBuffer();
-            String alias = step.getName().split("-")[0];
-            String domainId = step.getDomainId();
-            String saveDir = domainId == null ? basePath : String.format("%s/%s/%s", basePath, domainId, alias);
-            String fileName = String.format("%s-%s-%s.yaml", step.getName(), step.getKind().name.toLowerCase(), step.getOperation().name.toLowerCase());
-            String tag = String.format("# create %s", step.getKind().name.toLowerCase());
-            content.append(tag).append("\n---\n").append(Yaml.dump(step.getObj())).append("\n\n");
-            FileUtils.saveContextToFile(saveDir, fileName, content.toString(), true);
-            sb.append(content.toString());
-            Map<String, Object> param = new HashMap<>();
-            param.put("timeout", step.getTimeout());
-            param.put("filePath", domainId == null ? fileName : String.format("%s/%s/%s", domainId, alias, fileName));
-            execList.add(param);
-        }
-        Set<String> images = deployParams.containsKey("images") ? new HashSet<>((List<String>)deployParams.get("images")) : new HashSet<>();
-        steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT)).forEach(s->{
-            V1Deployment deploy = (V1Deployment)s.getObj();
-            if(deploy.getSpec().getTemplate().getSpec().getInitContainers() != null)
-                deploy.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->{
-                    images.add(c.getImage());
-                });
-            if(deploy.getSpec().getTemplate().getSpec().getContainers() != null)
-                deploy.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
-                    images.add(c.getImage());
-                });
-        });
-        steps.stream().filter(s->s.getKind().equals(K8sKind.JOB)).forEach(s->{
-            V1Job job = (V1Job)s.getObj();
-            if(job.getSpec().getTemplate().getSpec().getContainers() != null)
-                job.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
-                    images.add(c.getImage());
-                });
-        });
-        deployParams.put(String.format("%s-steps", name), steps);
-    }
-
     @Override
     public PlatformUpdateRecordVo rollbackPlatform(String platformId, List<String> domainIds) throws ParamException, ApiException {
         logger.debug(String.format("rollback domain %s of %s to previous status", platformId, String.join(",", domainIds)));
@@ -4395,12 +4455,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String preJobId = lastRecord.getJobId();
         if(StringUtils.isBlank(preJobId))
             throw new ParamException(String.format("pre_update_job_id of last update record, so %s can not rollback", platformId));
-        Map<UpdateStatus, List<DomainUpdatePlanInfo>> statusPlanMap = lastRecord.getExecSchema().getDomainUpdatePlanList().stream()
+        Map<UpdateStatus, List<DomainUpdatePlanInfo>> statusPlanMap = lastRecord.getExecSchema().getDomains().stream()
                 .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getStatus));
         if(!statusPlanMap.containsKey(UpdateStatus.EXEC))
             throw new ParamException(String.format("last update of %s do not EXEC any domain plan", platformId));
         Set<String> execDomainIds = statusPlanMap.get(UpdateStatus.EXEC).stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity())).keySet();
-        Map<DomainUpdateType, List<DomainUpdatePlanInfo>> typePlanMap = lastRecord.getExecSchema().getDomainUpdatePlanList().stream()
+        Map<DomainUpdateType, List<DomainUpdatePlanInfo>> typePlanMap = lastRecord.getExecSchema().getDomains().stream()
                 .collect(Collectors.groupingBy(DomainUpdatePlanInfo::getUpdateType));
         if(!typePlanMap.containsKey(DomainUpdateType.UPDATE))
             throw new ParamException(String.format("last update of %s has not any domain UPDATE plan", platformId));
@@ -4449,7 +4509,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 sf.format(lastRecord.getUpdateTime()), lastRecord.getPreUpdateJobId());
         PlatformUpdateSchemaInfo schemaInfo = new PlatformUpdateSchemaInfo(platform, PlatformUpdateTaskType.ROLLBACK, UpdateStatus.EXEC, title, comment);
         List<DomainUpdatePlanInfo> planList = getK8sPlatformRollBackInfo(platform, lastRecord.getExecSchema(), lastRecord.getPreDeployApps(), domainIds);
-        schemaInfo.setDomainUpdatePlanList(planList);
+        schemaInfo.setDomains(planList);
         PlatformUpdateRecordPo updateRecord = new PlatformUpdateRecordPo();
         updateRecord.setJobId(jobId);
         updateRecord.setPreUpdateJobId(lastRecord.getJobId());
@@ -4587,7 +4647,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         PlatformUpdateRecordPo lastRecord = lastRecords.get(0);
         PlatformUpdateSchemaInfo schema = gson.fromJson(new String(lastRecord.getExecSchema()), PlatformUpdateSchemaInfo.class);
         List<PlatformAppDeployDetailVo> preDeployApps = gson.fromJson(new String(lastRecord.getPreDeployApps()), new TypeToken<List<PlatformAppDeployDetailVo>>() {}.getType());
-        Map<UpdateStatus, List<DomainUpdatePlanInfo>> planStatusMap = schema.getDomainUpdatePlanList().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getStatus));
+        Map<UpdateStatus, List<DomainUpdatePlanInfo>> planStatusMap = schema.getDomains().stream().collect(Collectors.groupingBy(DomainUpdatePlanInfo::getStatus));
         if(!planStatusMap.containsKey(UpdateStatus.EXEC))
             throw new ParamException(String.format("platform %s with jobId=%s has not any EXEC domain plan", platformId, lastRecord.getJobId()));
         Map<DomainUpdateType, List<DomainUpdatePlanInfo>> planTypeMap = planStatusMap.get(UpdateStatus.EXEC).stream()
@@ -4605,7 +4665,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String platformId = platform.getPlatformId();
         List<DomainUpdatePlanInfo> planList = new ArrayList<>();
         Map<String, List<PlatformAppDeployDetailVo>> srcDomainAppMap = preDeployApps.stream().collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
-        Map<String, DomainUpdatePlanInfo> planMap = updateSchema.getDomainUpdatePlanList().stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity()));
+        Map<String, DomainUpdatePlanInfo> planMap = updateSchema.getDomains().stream().collect(Collectors.toMap(DomainUpdatePlanInfo::getDomainId, Function.identity()));
         for(String domainId : domainIds)
         {
             if(!planMap.containsKey(domainId))
@@ -4615,7 +4675,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         planMap.get(domainId).getUpdateType().name, domainId));
             if(!srcDomainAppMap.containsKey(domainId))
                 throw new ParamException(String.format("can not find original app deploy detail of %s", domainId));
-            DomainUpdatePlanInfo rollBackPlan = getDomainRollbackPlan(domainId, planMap.get(domainId).getAppUpdateOperationList(), srcDomainAppMap.get(domainId));
+            DomainUpdatePlanInfo rollBackPlan = getDomainRollbackPlan(domainId, planMap.get(domainId).getApps(), srcDomainAppMap.get(domainId));
             planList.add(rollBackPlan);
         }
         return planList;
@@ -4667,7 +4727,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         DomainUpdatePlanInfo plan = new DomainUpdatePlanInfo();
         plan.setDomainId(domainId);
         plan.setUpdateType(DomainUpdateType.UPDATE);
-        plan.setAppUpdateOperationList(rolls);
+        plan.setApps(rolls);
         return plan;
     }
 

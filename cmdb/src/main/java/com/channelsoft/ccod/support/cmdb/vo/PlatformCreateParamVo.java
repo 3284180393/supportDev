@@ -78,7 +78,7 @@ public class PlatformCreateParamVo extends PlatformBase implements Serializable 
         String comment = PlatformCreateMethod.CLONE.equals(createMethod) ? String.format("create by %s %s", createMethod.name, params) : String.format("create by %s", createMethod.name);
         PlatformUpdateSchemaInfo schema = new PlatformUpdateSchemaInfo(this, params, PlatformUpdateTaskType.CREATE, UpdateStatus.CREATE, title, comment);
         schema.setSchemaId(schemaId);
-        schema.setDomainUpdatePlanList(domainPlanList);
+        schema.setDomains(domainPlanList);
         return schema;
     }
 }

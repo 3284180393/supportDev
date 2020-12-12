@@ -3,13 +3,12 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.UpdateStatus;
 import com.channelsoft.ccod.support.cmdb.po.*;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.NotNull;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.Map;
 
 /**
  * @ClassName: AppUpdateOperationInfo
@@ -180,6 +179,42 @@ public class AppUpdateOperationInfo extends AppBase {
         vo.setPlatformAppId(0);
         vo.setCfgs(cfgs);
         return vo;
+    }
+
+    public Map<String, Object> getHostAppInfo()
+    {
+        Map<String, Object> info = new HashMap<>();
+        info.put("appName", appName);
+        info.put("alias", alias);
+        info.put("appType", appType.name);
+        info.put("version", version);
+        info.put("hostIp", hostIp);
+        if(cfgs != null && cfgs.size() > 0){
+            List<Map<String, String>> cfgParams = cfgs.stream().map(c->c.getHostFileInfo()).collect(Collectors.toList());
+            info.put("cfgs", cfgParams);
+        }
+        Map<String, String> pkg = new HashMap<>();
+        pkg.put("fileName", installPackage.getFileName());
+        pkg.put("deployPath", installPackage.getDeployPath());
+        pkg.put("md5", installPackage.getMd5());
+        info.put("installPackage", pkg);
+        if(StringUtils.isNotBlank(checkAt)){
+            info.put("checkAt", checkAt);
+        }
+        if(timeout != null && timeout > 0){
+            info.put("timeout", timeout);
+        }
+        if(runtime != null){
+            info.put("runtime", runtime);
+        }
+        if(StringUtils.isNotBlank(envLoadCmd)){
+            info.put("envLoadCmd", envLoadCmd);
+        }
+        info.put("startCmd", startCmd);
+        if(StringUtils.isNotBlank(logOutputCmd)){
+            info.put("logOutputCmd", logOutputCmd);
+        }
+        return info;
     }
 
     @Override

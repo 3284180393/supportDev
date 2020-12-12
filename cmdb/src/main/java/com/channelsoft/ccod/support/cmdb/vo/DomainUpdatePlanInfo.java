@@ -12,8 +12,8 @@ import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @ClassName: DomainUpdatePlanInfo
@@ -34,7 +34,7 @@ public class DomainUpdatePlanInfo {
     private String bkSetName; //域归属的set名
 
     @Valid
-    private List<AppUpdateOperationInfo> appUpdateOperationList; //应用升级操作列表
+    private List<AppUpdateOperationInfo> apps; //应用升级操作列表
 
     @NotNull(message = "domain updateType can not be null")
     private DomainUpdateType updateType; //该域升级方案类型,由DomainUpdateType枚举定义
@@ -58,12 +58,12 @@ public class DomainUpdatePlanInfo {
 
     private List<ExtensionsV1beta1Ingress> ingresses;
 
-    public List<AppUpdateOperationInfo> getAppUpdateOperationList() {
-        return appUpdateOperationList;
+    public List<AppUpdateOperationInfo> getApps() {
+        return apps;
     }
 
-    public void setAppUpdateOperationList(List<AppUpdateOperationInfo> appUpdateOperationList) {
-        this.appUpdateOperationList = appUpdateOperationList;
+    public void setApps(List<AppUpdateOperationInfo> apps) {
+        this.apps = apps;
     }
 
     public DomainUpdateType getUpdateType() {
@@ -194,5 +194,19 @@ public class DomainUpdatePlanInfo {
         po.setUpdateTime(new Date());
         po.setType(this.domainType);
         return po;
+    }
+
+    public Map<String, Object> getHostDomainInfo()
+    {
+        Map<String, Object> info = new HashMap<>();
+        info.put("domainId", domainId);
+        info.put("domainName", domainName);
+        if(publicConfig != null && publicConfig.size() > 0){
+            List<Map<String, String>> cfgParams = publicConfig.stream().map(c->c.getHostFileInfo()).collect(Collectors.toList());
+            info.put("publicConfig", cfgParams);
+        }
+        List<Map<String, Object>> appInfos = apps.stream().map(a->a.getHostAppInfo()).collect(Collectors.toList());
+        info.put("apps", appInfos);
+        return info;
     }
 }

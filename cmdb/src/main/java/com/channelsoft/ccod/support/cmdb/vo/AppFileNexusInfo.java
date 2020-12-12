@@ -3,6 +3,9 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.channelsoft.ccod.support.cmdb.po.Checksum;
 import com.channelsoft.ccod.support.cmdb.po.NexusAssetInfo;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * @ClassName: AppFileNexusInfo
  * @Author: lanhb
@@ -128,5 +131,14 @@ public class AppFileNexusInfo {
         fileInfo.nexusPath = nexusPath;
         fileInfo.nexusAssetId = nexusAssetId;
         return fileInfo;
+    }
+
+    public Map<String, String> getHostFileInfo()
+    {
+        Map<String, String> info = new HashMap<>();
+        info.put("fileName", fileName);
+        info.put("deployPath", deployPath);
+        info.put("md5", md5);
+        return info;
     }
 }
