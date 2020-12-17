@@ -57,6 +57,10 @@ ccod:
       name: umg
     apps[1]:
       name: freeswitch
+    apps[2]:
+      name: ssr
+    apps[3]:
+      name: slee
   set[2]:
     name: 域服务
     id: domainService
@@ -413,6 +417,7 @@ k8s:
     service-type: service-type
     deployment-tag: assemble-tag
     deployment-type: type
+    node-ip: node-ip
   volume-names:
     web-app: war
     binary-file: binary-file

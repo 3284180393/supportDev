@@ -37,6 +37,8 @@ public class AppUpdateOperationInfo extends AppBase {
 
     private String hostIp; //应用所在的服务器ip
 
+    private boolean fixedIp; //在容器化部署中应用的ip是否是固定的；true该应用将被布置在指定ip的node上，否则将有k8s自动配置,非容器化部署该值固定为true
+
     private String appRunner; //该应用的执行用户
 
     private List<AppFileNexusInfo> domainCfg;  //域公共配置，该字段主要用于调试应用
@@ -158,6 +160,14 @@ public class AppUpdateOperationInfo extends AppBase {
 
     public String getDeployName(){
         return String.format("%s-%s", alias, domainId);
+    }
+
+    public boolean isFixedIp() {
+        return fixedIp;
+    }
+
+    public void setFixedIp(boolean fixedIp) {
+        this.fixedIp = fixedIp;
     }
 
     public PlatformAppPo getPlatformApp(int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId)

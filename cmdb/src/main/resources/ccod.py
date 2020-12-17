@@ -220,7 +220,7 @@ def save_image(images, save_dir):
     for image in images:
         image_tag = re.sub('.*/', '', image)
         print('export %s image to %s/%s.tar' % (image, save_dir, image_tag))
-        command = 'docker save -o %s/%s.tar %s' % (save_dir, image_tag, image)
+        command = 'docker save -o %s/%s.tar %s' % (save_dir, re.sub('\\:', '@', image_tag), image)
         exec_result = run_shell_command(command)
         print(exec_result)
 
@@ -245,7 +245,7 @@ def load_image(images, save_dir):
         # if image_tag != 'im:bb6b0816':
         #     continue
         print('import %s image from %s/%s.tar' % (image, save_dir, image_tag))
-        command = 'docker load -i %s/%s.tar' % (save_dir, image_tag)
+        command = 'docker load -i %s/%s.tar' % (save_dir, re.sub('\\:', '@', image_tag))
         exec_result = run_shell_command(command)
         print(exec_result)
 
@@ -396,5 +396,12 @@ def show_help():
 
 if __name__ == '__main__':
     platform_params = get_start_param("start_param.txt")
-    platform_cfgs = get_deploy_cfgs()
-    exec_deploy(platform_params, platform_cfgs)
+    if len(sys.argv) == 1:
+        platform_cfgs = get_deploy_cfgs()
+        exec_deploy(platform_params, platform_cfgs)
+    elif len(sys.argv) == 4 and sys.argv[1] == 'image' and sys.argv[2] == '-e':
+        save_image(platform_params['images'], sys.argv[3])
+    elif len(sys.argv) == 4 and sys.argv[1] == 'image' and sys.argv[2] == '-i':
+        load_image(platform_params['images'], sys.argv[3])
+    elif len(sys.argv) == 3 and sys.argv[1] == 'image' and sys.argv[2] == '-d':
+        clear_image(platform_params['images'])

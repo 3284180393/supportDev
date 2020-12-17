@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.K8sTemplateMapper;
@@ -78,6 +79,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Value("${k8s.labels.domain-id}")
     private String domainIdLabel;
+
+    @Value("${k8s.labels.node-ip}")
+    private String nodeIpLabel;
 
     @Value("${k8s.labels.app-version}")
     private String appVersionLabel;
@@ -363,7 +367,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public V1Deployment generateCCODDomainAppDeployment(AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException {
+    public V1Deployment generateCCODDomainAppDeployment(AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException {
         logger.debug(String.format("generate deployment for %s : domainId=%s", gson.toJson(appBase), domainId));
         String appName = appBase.getAppName();
         String alias = appBase.getAlias();
@@ -376,6 +380,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String ccodVersion = module.getCcodVersion();
         Map<String, String> selector = getK8sTemplateSelector(module.getCcodVersion(), appName, version, appType, K8sKind.DEPLOYMENT);
         V1Deployment deploy = ((List<V1Deployment>)selectK8sObjectTemplate(ccodVersion, appType, appName, version, K8sKind.DEPLOYMENT)).get(0);
+        if(fixedIp){
+            deploy.getSpec().getTemplate().getSpec().setNodeSelector(new HashMap<>());
+            deploy.getSpec().getTemplate().getSpec().getNodeSelector().put(nodeIpLabel, hostIp);
+        }
         deploy = gson.fromJson(gson.toJson(deploy), V1Deployment.class);
         String basePath = appBase.getBasePath();
         String deployPath = getAbsolutePath(appBase.getBasePath(), appBase.getDeployPath());
@@ -1006,6 +1014,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     {
         if(selector == null || selector.size() == 0 || labels == null || labels.size() == 0)
             return  false;
+        if (!selector.containsKey(ccodVersionLabel)){
+            return false;
+        }
         if(selector.size() > labels.size())
             return false;
         for(String key : selector.keySet())
@@ -1097,11 +1108,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public String preCheckCCODDomainApps(String domainId, List<AppUpdateOperationInfo> optList, String platformId, String k8sApiUrl, String k8sAuthToken) throws ApiException {
-        return null;
-    }
-
-    @Override
     public V1Job generatePlatformInitJob(PlatformPo platform, boolean isBase) throws ParamException {
         String platformId = isBase ? String.format("base-%s", platform.getPlatformId()) : platform.getPlatformId();
         String ccodVersion = platform.getCcodVersion();
@@ -1153,7 +1159,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public K8sCCODDomainAppVo generateNewCCODDomainApp(AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, InterfaceCallException, IOException{
+    public K8sCCODDomainAppVo generateNewCCODDomainApp(AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, InterfaceCallException, IOException{
         String appName = appBase.getAppName();
         String version = appBase.getVersion();
         String alias = appBase.getAlias();
@@ -1168,7 +1174,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, String.format("%s-%s", alias, domainId),
                 appName, appBase.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
-        V1Deployment deploy = this.generateCCODDomainAppDeployment(appBase, domainId, domainCfg, platform);
+        V1Deployment deploy = this.generateCCODDomainAppDeployment(appBase, hostIp, fixedIp, domainId, domainCfg, platform);
         List<V1Service> services = new ArrayList<>();
         V1Service service = this.generateCCODDomainAppService(ccodVersion, appType, appName, alias, ServicePortType.ClusterIP, appBase.getPorts(), platformId, domainId);
         services.add(service);
@@ -1209,7 +1215,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public List<K8sOperationInfo> generateAddPlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException {
+    public List<K8sOperationInfo> generateAddPlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException {
         logger.debug(String.format("generate step of add %s to %s", gson.toJson(appBase), domainId));
         String appName = appBase.getAppName();
         String alias = appBase.getAlias();
@@ -1244,7 +1250,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
              if(this.ik8sApiService.isNamespacedIngressExist(name, platformId, k8sApiUrl, k8sAuthToken))
                  throw new ParamException(String.format("ingress %s exist at %s", name, platformId));
         }
-        K8sCCODDomainAppVo app = generateNewCCODDomainApp(appBase, domainId, domainCfg, platform);
+        K8sCCODDomainAppVo app = generateNewCCODDomainApp(appBase, hostIp, fixedIp, domainId, domainCfg, platform);
         List<K8sOperationInfo> steps = new ArrayList<>();
         K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
                 app.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, app.getConfigMap());
@@ -1272,7 +1278,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException {
+    public List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException {
         String alias = appBase.getAlias();
         String appName = appBase.getAppName();
         String version = appBase.getVersion();
@@ -1281,7 +1287,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
         K8sCCODDomainAppVo oriApp= getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
-        K8sCCODDomainAppVo updateApp = generateNewCCODDomainApp(appBase, domainId, domainCfg, platform);
+        K8sCCODDomainAppVo updateApp = generateNewCCODDomainApp(appBase, hostIp, fixedIp, domainId, domainCfg, platform);
         List<K8sOperationInfo> steps = new ArrayList<>();
         K8sOperationInfo step;
         for(V1Service service : updateApp.getServices())
@@ -1328,7 +1334,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, int timeout) throws ParamException, ApiException, InterfaceCallException, IOException {
+    public List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, int timeout) throws ParamException, ApiException, InterfaceCallException, IOException {
         String alias = appBase.getAlias();
         String appName = appBase.getAppName();
         String version = appBase.getVersion();
@@ -1357,7 +1363,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             steps.add(new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT, deploy.getMetadata().getName(), K8sOperation.DELETE, deploy));
         if(srcCm != null)
             steps.add(new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, name, K8sOperation.DELETE, srcCm));
-        List<K8sOperationInfo> addSteps = generateAddPlatformAppSteps(jobId, appBase, domainId, domainCfg, platform, true);
+        List<K8sOperationInfo> addSteps = generateAddPlatformAppSteps(jobId, appBase, hostIp, fixedIp, domainId, domainCfg, platform, true);
         addSteps.forEach(v->{
             if (v.getKind().equals(K8sKind.DEPLOYMENT) && v.getOperation().equals(K8sOperation.CREATE)) {
                 v.setKernal(true);
@@ -1547,6 +1553,69 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             vo.getStatefulSets().forEach(s->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.STATEFULSET, s.getMetadata().getName(), K8sOperation.CREATE, s)));
         }
         return steps;
+    }
+
+    @Override
+    public List<K8sOperationInfo> generateDomainDeploySteps(
+            String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
+            boolean isNewPlatform, BizSetDefine setDefine, V1Deployment glsserver) throws ApiException, InterfaceCallException, IOException, ParamException
+    {
+        String domainId = plan.getDomainId();
+        Comparator<AppBase> sort = appManagerService.getAppSort(setDefine);
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        String platformId = platformPo.getPlatformId();
+        String k8sApiUrl = platformPo.getK8sApiUrl();
+        String k8sAuthToken = platformPo.getK8sAuthToken();
+        Map<String, PlatformAppDeployDetailVo> aliasAppMap = domainApps.stream().collect(Collectors.toMap(o->o.getAlias(), v->v));
+        plan.getApps().stream().filter(o->o.getOperation().equals(AppUpdateOperation.UPDATE))
+                .forEach(o->o.fill(aliasAppMap.get(o.getAlias())));
+        List<AppFileNexusInfo> domainCfg = plan.getPublicConfig();
+        if(!isNewPlatform && domainCfg != null && domainCfg.size() > 0) {
+            if(this.ik8sApiService.isNamespacedConfigMapExist(domainId, platformId, k8sApiUrl, k8sAuthToken)) {
+                V1ConfigMap configMap = this.ik8sApiService.readNamespacedConfigMap(domainId, platformId, k8sApiUrl, k8sAuthToken);
+                K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, domainId, K8sOperation.DELETE, configMap);
+                steps.add(optInfo);
+            }
+        }
+        if(domainCfg != null && domainCfg.size() > 0) {
+            V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, domainId, domainId,
+                    domainCfg.stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
+                    nexusHostUrl, nexusUserName, nexusPassword);
+            K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, domainId, K8sOperation.CREATE, configMap);
+            steps.add(optInfo);
+        }
+        List<AppUpdateOperationInfo> deleteList = plan.getApps().stream()
+                .filter(opt->opt.getOperation().equals(AppUpdateOperation.DELETE)).sorted(sort.reversed())
+                .collect(Collectors.toList());
+        for(AppUpdateOperationInfo optInfo : deleteList) {
+            List<K8sOperationInfo> deleteSteps = getDeletePlatformAppSteps(jobId, optInfo.getAppName(),
+                    optInfo.getAlias(), optInfo.getVersion(), domainId, platformId, k8sApiUrl, k8sAuthToken);
+            steps.addAll(deleteSteps);
+        }
+        List<AppUpdateOperationInfo> addAndUpdateList = plan.getApps().stream()
+                .filter(opt->opt.getOperation().equals(AppUpdateOperation.ADD) || opt.getOperation().equals(AppUpdateOperation.UPDATE))
+                .sorted(sort).collect(Collectors.toList());
+        for(AppUpdateOperationInfo optInfo : addAndUpdateList) {
+            List<K8sOperationInfo> optSteps = optInfo.getOperation().equals(AppUpdateOperation.ADD) ?
+                    generateAddPlatformAppSteps(jobId, optInfo, optInfo.getHostIp(), optInfo.isFixedIp(), domainId, domainCfg, platformPo, isNewPlatform)
+                    : generateUpdatePlatformAppSteps(jobId, optInfo, optInfo.getHostIp(), optInfo.isFixedIp(), domainId, domainCfg, platformPo);
+            steps.addAll(optSteps);
+            if(optInfo.getAppName().equals("UCDServer")){
+                String glsDomId = glsserver.getMetadata().getLabels().get(domainIdLabel);
+                glsserver = gson.fromJson(gson.toJson(glsserver), V1Deployment.class);
+                glsserver.getMetadata().getLabels().put("restart-reason", String.format("%s-deployment-created", optInfo.getAlias()));
+                K8sOperationInfo info = new K8sOperationInfo(jobId, platformId, glsDomId, K8sKind.DEPLOYMENT, glsserver.getMetadata().getName(), K8sOperation.REPLACE, glsserver);
+                info.setTimeout(60);
+                steps.add(info);
+            }
+        }
+        steps.forEach(s->s.setKernal(false));
+        logger.info(String.format("deploy %s %d apps need %d steps", domainId, plan.getApps().size(), steps.size()));
+        return steps;
+    }
+
+    private void checkAppInSameDeployment(List<K8sOperationInfo> steps, List<AppUpdateOperationInfo> optList){
+
     }
 
     private List<V1Service> generateThreePartServices(String platformId, String baseNamespace, List<CCODThreePartAppPo> threePartApps) throws ParamException

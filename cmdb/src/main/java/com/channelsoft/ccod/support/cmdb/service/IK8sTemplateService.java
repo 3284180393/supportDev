@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
@@ -12,10 +13,7 @@ import com.channelsoft.ccod.support.cmdb.po.AppBase;
 import com.channelsoft.ccod.support.cmdb.po.CCODThreePartAppPo;
 import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
-import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
-import com.channelsoft.ccod.support.cmdb.vo.AppUpdateOperationInfo;
-import com.channelsoft.ccod.support.cmdb.vo.K8sOperationInfo;
-import com.channelsoft.ccod.support.cmdb.vo.PlatformAppDeployDetailVo;
+import com.channelsoft.ccod.support.cmdb.vo.*;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 
@@ -47,13 +45,15 @@ public interface IK8sTemplateService {
     /**
      * 为ccod域应用生成deployment
      * @param appBase 域应用相关基础信息
+     * @param hostIp 部署ip
+     * @param fixedIp 是否固定ip，如果是非容器开发该参数为true
      * @param domainId 域id
      * @param domainCfg 域公共配置
      * @param platform k8s平台信息
      * @return 生成的模板
      * @throws ParamException
      */
-    V1Deployment generateCCODDomainAppDeployment(AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException;
+    V1Deployment generateCCODDomainAppDeployment(AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException;
 
     /**
      * 生成第三方应用的deployment
@@ -121,26 +121,16 @@ public interface IK8sTemplateService {
     /**
      * 获取新加入的/被修改的ccod域应用的k8s资源信息
      * @param appBase 应用基础信息
+     * @param hostIp 主机ip
+     * @param fixedIp 是否固定ip
      * @param domainId 域id
      * @param domainCfg 域公共配置
      * @param platform k8s平台相关信息
      * @return ccod域应用的k8s资源信息
      * @throws ParamException
      */
-    K8sCCODDomainAppVo generateNewCCODDomainApp(AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, InterfaceCallException, IOException;
+    K8sCCODDomainAppVo generateNewCCODDomainApp(AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, InterfaceCallException, IOException;
 
-    /**
-     * 预检查对已经存在域进行增删改以及调试操作k8s是否可以执行（例如命名是否冲突、新添的已经存在、被删除或是修改调试的不存在等）
-     * @param domainId 域id
-     * @param optList 需要执行的域应用相关操作
-     * @param platformId 平台id
-     * @param k8sApiUrl k8s的api的url
-     * @param k8sAuthToken 访问k8s api的认证token
-     * @return 域检查结果，如果检查通过返回"",否则返回检查失败描述
-     * @throws ApiException
-     */
-    String preCheckCCODDomainApps(String domainId, List<AppUpdateOperationInfo> optList, String platformId,
-                                  String k8sApiUrl, String k8sAuthToken) throws ApiException;
 
     /**
      * 生成删除已有的域应用的k8s操作步骤
@@ -165,6 +155,8 @@ public interface IK8sTemplateService {
      * 生成添加新ccod域应用的k8s操作步骤
      * @param jobId 任务id
      * @param appBase 需要添加的域应用相关信息
+     * @param hostIp 主机ip
+     * @param fixedIp 是否固定ip
      * @param domainId 域id
      * @param domainCfg 域公共配置
      * @param platform k8s平台相关信息
@@ -173,12 +165,14 @@ public interface IK8sTemplateService {
      * @throws ParamException
      * @throws ApiException
      */
-    List<K8sOperationInfo> generateAddPlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException;
+    List<K8sOperationInfo> generateAddPlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
      * 生成修改ccod域应用的k8s操作步骤
      * @param jobId 任务id
      * @param appBase 应用相关基础信息
+     * @param hostIp 部署ip
+     * @param fixedIp 是否固定ip
      * @param domainId 域id
      * @param domainCfg 域公共配置
      * @param platform k8s平台信息
@@ -186,12 +180,14 @@ public interface IK8sTemplateService {
      * @throws ParamException
      * @throws ApiException
      */
-    List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException;
+    List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
      * 生成修改ccod域应用的k8s调试步骤
      * @param jobId 任务id
      * @param appBase 应用相关基础信息
+     * @param hostIp 主机ip
+     * @param fixedIp 是否固定ip
      * @param domainId 域id
      * @param domainCfg 域公共配置
      * @param platform k8s平台相关信息
@@ -200,7 +196,7 @@ public interface IK8sTemplateService {
      * @throws ParamException
      * @throws ApiException
      */
-    List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, int timeout) throws ParamException, ApiException, InterfaceCallException, IOException;
+    List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, int timeout) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
      * 生成选择器用于选择k8s上的ccod域应用相关资源
@@ -268,6 +264,10 @@ public interface IK8sTemplateService {
             V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<CCODThreePartAppPo> threePartApps,
             String nfsServerIp, String baseNamespaceId, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException;
 
+
+    List<K8sOperationInfo> generateDomainDeploySteps(
+            String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
+            boolean isNewPlatform, BizSetDefine setDefine, V1Deployment glsserver) throws ApiException, InterfaceCallException, IOException, ParamException;
     /**
      * 生成一组用于测试的第三方服务
      * @param ccodVersion 平台的ccod大版本

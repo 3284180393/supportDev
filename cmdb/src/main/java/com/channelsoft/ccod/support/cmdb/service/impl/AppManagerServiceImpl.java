@@ -642,6 +642,30 @@ public class AppManagerServiceImpl implements IAppManagerService {
         return imageExist(appName, version);
     }
 
+    @Override
+    public Comparator<AppBase> getAppSort(BizSetDefine setDefine) {
+        Map<String, Integer> appSortMap = new HashMap<>();
+        for(int i = 0; i < setDefine.getApps().size(); i++)
+            appSortMap.put(setDefine.getApps().get(i).getName(), i);
+        Map<String, String> aliasMap = setDefine.getApps().stream().collect(Collectors.toMap(o->o.getName(), v->v.getAlias()));
+        Comparator<AppBase> sort = new Comparator<AppBase>() {
+            @Override
+            public int compare(AppBase o1, AppBase o2) {
+                if(!o1.getAppName().equals(o2.getAppName()))
+                    return appSortMap.get(o1.getAppName()) - appSortMap.get(o2.getAppName());
+                return getIndexFromAlias(o1.getAlias(), aliasMap.get(o1.getAppName())) - getIndexFromAlias(o2.getAlias(), aliasMap.get(o2.getAppName()));
+            }
+        };
+        return sort;
+    }
+
+    private int getIndexFromAlias(String alias, String standAlias)
+    {
+        String indexStr = alias.replace(standAlias, "");
+        int index = StringUtils.isBlank(indexStr) ? 0 : Integer.parseInt(indexStr);
+        return index;
+    }
+
     private boolean imageExist(String appName, String version)
     {
         boolean imageExist = false;

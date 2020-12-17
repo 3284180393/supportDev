@@ -10,6 +10,7 @@ import com.channelsoft.ccod.support.cmdb.vo.*;
 import org.springframework.dao.DataAccessException;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +22,13 @@ import java.util.Map;
  * @Version: 1.0
  */
 public interface IAppManagerService {
+
+    /**
+     * 根据set定义生成应用模块sort
+     * @param setDefine set定义
+     * @return set下模块的排序sort
+     */
+    Comparator<AppBase> getAppSort(BizSetDefine setDefine);
 
     /**
      * 查询指定版本的应用模块

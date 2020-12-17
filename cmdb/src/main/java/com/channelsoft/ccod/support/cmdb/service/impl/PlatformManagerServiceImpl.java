@@ -2316,7 +2316,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         logger.debug(String.format("start app debug %s with jobId=%s", gson.toJson(task), jobId));
         new Thread(()->{
             try{
-                List<K8sOperationInfo> steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), task.getDebugInfo().getDomainId(), task.getDebugInfo().getDomainCfg(), platform, task.getTimeout());
+                List<K8sOperationInfo> steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), task.getDebugInfo().getHostIp(), task.getDebugInfo().isFixedIp(), task.getDebugInfo().getDomainId(), task.getDebugInfo().getDomainCfg(), platform, task.getTimeout());
                 task.setSteps(steps);
                 execAppDebug(jobId, platform, task);
             }
@@ -2391,7 +2391,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             }
                             task.setStatus(AppDebugTaskVo.RUNNING);
                             task.setExecTime(new Date());
-                            steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), domainId, domainCfg, platform, startTimeout);
+                            steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), task.getDebugInfo().getHostIp(), task.getDebugInfo().isFixedIp(), domainId, domainCfg, platform, startTimeout);
                             task.setSteps(steps);
                             changed = true;;
                         }
@@ -2489,8 +2489,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 .sorted(sort).collect(Collectors.toList());
         for(AppUpdateOperationInfo optInfo : addAndUpdateList) {
             List<K8sOperationInfo> optSteps = optInfo.getOperation().equals(AppUpdateOperation.ADD) ?
-                    this.k8sTemplateService.generateAddPlatformAppSteps(jobId, optInfo, domainId, domainCfg, platformPo, isNewPlatform)
-                    : this.k8sTemplateService.generateUpdatePlatformAppSteps(jobId, optInfo, domainId, domainCfg, platformPo);
+                    this.k8sTemplateService.generateAddPlatformAppSteps(jobId, optInfo, optInfo.getHostIp(), optInfo.isFixedIp(), domainId, domainCfg, platformPo, isNewPlatform)
+                    : this.k8sTemplateService.generateUpdatePlatformAppSteps(jobId, optInfo, optInfo.getHostIp(), optInfo.isFixedIp(), domainId, domainCfg, platformPo);
             steps.addAll(optSteps);
             if(optInfo.getAppName().equals("UCDServer")){
                 String glsDomId = glsserver.getMetadata().getLabels().get(domainIdLabel);
