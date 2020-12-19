@@ -35,10 +35,12 @@ public class PlatformAppPo extends AppBase{
 
     protected Date deployTime; //该应用的部署路径
 
+    protected String tag; //应用标签
+
     public PlatformAppPo(){}
 
     public PlatformAppPo(AppBase appBase, int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId, String originalAlias,
-                         String hostIp, String appRunner)
+                         String hostIp, String appRunner, String tag)
     {
         super(appBase);
         this.cfgs = cfgs;
@@ -50,14 +52,16 @@ public class PlatformAppPo extends AppBase{
         this.hostIp = hostIp;
         this.appRunner = appRunner;
         this.deployTime = new Date();
+        this.tag = tag;
     }
 
-    public void update(AppBase appBase, int appId, List<AppFileNexusInfo> cfgs, String hostIp)
+    public void update(AppBase appBase, int appId, List<AppFileNexusInfo> cfgs, String hostIp, String tag)
     {
         changeTo(appBase);
         this.cfgs = cfgs;
         this.appId = appId;
         this.hostIp = hostIp;
+        this.tag = tag;
     }
 
     public int getPlatformAppId() {
@@ -130,6 +134,14 @@ public class PlatformAppPo extends AppBase{
 
     public void setOriginalAlias(String originalAlias) {
         this.originalAlias = originalAlias;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
     }
 
     public String getPlatformAppDirectory(String appName, String version, PlatformAppPo platformAppPo) {

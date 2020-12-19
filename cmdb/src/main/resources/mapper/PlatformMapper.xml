@@ -17,6 +17,7 @@
         <result column="host_url" property="hostUrl" jdbcType="VARCHAR" />
         <result column="params" property="params" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
+        <result column="tag" property="tag" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
         pf.platform_id,
@@ -34,7 +35,8 @@
         pf.auth_token,
         pf.host_url,
         pf.params,
-        pf.cfgs
+        pf.cfgs,
+        pf.tag
     </sql>
     <select id="selectByPrimaryKey" resultMap="PlatformMap" parameterType="java.lang.String">
         select
@@ -80,7 +82,8 @@
             auth_token,
             host_url,
             params,
-            cfgs)
+            cfgs,
+            tag)
         values (
             #{platformId,jdbcType=VARCHAR},
             #{platformName,jdbcType=VARCHAR},
@@ -97,7 +100,8 @@
             #{k8sAuthToken,jdbcType=VARCHAR},
             #{hostUrl,jdbcType=VARCHAR},
             #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
-            #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler})
+            #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler},
+            #{tag,jdbcType=VARCHAR})
     </insert>
     <delete id="delete" parameterType="java.lang.String">
         delete
@@ -119,7 +123,8 @@
             auth_token = #{k8sAuthToken,jdbcType=VARCHAR},
             host_url = #{hostUrl,jdbcType=VARCHAR},
             params = #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
-            cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
+            cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler},
+            tag = #{tag,jdbcType=VARCHAR}
         where platform_id = #{platformId,jdbcType=VARCHAR}
   </update>
 </mapper>

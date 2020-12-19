@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.po.DomainPo;
 import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
 import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
 
@@ -22,6 +23,8 @@ public class AppDebugTaskVo {
 
     private int id; //任务id
 
+    private DomainPo domain; //相关域信息
+
     private AppUpdateOperationInfo debugInfo;
 
     private int status; //状态
@@ -40,7 +43,7 @@ public class AppDebugTaskVo {
 
     private String message; //调试新信息
 
-    public AppDebugTaskVo(int id, AppUpdateOperationInfo debugInfo){
+    public AppDebugTaskVo(int id, AppUpdateOperationInfo debugInfo, DomainPo domain){
         this.id = id;
         this.debugInfo = debugInfo;
         this.status = QUEUE;
@@ -49,6 +52,7 @@ public class AppDebugTaskVo {
         this.execResults = new ArrayList<>();
         this.success = false;
         this.message = "queue to wait debug exec";
+        this.domain = domain;
     }
 
     public int getId() {
@@ -150,5 +154,13 @@ public class AppDebugTaskVo {
 
     public String getAlias(){
         return debugInfo != null ? debugInfo.getAlias() : null;
+    }
+
+    public DomainPo getDomain() {
+        return domain;
+    }
+
+    public void setDomain(DomainPo domain) {
+        this.domain = domain;
     }
 }

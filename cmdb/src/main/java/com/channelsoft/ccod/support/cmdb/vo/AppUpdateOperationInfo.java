@@ -47,6 +47,8 @@ public class AppUpdateOperationInfo extends AppBase {
 
     private Map<String, Object> runtime;  //应用的运行环境
 
+    private String tag; //应用标签
+
     public AppUpdateOperationInfo(AppBase appBase)
     {
         super(appBase);
@@ -170,9 +172,17 @@ public class AppUpdateOperationInfo extends AppBase {
         this.fixedIp = fixedIp;
     }
 
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
+    }
+
     public PlatformAppPo getPlatformApp(int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId)
     {
-        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner);
+        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner, tag);
         return po;
     }
 

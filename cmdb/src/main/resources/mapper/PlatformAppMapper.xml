@@ -25,6 +25,7 @@
         <result column="period_seconds" property="periodSeconds" jdbcType="INTEGER" />
         <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
+        <result column="tag" property="tag" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
         	pa.platform_app_id AS platform_app_id,
@@ -49,7 +50,8 @@
 	        pa.initial_delay_seconds AS initial_delay_seconds,
 	        pa.period_seconds AS period_seconds,
 	        pa.deploy_time AS deploy_time,
-	        pa.cfgs AS cfgs
+	        pa.cfgs AS cfgs,
+	        pa.tag AS tag
     </sql>
     <select id="selectByPrimaryKey" resultMap="PlatformAppMap" parameterType="java.lang.Integer">
         SELECT
@@ -110,7 +112,8 @@
                 initial_delay_seconds,
                 period_seconds,
                 deploy_time,
-                cfgs)
+                cfgs,
+                tag)
         values (
                 #{appId,jdbcType=INTEGER},
                 #{alias,jdbcType=VARCHAR},
@@ -133,7 +136,8 @@
                 #{initialDelaySeconds,jdbcType=INTEGER},
                 #{periodSeconds,jdbcType=INTEGER},
                 #{deployTime,jdbcType=TIMESTAMP},
-                #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
+                #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler},
+                #{tag,jdbcType=VARCHAR}
                 )
     </insert>
     <delete id="delete">
@@ -168,6 +172,7 @@
             initial_delay_seconds = #{initialDelaySeconds,jdbcType=INTEGER},
             period_seconds = #{periodSeconds,jdbcType=INTEGER},
             cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
-        where platform_app_id = #{platformAppId,jdbcType=VARCHAR}
+            ports = #{ports,jdbcType=VARCHAR}
+        where platform_app_id = #{platformAppId,jdbcType=VARCHAR},
     </update>
 </mapper>

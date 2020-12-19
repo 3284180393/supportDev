@@ -51,6 +51,8 @@ public abstract class PlatformBase {
 
     protected PlatformCreateMethod createMethod; //平台创建方式
 
+    protected String tag; //平台标签
+
     protected int bkBizId; //该平台对应蓝鲸的bizId
 
     protected int bkCloudId; //该平台所有服务器所在云
@@ -90,6 +92,7 @@ public abstract class PlatformBase {
         this.type = platformBase.type;
         this.createMethod = platformBase.createMethod;
         this.func = platformBase.func;
+        this.tag = platformBase.tag;
         this.bkBizId = platformBase.bkBizId;
         this.bkCloudId = platformBase.bkCloudId;
         this.ccodVersion = platformBase.ccodVersion;
@@ -113,6 +116,7 @@ public abstract class PlatformBase {
         this.type = platformBase.type;
         this.createMethod = platformBase.createMethod;
         this.func = platformBase.func;
+        this.tag = platformBase.tag;
         this.bkBizId = platformBase.bkBizId;
         this.bkCloudId = platformBase.bkCloudId;
         this.ccodVersion = platformBase.ccodVersion;
@@ -287,6 +291,14 @@ public abstract class PlatformBase {
 
     public void setGlsDBService(String glsDBService) {
         this.glsDBService = glsDBService;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
     }
 
     public PlatformPo getCreatePlatform(String comment)

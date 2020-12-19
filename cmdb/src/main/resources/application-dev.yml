@@ -2,7 +2,7 @@ spring:
   datasource:
     username : root
     password : qnsoft
-    url: jdbc:mysql://10.130.41.88:3306/cmdb_shop
+    url: jdbc:mysql://10.130.41.88:3306/cmdb_api
     driver-class-name : com.mysql.jdbc.Driver
 
 mybatis:
@@ -418,11 +418,17 @@ k8s:
     deployment-tag: assemble-tag
     deployment-type: type
     node-ip: node-ip
+    platform-tag: platform-tag
+    domain-tag: domain-tag
+    app-tag: app-tag
   volume-names:
     web-app: war
     binary-file: binary-file
   deployment:
     defaultCfgMountPath: /cfg
+  nodes:
+    - label: name
+      value: node2
   template-file-path: /home/cmdb/config/template.txt
   test-three-part-service-save-path: /home/cmdb/config/threePartServices.txt
 

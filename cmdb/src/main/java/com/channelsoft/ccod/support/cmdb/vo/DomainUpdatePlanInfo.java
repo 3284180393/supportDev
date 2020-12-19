@@ -48,7 +48,7 @@ public class DomainUpdatePlanInfo {
 
     private int maxOccurs; //域的最大并发数
 
-    private String tags; //域的标签,例如:入呼叫、外呼、
+    private String tag; //域的标签,例如:入呼叫、外呼、
 
     private List<AppFileNexusInfo> publicConfig; //用来存放域公共配置
 
@@ -130,12 +130,12 @@ public class DomainUpdatePlanInfo {
         this.maxOccurs = maxOccurs;
     }
 
-    public String getTags() {
-        return tags;
+    public String getTag() {
+        return tag;
     }
 
-    public void setTags(String tags) {
-        this.tags = tags;
+    public void setTag(String tag) {
+        this.tag = tag;
     }
 
     public List<AppFileNexusInfo> getPublicConfig() {
@@ -183,7 +183,7 @@ public class DomainUpdatePlanInfo {
         DomainPo po = new DomainPo();
         po.setDomainId(this.domainId);
         po.setBizSetName(this.bkSetName);
-        po.setTags(tags);
+        po.setTag(tag);
         po.setOccurs(this.occurs);
         po.setMaxOccurs(this.maxOccurs);
         po.setComment("");

@@ -362,9 +362,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
 //            updateK8sTemplate();
-//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-//            logger.error(gson.toJson(schema));
-//            updatePlatformUpdateSchema(schema);
+            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+            logger.error(gson.toJson(schema));
+            updatePlatformUpdateSchema(schema);
 //            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
 //            paramVo.setParams("pahjgs");
 //            paramVo.setNfsServerIp("10.130.41.218");
@@ -1009,7 +1009,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             int appId = registerAppMap.get(optInfo.getAppName()).stream()
                     .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getVersion()).getAppId();
             String hostIp = StringUtils.isNotBlank(optInfo.getHostIp()) ? optInfo.getHostIp() : src.getHostIp();
-            src.update(optInfo, appId, cfgMap.get(optInfo.getAlias()), hostIp);
+            src.update(optInfo, appId, cfgMap.get(optInfo.getAlias()), hostIp, optInfo.getTag());
             logger.debug(String.format("update platform_app to %s", gson.toJson(src)));
             this.platformAppMapper.update(src);
         }
@@ -1467,7 +1467,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             domainPo.setType(DomainType.K8S_CONTAINER);
             domainPo.setBizSetName(domainApps.get(0).getBkSetName());
             domainPo.setUpdateTime(now);
-            domainPo.setTags("create by k8s api");
+            domainPo.setTag("create by k8s api");
             domainPo.setDomainId(domainId);
             domainPo.setOccurs(400);
             domainPo.setMaxOccurs(800);
@@ -2295,9 +2295,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         String k8sAuthToken = platform.getK8sAuthToken();
         boolean isNsExist = this.k8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken);
         Assert.isTrue(isNsExist, String.format("namespace %s not exist at %s", platformId, k8sApiUrl));
+        DomainPo domain = domainMapper.select(platformId, null).stream()
+                .collect(Collectors.toMap(DomainPo::getDomainId, Function.identity())).get(domainId);
+        if(domain == null){
+            domain = new DomainPo();
+            domain.setPlatformId(platformId);
+            domain.setDomainId(domainId);
+            domain.setCfgs(new ArrayList<>());
+        }
         debugLock.writeLock().lock();
         try{
-            AppDebugTaskVo task = new AppDebugTaskVo(debugTaskId, optInfo);
+            AppDebugTaskVo task = new AppDebugTaskVo(debugTaskId, optInfo, domain);
             debugTaskId++;
             logger.info(String.format("%s task %d : %s added to queue", task.getDebugTag(), task.getId(), gson.toJson(task.getDebugInfo())));
             debugQueue.add(task);
@@ -2316,7 +2324,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         logger.debug(String.format("start app debug %s with jobId=%s", gson.toJson(task), jobId));
         new Thread(()->{
             try{
-                List<K8sOperationInfo> steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), task.getDebugInfo().getHostIp(), task.getDebugInfo().isFixedIp(), task.getDebugInfo().getDomainId(), task.getDebugInfo().getDomainCfg(), platform, task.getTimeout());
+                List<K8sOperationInfo> steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), task.getDomain(), platform, task.getTimeout());
                 task.setSteps(steps);
                 execAppDebug(jobId, platform, task);
             }
@@ -2391,7 +2399,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             }
                             task.setStatus(AppDebugTaskVo.RUNNING);
                             task.setExecTime(new Date());
-                            steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), task.getDebugInfo().getHostIp(), task.getDebugInfo().isFixedIp(), domainId, domainCfg, platform, startTimeout);
+                            steps = k8sTemplateService.generateDebugPlatformAppSteps(jobId, task.getDebugInfo(), task.getDomain(), platform, startTimeout);
                             task.setSteps(steps);
                             changed = true;;
                         }
@@ -2451,11 +2459,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
             boolean isNewPlatform, V1Deployment glsserver) throws ParamException, ApiException, InterfaceCallException, IOException
     {
+        String platformId = platformPo.getPlatformId();
         String domainId = plan.getDomainId();
+        DomainPo domain = plan.getDomain(platformId);
         BizSetDefine setDefine = getBizSetForDomainId(domainId);
         Comparator<AppBase> sort = getAppSort(setDefine);
         List<K8sOperationInfo> steps = new ArrayList<>();
-        String platformId = platformPo.getPlatformId();
         String k8sApiUrl = platformPo.getK8sApiUrl();
         String k8sAuthToken = platformPo.getK8sAuthToken();
         Map<String, PlatformAppDeployDetailVo> aliasAppMap = domainApps.stream().collect(Collectors.toMap(o->o.getAlias(), v->v));
@@ -2489,8 +2498,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 .sorted(sort).collect(Collectors.toList());
         for(AppUpdateOperationInfo optInfo : addAndUpdateList) {
             List<K8sOperationInfo> optSteps = optInfo.getOperation().equals(AppUpdateOperation.ADD) ?
-                    this.k8sTemplateService.generateAddPlatformAppSteps(jobId, optInfo, optInfo.getHostIp(), optInfo.isFixedIp(), domainId, domainCfg, platformPo, isNewPlatform)
-                    : this.k8sTemplateService.generateUpdatePlatformAppSteps(jobId, optInfo, optInfo.getHostIp(), optInfo.isFixedIp(), domainId, domainCfg, platformPo);
+                    this.k8sTemplateService.generateAddPlatformAppSteps(jobId, optInfo, domain, platformPo, isNewPlatform)
+                    : this.k8sTemplateService.generateUpdatePlatformAppSteps(jobId, optInfo, domain, platformPo);
             steps.addAll(optSteps);
             if(optInfo.getAppName().equals("UCDServer")){
                 String glsDomId = glsserver.getMetadata().getLabels().get(domainIdLabel);
@@ -2924,7 +2933,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         planInfo.setApps(new ArrayList<>());
         planInfo.setMaxOccurs(clonedDomain.getMaxOccurs());
         planInfo.setOccurs(clonedDomain.getOccurs());
-        planInfo.setTags(clonedDomain.getTags());
+        planInfo.setTag(clonedDomain.getTag());
         planInfo.setPublicConfig(clonedDomain.getCfgs());
         return planInfo;
     }

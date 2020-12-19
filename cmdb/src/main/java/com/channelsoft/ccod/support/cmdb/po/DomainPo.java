@@ -39,14 +39,14 @@ public class DomainPo {
 
     private int maxOccurs; //域的最大并发数
 
-    private String tags; //域的标签,例如:入呼叫、外呼、自动外拨
+    private String tag; //域的标签,例如:入呼叫、外呼、自动外拨
 
     private List<AppFileNexusInfo> cfgs; //域公共配置
 
     public DomainPo() {}
 
     public DomainPo(String domainId, String domainName, String platformId, DomainStatus status, String comment,
-                    String bizSetName, int occurs, int maxOccurs, String tags)
+                    String bizSetName, int occurs, int maxOccurs, String tag)
     {
         Date now = new Date();
         this.domainId = domainId;
@@ -59,7 +59,7 @@ public class DomainPo {
         this.bizSetName = bizSetName;
         this.occurs = occurs;
         this.maxOccurs = maxOccurs;
-        this.tags = tags;
+        this.tag = tag;
         this.cfgs = new ArrayList<>();
     }
 
@@ -143,12 +143,12 @@ public class DomainPo {
         this.maxOccurs = maxOccurs;
     }
 
-    public String getTags() {
-        return tags;
+    public String getTag() {
+        return tag;
     }
 
-    public void setTags(String tags) {
-        this.tags = tags;
+    public void setTag(String tag) {
+        this.tag = tag;
     }
 
     public DomainType getType() {

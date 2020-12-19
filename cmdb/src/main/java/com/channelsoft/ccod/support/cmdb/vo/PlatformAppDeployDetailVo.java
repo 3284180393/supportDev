@@ -70,6 +70,8 @@ public class PlatformAppDeployDetailVo extends AppBase {
 
     private int bkHostId; //该应用在蓝鲸paas的服务器id
 
+    private String tag; //应用标签
+
     public PlatformAppDeployDetailVo()
     {}
 
@@ -270,9 +272,17 @@ public class PlatformAppDeployDetailVo extends AppBase {
         this.availableReplicas = availableReplicas;
     }
 
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
+    }
+
     public PlatformAppPo getPlatformApp()
     {
-        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner);
+        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner, tag);
         po.setPlatformAppId(this.platformAppId);
         return po;
     }

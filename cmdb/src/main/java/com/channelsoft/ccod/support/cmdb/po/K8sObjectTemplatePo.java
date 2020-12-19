@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.constant.AppType;
+import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.models.*;
@@ -148,6 +150,37 @@ public class K8sObjectTemplatePo {
 
     public void setConfigMaps(List<V1ConfigMap> configMaps) {
         this.configMaps = configMaps;
+    }
+
+    public Object getK8sObject(K8sKind kind){
+        switch (kind){
+            case CONFIGMAP:
+                return configMaps;
+            case PVC:
+                return pvcList;
+            case PV:
+                return pvList;
+            case NAMESPACE:
+                return namespaces;
+            case SECRET:
+                return secrets;
+            case JOB:
+                return jobs;
+            case POD:
+                return pods;
+            case DEPLOYMENT:
+                return deployments;
+            case SERVICE:
+                return services;
+            case INGRESS:
+                return ingress;
+            case ENDPOINTS:
+                return endpoints;
+            case STATEFULSET:
+                return statefulSets;
+            default:
+                return null;
+        }
     }
 
     @Autowired

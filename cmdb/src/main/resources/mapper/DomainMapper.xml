@@ -13,11 +13,11 @@
         <result column="biz_set_name" property="bizSetName" jdbcType="VARCHAR" />
         <result column="occurs" property="occurs" jdbcType="INTEGER" />
         <result column="max_occurs" property="maxOccurs" jdbcType="INTEGER" />
-        <result column="tags" property="tags" jdbcType="VARCHAR" />
+        <result column="tag" property="tag" jdbcType="VARCHAR" />
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
     </resultMap>
     <sql id="Base_Column_List" >
-        dm.domain_id, dm.domain_name, dm.type, dm.platform_id, dm.create_time, dm.update_time, dm.`status`, dm.`comment`, dm.biz_set_name, dm.occurs, dm.max_occurs, dm.tags
+        dm.domain_id, dm.domain_name, dm.type, dm.platform_id, dm.create_time, dm.update_time, dm.`status`, dm.`comment`, dm.biz_set_name, dm.occurs, dm.max_occurs, dm.tag
     </sql>
     <select id="selectByPrimaryKey" resultMap="DomainMap" parameterType="java.lang.String">
         select
@@ -55,7 +55,7 @@
         biz_set_name,
         occurs,
         max_occurs,
-        tags,
+        tag,
         cfgs)
         values (
             #{domainId,jdbcType=VARCHAR},
@@ -69,7 +69,7 @@
             #{bizSetName,jdbcType=VARCHAR},
             #{occurs,jdbcType=INTEGER},
             #{maxOccurs,jdbcType=INTEGER},
-            #{tags,jdbcType=VARCHAR},
+            #{tag,jdbcType=VARCHAR},
             #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler})
     </insert>
     <delete id="delete">
@@ -95,7 +95,7 @@
             update_time = #{updateTime,jdbcType=TIMESTAMP},
             occurs = #{occurs,jdbcType=INTEGER},
             max_occurs = #{maxOccurs,jdbcType=INTEGER},
-            tags = #{tags,jdbcType=INTEGER},
+            tag = #{tag,jdbcType=INTEGER},
             cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
         where domain_id = #{domainId,jdbcType=VARCHAR}
     </update>

@@ -9,10 +9,7 @@ import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
-import com.channelsoft.ccod.support.cmdb.po.AppBase;
-import com.channelsoft.ccod.support.cmdb.po.CCODThreePartAppPo;
-import com.channelsoft.ccod.support.cmdb.po.K8sObjectTemplatePo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
@@ -36,24 +33,38 @@ public interface IK8sTemplateService {
      */
     List<K8sObjectTemplatePo> getK8sTemplates();
 
-    ExtensionsV1beta1Ingress generateIngress(String ccodVersion, AppType appType, String appName, String alias, String platformId, String domainId, String hostUrl) throws ParamException;
+    /**
+     * 为指定应用生成ingress
+     * @param appBase 指定应用
+     * @param domain 应用归属域
+     * @param platform 平台信息
+     * @return
+     * @throws ParamException
+     */
+    ExtensionsV1beta1Ingress generateIngress(AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException;
 
-    V1Service generateCCODDomainAppService(String ccodVersion, AppType appType, String appName, String alias, ServicePortType portType, String portStr, String platformId, String domainId) throws ParamException;
+    /**
+     * 生成指定的域应用服务
+     * @param appBase 域应用信息
+     * @param portType 服务端口类型
+     * @param portStr 端口字符串
+     * @param domain 域信息
+     * @param platform 平台信息
+     * @return 生成的域服务
+     * @throws ParamException
+     */
+    V1Service generateCCODDomainAppService(AppUpdateOperationInfo appBase, ServicePortType portType, String portStr, DomainPo domain, PlatformPo platform) throws ParamException;
 
-    V1Service generateThreeAppService(String ccodVersion, String appName, String alias, String version, String platformId) throws ParamException;
 
     /**
      * 为ccod域应用生成deployment
-     * @param appBase 域应用相关基础信息
-     * @param hostIp 部署ip
-     * @param fixedIp 是否固定ip，如果是非容器开发该参数为true
-     * @param domainId 域id
-     * @param domainCfg 域公共配置
+     * @param opt 应用相关信息
+     * @param domain 域定义
      * @param platform k8s平台信息
      * @return 生成的模板
      * @throws ParamException
      */
-    V1Deployment generateCCODDomainAppDeployment(AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException;
+    V1Deployment generateCCODDomainAppDeployment(AppUpdateOperationInfo opt, DomainPo domain, PlatformPo platform) throws ParamException;
 
     /**
      * 生成第三方应用的deployment
@@ -68,12 +79,20 @@ public interface IK8sTemplateService {
      * 为指定的平台生成namespace
      * @param ccodVersion 平台的ccodVersion
      * @param platformId 平台id
+     * @param platformTag 平台标签
      * @return 生成的命名空间
      * @throws ParamException
      */
-    V1Namespace generateNamespace(String ccodVersion, String platformId) throws ParamException;
+    V1Namespace generateNamespace(String ccodVersion, String platformId, String platformTag) throws ParamException;
 
-    V1Secret generateSecret(String ccodVersion, String platformId, String name) throws ParamException;
+    /**
+     * 为平台生成secrete
+     * @param name secret名
+     * @param platform 平台信息
+     * @return 生成的secret对象
+     * @throws ParamException
+     */
+    V1Secret generateSecret(String name, PlatformPo platform) throws ParamException;
 
     /**
      * 为指定平台生成缺省pv
@@ -100,7 +119,7 @@ public interface IK8sTemplateService {
      * @return 平台初始job
      * @throws ParamException
      */
-    V1Job generatePlatformInitJob(PlatformPo platform, boolean isBase) throws ParamException;
+    List<V1Job> generatePlatformInitJob(PlatformPo platform, boolean isBase) throws ParamException;
 
     /**
      * 获取已经部署的ccod域应用在k8s上的部署详情
@@ -121,15 +140,12 @@ public interface IK8sTemplateService {
     /**
      * 获取新加入的/被修改的ccod域应用的k8s资源信息
      * @param appBase 应用基础信息
-     * @param hostIp 主机ip
-     * @param fixedIp 是否固定ip
-     * @param domainId 域id
-     * @param domainCfg 域公共配置
+     * @param domain 域相关信息
      * @param platform k8s平台相关信息
      * @return ccod域应用的k8s资源信息
      * @throws ParamException
      */
-    K8sCCODDomainAppVo generateNewCCODDomainApp(AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, InterfaceCallException, IOException;
+    K8sCCODDomainAppVo generateNewCCODDomainApp(AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException, InterfaceCallException, IOException;
 
 
     /**
@@ -155,48 +171,39 @@ public interface IK8sTemplateService {
      * 生成添加新ccod域应用的k8s操作步骤
      * @param jobId 任务id
      * @param appBase 需要添加的域应用相关信息
-     * @param hostIp 主机ip
-     * @param fixedIp 是否固定ip
-     * @param domainId 域id
-     * @param domainCfg 域公共配置
+     * @param domain 域相关信息
      * @param platform k8s平台相关信息
      * @param isNewPlatform 该平台是否为新建平台
      * @return 添加域应用的k8s操作步骤
      * @throws ParamException
      * @throws ApiException
      */
-    List<K8sOperationInfo> generateAddPlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException;
+    List<K8sOperationInfo> generateAddPlatformAppSteps(String jobId, AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
      * 生成修改ccod域应用的k8s操作步骤
      * @param jobId 任务id
      * @param appBase 应用相关基础信息
-     * @param hostIp 部署ip
-     * @param fixedIp 是否固定ip
-     * @param domainId 域id
-     * @param domainCfg 域公共配置
+     * @param domain 域信息
      * @param platform k8s平台信息
      * @return 修改域应用的k8s操作步骤
      * @throws ParamException
      * @throws ApiException
      */
-    List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException;
+    List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
      * 生成修改ccod域应用的k8s调试步骤
      * @param jobId 任务id
      * @param appBase 应用相关基础信息
-     * @param hostIp 主机ip
-     * @param fixedIp 是否固定ip
-     * @param domainId 域id
-     * @param domainCfg 域公共配置
+     * @param domain 域信息
      * @param platform k8s平台相关信息
      * @param timeout deployment状态变成Active的超时时长
      * @return 修改域应用的k8s调试步骤
      * @throws ParamException
      * @throws ApiException
      */
-    List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppBase appBase, String hostIp, boolean fixedIp, String domainId, List<AppFileNexusInfo> domainCfg, PlatformPo platform, int timeout) throws ParamException, ApiException, InterfaceCallException, IOException;
+    List<K8sOperationInfo> generateDebugPlatformAppSteps(String jobId, AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform, int timeout) throws ParamException, ApiException, InterfaceCallException, IOException;
 
     /**
      * 生成选择器用于选择k8s上的ccod域应用相关资源
@@ -209,17 +216,6 @@ public interface IK8sTemplateService {
      * @return 生成的选择器
      */
     Map<String, String> getCCODDomainAppSelector(String appName, String alias, String version, AppType appType, String domainId, K8sKind kind);
-
-    /**
-     * 生成指定条件的k8s 模板选择器
-     * @param ccodVersion ccod大版本号
-     * @param appName 应用名
-     * @param vesion 版本
-     * @param appType 应用类型
-     * @param kind 希望选择的k8s资源类型
-     * @return 指定条件的模板选择器
-     */
-    Map<String, String> getK8sTemplateSelector(String ccodVersion, String appName, String vesion, AppType appType, K8sKind kind);
 
     /**
      * 生成平台创建步骤
