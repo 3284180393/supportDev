@@ -187,7 +187,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<K8sThreePartServiceVo> threeSvcs = parseTestThreePartServiceFromFile(this.testThreePartServiceSavePath);
         this.testThreePartServices.addAll(threeSvcs);
         try{
-//            updateTemplate();
+            updateTemplate();
         }
         catch (Exception ex){
             ex.printStackTrace();
@@ -237,7 +237,50 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //            t.getObjectTemplate().setStatefulSets(new ArrayList<>());
 //            k8sTemplateMapper.update(t);
 //        });
-        templateList.forEach(t->logger.error(String.format("template=%s"), gson.toJson(t)));
+        String platformId = K8sObjectTemplatePo.PLATFORM_ID;
+        String domainId = K8sObjectTemplatePo.DOMAIN_ID;
+        String appName = K8sObjectTemplatePo.APP_NAME;
+        String alias = K8sObjectTemplatePo.ALIAS;
+        String hostUrl = K8sObjectTemplatePo.HOST_URL;
+        String k8sHostIp = K8sObjectTemplatePo.K8S_HOST_IP;
+        String nfsServerIp = K8sObjectTemplatePo.NFS_SERVER_IP;
+        for(K8sTemplatePo template : templateList){
+            if(template.getLabels().containsKey(appTypeLabel)){
+                resetAppTemplate(template.getObjectTemplate());
+                k8sTemplateMapper.update(template);
+            }
+//            String json = gson.toJson(template);
+//
+//            json = json.replaceAll("\"server\":\"10.130.41.218\"", String.format("\"server\":\"%s\"", nfsServerIp));
+//
+//            json = json.replaceAll("test-by-wyf.ccod.com", hostUrl);
+//            json = json.replaceAll("jhkgs.ccod.com", hostUrl);
+//            json = json.replaceAll("jhkzx-1.ccod.com", hostUrl);
+//            json = json.replaceAll("10.130.41.218", k8sHostIp);
+//
+//            json = json.replaceAll("cas-manage01", String.format("%s-%s", alias, domainId));
+//            json = json.replaceAll("\"cas\"", String.format("\"cas\"", alias));
+//            json = json.replaceAll("\"cas-", String.format("\"%s-", alias));
+//            json = json.replaceAll("manage01", domainId);
+//
+//            json = json.replaceAll("ucds", alias);
+//            json = json.replaceAll("cloud01", domainId);
+//
+//            json = json.replaceAll("dcms", alias);
+//            json = json.replaceAll("dcmswebservice", alias);
+//            json = json.replaceAll("freeswitch-wgw", alias);
+//
+//            json = json.replaceAll("test-by-wyf", platformId);
+//            json = json.replaceAll("someTest", platformId);
+//            json = json.replaceAll("jhkzx-1", platformId);
+//            json = json.replaceAll("test08", platformId);
+//            json = json.replaceAll("test48", platformId);
+//            json = json.replaceAll("k8s-test", platformId);
+
+
+
+        }
+        templateList.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
     }
 
     @Override
@@ -273,6 +316,102 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         k8sTemplateMapper.insert(templatePo);
         logger.info("template for %s has been added : %s", gson.toJson(labels), gson.toJson(templatePo));
         return templatePo;
+    }
+
+    private void resetAppTemplate(K8sObjectTemplatePo template)
+    {
+        String appType = template.getLabels().get(appTypeLabel);
+        if(!template.getLabels().containsKey(appNameLabel) || !template.getLabels().get(appNameLabel).equals("umg"))
+            return;
+        boolean isDomainApp = appType.equals(AppType.THREE_PART_APP.name) || appType.equals(AppType.OTHER.name) ? false : true;
+        template.setStatefulSets(template.getStatefulSets().stream().map(s->{
+            s.getMetadata().setLabels(new HashMap<>());
+            s.getMetadata().getLabels().put(appTypeLabel, appType);
+            s.getMetadata().getLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
+            s.getSpec().getSelector().setMatchLabels(new HashMap<>());
+            s.getSpec().getSelector().getMatchLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
+            s.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
+            s.getSpec().getTemplate().getMetadata().getLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
+            if(isDomainApp){
+                s.getMetadata().getLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+                s.getSpec().getSelector().getMatchLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+                s.getSpec().getTemplate().getMetadata().getLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+            }
+            s.getSpec().getTemplate().getSpec().setNodeSelector(new HashMap<>());
+            return s;
+        }).collect(Collectors.toList()));
+        if(template.getConfigMaps() != null){
+            template.setConfigMaps(template.getConfigMaps().stream().map(c->{
+                c.getMetadata().setLabels(new HashMap<>());
+                return c;
+            }).collect(Collectors.toList()));
+        }
+        else{
+            template.setConfigMaps(new ArrayList<>());
+        }
+        if(template.getEndpoints() != null){
+            template.setEndpoints(template.getEndpoints().stream().map(e->{
+                e.getMetadata().setLabels(new HashMap<>());
+                return e;
+            }).collect(Collectors.toList()));
+;
+        }
+        else{
+            template.setEndpoints(new ArrayList<>());
+        }
+        template.setServices(template.getServices().stream().map(s->{
+            s.getMetadata().setLabels(new HashMap<>());
+            s.getMetadata().getLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
+            if(isDomainApp){
+                s.getMetadata().getLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+            }
+            if(template.getDeployments() != null && template.getDeployments().size() > 0){
+                s.getSpec().setSelector(new HashMap<>());
+                s.getSpec().getSelector().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
+                if(isDomainApp){
+                    s.getSpec().getSelector().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+                }
+            }
+            return s;
+        }).collect(Collectors.toList()));
+        if(template.getDeployments() != null){
+            template.setDeployments(template.getDeployments().stream().map(d->{
+                d.getMetadata().setLabels(new HashMap<>());
+                d.getMetadata().getLabels().put(appTypeLabel, appType);
+                d.getSpec().getSelector().setMatchLabels(new HashMap<>());
+                d.getSpec().getSelector().getMatchLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
+                d.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
+                d.getSpec().getTemplate().getMetadata().getLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
+                if(isDomainApp){
+                    d.getSpec().getSelector().getMatchLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+                    d.getSpec().getTemplate().getMetadata().getLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+                }
+                if(d.getSpec().getTemplate().getSpec().getInitContainers() != null){
+                    List<V1Container> inits = d.getSpec().getTemplate().getSpec().getInitContainers().stream()
+                            .map(c->{
+                                c.setCommand(new ArrayList<>());
+                                c.setArgs(new ArrayList<>());
+                                return c;
+                            }).collect(Collectors.toList());
+                    d.getSpec().getTemplate().getSpec().setInitContainers(inits);
+                }
+                List<V1Container> runs = d.getSpec().getTemplate().getSpec().getContainers().stream()
+                        .map(c->{
+                            c.setCommand(new ArrayList<>());
+                            c.setArgs(new ArrayList<>());
+                            return c;
+                        }).collect(Collectors.toList());
+                d.getSpec().getTemplate().getSpec().setInitContainers(runs);
+
+                return d;
+            }).collect(Collectors.toList()));
+        }
+        else{
+            template.setDeployments(new ArrayList<>());
+        }
+        if(template.getIngress() != null){
+            template.getIngress().getMetadata().setLabels(new HashMap<>());
+        }
     }
 
     public K8sTemplatePo updateAppK8sTemplate(Map<String, String> labels, List<V1Deployment> deployments, List<V1StatefulSet> statefulSets, List<V1Service> services, ExtensionsV1beta1Ingress ingress, List<V1Endpoints> endpoints, List<V1ConfigMap> configMaps) throws ParamException

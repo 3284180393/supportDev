@@ -22,6 +22,20 @@ public class K8sObjectTemplatePo {
 
     private final static Gson gson = new Gson();
 
+    public final static String PLATFORM_ID = "${PLATFORMID}";  //用来定义平台id宏标签
+
+    public final static String DOMAIN_ID = "${DOMAINID}"; //用来定义域id宏标签
+
+    public final static String APP_NAME = "${APPNAME}"; //用来定义应用名宏标签
+
+    public final static String ALIAS = "${ALIAS}"; //用来定义应用别名宏标签
+
+    public final static String HOST_URL = "${HOSTURL}"; //用来定义ccod平台域名宏标签
+
+    public final static String K8S_HOST_IP = "${K8SHOSTIP}"; //用来定义k8s主机ip宏标签
+
+    public final static String NFS_SERVER_IP = "${NFSSERVERIP}"; //用来定义k8s的nfs服务器id的宏标签
+
     private Map<String, String> labels;
 
     private List<V1Deployment> deployments;
