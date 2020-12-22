@@ -1,11 +1,11 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
-import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.models.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.Assert;
 
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +27,10 @@ public class K8sObjectTemplatePo {
     public final static String DOMAIN_ID = "${DOMAINID}"; //用来定义域id宏标签
 
     public final static String APP_NAME = "${APPNAME}"; //用来定义应用名宏标签
+
+    public final static String APP_LOW_NAME = "${APPNLOWAME}"; //用来定义应用名小写宏标签
+
+    public final static String APP_VERSION = "${APPVERSION}"; //用来定义应用名小写宏标签
 
     public final static String ALIAS = "${ALIAS}"; //用来定义应用别名宏标签
 
@@ -195,6 +199,44 @@ public class K8sObjectTemplatePo {
             default:
                 return null;
         }
+    }
+
+    public Object toMacroReplace(K8sKind kind, Map<String, String> k8sMarcoData){
+        Object obj = getK8sObject(kind);
+        Assert.notNull(obj, String.format("not find %s define at %s template", kind.name, gson.toJson(labels)));
+        String json = gson.toJson(obj);
+        for(String key : k8sMarcoData.keySet()){
+            json = json.replace(key, k8sMarcoData.get(key));
+        }
+        Object retObj = null;
+        switch (kind){
+            case CONFIGMAP:
+                retObj = gson.fromJson(json, new TypeToken<List<V1ConfigMap>>() {}.getType());
+            case PVC:
+                retObj = gson.fromJson(json, new TypeToken<List<V1PersistentVolumeClaim>>() {}.getType());
+            case PV:
+                retObj = gson.fromJson(json, new TypeToken<List<V1PersistentVolume>>() {}.getType());
+            case NAMESPACE:
+                retObj = gson.fromJson(json, V1Namespace.class);
+            case SECRET:
+                retObj = gson.fromJson(json, new TypeToken<List<V1Secret>>() {}.getType());
+            case JOB:
+                retObj =  gson.fromJson(json, new TypeToken<List<V1Job>>() {}.getType());
+            case POD:
+                retObj = gson.fromJson(json, new TypeToken<List<V1Pod>>() {}.getType());
+            case DEPLOYMENT:
+                retObj = gson.fromJson(json, new TypeToken<List<V1Deployment>>() {}.getType());
+            case SERVICE:
+                retObj = gson.fromJson(json, new TypeToken<List<V1Service>>() {}.getType());
+            case INGRESS:
+                retObj = gson.fromJson(json, ExtensionsV1beta1Ingress.class);
+            case ENDPOINTS:
+                retObj = gson.fromJson(json, new TypeToken<List<V1Endpoints>>() {}.getType());
+            case STATEFULSET:
+                retObj = gson.fromJson(json, new TypeToken<List<V1StatefulSet>>() {}.getType());
+        }
+        Assert.notNull(retObj, String.format("not find %s define at %s template", kind.name, gson.toJson(labels)));
+        return retObj;
     }
 
     @Autowired

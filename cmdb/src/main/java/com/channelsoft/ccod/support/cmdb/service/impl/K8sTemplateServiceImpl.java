@@ -187,7 +187,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<K8sThreePartServiceVo> threeSvcs = parseTestThreePartServiceFromFile(this.testThreePartServiceSavePath);
         this.testThreePartServices.addAll(threeSvcs);
         try{
-            updateTemplate();
+//            updateTemplate();
         }
         catch (Exception ex){
             ex.printStackTrace();
@@ -245,42 +245,52 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String k8sHostIp = K8sObjectTemplatePo.K8S_HOST_IP;
         String nfsServerIp = K8sObjectTemplatePo.NFS_SERVER_IP;
         for(K8sTemplatePo template : templateList){
+            Map<String, String> labels = template.getLabels();
             if(template.getLabels().containsKey(appTypeLabel)){
                 resetAppTemplate(template.getObjectTemplate());
-                k8sTemplateMapper.update(template);
+//                k8sTemplateMapper.update(template);
             }
-//            String json = gson.toJson(template);
-//
-//            json = json.replaceAll("\"server\":\"10.130.41.218\"", String.format("\"server\":\"%s\"", nfsServerIp));
-//
-//            json = json.replaceAll("test-by-wyf.ccod.com", hostUrl);
-//            json = json.replaceAll("jhkgs.ccod.com", hostUrl);
-//            json = json.replaceAll("jhkzx-1.ccod.com", hostUrl);
-//            json = json.replaceAll("10.130.41.218", k8sHostIp);
-//
-//            json = json.replaceAll("cas-manage01", String.format("%s-%s", alias, domainId));
-//            json = json.replaceAll("\"cas\"", String.format("\"cas\"", alias));
-//            json = json.replaceAll("\"cas-", String.format("\"%s-", alias));
-//            json = json.replaceAll("manage01", domainId);
-//
-//            json = json.replaceAll("ucds", alias);
-//            json = json.replaceAll("cloud01", domainId);
-//
-//            json = json.replaceAll("dcms", alias);
-//            json = json.replaceAll("dcmswebservice", alias);
-//            json = json.replaceAll("freeswitch-wgw", alias);
-//
-//            json = json.replaceAll("test-by-wyf", platformId);
-//            json = json.replaceAll("someTest", platformId);
-//            json = json.replaceAll("jhkzx-1", platformId);
-//            json = json.replaceAll("test08", platformId);
-//            json = json.replaceAll("test48", platformId);
-//            json = json.replaceAll("k8s-test", platformId);
+            String json = gson.toJson(template);
 
+            json = json.replace("\"server\":\"10.130.41.218\"", String.format("\"server\":\"%s\"", nfsServerIp));
 
+            json = json.replace("test-by-wyf.ccod.com", hostUrl);
+            json = json.replace("jhkgs.ccod.com", hostUrl);
+            json = json.replace("jhkzx-1.ccod.com", hostUrl);
+            json = json.replace("10.130.41.218", k8sHostIp);
 
+            json = json.replace("cas-manage01", String.format("%s-%s", alias, domainId));
+            json = json.replace("\"cas\"", String.format("\"%s\"", alias));
+            json = json.replace("\"cas-", String.format("\"%s-", alias));
+            json = json.replace("manage01", domainId);
+
+            json = json.replace("ucds", alias);
+            json = json.replace("cloud01", domainId);
+
+            json = json.replace("dcms", alias);
+            json = json.replace("dcmswebservice", alias);
+            json = json.replace("freeswitch-wgw", alias);
+
+            json = json.replace("test-by-wyf", platformId);
+            json = json.replace("someTest", platformId);
+            json = json.replace("jhkzx-1", platformId);
+            json = json.replace("test08", platformId);
+            json = json.replace("test48", platformId);
+            json = json.replace("k8s-test", platformId);
+
+            json = json.replace("base-volume/db/oracle/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
+            json = json.replace("base-volume/db/oracle/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
+
+            json = json.replace("base-volume/db/mysql/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
+            json = json.replace("base-volume/db/mysql/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
+
+            K8sTemplatePo po = gson.fromJson(json, K8sTemplatePo.class);
+            po.setLabels(labels);
+            po.getObjectTemplate().setLabels(labels);
+            k8sTemplateMapper.update(po);
+            logger.error(String.format("template=%s", gson.toJson(po)));
         }
-        templateList.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
+//        templateList.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
     }
 
     @Override
@@ -321,8 +331,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     private void resetAppTemplate(K8sObjectTemplatePo template)
     {
         String appType = template.getLabels().get(appTypeLabel);
-        if(!template.getLabels().containsKey(appNameLabel) || !template.getLabels().get(appNameLabel).equals("umg"))
-            return;
+//        if(!template.getLabels().containsKey(appNameLabel) || !template.getLabels().get(appNameLabel).equals("umg"))
+//            return;
         boolean isDomainApp = appType.equals(AppType.THREE_PART_APP.name) || appType.equals(AppType.OTHER.name) ? false : true;
         template.setStatefulSets(template.getStatefulSets().stream().map(s->{
             s.getMetadata().setLabels(new HashMap<>());
@@ -351,7 +361,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         if(template.getEndpoints() != null){
             template.setEndpoints(template.getEndpoints().stream().map(e->{
+                e.getMetadata().setName(K8sObjectTemplatePo.ALIAS);
                 e.getMetadata().setLabels(new HashMap<>());
+                e.getSubsets().forEach(s->s.getAddresses().forEach(a->a.setIp("${UMGIP}")));
                 return e;
             }).collect(Collectors.toList()));
 ;
@@ -359,11 +371,18 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         else{
             template.setEndpoints(new ArrayList<>());
         }
+        if(template.getServices() == null){
+            template.setServices(new ArrayList<>());
+        }
         template.setServices(template.getServices().stream().map(s->{
             s.getMetadata().setLabels(new HashMap<>());
             s.getMetadata().getLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
             if(isDomainApp){
                 s.getMetadata().getLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+                s.getMetadata().setName(String.format("%s-%s", K8sObjectTemplatePo.ALIAS, K8sObjectTemplatePo.DOMAIN_ID));
+            }
+            else{
+                s.getMetadata().setName(K8sObjectTemplatePo.ALIAS);
             }
             if(template.getDeployments() != null && template.getDeployments().size() > 0){
                 s.getSpec().setSelector(new HashMap<>());
@@ -378,6 +397,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             template.setDeployments(template.getDeployments().stream().map(d->{
                 d.getMetadata().setLabels(new HashMap<>());
                 d.getMetadata().getLabels().put(appTypeLabel, appType);
+                d.getMetadata().getLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
+                if(isDomainApp){
+                    d.getMetadata().getLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
+                }
+                if(!isDomainApp)
+                    d.getMetadata().setName(K8sObjectTemplatePo.ALIAS);
+                else
+                    d.getMetadata().setName(String.format("%s-%s", K8sObjectTemplatePo.ALIAS, K8sObjectTemplatePo.DOMAIN_ID));
                 d.getSpec().getSelector().setMatchLabels(new HashMap<>());
                 d.getSpec().getSelector().getMatchLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
                 d.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
@@ -386,23 +413,27 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                     d.getSpec().getSelector().getMatchLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
                     d.getSpec().getTemplate().getMetadata().getLabels().put(domainIdLabel, K8sObjectTemplatePo.DOMAIN_ID);
                 }
-                if(d.getSpec().getTemplate().getSpec().getInitContainers() != null){
+                if(isDomainApp && d.getSpec().getTemplate().getSpec().getInitContainers() != null){
                     List<V1Container> inits = d.getSpec().getTemplate().getSpec().getInitContainers().stream()
+                            .map(c->{
+                                c.setName(K8sObjectTemplatePo.ALIAS);
+                                c.setCommand(new ArrayList<>());
+                                c.setArgs(new ArrayList<>());
+                                c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION));
+                                return c;
+                            }).collect(Collectors.toList());
+                    d.getSpec().getTemplate().getSpec().setInitContainers(inits);
+                }
+                d.getSpec().getTemplate().getSpec().getContainers().get(0).setName(String.format("%s-runtime", K8sObjectTemplatePo.ALIAS));
+                if(isDomainApp){
+                    List<V1Container> runs = d.getSpec().getTemplate().getSpec().getContainers().stream()
                             .map(c->{
                                 c.setCommand(new ArrayList<>());
                                 c.setArgs(new ArrayList<>());
                                 return c;
                             }).collect(Collectors.toList());
-                    d.getSpec().getTemplate().getSpec().setInitContainers(inits);
+                    d.getSpec().getTemplate().getSpec().setInitContainers(runs);
                 }
-                List<V1Container> runs = d.getSpec().getTemplate().getSpec().getContainers().stream()
-                        .map(c->{
-                            c.setCommand(new ArrayList<>());
-                            c.setArgs(new ArrayList<>());
-                            return c;
-                        }).collect(Collectors.toList());
-                d.getSpec().getTemplate().getSpec().setInitContainers(runs);
-
                 return d;
             }).collect(Collectors.toList()));
         }
@@ -469,7 +500,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String alias = appBase.getAlias();
         String domainId = domain.getDomainId();
         String hostUrl = platform.getHostUrl();
-        Object selectObject = selectK8sObjectForApp(K8sKind.INGRESS, appBase.getAppName(), appBase.getVersion(), appBase.getAppType(), appBase.getTag(), platform.getTag(), platform.getCcodVersion());
+        Map<String, String> k8sMacroData = appBase.getK8sMacroData(domain, platform);
+        Object selectObject = selectK8sObjectForApp(K8sKind.INGRESS, appBase.getAppName(), appBase.getVersion(), appBase.getAppType(), appBase.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not find ingress template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     appBase.getAppName(), appBase.getVersion(), appBase.getAppType().name, platform.getCcodVersion(), appBase.getTag()));
@@ -494,7 +526,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         logger.debug(String.format("generate service for %s(%s) : portType=%s and port=%s", alias, appName, portType.name, portStr));
         if(!portType.equals(ServicePortType.ClusterIP) && !portType.equals(ServicePortType.NodePort))
             throw new ParamException(String.format("can not handle service port type : %s", portType.name));
-        Object selectObject = selectK8sObjectForApp(K8sKind.SERVICE, appBase.getAppName(), appBase.getVersion(), appBase.getAppType(), appBase.getTag(), platform.getTag(), platform.getCcodVersion());
+        Map<String, String> k8sMacroData = appBase.getK8sMacroData(domain, platform);
+        Object selectObject = selectK8sObjectForApp(K8sKind.SERVICE, appBase.getAppName(), appBase.getVersion(), appBase.getAppType(), appBase.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not find ingress template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     appBase.getAppName(), appBase.getVersion(), appBase.getAppType().name, platform.getCcodVersion(), appBase.getTag()));
@@ -546,7 +579,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
         appBase.setInstallPackage(module.getInstallPackage());
         AppType appType = appBase.getAppType() == null ? module.getAppType() : appBase.getAppType();
-        Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, appBase.getAppName(), appBase.getVersion(), appBase.getAppType(), appBase.getTag(), platform.getTag(), platform.getCcodVersion());
+        Map<String, String> k8sMacroData = appBase.getK8sMacroData(domain, platform);
+        Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, appBase.getAppName(), appBase.getVersion(), appBase.getAppType(), appBase.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not find ingress template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     appBase.getAppName(), appBase.getVersion(), appBase.getAppType().name, platform.getCcodVersion(), appBase.getTag()));
@@ -1064,7 +1098,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String version = threePartAppPo.getVersion();
         String alias = threePartAppPo.getAlias();
         String platformId = !isBase ? platform.getPlatformId() : String.format("base-%s", platform.getPlatformId());
-        Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion());
+        Map<String, String> k8sMacroData = threePartAppPo.getK8sMacroData(platform);
+        Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not find deployment template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP.name, platform.getCcodVersion(), threePartAppPo.getTag()));
@@ -1197,7 +1232,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return null;
     }
 
-    private Object selectK8sObjectForApp(K8sKind kind, String appName, String version, AppType appType, String appTag, String platformTag, String ccodVersion){
+    private Object selectK8sObjectForApp(K8sKind kind, String appName, String version, AppType appType, String appTag, String platformTag, String ccodVersion, Map<String, String> k8sMacroData){
         logger.info(String.format("begin to select %s template for ccodVersion=%s,appType=%s,appName=%s and version=%s and appTag=%s and platformTag=%s",
                 kind.name, ccodVersion, appType.name, appName, version, appTag, platformTag));
         List<K8sObjectTemplatePo> templateList = objectTemplateList.stream().filter(t->isMatchForApp(t, appType, appTag, ccodVersion))
@@ -1205,19 +1240,19 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         for(K8sObjectTemplatePo template : templateList){
             if (template.getK8sObject(kind) != null && isTemplateAppVersionMatch(template, appName, version, appType, appTag, platformTag, ccodVersion)) {
                 logger.debug(String.format("%s template for %s with version matched : %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
-                return template.getK8sObject(kind);
+                return template.toMacroReplace(kind, k8sMacroData);
             }
         }
         for(K8sObjectTemplatePo template : templateList){
             if(template.getK8sObject(kind) != null && isTemplateAppNameMatch(template, appName, appType, appTag, platformTag, ccodVersion)){
                 logger.debug(String.format("%s template for %s with appName matched : %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
-                return template.getK8sObject(kind);
+                return template.toMacroReplace(kind, k8sMacroData);
             }
         }
         for(K8sObjectTemplatePo template : templateList){
             if(template.getK8sObject(kind) != null && isTagMatch(template.getLabels().get(platformTagLabel), platformTag)){
                 logger.debug(String.format("%s template for %s with appType matched : %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
-                return template.getK8sObject(kind);
+                return template.toMacroReplace(kind, k8sMacroData);
             }
         }
         if(StringUtils.isNotBlank(platformTag)){
@@ -1225,19 +1260,19 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             for(K8sObjectTemplatePo template : templateList){
                 if (template.getK8sObject(kind) != null && isTemplateAppVersionMatch(template, appName, version, appType, appTag, platformTag, ccodVersion)) {
                     logger.debug(String.format("%s template for %s with version matched and platformTag=null: %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
-                    return template.getK8sObject(kind);
+                    return template.toMacroReplace(kind, k8sMacroData);
                 }
             }
             for(K8sObjectTemplatePo template : templateList){
                 if(template.getK8sObject(kind) != null && isTemplateAppNameMatch(template, appName, appType, appTag, platformTag, ccodVersion)){
                     logger.debug(String.format("%s template for %s with appName matched and platformTag=null: %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
-                    return template.getK8sObject(kind);
+                    return template.toMacroReplace(kind, k8sMacroData);
                 }
             }
             for(K8sObjectTemplatePo template : templateList){
                 if(template.getK8sObject(kind) != null && isTagMatch(template.getLabels().get(platformTagLabel), platformTag)){
                     logger.debug(String.format("%s template for %s with appType matched and platformTag=null: %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
-                    return template.getK8sObject(kind);
+                    return template.toMacroReplace(kind, k8sMacroData);
                 }
             }
         }
@@ -1919,7 +1954,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     private List<String> getIntegrationDeploy(AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException{
-        Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, appBase.getAppName(), appBase.getVersion(), appBase.getAppType(), appBase.getTag(), platform.getTag(), platform.getCcodVersion());
+        Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, appBase.getAppName(), appBase.getVersion(), appBase.getAppType(), appBase.getTag(), platform.getTag(), platform.getCcodVersion(), new HashMap<>());
         if(selectObject == null){
             throw new ParamException(String.format("can not find ingress template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     appBase.getAppName(), appBase.getVersion(), appBase.getAppType().name, platform.getCcodVersion(), appBase.getTag()));
@@ -1932,7 +1967,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     {
         List<V1Service> allServices = new ArrayList<>();
         for(CCODThreePartAppPo threePartAppPo : threePartApps){
-            Object selectObject = selectK8sObjectForApp(K8sKind.SERVICE, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion());
+            Map<String, String> k8sMacroData = threePartAppPo.getK8sMacroData(platform);
+            Object selectObject = selectK8sObjectForApp(K8sKind.SERVICE, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
             if(selectObject == null){
                 throw new ParamException(String.format("can not find service template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                         threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP.name, platform.getCcodVersion(), threePartAppPo.getTag()));
@@ -1963,7 +1999,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     private K8sThreePartAppVo generateK8sThreePartApp(PlatformPo platform, CCODThreePartAppPo threePartAppPo, boolean isBase) throws ParamException
     {
-        Object selectObject = selectK8sObjectForApp(K8sKind.SERVICE, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion());
+        Map<String, String> k8sMacroData = threePartAppPo.getK8sMacroData(platform);
+        Object selectObject = selectK8sObjectForApp(K8sKind.SERVICE, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not find service template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP.name, platform.getCcodVersion(), threePartAppPo.getTag()));
@@ -1979,7 +2016,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             s.getSpec().setSelector(selector);
         });
         List<V1Deployment> deployments = generateThreeAppDeployment(threePartAppPo, platform, isBase);
-        selectObject = selectK8sObjectForApp(K8sKind.ENDPOINTS, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion());
+        selectObject = selectK8sObjectForApp(K8sKind.ENDPOINTS, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not find endpoint template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP.name, platform.getCcodVersion(), threePartAppPo.getTag()));
@@ -1998,14 +2035,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             }
             e.getSubsets().get(0).setAddresses(addresses);
         });
-        selectObject = selectK8sObjectForApp(K8sKind.CONFIGMAP, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion());
+        selectObject = selectK8sObjectForApp(K8sKind.CONFIGMAP, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not find configMap template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP.name, platform.getCcodVersion(), threePartAppPo.getTag()));
         }
         List<V1ConfigMap> configMaps = (List<V1ConfigMap>)selectObject;
         configMaps.forEach(c->c.getMetadata().setNamespace(platformId));
-        selectObject = selectK8sObjectForApp(K8sKind.STATEFULSET, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion());
+        selectObject = selectK8sObjectForApp(K8sKind.STATEFULSET, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not find statefulSet template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP.name, platform.getCcodVersion(), threePartAppPo.getTag()));

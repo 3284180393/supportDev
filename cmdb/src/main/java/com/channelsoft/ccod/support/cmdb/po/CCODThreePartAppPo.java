@@ -2,6 +2,8 @@ package com.channelsoft.ccod.support.cmdb.po;
 
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import org.apache.commons.lang3.StringUtils;
+
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -142,5 +144,17 @@ public class CCODThreePartAppPo {
 
     public void setKind(K8sKind kind) {
         this.kind = kind;
+    }
+
+    public Map<String, String> getK8sMacroData(PlatformPo platform){
+        Map<String, String> data = new HashMap<>();
+        data.put(K8sObjectTemplatePo.PLATFORM_ID, platform.getPlatformId());
+        data.put(K8sObjectTemplatePo.NFS_SERVER_IP, platform.getNfsServerIp() == null ? (String)platform.getParams().get(PlatformBase.nfsServerIpKey) : platform.getNfsServerIp());
+        data.put(K8sObjectTemplatePo.K8S_HOST_IP, platform.getK8sHostIp());
+        data.put(K8sObjectTemplatePo.HOST_URL, platform.getHostUrl());
+        if(params != null && params.size() > 0){
+            params.forEach((k,v)->data.put(String.format("${%s%s}", appName, k).toUpperCase(), v));
+        }
+        return data;
     }
 }
