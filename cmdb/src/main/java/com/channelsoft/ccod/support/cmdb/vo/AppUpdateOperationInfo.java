@@ -265,7 +265,7 @@ public class AppUpdateOperationInfo extends AppBase {
         data.put(K8sObjectTemplatePo.APP_LOW_NAME, appName.toLowerCase());
         data.put(K8sObjectTemplatePo.APP_VERSION, version.replace(":", "-"));
         data.put(K8sObjectTemplatePo.HOST_URL, platform.getHostUrl());
-        data.put(K8sObjectTemplatePo.K8S_HOST_IP, platform.getK8sHostIp());
+        data.put(K8sObjectTemplatePo.K8S_HOST_IP, platform.getK8sHostIp() == null ? (String)platform.getParams().get(PlatformBase.k8sHostIpKey) : platform.getK8sHostIp());
         data.put(K8sObjectTemplatePo.NFS_SERVER_IP, platform.getNfsServerIp() == null ? (String)platform.getParams().get(PlatformBase.nfsServerIpKey) : platform.getNfsServerIp());
         data.put(K8sObjectTemplatePo.PLATFORM_ID, platform.getPlatformId());
         return data;

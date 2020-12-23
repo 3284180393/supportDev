@@ -86,15 +86,6 @@ public interface IK8sTemplateService {
     V1Namespace generateNamespace(String ccodVersion, String platformId, String platformTag) throws ParamException;
 
     /**
-     * 为平台生成secrete
-     * @param name secret名
-     * @param platform 平台信息
-     * @return 生成的secret对象
-     * @throws ParamException
-     */
-    V1Secret generateSecret(String name, PlatformPo platform) throws ParamException;
-
-    /**
      * 为指定平台生成缺省pv
      * @param platform 平台信息
      * @param isBase 该pv是用于platform.platformId还是base-platform.platformId

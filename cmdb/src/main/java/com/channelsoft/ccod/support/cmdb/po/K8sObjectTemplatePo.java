@@ -212,28 +212,40 @@ public class K8sObjectTemplatePo {
         switch (kind){
             case CONFIGMAP:
                 retObj = gson.fromJson(json, new TypeToken<List<V1ConfigMap>>() {}.getType());
+                break;
             case PVC:
                 retObj = gson.fromJson(json, new TypeToken<List<V1PersistentVolumeClaim>>() {}.getType());
+                break;
             case PV:
                 retObj = gson.fromJson(json, new TypeToken<List<V1PersistentVolume>>() {}.getType());
+                break;
             case NAMESPACE:
                 retObj = gson.fromJson(json, V1Namespace.class);
+                break;
             case SECRET:
                 retObj = gson.fromJson(json, new TypeToken<List<V1Secret>>() {}.getType());
+                break;
             case JOB:
                 retObj =  gson.fromJson(json, new TypeToken<List<V1Job>>() {}.getType());
+                break;
             case POD:
                 retObj = gson.fromJson(json, new TypeToken<List<V1Pod>>() {}.getType());
+                break;
             case DEPLOYMENT:
                 retObj = gson.fromJson(json, new TypeToken<List<V1Deployment>>() {}.getType());
+                break;
             case SERVICE:
                 retObj = gson.fromJson(json, new TypeToken<List<V1Service>>() {}.getType());
+                break;
             case INGRESS:
                 retObj = gson.fromJson(json, ExtensionsV1beta1Ingress.class);
+                break;
             case ENDPOINTS:
                 retObj = gson.fromJson(json, new TypeToken<List<V1Endpoints>>() {}.getType());
+                break;
             case STATEFULSET:
                 retObj = gson.fromJson(json, new TypeToken<List<V1StatefulSet>>() {}.getType());
+                break;
         }
         Assert.notNull(retObj, String.format("not find %s define at %s template", kind.name, gson.toJson(labels)));
         return retObj;

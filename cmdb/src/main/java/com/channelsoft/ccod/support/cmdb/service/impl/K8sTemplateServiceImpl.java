@@ -32,7 +32,6 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.*;
-import java.lang.reflect.Array;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Function;
@@ -194,49 +193,49 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
     }
 
-
     private void updateTemplate() throws Exception
     {
-//        Map<String, String> labels = new HashMap<>();
-//        labels.put(ccodVersionLabel, "4.8");
-//        labels.put(appTypeLabel, AppType.THREE_PART_APP.name);
-//        labels.put(appNameLabel, "umg");
-//        String json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\",\"labels\":{\"name\":\"umg\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"umg\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"umg\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"config\",\"configMap\":{\"name\":\"umg\"}},{\"name\":\"ccod-runtime\",\"hostPath\":{\"path\":\"/var/ccod-runtime/default/ssr\"}},{\"name\":\"core\",\"hostPath\":{\"path\":\"/var/ccod-runtime/default/core/ssr\"}}],\"containers\":[{\"name\":\"umg\",\"imagePullPolicy\":\"Always\",\"image\":\"ccod/ssr-umg:225-3543_225-22317\",\"ports\":[{\"containerPort\":12000},{\"containerPort\":11500}],\"volumeMounts\":[{\"mountPath\":\"/root/ATS/config\",\"name\":\"config\"},{\"mountPath\":\"/root/ATS/runlog\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"livenessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"readinessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"resources\":{\"requests\":{\"memory\":\"1000Mi\",\"cpu\":\"1000m\"},\"limits\":{\"memory\":\"1000Mi\",\"cpu\":\"1000m\"}},\"workingDir\":\"/root/ATS/bin\",\"command\":[\"/bin/bash\",\"-c\"],\"args\":[\"./umgdaemon;\",\"tail -F /root/ATS/runlog/*;\"]}]}}}}";
-//        V1Deployment deployment = gson.fromJson(json, V1Deployment.class);
-//        json = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\"},\"spec\":{\"ports\":[{\"name\":\"umg\",\"port\":11500,\"protocol\":\"TCP\",\"targetPort\":11500},{\"name\":\"ssr\",\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"type\":\"ClusterIP\"}}";
-//        V1Service service = gson.fromJson(json, V1Service.class);
-//        json = "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\"},\"data\":{\"ATSEConfigData.cfg\":\"<?xml version=\\\"1.0\\\" encoding=\\\"GB2312\\\"?>\\n<ATSE>\\n  <AttributeSet MediaServerIP=\\\"\\\" AutoAnswer = \\\"true\\\" StatisticsLevel=\\\"3\\\" IsDebug=\\\"true\\\" LogLevel=\\\"DT\\\" RunLog=\\\"true\\\" UseDRWRClient=\\\"true\\\" WriteUserDefinedCallID=\\\"true\\\" AutoClear = \\\"5\\\" MaxUserIdleSeconds=\\\"\\\" SMSMediaServerIP=\\\"\\\" SupportFileOnUnix=\\\"true\\\">\\n    <SSR2 IP=\\\"127.0.0.1\\\" Port=\\\"12000\\\" SLEEName=\\\"Slee1_name\\\" SLEEPassword=\\\"Slee1_pwd\\\"/>\\n    <SNMPAgent TargetAddress=\\\"127.0.0.1\\\" ListenPort=\\\"10015\\\" TargetPort=\\\"10061\\\" NodeId=\\\"100\\\" NodeLocation=\\\"wuxz_notebook\\\" NodeName=\\\"slee100\\\"/>\\n    <SDR NodeCode=\\\"1001\\\" DeviceCode=\\\"001001\\\"/>\\n  </AttributeSet>\\n  <DNGroups>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"outbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"3001\\\" EndDN=\\\"3001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"b.usml\\\" IsInbound=\\\"false\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n    </ResGroup>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"inbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"5001\\\" EndDN=\\\"5001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"inbound.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n      </ResGroup>\\n        <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"App\\\">\\n          <DNList>\\n            <ComplexDN StartDN=\\\"7003\\\" EndDN=\\\"7003\\\"/>\\n          </DNList>\\n          <RunTime>\\n            <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n              <Application Name=\\\"ATS服务\\\" XMLFile=\\\"a3.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n            </RunPeriod>\\n          </RunTime>\\n    </ResGroup>\\n  </DNGroups>\\n  <Components>\\n    <Component ProgID=\\\"QNWriteFileCOM.clsWriteFile\\\"     ClassName=\\\"com.channelsoft.reusable.comobj.writefilecom.WriteFileCom\\\">    \\n      <Config>\\n        <Entry Key=\\\"WriteFilePath\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"QNDBCOM.clsQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QuerySQL.CQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QNNetCOM.clsHttp\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"PublicUnity.CHTTP\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"MSSOAP.SoapClient30\\\" ClassName=\\\"com.channelsoft.reusable.comobj.ws.SoapClientByWSIF\\\"/>\\n    <Component ProgID=\\\"QnINICOM.ini\\\" ClassName=\\\"com.channelsoft.reusable.comobj.inicom.IniCom\\\"/>\\n    <Component ProgID=\\\"MD5Com.MD5Entity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.md5com.Md5Com\\\"/>            \\n    <Component ProgID=\\\"JMSCom.JMSEntity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.jmscom.JmsCom\\\"/>    \\n    <Component ProgID=\\\"CCOD.AssociatedData\\\" ClassName=\\\"com.channelsoft.slee.callagent.ccod.servicedata.V2_ServiceData\\\"/>\\n    <Component ProgID=\\\"CONFNODE.ConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"TConfCom.TConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"QnFaxForAgent.clsOprTask\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"TDP.IVRInterface\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>    \\n    <Component ProgID=\\\"Microsoft.XMLDOM\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"MSXML2.DOMDocument.4.0\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"CASRouterClient\\\" ClassName=\\\"com.channelsoft.reusable.comobj.cas.RouterClient\\\">\\n      <Config>\\n        <Entry Key=\\\"CASServerIP\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"CASServerPort\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"ListenServerPort\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n  </Components>\\n  <ServiceProviders>\\n    <ReasoningProvider>\\n      <ClassName>com.channelsoft.reusable.debugproxy.DebugAgent</ClassName>\\n      <Enabled>false</Enabled>\\n    </ReasoningProvider>\\n  </ServiceProviders>\\n</ATSE>  \",\"SSR.ini\":\"[System]\\nUMGIP=127.0.0.1\\nUMGPort=11500\\nRouteStratgy_1=ani\\nRouteStratgy_2=dnis\\nRouteStratgy_3=oriani\\nRouteStratgy_4=ani\\nRouteStratgy_5=mediatype\\nRouteStratgy_6=weight\\nRouteStratgy_7=average\\nClientCount=2\\nListenPort=12000\\nLog_path=../runlog\\nLog_level=debug\\n[Client1]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\\n[Client2]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\",\"UMG.ini\":\"[SYSTEM]\\nlog_path=../runlog/\\nlog_level=debug\\nHWType=freeswitch\\nVGCP_listen_port=11500\\nchannel_worker_number=16\\nDefaultCallingNumber=1000\\nAccept_Route_Play=yes\\nMultiProcess=No\\nVolume=0\\nMax_Time_Drop_Enable=yes #是否启用超时挂断\\nMax_Drop_Time=7200 #超时挂断事件（S）该事件最低为300s，配置低于300默认为300\\nU2UInfo_for_OriANI = yes\\nRedis_Location = redis-headless:27379,redis-headless:27379,redis-headless:27379\\n[CPRLIST]\\ntotal=0\\ntone_clamp=yes\\necho_cancel=yes\\nneed_record=yes\\n[FilePath_Transfer]\\norig_path=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\\\ndest_path=/data/record/recording/\\norig_path_fax=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\Document\\\\\\ndest_path_fax=./\\nnew_record_path = umg69\\n[PSR]\\nConnect_PSR = no\\nMasterEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11280\\nSlaveEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11481\\nEventServer = PSREventServer:tcp_-h_127.0.0.1_-p_14681\\nUMG4PSREndpoint = UMG:tcp_-h_10.9.43.75_-p_10072\\n[XoIP]\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nRegister_Period=3000\\nRegister_Expires=3600\\nRegister_Num_Begin=1000\\nRegister_Count=20\\nRegister_PhoneNumInterval=2\\nrtp_media_coding0=g711a\\nrtp_media_coding1=g711mu\\n[ModNumber]\\nIsNeedModNumber=yes #yes/no \\nModules_Params = ../hlr/hlr.13x, ../hlr/hlr.14x, ../hlr/hlr.15x, ../hlr/hlr.17x, ../hlr/hlr.18x\\n#[TRUNK_GROUP$]\\n#sip_server_address=user #客户交本地注册用户\\n[AccessExtMoudle] #iceserver链接配置 回呼\\nuse=true\\nIce_server=127.0.0.1\\nIce_port = 8001\\nIce_timeout = 5000\\n[StreamPlay] #流式放音\\nsupport =no                                                              \\nuri=10.9.43.75:8000\\n[StreamRecord] #流式录音\\nsupport = no\\nuri=10.9.43.75:8000\\nuser=source\\npasswd=hackme\\n[TRUNK_GROUP]\\ntotal=7\\n#linkChannels=960,962,964,966,968,970,972,974,976,978,980,982,984,986,988\\n#linkChannels=1025,1026,1027,1028,1029,1030,1032,1034,1036,1038,1040,1042,1044,1046,1048,1050,1052,1054,1055\\n[TRUNK_GROUP1]\\ntac=s\\nstart_number=0\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\n#sip_server_address=\\n#sip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP2]\\ntac=t\\nstart_number=5096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\nModNumber_Rules=../config/mod_number/beijing.xml\\n[TRUNK_GROUP3]\\ntac=w\\nstart_number=6096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP4]\\ntac=z\\nstart_number=7096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.15.145 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\n#sip_server_address=10.9.43.75\\n#sip_server_port=6090\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal-ylxt\\n[TRUNK_GROUP5]\\ntac=o\\nstart_number=8096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.58.178 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\nbillingcode=cd693\\nis_need_csr=yes\\nfstrunck=gateway/zealcomm\\n[TRUNK_GROUP6]\\ntac=m\\nstart_number=9096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75\\nsip_server_port=7080\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP7]\\ntac=n\\nstart_number=10096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.0.243\\nsip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[CDR]\\nsupport_cdr=yes\\ndevice_code=010VG1\\n[IvrMonitor]\\nsupported=no\\nivrmonitor_port=4321\\n[CtiAdapter]\\nsupported=yes\\nEndPoint=QRServer:tcp_-h_10.9.26.79_-p_11480 #tsr地址\\nLocalPath=/data/shdujian/\\nRemoteUrl=/data/wuzj/\\nTimeOut=3000\\nKeepAlive=false\\nLogFile=../runlog/\\n[SpecialAniAddrNature]\\naddr_nature=3\\nANI=95511,95533\\n[CloudData]\\nsupport =no\\nNodeID = 23\\nUMG_IP = 10.9.43.75 #中信测试环境未部署云接入\\nUMG_Port = 12000\\nzookeeper_ip = 10.130.41.140\\nzookeeper_port =2181\\nUMGName4Zookeeper=umg_fs_141\\nZooKeeperPath=/umg_cloud/cluster\\ntrunk_num = 2\\n[CloudData_Trunk1]\\nTac = s\\nType = SIP\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd691\\n[CloudData_Trunk2]\\nTac = t\\nType = PSTN\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd692\\n[Monitor]\\nIsNeedMonitor = no # 是否启用运行监控消息输出\\nMonitorFilePath = ../cctrack/umg # 运行监控消息输出目录，需要手动建立\\nMonitorFileName = UMG_TEST69 # 运行监控消息输出文件名\\nModuleName = UMG_TEST69 # 运行监控消息输出服务名  \\n[UUINFO]\\nvalue=\\\"ANI:15210508909|ID:2255|CLIENTNO:1002|CTINO:1002|SYSTEM:253648\\\"\\n[SS7ANI4BJLT]\\nSetSS7AniType=1 #use:1  nouse:0\\n[GLS]\\nConnect_GLS = yes\\nServiceName = UMG-DEMO\\nGlsLocation = GLSServer:tcp_-h_10.9.26.79_-p_17020\\n[FrontCode]\\nsupport = yes\\nCode = 9999\\nANIFile = ../config/ANIFile.cfg\\n[DataBase]\\nUSE_ICE=0\\n[IceServer]\\nIce_server=10.130.41.35\\nIce_port=10000\\n[FSW]\\nInboundTrunkTac=s\\nFSWServerAddr=127.0.0.1 #SGW地址\\nFSWServerPort=8021 #SGW端口\\nrecordingpath=/data/record/recording/\\nrecordedpath=/data/record/recorded/\\nsplitfileext=.wav\\nmixfileext=.wav\\nneed_add_alert=true\\n[Anon]\\nEnable=yes\\nExcTimeout=5\\nConTimeout=5\\nAgentid=010\\nUrl=http://ccod1:8082/ccod/getSerialNumber\\nAppID=ccodprivate\\nAppPWD=7cd3f4920ac00fad603a8205309c6e4c\\nRule=TEL:99\",\"drwr_client.cfg\":\"#######################################################################\\n# 话单存储器配置文件\\n# 林维志，2005-12-12\\n# 青牛（北京）技术有限公司 版权所有\\n#######################################################################\\n# ===========================\\n# 下面指定话单文件相关参数\\n# ===========================\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/sdr/temp/DRWRClient.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 10\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 10000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/sdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 1\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\n#drwr_file_backup_path = $USBOSS_HOME/sdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 1\\n# ===========================\\n# 下面指定服务器相关参数\\n# ===========================\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 1\\n# 服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 134.96.71.108\\n# 服务器的端口\\ndrwr_server_port = 9091\\n# ===========================\\n# 下面指定日志参数\\n# ===========================\\n# 日志文件名，最好为全路径名，且不需要指定扩展名。若此参数为空则不写日志。\\ndrwr_log_filename = $USBOSS_HOME/sdr/Log/\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = INFO\",\"umg_cdr.cfg\":\"###############################################################################\\n#\\n#    话单存储器配置文件\\n#    林维志，2005-12-12\\n#    北京青牛软件技术有限责任公司　版权所有\\n#\\n###############################################################################\\n###############################################################################\\n# 以下话单收发模块drwr_client的配置\\n###############################################################################\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 0\\n# 话单接收服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 127.0.0.1\\n# 话单接收服务器的端口,\\ndrwr_server_port = 9092\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/cdr/temp/DRWRClientTest.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 60\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 20000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/cdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 0\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\ndrwr_file_backup_path = $USBOSS_HOME/cdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 2\\n# 日志文件名，最好为全路径名\\ndrwr_log_filename = $USBOSS_HOME/cdr/log/drwr_client.log\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = 700\\n###############################################################################\\n# 以下为实时话单接收器drwr_server的配置\\n###############################################################################\\n# drwr_server使用的本地的IP地址\\ndrwr_local_ip = 127.0.0.1\\n# drwr_server使用的本地的端口\\ndrwr_local_port = 9091\\n# drwr_server的线程池的大小\\ndrwr_thread_pool_size = 30\\n# 允许访问drwr_server的客户端的IP数量\\n#drwr_allow_ip_count = 0\\n# 允许访问drwr_server的客户端的IP\\n#drwr_allow_id_1 =\"}}";
-//        V1ConfigMap configMap = gson.fromJson(json, V1ConfigMap.class);
-//        updateAppK8sTemplate(labels, Arrays.asList(deployment), new ArrayList<>(), Arrays.asList(service), null, new ArrayList<>(), Arrays.asList(configMap));
-//        k8sTemplateMapper.select().forEach(t->{
-//            if (t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP)) {
-//
-//                K8sObjectTemplatePo o = t.getObjectTemplate();
-//                if(o.getDeployments() == null){
-//                    o.setDeployments(new ArrayList<>());
+//        for(K8sTemplatePo template : temps){
+//            if(!template.getLabels().containsKey(appTypeLabel) || template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name))
+//                continue;
+//            for(V1Deployment d : template.getObjectTemplate().getDeployments()){
+//                for(V1Container c : d.getSpec().getTemplate().getSpec().getInitContainers()) {
+//                    c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION));
 //                }
-//                if(o.getEndpoints() == null){
-//                    o.setEndpoints(new ArrayList<>());
-//                }
-//                if(o.getConfigMaps() == null){
-//                    o.setConfigMaps(new ArrayList<>());
-//                }
-//                if(o.getStatefulSets() == null){
-//                    o.setStatefulSets(new ArrayList<>());
-//                }
-//                k8sTemplateMapper.update(t);
 //            }
-//        });
+//            k8sTemplateMapper.update(template);
+//        }
+        k8sTemplateMapper.select().forEach(t->{
+            if (t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP)) {
+
+                K8sObjectTemplatePo o = t.getObjectTemplate();
+                if(o.getDeployments() == null){
+                    o.setDeployments(new ArrayList<>());
+                }
+                if(o.getEndpoints() == null){
+                    o.setEndpoints(new ArrayList<>());
+                }
+                if(o.getConfigMaps() == null){
+                    o.setConfigMaps(new ArrayList<>());
+                }
+                if(o.getStatefulSets() == null){
+                    o.setStatefulSets(new ArrayList<>());
+                }
+                k8sTemplateMapper.update(t);
+            }
+        });
         List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
-//        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)).forEach(t->{
-//            t.getLabels().put(appTagLabel, "standard");
-//            t.getObjectTemplate().getLabels().put(appTagLabel, "standard");
-//            k8sTemplateMapper.update(t);
-//        });
-//        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getObjectTemplate().getStatefulSets() == null).forEach(t->{
-//            t.getObjectTemplate().setStatefulSets(new ArrayList<>());
-//            k8sTemplateMapper.update(t);
-//        });
+        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)).forEach(t->{
+            t.getLabels().put(appTagLabel, "standard");
+            t.getObjectTemplate().getLabels().put(appTagLabel, "standard");
+            k8sTemplateMapper.update(t);
+        });
+        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getObjectTemplate().getStatefulSets() == null).forEach(t->{
+            t.getObjectTemplate().setStatefulSets(new ArrayList<>());
+            k8sTemplateMapper.update(t);
+        });
+
+
         String platformId = K8sObjectTemplatePo.PLATFORM_ID;
         String domainId = K8sObjectTemplatePo.DOMAIN_ID;
         String appName = K8sObjectTemplatePo.APP_NAME;
@@ -248,7 +247,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             Map<String, String> labels = template.getLabels();
             if(template.getLabels().containsKey(appTypeLabel)){
                 resetAppTemplate(template.getObjectTemplate());
-//                k8sTemplateMapper.update(template);
+                k8sTemplateMapper.update(template);
             }
             String json = gson.toJson(template);
 
@@ -280,9 +279,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
             json = json.replace("base-volume/db/oracle/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
             json = json.replace("base-volume/db/oracle/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
-
             json = json.replace("base-volume/db/mysql/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
             json = json.replace("base-volume/db/mysql/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
+
+            json = json.replace("202005-test", K8sObjectTemplatePo.PLATFORM_ID);
 
             K8sTemplatePo po = gson.fromJson(json, K8sTemplatePo.class);
             po.setLabels(labels);
@@ -290,8 +290,223 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             k8sTemplateMapper.update(po);
             logger.error(String.format("template=%s", gson.toJson(po)));
         }
-//        templateList.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
+        templateList = k8sTemplateMapper.select();
+        for(K8sTemplatePo template : templateList){
+            Map<String, String> labels = template.getLabels();
+            if(labels.containsKey(appTypeLabel) && labels.get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+                String name = null;
+                for(String key : labels.keySet()){
+                    if(key.equals(appTypeLabel) || key.equals(ccodVersionLabel) || key.equals(appTagLabel))
+                        continue;
+                    name = labels.get(key);
+                    break;
+                }
+                labels.put(name, forAllVersion);
+                labels.remove(appNameLabel);
+                template.setLabels(labels);
+                template.getObjectTemplate().setLabels(labels);
+                k8sTemplateMapper.update(template);
+            }
+        }
+        List<K8sTemplatePo> temps = k8sTemplateMapper.select();
+        for(K8sTemplatePo template : temps){
+            if(template.getObjectTemplate().getPvList() != null){
+                template.getObjectTemplate().setPvList(template.getObjectTemplate().getPvList().stream().map(v->{
+                    v.getSpec().getClaimRef().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
+                    return v;
+                }).collect(Collectors.toList()));
+                k8sTemplateMapper.update(template);
+                System.out.println("hello");
+            }
+            else if(template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
+                    d.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION)));
+                    return d;
+                }).collect(Collectors.toList()));
+                System.out.println("hello");
+                k8sTemplateMapper.update(template);
+            }
+            if(template.getObjectTemplate().getPvcList() != null){
+                template.getObjectTemplate().setJobs(new ArrayList<>());
+                template.getObjectTemplate().setPvcList(template.getObjectTemplate().getPvcList().stream().map(v->{
+                    v.getMetadata().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
+                    return v;
+                }).collect(Collectors.toList()));
+                k8sTemplateMapper.update(template);
+                System.out.println("hello");
+            }
+            else if(template.getLabels().containsKey(appTypeLabel) && template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
+                    d.getMetadata().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
+                    return d;
+                }).collect(Collectors.toList()));
+                if(template.getObjectTemplate().getServices() == null){
+                    System.out.println("bye");
+                }
+                template.getObjectTemplate().setServices(template.getObjectTemplate().getServices().stream().map(d->{
+                    d.getMetadata().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
+                    return d;
+                }).collect(Collectors.toList()));
+                template.getObjectTemplate().setEndpoints(template.getObjectTemplate().getEndpoints().stream().map(d->{
+                    d.getMetadata().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
+                    return d;
+                }).collect(Collectors.toList()));
+                System.out.println("hello");
+                k8sTemplateMapper.update(template);
+            }
+            if(template.getObjectTemplate().getPvList() != null){
+                template.getObjectTemplate().setPvList(template.getObjectTemplate().getPvList().stream().map(v->{
+                    v.getSpec().getNfs().setPath("/home/kubernetes/volume/${PLATFORMID}");
+                    return v;
+                }).collect(Collectors.toList()));
+                k8sTemplateMapper.update(template);
+                System.out.println("hello");
+            }
+            if(template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
+                    d.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->c.setName(String.format(K8sObjectTemplatePo.ALIAS)));
+                    return d;
+                }).collect(Collectors.toList()));
+                System.out.println("hello");
+                k8sTemplateMapper.update(template);
+            }
+        }
+        temps.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
     }
+
+//    private void updateTemplate() throws Exception
+//    {
+////        Map<String, String> labels = new HashMap<>();
+////        labels.put(ccodVersionLabel, "4.8");
+////        labels.put(appTypeLabel, AppType.THREE_PART_APP.name);
+////        labels.put(appNameLabel, "umg");
+////        String json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\",\"labels\":{\"name\":\"umg\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"umg\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"umg\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"config\",\"configMap\":{\"name\":\"umg\"}},{\"name\":\"ccod-runtime\",\"hostPath\":{\"path\":\"/var/ccod-runtime/default/ssr\"}},{\"name\":\"core\",\"hostPath\":{\"path\":\"/var/ccod-runtime/default/core/ssr\"}}],\"containers\":[{\"name\":\"umg\",\"imagePullPolicy\":\"Always\",\"image\":\"ccod/ssr-umg:225-3543_225-22317\",\"ports\":[{\"containerPort\":12000},{\"containerPort\":11500}],\"volumeMounts\":[{\"mountPath\":\"/root/ATS/config\",\"name\":\"config\"},{\"mountPath\":\"/root/ATS/runlog\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"livenessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"readinessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"resources\":{\"requests\":{\"memory\":\"1000Mi\",\"cpu\":\"1000m\"},\"limits\":{\"memory\":\"1000Mi\",\"cpu\":\"1000m\"}},\"workingDir\":\"/root/ATS/bin\",\"command\":[\"/bin/bash\",\"-c\"],\"args\":[\"./umgdaemon;\",\"tail -F /root/ATS/runlog/*;\"]}]}}}}";
+////        V1Deployment deployment = gson.fromJson(json, V1Deployment.class);
+////        json = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\"},\"spec\":{\"ports\":[{\"name\":\"umg\",\"port\":11500,\"protocol\":\"TCP\",\"targetPort\":11500},{\"name\":\"ssr\",\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"type\":\"ClusterIP\"}}";
+////        V1Service service = gson.fromJson(json, V1Service.class);
+////        json = "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\"},\"data\":{\"ATSEConfigData.cfg\":\"<?xml version=\\\"1.0\\\" encoding=\\\"GB2312\\\"?>\\n<ATSE>\\n  <AttributeSet MediaServerIP=\\\"\\\" AutoAnswer = \\\"true\\\" StatisticsLevel=\\\"3\\\" IsDebug=\\\"true\\\" LogLevel=\\\"DT\\\" RunLog=\\\"true\\\" UseDRWRClient=\\\"true\\\" WriteUserDefinedCallID=\\\"true\\\" AutoClear = \\\"5\\\" MaxUserIdleSeconds=\\\"\\\" SMSMediaServerIP=\\\"\\\" SupportFileOnUnix=\\\"true\\\">\\n    <SSR2 IP=\\\"127.0.0.1\\\" Port=\\\"12000\\\" SLEEName=\\\"Slee1_name\\\" SLEEPassword=\\\"Slee1_pwd\\\"/>\\n    <SNMPAgent TargetAddress=\\\"127.0.0.1\\\" ListenPort=\\\"10015\\\" TargetPort=\\\"10061\\\" NodeId=\\\"100\\\" NodeLocation=\\\"wuxz_notebook\\\" NodeName=\\\"slee100\\\"/>\\n    <SDR NodeCode=\\\"1001\\\" DeviceCode=\\\"001001\\\"/>\\n  </AttributeSet>\\n  <DNGroups>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"outbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"3001\\\" EndDN=\\\"3001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"b.usml\\\" IsInbound=\\\"false\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n    </ResGroup>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"inbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"5001\\\" EndDN=\\\"5001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"inbound.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n      </ResGroup>\\n        <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"App\\\">\\n          <DNList>\\n            <ComplexDN StartDN=\\\"7003\\\" EndDN=\\\"7003\\\"/>\\n          </DNList>\\n          <RunTime>\\n            <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n              <Application Name=\\\"ATS服务\\\" XMLFile=\\\"a3.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n            </RunPeriod>\\n          </RunTime>\\n    </ResGroup>\\n  </DNGroups>\\n  <Components>\\n    <Component ProgID=\\\"QNWriteFileCOM.clsWriteFile\\\"     ClassName=\\\"com.channelsoft.reusable.comobj.writefilecom.WriteFileCom\\\">    \\n      <Config>\\n        <Entry Key=\\\"WriteFilePath\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"QNDBCOM.clsQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QuerySQL.CQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QNNetCOM.clsHttp\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"PublicUnity.CHTTP\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"MSSOAP.SoapClient30\\\" ClassName=\\\"com.channelsoft.reusable.comobj.ws.SoapClientByWSIF\\\"/>\\n    <Component ProgID=\\\"QnINICOM.ini\\\" ClassName=\\\"com.channelsoft.reusable.comobj.inicom.IniCom\\\"/>\\n    <Component ProgID=\\\"MD5Com.MD5Entity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.md5com.Md5Com\\\"/>            \\n    <Component ProgID=\\\"JMSCom.JMSEntity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.jmscom.JmsCom\\\"/>    \\n    <Component ProgID=\\\"CCOD.AssociatedData\\\" ClassName=\\\"com.channelsoft.slee.callagent.ccod.servicedata.V2_ServiceData\\\"/>\\n    <Component ProgID=\\\"CONFNODE.ConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"TConfCom.TConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"QnFaxForAgent.clsOprTask\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"TDP.IVRInterface\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>    \\n    <Component ProgID=\\\"Microsoft.XMLDOM\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"MSXML2.DOMDocument.4.0\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"CASRouterClient\\\" ClassName=\\\"com.channelsoft.reusable.comobj.cas.RouterClient\\\">\\n      <Config>\\n        <Entry Key=\\\"CASServerIP\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"CASServerPort\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"ListenServerPort\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n  </Components>\\n  <ServiceProviders>\\n    <ReasoningProvider>\\n      <ClassName>com.channelsoft.reusable.debugproxy.DebugAgent</ClassName>\\n      <Enabled>false</Enabled>\\n    </ReasoningProvider>\\n  </ServiceProviders>\\n</ATSE>  \",\"SSR.ini\":\"[System]\\nUMGIP=127.0.0.1\\nUMGPort=11500\\nRouteStratgy_1=ani\\nRouteStratgy_2=dnis\\nRouteStratgy_3=oriani\\nRouteStratgy_4=ani\\nRouteStratgy_5=mediatype\\nRouteStratgy_6=weight\\nRouteStratgy_7=average\\nClientCount=2\\nListenPort=12000\\nLog_path=../runlog\\nLog_level=debug\\n[Client1]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\\n[Client2]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\",\"UMG.ini\":\"[SYSTEM]\\nlog_path=../runlog/\\nlog_level=debug\\nHWType=freeswitch\\nVGCP_listen_port=11500\\nchannel_worker_number=16\\nDefaultCallingNumber=1000\\nAccept_Route_Play=yes\\nMultiProcess=No\\nVolume=0\\nMax_Time_Drop_Enable=yes #是否启用超时挂断\\nMax_Drop_Time=7200 #超时挂断事件（S）该事件最低为300s，配置低于300默认为300\\nU2UInfo_for_OriANI = yes\\nRedis_Location = redis-headless:27379,redis-headless:27379,redis-headless:27379\\n[CPRLIST]\\ntotal=0\\ntone_clamp=yes\\necho_cancel=yes\\nneed_record=yes\\n[FilePath_Transfer]\\norig_path=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\\\ndest_path=/data/record/recording/\\norig_path_fax=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\Document\\\\\\ndest_path_fax=./\\nnew_record_path = umg69\\n[PSR]\\nConnect_PSR = no\\nMasterEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11280\\nSlaveEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11481\\nEventServer = PSREventServer:tcp_-h_127.0.0.1_-p_14681\\nUMG4PSREndpoint = UMG:tcp_-h_10.9.43.75_-p_10072\\n[XoIP]\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nRegister_Period=3000\\nRegister_Expires=3600\\nRegister_Num_Begin=1000\\nRegister_Count=20\\nRegister_PhoneNumInterval=2\\nrtp_media_coding0=g711a\\nrtp_media_coding1=g711mu\\n[ModNumber]\\nIsNeedModNumber=yes #yes/no \\nModules_Params = ../hlr/hlr.13x, ../hlr/hlr.14x, ../hlr/hlr.15x, ../hlr/hlr.17x, ../hlr/hlr.18x\\n#[TRUNK_GROUP$]\\n#sip_server_address=user #客户交本地注册用户\\n[AccessExtMoudle] #iceserver链接配置 回呼\\nuse=true\\nIce_server=127.0.0.1\\nIce_port = 8001\\nIce_timeout = 5000\\n[StreamPlay] #流式放音\\nsupport =no                                                              \\nuri=10.9.43.75:8000\\n[StreamRecord] #流式录音\\nsupport = no\\nuri=10.9.43.75:8000\\nuser=source\\npasswd=hackme\\n[TRUNK_GROUP]\\ntotal=7\\n#linkChannels=960,962,964,966,968,970,972,974,976,978,980,982,984,986,988\\n#linkChannels=1025,1026,1027,1028,1029,1030,1032,1034,1036,1038,1040,1042,1044,1046,1048,1050,1052,1054,1055\\n[TRUNK_GROUP1]\\ntac=s\\nstart_number=0\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\n#sip_server_address=\\n#sip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP2]\\ntac=t\\nstart_number=5096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\nModNumber_Rules=../config/mod_number/beijing.xml\\n[TRUNK_GROUP3]\\ntac=w\\nstart_number=6096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP4]\\ntac=z\\nstart_number=7096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.15.145 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\n#sip_server_address=10.9.43.75\\n#sip_server_port=6090\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal-ylxt\\n[TRUNK_GROUP5]\\ntac=o\\nstart_number=8096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.58.178 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\nbillingcode=cd693\\nis_need_csr=yes\\nfstrunck=gateway/zealcomm\\n[TRUNK_GROUP6]\\ntac=m\\nstart_number=9096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75\\nsip_server_port=7080\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP7]\\ntac=n\\nstart_number=10096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.0.243\\nsip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[CDR]\\nsupport_cdr=yes\\ndevice_code=010VG1\\n[IvrMonitor]\\nsupported=no\\nivrmonitor_port=4321\\n[CtiAdapter]\\nsupported=yes\\nEndPoint=QRServer:tcp_-h_10.9.26.79_-p_11480 #tsr地址\\nLocalPath=/data/shdujian/\\nRemoteUrl=/data/wuzj/\\nTimeOut=3000\\nKeepAlive=false\\nLogFile=../runlog/\\n[SpecialAniAddrNature]\\naddr_nature=3\\nANI=95511,95533\\n[CloudData]\\nsupport =no\\nNodeID = 23\\nUMG_IP = 10.9.43.75 #中信测试环境未部署云接入\\nUMG_Port = 12000\\nzookeeper_ip = 10.130.41.140\\nzookeeper_port =2181\\nUMGName4Zookeeper=umg_fs_141\\nZooKeeperPath=/umg_cloud/cluster\\ntrunk_num = 2\\n[CloudData_Trunk1]\\nTac = s\\nType = SIP\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd691\\n[CloudData_Trunk2]\\nTac = t\\nType = PSTN\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd692\\n[Monitor]\\nIsNeedMonitor = no # 是否启用运行监控消息输出\\nMonitorFilePath = ../cctrack/umg # 运行监控消息输出目录，需要手动建立\\nMonitorFileName = UMG_TEST69 # 运行监控消息输出文件名\\nModuleName = UMG_TEST69 # 运行监控消息输出服务名  \\n[UUINFO]\\nvalue=\\\"ANI:15210508909|ID:2255|CLIENTNO:1002|CTINO:1002|SYSTEM:253648\\\"\\n[SS7ANI4BJLT]\\nSetSS7AniType=1 #use:1  nouse:0\\n[GLS]\\nConnect_GLS = yes\\nServiceName = UMG-DEMO\\nGlsLocation = GLSServer:tcp_-h_10.9.26.79_-p_17020\\n[FrontCode]\\nsupport = yes\\nCode = 9999\\nANIFile = ../config/ANIFile.cfg\\n[DataBase]\\nUSE_ICE=0\\n[IceServer]\\nIce_server=10.130.41.35\\nIce_port=10000\\n[FSW]\\nInboundTrunkTac=s\\nFSWServerAddr=127.0.0.1 #SGW地址\\nFSWServerPort=8021 #SGW端口\\nrecordingpath=/data/record/recording/\\nrecordedpath=/data/record/recorded/\\nsplitfileext=.wav\\nmixfileext=.wav\\nneed_add_alert=true\\n[Anon]\\nEnable=yes\\nExcTimeout=5\\nConTimeout=5\\nAgentid=010\\nUrl=http://ccod1:8082/ccod/getSerialNumber\\nAppID=ccodprivate\\nAppPWD=7cd3f4920ac00fad603a8205309c6e4c\\nRule=TEL:99\",\"drwr_client.cfg\":\"#######################################################################\\n# 话单存储器配置文件\\n# 林维志，2005-12-12\\n# 青牛（北京）技术有限公司 版权所有\\n#######################################################################\\n# ===========================\\n# 下面指定话单文件相关参数\\n# ===========================\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/sdr/temp/DRWRClient.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 10\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 10000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/sdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 1\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\n#drwr_file_backup_path = $USBOSS_HOME/sdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 1\\n# ===========================\\n# 下面指定服务器相关参数\\n# ===========================\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 1\\n# 服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 134.96.71.108\\n# 服务器的端口\\ndrwr_server_port = 9091\\n# ===========================\\n# 下面指定日志参数\\n# ===========================\\n# 日志文件名，最好为全路径名，且不需要指定扩展名。若此参数为空则不写日志。\\ndrwr_log_filename = $USBOSS_HOME/sdr/Log/\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = INFO\",\"umg_cdr.cfg\":\"###############################################################################\\n#\\n#    话单存储器配置文件\\n#    林维志，2005-12-12\\n#    北京青牛软件技术有限责任公司　版权所有\\n#\\n###############################################################################\\n###############################################################################\\n# 以下话单收发模块drwr_client的配置\\n###############################################################################\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 0\\n# 话单接收服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 127.0.0.1\\n# 话单接收服务器的端口,\\ndrwr_server_port = 9092\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/cdr/temp/DRWRClientTest.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 60\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 20000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/cdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 0\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\ndrwr_file_backup_path = $USBOSS_HOME/cdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 2\\n# 日志文件名，最好为全路径名\\ndrwr_log_filename = $USBOSS_HOME/cdr/log/drwr_client.log\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = 700\\n###############################################################################\\n# 以下为实时话单接收器drwr_server的配置\\n###############################################################################\\n# drwr_server使用的本地的IP地址\\ndrwr_local_ip = 127.0.0.1\\n# drwr_server使用的本地的端口\\ndrwr_local_port = 9091\\n# drwr_server的线程池的大小\\ndrwr_thread_pool_size = 30\\n# 允许访问drwr_server的客户端的IP数量\\n#drwr_allow_ip_count = 0\\n# 允许访问drwr_server的客户端的IP\\n#drwr_allow_id_1 =\"}}";
+////        V1ConfigMap configMap = gson.fromJson(json, V1ConfigMap.class);
+////        updateAppK8sTemplate(labels, Arrays.asList(deployment), new ArrayList<>(), Arrays.asList(service), null, new ArrayList<>(), Arrays.asList(configMap));
+////        k8sTemplateMapper.select().forEach(t->{
+////            if (t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP)) {
+////
+////                K8sObjectTemplatePo o = t.getObjectTemplate();
+////                if(o.getDeployments() == null){
+////                    o.setDeployments(new ArrayList<>());
+////                }
+////                if(o.getEndpoints() == null){
+////                    o.setEndpoints(new ArrayList<>());
+////                }
+////                if(o.getConfigMaps() == null){
+////                    o.setConfigMaps(new ArrayList<>());
+////                }
+////                if(o.getStatefulSets() == null){
+////                    o.setStatefulSets(new ArrayList<>());
+////                }
+////                k8sTemplateMapper.update(t);
+////            }
+////        });
+//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
+////        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)).forEach(t->{
+////            t.getLabels().put(appTagLabel, "standard");
+////            t.getObjectTemplate().getLabels().put(appTagLabel, "standard");
+////            k8sTemplateMapper.update(t);
+////        });
+////        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getObjectTemplate().getStatefulSets() == null).forEach(t->{
+////            t.getObjectTemplate().setStatefulSets(new ArrayList<>());
+////            k8sTemplateMapper.update(t);
+////        });
+//
+//
+//        String platformId = K8sObjectTemplatePo.PLATFORM_ID;
+//        String domainId = K8sObjectTemplatePo.DOMAIN_ID;
+//        String appName = K8sObjectTemplatePo.APP_NAME;
+//        String alias = K8sObjectTemplatePo.ALIAS;
+//        String hostUrl = K8sObjectTemplatePo.HOST_URL;
+//        String k8sHostIp = K8sObjectTemplatePo.K8S_HOST_IP;
+//        String nfsServerIp = K8sObjectTemplatePo.NFS_SERVER_IP;
+////        for(K8sTemplatePo template : templateList){
+////            Map<String, String> labels = template.getLabels();
+//////            if(template.getLabels().containsKey(appTypeLabel)){
+//////                resetAppTemplate(template.getObjectTemplate());
+////////                k8sTemplateMapper.update(template);
+//////            }
+//////            String json = gson.toJson(template);
+//////
+////////            json = json.replace("\"server\":\"10.130.41.218\"", String.format("\"server\":\"%s\"", nfsServerIp));
+////////
+////////            json = json.replace("test-by-wyf.ccod.com", hostUrl);
+////////            json = json.replace("jhkgs.ccod.com", hostUrl);
+////////            json = json.replace("jhkzx-1.ccod.com", hostUrl);
+////////            json = json.replace("10.130.41.218", k8sHostIp);
+////////
+////////            json = json.replace("cas-manage01", String.format("%s-%s", alias, domainId));
+////////            json = json.replace("\"cas\"", String.format("\"%s\"", alias));
+////////            json = json.replace("\"cas-", String.format("\"%s-", alias));
+////////            json = json.replace("manage01", domainId);
+////////
+////////            json = json.replace("ucds", alias);
+////////            json = json.replace("cloud01", domainId);
+////////
+////////            json = json.replace("dcms", alias);
+////////            json = json.replace("dcmswebservice", alias);
+////////            json = json.replace("freeswitch-wgw", alias);
+////////
+////////            json = json.replace("test-by-wyf", platformId);
+////////            json = json.replace("someTest", platformId);
+////////            json = json.replace("jhkzx-1", platformId);
+////////            json = json.replace("test08", platformId);
+////////            json = json.replace("test48", platformId);
+////////            json = json.replace("k8s-test", platformId);
+////////
+////////            json = json.replace("base-volume/db/oracle/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
+////////            json = json.replace("base-volume/db/oracle/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
+////////
+////////            json = json.replace("base-volume/db/mysql/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
+////////            json = json.replace("base-volume/db/mysql/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
+//////
+//////            json = json.replace("202005-test", K8sObjectTemplatePo.PLATFORM_ID);
+//////
+//////            K8sTemplatePo po = gson.fromJson(json, K8sTemplatePo.class);
+//////            po.setLabels(labels);
+//////            po.getObjectTemplate().setLabels(labels);
+//////            k8sTemplateMapper.update(po);
+//////            logger.error(String.format("template=%s", gson.toJson(po)));
+//////            Map<String, String> labels = template.getLabels();
+//////            if(labels.containsKey(appTypeLabel) && labels.get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+//////                String name = null;
+//////                for(String key : labels.keySet()){
+//////                    if(key.equals(appTypeLabel) || key.equals(ccodVersionLabel) || key.equals(appTagLabel))
+//////                        continue;
+//////                    name = labels.get(key);
+//////                    break;
+//////                }
+//////                labels.put(name, forAllVersion);
+//////                labels.remove(appNameLabel);
+//////                template.setLabels(labels);
+//////                template.getObjectTemplate().setLabels(labels);
+//////                k8sTemplateMapper.update(template);
+//////            }
+////        }
+//        List<K8sTemplatePo> updateList = templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && !t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)).collect(Collectors.toList());
+//        for(K8sTemplatePo template : updateList){
+////                List<V1Container> inits = t.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().getInitContainers();
+////                if(inits != null && inits.size() == 1){
+////                    inits.get(0).setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION));
+////                }
+////                t.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().setInitContainers(inits);
+////                t.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().getInitContainers().forEach(c->c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION)));
+//            K8sTemplatePo po = gson.fromJson(gson.toJson(template), K8sTemplatePo.class);
+//            List<V1Container> inits = po.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().getInitContainers();
+//            for(V1Container c : inits){
+//                c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION));
+//            }
+//            po.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().setInitContainers(new ArrayList<>());
+//            po.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().setInitContainers(inits);
+//            k8sTemplateMapper.update(po);
+//        }
+////        templateList.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
+//    }
 
     @Override
     public List<K8sObjectTemplatePo> getK8sTemplates() {
@@ -432,7 +647,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                                 c.setArgs(new ArrayList<>());
                                 return c;
                             }).collect(Collectors.toList());
-                    d.getSpec().getTemplate().getSpec().setInitContainers(runs);
+                    d.getSpec().getTemplate().getSpec().setContainers(runs);
                 }
                 return d;
             }).collect(Collectors.toList()));
@@ -590,38 +805,37 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             deploy.getSpec().getTemplate().getSpec().setNodeSelector(new HashMap<>());
             deploy.getSpec().getTemplate().getSpec().getNodeSelector().put(nodeIpLabel, hostIp);
         }
-        deploy = gson.fromJson(gson.toJson(deploy), V1Deployment.class);
         String basePath = appBase.getBasePath();
         String deployPath = getAbsolutePath(appBase.getBasePath(), appBase.getDeployPath());
         String platformId = platform.getPlatformId();
-        deploy.getMetadata().setNamespace(platformId);
-        deploy.getMetadata().setName(String.format("%s-%s", alias, domainId));
-        deploy.getMetadata().setLabels(new HashMap<>());
-        deploy.getMetadata().getLabels().put(this.appTypeLabel, appType.name);
-        deploy.getMetadata().getLabels().put(this.domainIdLabel, domainId);
-        deploy.getMetadata().getLabels().put(appName, alias);
-        deploy.getSpec().getSelector().setMatchLabels(new HashMap<>());
-        deploy.getSpec().getSelector().getMatchLabels().put(this.domainIdLabel, domainId);
-        deploy.getSpec().getSelector().getMatchLabels().put(appName, alias);
-        deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
-        deploy.getSpec().getTemplate().getMetadata().getLabels().put(this.domainIdLabel, domainId);
-        deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
+//        deploy.getMetadata().setNamespace(platformId);
+//        deploy.getMetadata().setName(String.format("%s-%s", alias, domainId));
+//        deploy.getMetadata().setLabels(new HashMap<>());
+//        deploy.getMetadata().getLabels().put(this.appTypeLabel, appType.name);
+//        deploy.getMetadata().getLabels().put(this.domainIdLabel, domainId);
+//        deploy.getMetadata().getLabels().put(appName, alias);
+//        deploy.getSpec().getSelector().setMatchLabels(new HashMap<>());
+//        deploy.getSpec().getSelector().getMatchLabels().put(this.domainIdLabel, domainId);
+//        deploy.getSpec().getSelector().getMatchLabels().put(appName, alias);
+//        deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
+//        deploy.getSpec().getTemplate().getMetadata().getLabels().put(this.domainIdLabel, domainId);
+//        deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
         List<V1Volume> volumes = generateVolumeForDeployment(deploy, appType, alias, platformId, domainId, appBase.getCfgs(), platform.getCfgs(), domainCfg);
         deploy.getSpec().getTemplate().getSpec().setVolumes(volumes);
         V1Container initContainer = deploy.getSpec().getTemplate().getSpec().getInitContainers().get(0);
-        logger.debug(String.format("set initContainer name : %s", alias));
-        initContainer.setName(alias);
+//        logger.debug(String.format("set initContainer name : %s", alias));
+//        initContainer.setName(alias);
         List<V1VolumeMount> mounts = generateInitContainerMount(initContainer, appType, alias, domainId, basePath, deployPath);
         initContainer.setVolumeMounts(mounts);
         String image = String.format("%s/ccod/%s:%s", this.nexusDockerUrl, appName.toLowerCase(), version.replaceAll("\\:", "-"));
-        logger.debug(String.format("modify image of init container to %s", image));
-        initContainer.setImage(image);
+//        logger.debug(String.format("modify image of init container to %s", image));
+//        initContainer.setImage(image);
         V1Container runtimeContainer = deploy.getSpec().getTemplate().getSpec().getContainers().get(0);
-        logger.debug(String.format("set container name to %s-runtime", alias));
-        runtimeContainer.setName(String.format("%s-runtime", alias));
-        if(appType.equals(AppType.JAR) || appType.equals(AppType.NODEJS)){
-            runtimeContainer.setImage(image);
-        }
+//        logger.debug(String.format("set container name to %s-runtime", alias));
+//        runtimeContainer.setName(String.format("%s-runtime", alias));
+//        if(appType.equals(AppType.JAR) || appType.equals(AppType.NODEJS)){
+//            runtimeContainer.setImage(image);
+//        }
         mounts = generateRuntimeContainerMount(runtimeContainer, appBase, platformId, domainId, platform.getCfgs(), domainCfg);
         runtimeContainer.setVolumeMounts(mounts);
         logger.debug(String.format("generate init container commands"));
@@ -769,15 +983,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             volume = generateConfigMapVolume(configMapName, platformCfg);
             volumeMap.put(configMapName, volume);
         }
-        volumeMap.get("ccod-runtime").getHostPath().setPath(String.format("/var/ccod-runtime/%s/%s", platformId, domainId));
-        volumeMap.get("ccod-runtime").getHostPath().setType("DirectoryOrCreate");
-        logger.debug(String.format("modify ccod-runtime volume to %s", gson.toJson(volumeMap.get("ccod-runtime"))));
-        if(volumeMap.containsKey("core"))
-        {
-            volumeMap.get("core").getHostPath().setPath(String.format("/home/kubernetes/%s/core", platformId));
-            volumeMap.get("core").getHostPath().setType("");
-            logger.debug(String.format("modify core volume to %s", gson.toJson(volumeMap.get("core"))));
-        }
+//        volumeMap.get("ccod-runtime").getHostPath().setPath(String.format("/var/ccod-runtime/%s/%s", platformId, domainId));
+//        volumeMap.get("ccod-runtime").getHostPath().setType("DirectoryOrCreate");
+//        logger.debug(String.format("modify ccod-runtime volume to %s", gson.toJson(volumeMap.get("ccod-runtime"))));
+//        if(volumeMap.containsKey("core"))
+//        {
+//            volumeMap.get("core").getHostPath().setPath(String.format("/home/kubernetes/%s/core", platformId));
+//            volumeMap.get("core").getHostPath().setType("");
+//            logger.debug(String.format("modify core volume to %s", gson.toJson(volumeMap.get("core"))));
+//        }
         return new ArrayList<>(volumeMap.values());
     }
 
@@ -1146,34 +1360,21 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Override
     public V1Namespace generateNamespace(String ccodVersion, String platformId, String platformTag) throws ParamException {
         logger.debug(String.format("begin to generate namespace for %s with ccodVersion=%s and platformTag=%s", platformId, ccodVersion, platformTag));
-        Object selectObject = selectK8sObjectForPlatform(K8sKind.NAMESPACE, platformTag, ccodVersion);
+        Map<String, String> k8sMacroData = new HashMap<>();
+        k8sMacroData.put(K8sObjectTemplatePo.PLATFORM_ID, platformId);
+        Object selectObject = selectK8sObjectForPlatform(K8sKind.NAMESPACE, platformTag, ccodVersion, k8sMacroData);
         if(selectObject == null){
             throw new ParamException(String.format("can not select namespace template for ccodVersion=%s and platformTag=%s", ccodVersion, platformTag));
         }
         V1Namespace ns = (V1Namespace)selectObject;
-        ns.getMetadata().setNamespace(platformId);
-        ns.getMetadata().setName(platformId);
-        Map<String, String> labels = new HashMap<>();
-        labels.put(this.platformIdLabel, platformId);
-        labels.put(this.ccodVersionLabel, ccodVersion);
-        ns.getMetadata().setLabels(labels);
+//        ns.getMetadata().setNamespace(platformId);
+//        ns.getMetadata().setName(platformId);
+//        Map<String, String> labels = new HashMap<>();
+//        labels.put(this.platformIdLabel, platformId);
+//        labels.put(this.ccodVersionLabel, ccodVersion);
+//        ns.getMetadata().setLabels(labels);
         logger.info(String.format("selected namespace is %s", gson.toJson(ns)));
         return ns;
-    }
-
-    @Override
-    public V1Secret generateSecret(String name, PlatformPo platform) throws ParamException {
-        String ccodVersion = platform.getCcodVersion();
-        String platformId = platform.getPlatformId();
-        Object selectObject = selectK8sObjectForPlatform(K8sKind.SECRET, platform.getTag(), ccodVersion);
-        if(selectObject == null){
-            throw new ParamException(String.format("can not select secret template for ccodVersion=%s and platformTag=%s", platform.getCcodVersion(), platform.getTag()));
-        }
-        V1Secret secret = ((List<V1Secret>) selectObject).get(0);
-        secret.getMetadata().setName(name);
-        secret.getMetadata().setNamespace(platformId);
-        logger.info(String.format("generate secret is %s", gson.toJson(secret)));
-        return secret;
     }
 
     @Override
@@ -1181,19 +1382,19 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String platformId = platform.getPlatformId();
         String ccodVersion = platform.getCcodVersion();
         String nfsServerIp = StringUtils.isBlank(platform.getNfsServerIp()) ? (String)platform.getParams().get(PlatformBase.nfsServerIpKey) : platform.getNfsServerIp();
-        Object selectObject = selectK8sObjectForPlatform(K8sKind.PV, platform.getTag(), ccodVersion);
+        Object selectObject = selectK8sObjectForPlatform(K8sKind.PV, platform.getTag(), ccodVersion, platform.getK8sMacroData());
         if(selectObject == null){
             throw new ParamException(String.format("can not select pv template for ccodVersion=%s and platformTag=%s", platform.getCcodVersion(), platform.getTag()));
         }
         List<V1PersistentVolume> pvList = (List<V1PersistentVolume>)selectObject;
         for(V1PersistentVolume pv : pvList){
-            String name = String.format("base-volume-%s", platformId);
-            pv.getMetadata().setName(name);
-            pv.getSpec().getClaimRef().setNamespace(isBase ? String.format("base-%s", platformId) : platformId);
-            pv.getSpec().getClaimRef().setName(name);
-            pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s", platform.getPlatformId()));
-            pv.getSpec().getNfs().setServer(nfsServerIp);
-            pv.getSpec().setStorageClassName(name);
+//            String name = String.format("base-volume-%s", platformId);
+//            pv.getMetadata().setName(name);
+//            pv.getSpec().getClaimRef().setNamespace(isBase ? String.format("base-%s", platformId) : platformId);
+//            pv.getSpec().getClaimRef().setName(name);
+//            pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s", platform.getPlatformId()));
+//            pv.getSpec().getNfs().setServer(nfsServerIp);
+//            pv.getSpec().setStorageClassName(name);
             logger.info(String.format("generate persistentVolume is %s", gson.toJson(pv)));
         }
         return pvList;
@@ -1202,30 +1403,31 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Override
     public List<V1PersistentVolumeClaim> generatePersistentVolumeClaim(PlatformPo platform, boolean isBase) throws ParamException {
         String ccodVersion = platform.getCcodVersion();
-        Object selectObject = selectK8sObjectForPlatform(K8sKind.PVC, platform.getTag(), ccodVersion);
+        Object selectObject = selectK8sObjectForPlatform(K8sKind.PVC, platform.getTag(), ccodVersion, platform.getK8sMacroData());
         if(selectObject == null){
             throw new ParamException(String.format("can not select pv template for ccodVersion=%s and platformTag=%s", platform.getCcodVersion(), platform.getTag()));
         }
         List<V1PersistentVolumeClaim> pvcList = (List<V1PersistentVolumeClaim>)selectObject;
         for(V1PersistentVolumeClaim pvc : pvcList){
-            String name = String.format("base-volume-%s", platform.getPlatformId());
-            pvc.getMetadata().setName(name);
+//            String name = String.format("base-volume-%s", platform.getPlatformId());
+//            pvc.getMetadata().setName(name);
+//            pvc.getSpec().setStorageClassName(name);
+//            pvc.getSpec().setVolumeName(name);
             pvc.getMetadata().setNamespace(isBase ? String.format("base-%s", platform.getPlatformId()) : platform.getPlatformId());
-            pvc.getSpec().setStorageClassName(name);
-            pvc.getSpec().setVolumeName(name);
             logger.info(String.format("generate pvc is %s", gson.toJson(pvc)));
         }
         return pvcList;
     }
 
-    private Object selectK8sObjectForPlatform(K8sKind kind, String platformTag, String ccodVersion){
-        logger.debug(String.format("begin to select platform k8s object %s with platformTag=%s and ccodVersion=%s", kind.name, platformTag, ccodVersion));
+    private Object selectK8sObjectForPlatform(K8sKind kind, String platformTag, String ccodVersion, Map<String, String> k8sMacroData){
+        logger.debug(String.format("begin to select platform k8s object %s with platformTag=%s and ccodVersion=%s and k8sMacroData=%s",
+                kind.name, platformTag, ccodVersion, gson.toJson(k8sMacroData)));
         List<K8sObjectTemplatePo> templateList = objectTemplateList.stream().filter(t->isMatchForPlatform(t, platformTag, ccodVersion))
                 .collect(Collectors.toList());
         for(K8sObjectTemplatePo template : templateList){
             if(template.getK8sObject(kind) != null){
                 logger.debug(String.format("template %s with platformTag=%s and ccodVersion=%s been selected : %s", kind.name, platformTag, ccodVersion, gson.toJson(template.getK8sObject(kind))));;
-                return template.getK8sObject(kind);
+                return template.toMacroReplace(kind, k8sMacroData);
             }
         }
         logger.warn(String.format("can not select platform k8s object %s with platformTag=%s and ccodVersion=%s", kind.name, platformTag, ccodVersion));
@@ -1233,8 +1435,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     private Object selectK8sObjectForApp(K8sKind kind, String appName, String version, AppType appType, String appTag, String platformTag, String ccodVersion, Map<String, String> k8sMacroData){
-        logger.info(String.format("begin to select %s template for ccodVersion=%s,appType=%s,appName=%s and version=%s and appTag=%s and platformTag=%s",
-                kind.name, ccodVersion, appType.name, appName, version, appTag, platformTag));
+        logger.info(String.format("begin to select %s template for ccodVersion=%s,appType=%s,appName=%s and version=%s and appTag=%s and platformTag=%s, k8sMacroData=%s",
+                kind.name, ccodVersion, appType.name, appName, version, appTag, platformTag, gson.toJson(k8sMacroData)));
+        if(appName.equals("umg")){
+            System.out.println("ok");
+        }
+        boolean isDomainApp = appType.equals(AppType.THREE_PART_APP) || appType.equals(AppType.OTHER) ? false : true;
         List<K8sObjectTemplatePo> templateList = objectTemplateList.stream().filter(t->isMatchForApp(t, appType, appTag, ccodVersion))
                 .collect(Collectors.toList());
         for(K8sObjectTemplatePo template : templateList){
@@ -1249,10 +1455,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 return template.toMacroReplace(kind, k8sMacroData);
             }
         }
-        for(K8sObjectTemplatePo template : templateList){
-            if(template.getK8sObject(kind) != null && isTagMatch(template.getLabels().get(platformTagLabel), platformTag)){
-                logger.debug(String.format("%s template for %s with appType matched : %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
-                return template.toMacroReplace(kind, k8sMacroData);
+        if(isDomainApp){
+            for(K8sObjectTemplatePo template : templateList){
+                if(template.getK8sObject(kind) != null && isTemplateAppTypeMatch(template, appType, appTag, platformTag, ccodVersion)){
+                    logger.debug(String.format("%s template for %s with appType matched : %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
+                    return template.toMacroReplace(kind, k8sMacroData);
+                }
             }
         }
         if(StringUtils.isNotBlank(platformTag)){
@@ -1269,10 +1477,12 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                     return template.toMacroReplace(kind, k8sMacroData);
                 }
             }
-            for(K8sObjectTemplatePo template : templateList){
-                if(template.getK8sObject(kind) != null && isTagMatch(template.getLabels().get(platformTagLabel), platformTag)){
-                    logger.debug(String.format("%s template for %s with appType matched and platformTag=null: %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
-                    return template.toMacroReplace(kind, k8sMacroData);
+            if(isDomainApp){
+                for(K8sObjectTemplatePo template : templateList){
+                    if(template.getK8sObject(kind) != null && isTemplateAppTypeMatch(template, appType, appTag, platformTag, ccodVersion)){
+                        logger.debug(String.format("%s template for %s with appType matched and platformTag=null: %s", kind.name, appName, gson.toJson(template.getK8sObject(kind))));
+                        return template.toMacroReplace(kind, k8sMacroData);
+                    }
                 }
             }
         }
@@ -1316,7 +1526,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             return false;
         if(!isTagMatch(template.getLabels().get(appTagLabel), appTag))
             return false;
-        return false;
+        return true;
     }
 
     private boolean isTemplateAppNameMatch(K8sObjectTemplatePo template, String appName, AppType appType, String appTag, String platformTag, String ccodVersion){
@@ -1475,7 +1685,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String ccodVersion = platform.getCcodVersion();
         String baseDataNexusPath = (String)platform.getParams().get(PlatformBase.baseDataNexusPathKey);
         String platformBaseDataRepository = (String)platform.getParams().get(PlatformBase.baseDataNexusRepositoryKey);
-        Object selectObject = selectK8sObjectForPlatform(K8sKind.JOB, platform.getTag(), ccodVersion);
+        Object selectObject = selectK8sObjectForPlatform(K8sKind.JOB, platform.getTag(), ccodVersion, platform.getK8sMacroData());
         if(selectObject == null){
             throw new ParamException(String.format("can not select pv template for ccodVersion=%s and platformTag=%s", platform.getCcodVersion(), platform.getTag()));
         }

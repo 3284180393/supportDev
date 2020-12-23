@@ -73,4 +73,12 @@ public class PlatformPo extends PlatformBase{
         this.params = params;
     }
 
+    public Map<String, String> getK8sMacroData(){
+        Map<String, String> data = new HashMap<>();
+        data.put(K8sObjectTemplatePo.PLATFORM_ID, platformId);
+        data.put(K8sObjectTemplatePo.K8S_HOST_IP, k8sHostIp == null ? (String)params.get(PlatformBase.k8sHostIpKey) : k8sHostIp);
+        data.put(K8sObjectTemplatePo.NFS_SERVER_IP, nfsServerIp == null ? (String)params.get(PlatformBase.nfsServerIpKey) : nfsServerIp);
+        return data;
+    }
+
 }
