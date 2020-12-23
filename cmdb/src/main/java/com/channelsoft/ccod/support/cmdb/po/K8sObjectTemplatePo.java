@@ -48,7 +48,7 @@ public class K8sObjectTemplatePo {
 
     private List<V1Service> services;
 
-    private ExtensionsV1beta1Ingress ingress;
+    private List<ExtensionsV1beta1Ingress> ingresses;
 
     private List<V1Endpoints> endpoints;
 
@@ -98,12 +98,12 @@ public class K8sObjectTemplatePo {
         this.services = services;
     }
 
-    public ExtensionsV1beta1Ingress getIngress() {
-        return ingress == null ? null : gson.fromJson(gson.toJson(ingress), ExtensionsV1beta1Ingress.class);
+    public List<ExtensionsV1beta1Ingress> getIngresses() {
+        return ingresses;
     }
 
-    public void setIngress(ExtensionsV1beta1Ingress ingress) {
-        this.ingress = ingress;
+    public void setIngresses(List<ExtensionsV1beta1Ingress> ingresses) {
+        this.ingresses = ingresses;
     }
 
     public List<V1Endpoints> getEndpoints() {
@@ -191,7 +191,7 @@ public class K8sObjectTemplatePo {
             case SERVICE:
                 return services;
             case INGRESS:
-                return ingress;
+                return ingresses;
             case ENDPOINTS:
                 return endpoints;
             case STATEFULSET:
@@ -238,7 +238,7 @@ public class K8sObjectTemplatePo {
                 retObj = gson.fromJson(json, new TypeToken<List<V1Service>>() {}.getType());
                 break;
             case INGRESS:
-                retObj = gson.fromJson(json, ExtensionsV1beta1Ingress.class);
+                retObj = gson.fromJson(json, new TypeToken<List<ExtensionsV1beta1Ingress>>() {}.getType());
                 break;
             case ENDPOINTS:
                 retObj = gson.fromJson(json, new TypeToken<List<V1Endpoints>>() {}.getType());

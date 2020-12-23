@@ -899,6 +899,19 @@ public class K8sApiServiceImpl implements IK8sApiService {
     }
 
     @Override
+    public List<ExtensionsV1beta1Ingress> selectNamespacedIngress(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
+        String labelSelector = null;
+        if(selector != null && selector.size() > 0)
+            labelSelector = String.join(",", selector.keySet().stream().map(key->String.format("%s=%s", key, selector.get(key))).collect(Collectors.toList()));
+        logger.debug(String.format("select ingress at %s from %s for labelSelector=%s", namespace, k8sApiUrl, labelSelector));
+        getConnection(k8sApiUrl, authToken);
+        ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
+        List<ExtensionsV1beta1Ingress> list = apiInstance.listNamespacedIngress(namespace, null, null, null, null, labelSelector, null, null, null, null).getItems();
+        logger.info(String.format("select %d deployment at %s for labelSelector=%s", list.size(), namespace, labelSelector));
+        return list;
+    }
+
+    @Override
     public V1Secret generateNamespacedSSLCert(String namespace, String k8sApiUrl, String authToken) throws ApiException {
         logger.debug(String.format("create ssl cert for %s at %s", namespace, k8sApiUrl));
         V1Secret srcSecret = readNamespacedSecret("ssl", "kube-system", k8sApiUrl, authToken);

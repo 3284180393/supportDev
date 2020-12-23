@@ -41,7 +41,7 @@ public interface IK8sTemplateService {
      * @return
      * @throws ParamException
      */
-    ExtensionsV1beta1Ingress generateIngress(AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException;
+    List<ExtensionsV1beta1Ingress> generateIngress(AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException;
 
     /**
      * 生成指定的域应用服务
@@ -255,15 +255,6 @@ public interface IK8sTemplateService {
     List<K8sOperationInfo> generateDomainDeploySteps(
             String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
             boolean isNewPlatform, BizSetDefine setDefine, V1Deployment glsserver) throws ApiException, InterfaceCallException, IOException, ParamException;
-    /**
-     * 生成一组用于测试的第三方服务
-     * @param ccodVersion 平台的ccod大版本
-     * @param platformId 平台id
-     * @return 用于测试的第三方服务
-     * @throws ApiException
-     * @throws ParamException
-     */
-    List<K8sThreePartServiceVo> generateTestThreePartServices(String ccodVersion, String platformId) throws ApiException, ParamException;
 
     /**
      * 查询指定平台所有ccod模块在k8s上的运行状态

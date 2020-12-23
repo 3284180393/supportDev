@@ -158,8 +158,8 @@ public class CCODThreePartAppPo {
         if(StringUtils.isNotBlank(version)){
             data.put(K8sObjectTemplatePo.APP_VERSION, version);
         }
-        if(params != null && params.size() > 0){
-            params.forEach((k,v)->data.put(String.format("${%s%s}", appName, k).toUpperCase(), v));
+        if(cfgs != null && cfgs.size() > 0){
+            cfgs.forEach((k,v)->data.put(String.format("${%s.%s}", alias, k).toUpperCase(), v));
         }
         return data;
     }

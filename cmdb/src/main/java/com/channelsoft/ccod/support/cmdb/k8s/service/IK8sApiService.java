@@ -704,6 +704,17 @@ public interface IK8sApiService {
     boolean isNamespacedIngressExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 查找指定命名空间下满足条件的ingress
+     * @param namespace 命名空间
+     * @param selector 查询ingress的条件
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 满足条件的ingress
+     * @throws ApiException
+     */
+    List<ExtensionsV1beta1Ingress> selectNamespacedIngress(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
      * 为指定的namespace创建ssl证书
      * @param namespace 命名空间
      * @param k8sApiUrl k8s的api的url

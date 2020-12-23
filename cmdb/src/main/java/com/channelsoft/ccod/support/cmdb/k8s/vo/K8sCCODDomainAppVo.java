@@ -29,9 +29,9 @@ public class K8sCCODDomainAppVo {
 
     private List<V1Service> services; //关联k8s的一组服务
 
-    private ExtensionsV1beta1Ingress ingress; //如果有关联的ingress，关联的ingress
+    private List<ExtensionsV1beta1Ingress> ingresses; //如果有关联的ingress，关联的ingress
 
-    public K8sCCODDomainAppVo(String alias, AppModuleVo appModule, String domainId, V1ConfigMap configMap, V1Deployment deploy, List<V1Service> services, ExtensionsV1beta1Ingress ingress)
+    public K8sCCODDomainAppVo(String alias, AppModuleVo appModule, String domainId, V1ConfigMap configMap, V1Deployment deploy, List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses)
     {
         this.alias = alias;
         this.appModule = appModule;
@@ -39,7 +39,7 @@ public class K8sCCODDomainAppVo {
         this.configMap = configMap;
         this.deploy = deploy;
         this.services = services;
-        this.ingress = ingress;
+        this.ingresses = ingresses;
     }
 
     public String getDomainId() {
@@ -74,12 +74,12 @@ public class K8sCCODDomainAppVo {
         this.services = services;
     }
 
-    public ExtensionsV1beta1Ingress getIngress() {
-        return ingress;
+    public List<ExtensionsV1beta1Ingress> getIngresses() {
+        return ingresses;
     }
 
-    public void setIngress(ExtensionsV1beta1Ingress ingress) {
-        this.ingress = ingress;
+    public void setIngresses(List<ExtensionsV1beta1Ingress> ingresses) {
+        this.ingresses = ingresses;
     }
 
     public void setAlias(String alias) {
