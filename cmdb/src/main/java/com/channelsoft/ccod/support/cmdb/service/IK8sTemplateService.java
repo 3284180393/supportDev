@@ -278,4 +278,35 @@ public interface IK8sTemplateService {
      */
     PlatformAppDeployDetailVo getPlatformAppDetailFromK8s(PlatformPo platform, String domainId, String appName, String alias, boolean isGetCfg);
 
+    /**
+     * 查询指定条件的k8s对象模板
+     * @param ccodVersion ccod版本
+     * @param appType 应用类型
+     * @param appName 应用名
+     * @param version 应用版本
+     * @return 指定条件的k8s对象模板
+     */
+    List<K8sObjectTemplatePo> queryK8sObjectTemplate(String ccodVersion, AppType appType, String appName, String version);
+
+    /**
+     * 向数据库添加一条新的k8s对象模板记录
+     * @param template 对象模板
+     * @throws ParamException
+     */
+    void addNewK8sObjectTemplate(K8sObjectTemplatePo template) throws ParamException;
+
+    /**
+     * 修改已有的k8s对象模板
+     * @param template 需要修改的对象模板
+     * @throws ParamException
+     */
+    void updateK8sObjectTemplate(K8sObjectTemplatePo template) throws ParamException;
+
+    /**
+     * 删除指定标签的k8s对象模板
+     * @param labels 指定删除的k8s对象模板的标签
+     * @throws ParamException
+     */
+    void deleteObjectTemplate(Map<String, String> labels) throws ParamException;
+
 }

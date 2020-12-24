@@ -939,7 +939,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
             System.out.println(logPath);
 //            deployReplaceTest();
 //            namespaceCreateTest();
-            createDeploymentTest();
+//            createDeploymentTest();
 //            createPVTest();
 //            createPVCTest();
 //            createSvcTest();
@@ -947,11 +947,18 @@ public class K8sApiServiceImpl implements IK8sApiService {
 //            createEndpointsTest();
 //            getTemplateJsonTest();
 //            deploySelectTest();
+            strTest();
         }
         catch (Exception ex)
         {
             ex.printStackTrace();
         }
+    }
+
+    private void strTest(){
+        List<String> tags = Arrays.asList(new String[]{"app-name", "alias", "domain-id"});
+        System.out.println(String.format("app-name is in %b", tags.contains("app-name")));
+        System.out.println(String.format("app is in %b", tags.contains("app")));
     }
 
     private void deploySelectTest() throws Exception

@@ -158,6 +158,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     private final static String forAllVersion = "ANY_VERSION";
 
+    private final List<String> templateSupportTags = Arrays.asList(new String[]{ccodVersionLabel, appTypeLabel, platformTagLabel, appTagLabel});
+
     @PostConstruct
     void init() throws Exception
     {
@@ -717,6 +719,206 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return null;
     }
 
+
+    @Override
+    public List<K8sObjectTemplatePo> queryK8sObjectTemplate(String ccodVersion, AppType appType, String appName, String version)
+    {
+        logger.debug(String.format("begin to query template with ccodVersion=%s, appType=%s, appName=%s, version=%s", ccodVersion, appType==null ? "":appType.name, appName, version));
+        List<K8sObjectTemplatePo> list = new ArrayList<>();
+        if(StringUtils.isNotBlank(version)){
+            for(K8sObjectTemplatePo template : objectTemplateList){
+                if (isAppVersionMatch(template, ccodVersion, appType, appName, version)) {
+                    list.add(template);
+                }
+            }
+        }
+        else if(StringUtils.isNotBlank(appName)){
+            for(K8sObjectTemplatePo template : objectTemplateList){
+                if (isAppNameMatch(template, ccodVersion, appType, appName)) {
+                    list.add(template);
+                }
+            }
+        }
+        else if(appType != null){
+            for(K8sObjectTemplatePo template : objectTemplateList){
+                if (isAppTypeMatch(template, ccodVersion, appType)) {
+                    list.add(template);
+                }
+            }
+        }
+        else if(StringUtils.isNotBlank(ccodVersion)){
+            for(K8sObjectTemplatePo template : objectTemplateList){
+                if (isCcodVersionMatch(template, ccodVersion)) {
+                    list.add(template);
+                }
+            }
+        }
+        else{
+            list.addAll(objectTemplateList);
+        }
+        logger.debug(String.format("find template %s for ccodVersion=%s, appType=%s, appName=%s, version=%s",
+                gson.toJson(list), ccodVersion, appType==null ? "":appType.name, appName, version));
+        return list;
+    }
+
+    @Override
+    public void addNewK8sObjectTemplate(K8sObjectTemplatePo template) throws ParamException {
+        logger.debug(String.format("begin to add new template %s", gson.toJson(template)));
+        checkTemplate(template);
+        for(K8sObjectTemplatePo exist : objectTemplateList){
+            if(isEqual(template.getLabels(), exist.getLabels())){
+                throw new ParamException(String.format("template for %s has exist", gson.toJson(template.getLabels())));
+            }
+        }
+        K8sTemplatePo po = new K8sTemplatePo(template);
+        k8sTemplateMapper.insert(po);
+        List<K8sTemplatePo> list = k8sTemplateMapper.select();
+        objectTemplateList.clear();
+        list.forEach(t->objectTemplateList.add(t.getObjectTemplate()));
+        logger.info(String.format("add template success"));
+    }
+
+    @Override
+    public void updateK8sObjectTemplate(K8sObjectTemplatePo template) throws ParamException {
+        logger.debug(String.format("begin to update template %s", gson.toJson(template)));
+        checkTemplate(template);
+        K8sTemplatePo updated = null;
+        List<K8sTemplatePo> list = k8sTemplateMapper.select();
+        for(K8sTemplatePo exist : list){
+            if(isEqual(template.getLabels(), exist.getLabels())){
+                updated = exist;
+                break;
+            }
+        }
+        if(updated == null){
+            throw new ParamException(String.format("updated template with labels %s not exist", gson.toJson(template.getLabels())));
+        }
+        k8sTemplateMapper.update(updated);
+        list = k8sTemplateMapper.select();
+        objectTemplateList.clear();
+        list.forEach(t->objectTemplateList.add(t.getObjectTemplate()));
+        logger.info(String.format("template update success"));
+    }
+
+    @Override
+    public void deleteObjectTemplate(Map<String, String> labels) throws ParamException {
+        logger.debug(String.format("begin to delete template with labels %s", gson.toJson(labels)));
+        K8sTemplatePo updated = null;
+        List<K8sTemplatePo> list = k8sTemplateMapper.select();
+        for(K8sTemplatePo exist : list){
+            if(isEqual(labels, exist.getLabels())){
+                updated = exist;
+                break;
+            }
+        }
+        if(updated == null){
+            throw new ParamException(String.format("delete template with labels %s not exist", gson.toJson(labels)));
+        }
+        k8sTemplateMapper.delete(updated.getId());
+        list = k8sTemplateMapper.select();
+        objectTemplateList.clear();
+        list.forEach(t->objectTemplateList.add(t.getObjectTemplate()));
+        logger.info(String.format("template delete success"));
+    }
+
+    private void checkTemplate(K8sObjectTemplatePo template) throws ParamException
+    {
+        if(template.getLabels() == null || template.getLabels().size() == 0){
+            throw new ParamException("labels of template can not be empty");
+        }
+        for(String key : template.getLabels().keySet()){
+            if(StringUtils.isBlank(template.getLabels().get(key))){
+                throw new ParamException(String.format("value of %s can not be blank", key));
+            }
+        }
+        Map<String, String> labels = new HashMap<>();
+        for(String key : template.getLabels().keySet()){
+            labels.put(key, template.getLabels().get(key));
+        }
+        if(!labels.containsKey(ccodVersionLabel)){
+            throw new ParamException(String.format("labels of template mush has %s label", ccodVersionLabel));
+        }
+        if(!labels.containsKey(appTypeLabel)){
+            for(String key : labels.keySet()){
+                if(!key.equals(ccodVersionLabel) && !key.equals(platformTagLabel)){
+                    throw new ParamException(String.format("without %s, labels only support %s and %s tag", appTypeLabel, ccodVersionLabel, platformTagLabel));
+                }
+            }
+            if(template.getPvList() == null){
+                throw new ParamException("pvList can not been null");
+            }
+            if(template.getPvcList() == null){
+                throw new ParamException("pvc can not been null");
+            }
+            if(template.getNamespaces() == null){
+                throw new ParamException("namespace can not been null");
+            }
+            if(template.getSecrets() == null){
+                throw new ParamException("secret can not be null");
+            }
+            if(template.getEndpoints() != null){
+                throw new ParamException("endpoints should be null");
+            }
+            if(template.getIngresses() != null){
+                throw new ParamException("ingresses should be null");
+            }
+            if(template.getServices() != null){
+                throw new ParamException("services should be null");
+            }
+            if(template.getDeployments() != null){
+                throw new ParamException("deployments should be null");
+            }
+            if(template.getStatefulSets() != null){
+                throw new ParamException("statefulSets should be null");
+            }
+            return;
+        }
+        if(template.getPvList() != null){
+            throw new ParamException("pvList should been null");
+        }
+        if(template.getPvcList() != null){
+            throw new ParamException("pvc should be null");
+        }
+        if(template.getNamespaces() != null){
+            throw new ParamException("namespace should been null");
+        }
+        if(template.getSecrets() != null){
+            throw new ParamException("secret should be null");
+        }
+        if(template.getEndpoints() == null && template.getIngresses() == null && template.getStatefulSets() == null
+                && template.getDeployments() == null && template.getServices() == null){
+            throw new ParamException("deployments, services, ingresses, endpoints and statefulSets can not be null at same time");
+        }
+        AppType appType = AppType.getEnum(labels.get(appTypeLabel));
+        if(appType == null){
+            throw new ParamException(String.format("%s is unsupported app type", labels.get(appTypeLabel)));
+        }
+        for(String tag : templateSupportTags){
+            if(labels.containsKey(tag)){
+                labels.remove(tag);
+            }
+        }
+        switch (appType){
+            case THREE_PART_APP:
+                if(labels.size() == 0){
+                    throw new ParamException(String.format("%s template must appName and version info, example: mysql=ANY_VERSION or mysql=5.7.1", appType.name));
+                }
+                else if(labels.size() > 1){
+                    throw new ParamException(String.format("%s template support only one app and can not support %s at same time", appType.name, String.join(",", labels.keySet())));
+                }
+            default:
+                for(String key : labels.keySet()){
+                    if(!appManagerService.isSupport(labels.get(key))){
+                        throw new ParamException(String.format("app %s is not been supported", key));
+                    }
+                    List<AppModuleVo> modules = appManagerService.queryApps(key, true);
+                    if(!appType.equals(modules.get(0))){
+                        throw new ParamException(String.format("appType of %s is %s not %s", key, modules.get(0).getAppType().name, appType.name));
+                    }
+                }
+
+        }
+    }
 
     @Override
     public List<ExtensionsV1beta1Ingress> generateIngress(AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException {
@@ -1490,8 +1692,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return null;
     }
 
+
     private boolean isMatchForPlatform(K8sObjectTemplatePo template, String platformTag, String ccodVersion){
-        if(!template.getLabels().containsKey(ccodVersionLabel) || !template.getLabels().get(ccodVersionLabel).equals(ccodVersion)){
+        if(!isCcodVersionMatch(template, ccodVersion)){
             return false;
         }
         if(!isTagMatch(template.getLabels().get(platformTagLabel), platformTag)){
@@ -1506,47 +1709,82 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     private boolean isMatchForApp(K8sObjectTemplatePo template, AppType appType, String appTag, String ccodVersion){
-        if(!template.getLabels().containsKey(appTypeLabel) || !template.getLabels().get(appTypeLabel).equals(appType.name))
+        if(!isCcodVersionMatch(template, ccodVersion)){
             return false;
-        if(!template.getLabels().containsKey(ccodVersionLabel) || !template.getLabels().get(ccodVersionLabel).equals(ccodVersion))
+        }
+        if(!template.getLabels().containsKey(appTypeLabel) || !template.getLabels().get(appTypeLabel).equals(appType.name))
             return false;
         if(!isTagMatch(template.getLabels().get(appTagLabel), appTag))
             return false;
         return true;
     }
 
+    private boolean isCcodVersionMatch(K8sObjectTemplatePo template, String ccodVersion){
+        if(!template.getLabels().containsKey(ccodVersionLabel) || !template.getLabels().get(ccodVersionLabel).equals(ccodVersion)){
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isAppTypeMatch(K8sObjectTemplatePo template, String ccodVersion, AppType appType){
+        if(!isCcodVersionMatch(template, ccodVersion)){
+            return false;
+        }
+        if(!template.getLabels().containsKey(appTypeLabel) || !template.getLabels().get(appTypeLabel).equals(appType.name)){
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isAppNameMatch(K8sObjectTemplatePo template, String ccodVersion, AppType appType, String appName){
+        if(!isAppTypeMatch(template, ccodVersion, appType)){
+            return false;
+        }
+        if(!template.getLabels().containsKey(appName)){
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isAppVersionMatch(K8sObjectTemplatePo template, String ccodVersion, AppType appType, String appName, String version){
+        if(!isAppNameMatch(template, ccodVersion, appType, appName)){
+            return false;
+        }
+        List<String> versions = Arrays.asList(template.getLabels().get(appName).split(","));
+        if(!versions.contains(version)){
+            return false;
+        }
+        return true;
+    }
 
     private boolean isTemplateAppTypeMatch(K8sObjectTemplatePo template, AppType appType, String appTag, String platformTag, String ccodVersion){
-        if(!template.getLabels().containsKey(ccodVersionLabel) || !template.getLabels().get(ccodVersionLabel).equals(ccodVersion))
+        if(!isTagMatch(template.getLabels().get(platformTagLabel), platformTag)){
             return false;
-        if(!template.getLabels().containsKey(appTypeLabel) || !template.getLabels().get(appTypeLabel).equals(appType.name))
+        }
+        if(!isTagMatch(template.getLabels().get(appTagLabel), appTag)){
             return false;
-        if(!isTagMatch(template.getLabels().get(platformTagLabel), platformTag))
-            return false;
-        if(!isTagMatch(template.getLabels().get(appTagLabel), appTag))
-            return false;
-        return true;
+        }
+        return isAppTypeMatch(template, ccodVersion, appType);
     }
 
     private boolean isTemplateAppNameMatch(K8sObjectTemplatePo template, String appName, AppType appType, String appTag, String platformTag, String ccodVersion){
-        if(!isTemplateAppTypeMatch(template, appType, appTag, platformTag, ccodVersion))
+        if(!isTagMatch(template.getLabels().get(platformTagLabel), platformTag)){
             return false;
-        if(!template.getLabels().containsKey(appName))
+        }
+        if(!isTagMatch(template.getLabels().get(appTagLabel), appTag)){
             return false;
-        if(template.getLabels().get(appName).equals(forAllVersion))
-            return true;
-        return false;
+        }
+        return isAppNameMatch(template, ccodVersion, appType, appName) && template.getLabels().get(appName).equals(forAllVersion);
     }
 
     private boolean isTemplateAppVersionMatch(K8sObjectTemplatePo template, String appName, String version, AppType appType, String appTag, String platformTag, String ccodVersion){
-        if(!isTemplateAppTypeMatch(template, appType, appTag, platformTag, ccodVersion))
+        if(!isTagMatch(template.getLabels().get(platformTagLabel), platformTag)){
             return false;
-        if(!template.getLabels().containsKey(appName))
+        }
+        if(!isTagMatch(template.getLabels().get(appTagLabel), appTag)){
             return false;
-        List<String> versions = Arrays.asList(template.getLabels().get(appName).split(","));
-        if(versions.contains(version))
-            return true;
-        return false;
+        }
+        return isAppVersionMatch(template, ccodVersion, appType, appName, version);
     }
 
     private boolean isMatch(Map<String, String> selector, Map<String, String> labels)
@@ -2214,6 +2452,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     private K8sThreePartAppVo generateK8sThreePartApp(PlatformPo platform, CCODThreePartAppPo threePartAppPo, boolean isBase) throws ParamException
     {
+        if(threePartAppPo.getAppName().equals("umg"))
+            System.out.println("hello umg");
         Map<String, String> k8sMacroData = threePartAppPo.getK8sMacroData(platform);
         Object selectObject = selectK8sObjectForApp(K8sKind.SERVICE, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){

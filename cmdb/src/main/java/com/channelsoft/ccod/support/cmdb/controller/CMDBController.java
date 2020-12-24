@@ -1,22 +1,18 @@
 package com.channelsoft.ccod.support.cmdb.controller;
 
-import com.alibaba.fastjson.JSONObject;
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
+import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.DomainUpdateType;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformDeployStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
-import com.channelsoft.ccod.support.cmdb.po.AjaxResultPo;
-import com.channelsoft.ccod.support.cmdb.po.AppDebugDetailPo;
-import com.channelsoft.ccod.support.cmdb.po.K8sOperationPo;
-import com.channelsoft.ccod.support.cmdb.po.PlatformUpdateRecordPo;
+import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.kubernetes.client.openapi.models.*;
-import javafx.application.Platform;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -29,6 +25,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
 import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -59,6 +56,9 @@ public class CMDBController {
 
     @Autowired
     IK8sApiService k8sApiService;
+
+    @Autowired
+    IK8sTemplateService k8sTemplateService;
 
     private final static Logger logger = LoggerFactory.getLogger(CMDBController.class);
 
@@ -2252,5 +2252,164 @@ public class CMDBController {
             resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return gson.toJson(resultPo);
+    }
+
+    @RequestMapping(value = "/k8sObjectTemplate/{ccodVersion}/{appType}/{appName}/{version}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sObjectTemplate(@PathVariable String ccodVersion, @PathVariable AppType appType, @PathVariable String appName, @PathVariable String version)
+    {
+        String uri = String.format("GET %s/k8sObjectTemplate/%s/%s/%s/%s", this.apiBasePath, ccodVersion, appType, appName, version);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(ccodVersion, appType, appName, version);
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query k8s object template exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sObjectTemplate/{ccodVersion}/{appType}/{appName}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sObjectTemplate(@PathVariable String ccodVersion, @PathVariable AppType appType, @PathVariable String appName)
+    {
+        String uri = String.format("GET %s/k8sObjectTemplate/%s/%s/%s", this.apiBasePath, ccodVersion, appType, appName);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(ccodVersion, appType, appName, null);
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query k8s object template exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sObjectTemplate/{ccodVersion}/{appType}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sObjectTemplate(@PathVariable String ccodVersion, @PathVariable AppType appType)
+    {
+        String uri = String.format("GET %s/k8sObjectTemplate/%s/%s", this.apiBasePath, ccodVersion, appType);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(ccodVersion, appType, null, null);
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query k8s object template exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sObjectTemplate/{ccodVersion}", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sObjectTemplate(@PathVariable String ccodVersion)
+    {
+        String uri = String.format("GET %s/k8sObjectTemplate/%s", this.apiBasePath, ccodVersion);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(ccodVersion, null, null, null);
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query k8s object template exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sObjectTemplate", method = RequestMethod.GET)
+    public AjaxResultPo queryK8sObjectTemplate()
+    {
+        String uri = String.format("GET %s/k8sObjectTemplate", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(null, null, null, null);
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query k8s object template exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sObjectTemplate", method = RequestMethod.POST)
+    public AjaxResultPo createK8sObjectTemplate(@RequestBody K8sObjectTemplatePo template)
+    {
+        String uri = String.format("POST %s/k8sObjectTemplate", this.apiBasePath);
+        logger.debug(String.format("enter %s controller and template param=%s", uri, gson.toJson(template)));
+        AjaxResultPo resultPo;
+        try
+        {
+            k8sTemplateService.addNewK8sObjectTemplate(template);
+            logger.info(String.format("create k8s object template SUCCESS, quit %s", uri));
+            resultPo = new AjaxResultPo(true, "create k8s object template SUCCESS");
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("create k8s object template exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/k8sObjectTemplate", method = RequestMethod.PUT)
+    public AjaxResultPo modifyObjectTemplate(@RequestBody K8sObjectTemplatePo template)
+    {
+        String uri = String.format("PUT %s/k8sObjectTemplate", this.apiBasePath);
+        logger.debug(String.format("enter %s controller and template param=%s", uri, gson.toJson(template)));
+        AjaxResultPo resultPo;
+        try
+        {
+            k8sTemplateService.updateK8sObjectTemplate(template);
+            logger.info(String.format("update k8s object template SUCCESS, quit %s", uri));
+            resultPo = new AjaxResultPo(true, "update k8s object template SUCCESS");
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("update k8s object template exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @DeleteMapping(value="/k8sObjectTemplate")
+    public AjaxResultPo deleteK8sObjectTemplate(@RequestBody Map<String, String> labels)
+    {
+        String uri = String.format("delete %s/k8sObjectTemplate, params=%s", this.apiBasePath, gson.toJson(labels));
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            k8sTemplateService.deleteObjectTemplate(labels);
+            resultPo = new AjaxResultPo(true, "delete k8s object template success");
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("delete k8s object template exception"), ex);
+            resultPo = new AjaxResultPo(false, String.format("delete k8s object template FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
     }
 }

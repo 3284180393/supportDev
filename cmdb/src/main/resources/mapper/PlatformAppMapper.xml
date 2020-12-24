@@ -159,6 +159,7 @@
     </delete>
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         update platform_app set
+            app_id = #{appId,jdbcType=INTEGER},
             base_path = #{basePath,jdbcType=VARCHAR},
             deploy_path = #{deployPath,jdbcType=VARCHAR},
             env_load_cmd = #{envLoadCmd,jdbcType=VARCHAR},
