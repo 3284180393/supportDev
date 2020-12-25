@@ -362,9 +362,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
 //            updateK8sTemplate();
-//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-//            logger.error(gson.toJson(schema));
-//            updatePlatformUpdateSchema(schema);
+            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+            logger.error(gson.toJson(schema));
+            updatePlatformUpdateSchema(schema);
 //            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
 //            paramVo.setParams("pahjgs");
 //            paramVo.setNfsServerIp("10.130.41.218");
@@ -2193,7 +2193,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             if(domainMap.containsKey(plan.getDomainId()) && (plan.getPublicConfig() == null || plan.getPublicConfig().size() == 0))
                 plan.setPublicConfig(domainMap.get(plan.getDomainId()).getCfgs());
             List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(plan.getDomainId()) ? domainAppMap.get(plan.getDomainId()) : new ArrayList<>();
-            List<K8sOperationInfo> deploySteps = generateDomainDeploySteps(jobId, platformPo, plan, domainApps, isNewPlatform, deployGls);
+            List<K8sOperationInfo> deploySteps = k8sTemplateService.generateDomainDeploySteps(jobId, platformPo, plan, domainApps, isNewPlatform, deployGls);
             steps.addAll(deploySteps);
             if(isNewPlatform && hasUCDS){
                 List<K8sOperationInfo> opts = steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT) && s.getOperation().equals(K8sOperation.CREATE) && s.getName().matches("^glsserver\\-.+"))

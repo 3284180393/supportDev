@@ -1,6 +1,5 @@
 package com.channelsoft.ccod.support.cmdb.service.impl;
 
-import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.dao.K8sTemplateMapper;
@@ -158,7 +157,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     private final static String forAllVersion = "ANY_VERSION";
 
-    private final List<String> templateSupportTags = Arrays.asList(new String[]{ccodVersionLabel, appTypeLabel, platformTagLabel, appTagLabel});
+    private final List<String> templateSupportTags = new ArrayList<>();
 
     @PostConstruct
     void init() throws Exception
@@ -186,6 +185,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
         templateList.forEach(t->objectTemplateList.add(t.getObjectTemplate()));
         List<K8sThreePartServiceVo> threeSvcs = parseTestThreePartServiceFromFile(this.testThreePartServiceSavePath);
+        templateSupportTags.addAll(Arrays.asList(new String[]{ccodVersionLabel, appTypeLabel, platformTagLabel, appTagLabel}));
         this.testThreePartServices.addAll(threeSvcs);
         try{
 //            updateTemplate();
@@ -375,16 +375,49 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //        }
 //        temps.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
         List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
+//        for(K8sTemplatePo template : templateList){
+//            if(template.getObjectTemplate().getEndpoints() != null && template.getObjectTemplate().getEndpoints().size() > 0){
+//                template.getObjectTemplate().setEndpoints(template.getObjectTemplate().getEndpoints().stream().map(e->{
+//                    e.getSubsets().forEach(s->s.getAddresses().forEach(a->a.setIp("${UMG.IP}")));
+//                    return e;
+//                }).collect(Collectors.toList()));
+//                k8sTemplateMapper.update(template);
+//            }
+//        }
         for(K8sTemplatePo template : templateList){
-            if(template.getObjectTemplate().getEndpoints() != null && template.getObjectTemplate().getEndpoints().size() > 0){
-                template.getObjectTemplate().setEndpoints(template.getObjectTemplate().getEndpoints().stream().map(e->{
-                    e.getSubsets().forEach(s->s.getAddresses().forEach(a->a.setIp("${UMG.IP}")));
-                    return e;
+            if(template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+                if(template.getId() == 22)
+                    continue;
+                if(template.getObjectTemplate().getIngresses() == null){
+                    template.getObjectTemplate().setIngresses(new ArrayList<>());
+                }
+                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
+                    d.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
+                        c.setPorts(new ArrayList<>());
+                        c.getReadinessProbe().setExec(null);
+                        c.getReadinessProbe().setHttpGet(null);
+                        c.getReadinessProbe().setTcpSocket(null);
+                        c.getLivenessProbe().setExec(null);
+                        c.getLivenessProbe().setHttpGet(null);
+                        c.getLivenessProbe().setTcpSocket(null);
+                    });
+                    return d;
                 }).collect(Collectors.toList()));
                 k8sTemplateMapper.update(template);
             }
         }
-
+        for(K8sTemplatePo template : templateList){
+            if(template.getId() != 22){
+                continue;
+            }
+            Map<String, String> labels = new HashMap<>();
+            labels.put(appTypeLabel, AppType.BINARY_FILE.name);
+            labels.put(ccodVersionLabel, "4.8");
+            labels.put(appTagLabel, "freeswitch");
+            template.setLabels(labels);
+            template.getObjectTemplate().setLabels(labels);
+            k8sTemplateMapper.update(template);
+        }
     }
 
 //    private void updateTemplate() throws Exception
@@ -793,6 +826,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         if(updated == null){
             throw new ParamException(String.format("updated template with labels %s not exist", gson.toJson(template.getLabels())));
         }
+        updated.setObjectTemplate(template);
         k8sTemplateMapper.update(updated);
         list = k8sTemplateMapper.select();
         objectTemplateList.clear();
@@ -1061,6 +1095,49 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         logger.info(String.format("generated deployment for %s : %s", gson.toJson(appBase), gson.toJson(deploy)));
         return deploy;
+    }
+
+    private void generateMountAndCmdForSingleDeployment(V1Deployment deploy, AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException{
+        AppType appType = appBase.getAppType();
+        String alias = appBase.getAlias();
+        String domainId = domain.getDomainId();
+        List<AppFileNexusInfo> domainCfg = domain.getCfgs();
+        if(appBase.isFixedIp()){
+            deploy.getSpec().getTemplate().getSpec().setNodeSelector(new HashMap<>());
+            deploy.getSpec().getTemplate().getSpec().getNodeSelector().put(nodeIpLabel, appBase.getHostIp());
+        }
+        String basePath = appBase.getBasePath();
+        String deployPath = getAbsolutePath(appBase.getBasePath(), appBase.getDeployPath());
+        String platformId = platform.getPlatformId();
+        List<V1Volume> volumes = generateVolumeForDeployment(deploy, appType, alias, platformId, domainId, appBase.getCfgs(), platform.getCfgs(), domainCfg);
+        deploy.getSpec().getTemplate().getSpec().setVolumes(volumes);
+        V1Container initContainer = deploy.getSpec().getTemplate().getSpec().getInitContainers().get(0);
+        List<V1VolumeMount> mounts = generateInitContainerMount(initContainer, appType, alias, domainId, basePath, deployPath);
+        initContainer.setVolumeMounts(mounts);
+        V1Container runtimeContainer = deploy.getSpec().getTemplate().getSpec().getContainers().get(0);
+        mounts = generateRuntimeContainerMount(runtimeContainer, appBase, platformId, domainId, platform.getCfgs(), domainCfg);
+        runtimeContainer.setVolumeMounts(mounts);
+        logger.debug(String.format("generate init container commands"));
+        String packageFileName = appBase.getInstallPackage().getFileName();
+        List<String> commands = generateCmdForInitContainer(appBase, packageFileName, appBase.getCfgs(), domainId);
+        initContainer.setCommand(commands);
+        initContainer.setArgs(new ArrayList<>());
+        logger.debug(String.format("generate runtime container command"));
+        commands = generateCmdForRuntimeContainer(appBase, platformId, domainId, platform.getCfgs(), domainCfg);
+        runtimeContainer.setCommand(commands);
+        runtimeContainer.setArgs(new ArrayList<>());
+        List<V1ContainerPort> containerPorts = generateContainerPortsForRuntimeContainer(appBase.getPorts(), appType);
+        logger.debug(String.format("containerPorts of %s runtime container at %s is : %s", alias, domainId, gson.toJson(containerPorts)));
+        runtimeContainer.setPorts(containerPorts);
+        generateProbeForRuntimeContainer(runtimeContainer, alias, domainId, appType, appBase.getPorts(),
+                appBase.getCheckAt(), appBase.getInitialDelaySeconds(), appBase.getPeriodSeconds());
+        if(appType.equals(AppType.RESIN_WEB_APP) || appType.equals(AppType.TOMCAT_WEB_APP))
+        {
+            logger.debug(String.format("modify deployment hostnames of hostAliases to %s", platform.getHostUrl()));
+            deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).getHostnames().set(0, platform.getHostUrl());
+            deploy.getSpec().getTemplate().getSpec().getHostAliases().get(0).setIp((String)platform.getParams().get(PlatformBase.k8sHostIpKey));
+        }
+        logger.info(String.format("generated deployment for %s : %s", gson.toJson(appBase), gson.toJson(deploy)));
     }
 
     private List<PortVo> parsePort(String portStr, ServicePortType portType, AppType appType) throws ParamException
@@ -2028,6 +2105,104 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return steps;
     }
 
+    private List<K8sAppCollection> generateK8sAppCollections(List<AppUpdateOperationInfo> domainOpts, DomainPo domain, PlatformPo platform) throws ParamException{
+        List<K8sAppCollection> list = new ArrayList<>();
+        Map<String, AppUpdateOperationInfo> aliasMap = domainOpts.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAlias, Function.identity()));
+        Map<String, V1Deployment> handleMap = new HashMap<>();
+        for(AppUpdateOperationInfo opt : domainOpts){
+            if(handleMap.containsKey(opt.getAlias())){
+                handleMap.get(opt.getAlias()).getMetadata().getLabels().put(opt.getAppName(), opt.getAlias());
+                continue;
+            }
+            Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, opt.getAppName(), opt.getVersion(), opt.getAppType(), opt.getTag(), platform.getTag(), platform.getCcodVersion(), opt.getK8sMacroData(domain, platform));
+            if(selectObject == null){
+                throw new ParamException(String.format("can not select deployment template for %s at %s", opt.getAlias(), domain.getDomainId()));
+            }
+            List<V1Deployment> deployments = (List<V1Deployment>) selectObject;
+            if(deployments.size() == 0){
+                throw new ParamException(String.format("selected deployment template for %s at %s is empty", opt.getAlias(), domain.getDomainId()));
+            }
+            else if(deployments.size() > 1){
+                throw new ParamException(String.format("selected deployment template for %s at %s has %d deployment definition",
+                        opt.getAlias(), domain.getDomainId(), deployments.size()));
+            }
+            V1Deployment deployment = deployments.get(0);
+            selectObject = selectK8sObjectForApp(K8sKind.SERVICE, opt.getAppName(), opt.getVersion(), opt.getAppType(), opt.getTag(), platform.getTag(), platform.getCcodVersion(), opt.getK8sMacroData(domain, platform));
+            if(selectObject == null){
+                throw new ParamException(String.format("can not select service template for %s at %s", opt.getAlias(), domain.getDomainId()));
+            }
+            List<V1Service> services = (List<V1Service>) selectObject;
+            if(services.size() == 0){
+                throw new ParamException(String.format("selected service template for %s at %s is empty", opt.getAlias(), domain.getDomainId()));
+            }
+            selectObject = selectK8sObjectForApp(K8sKind.INGRESS, opt.getAppName(), opt.getVersion(), opt.getAppType(), opt.getTag(), platform.getTag(), platform.getCcodVersion(), opt.getK8sMacroData(domain, platform));
+            if(selectObject == null){
+                throw new ParamException(String.format("can not select ingress template for %s at %s", opt.getAlias(), domain.getDomainId()));
+            }
+            List<ExtensionsV1beta1Ingress> ingresses = (List<ExtensionsV1beta1Ingress>)selectObject;
+            List<AppUpdateOperationInfo> optList = new ArrayList<>();
+            List<String> aliases = deployment.getSpec().getTemplate().getSpec().getContainers().stream().map(c->c.getName().replaceAll("\\-runtime$", "")).collect(Collectors.toList());
+            if(aliases.size() == 1){
+                generateMountAndCmdForSingleDeployment(deployment, opt, domain, platform);
+                optList.add(opt);
+                handleMap.put(opt.getAlias(), deployments.get(0));
+            }
+            else{
+                for(String alias : aliases){
+                    if(!aliasMap.containsKey(alias)){
+                        throw new ParamException(String.format("%s and %s have been deployed at the same pod, so %s is wanted at opt list",
+                                opt.getAlias(), alias, alias));
+                    }
+                    AppUpdateOperationInfo dst = aliasMap.get(alias);
+                    if(!dst.getOperation().equals(opt.getOperation())){
+                        throw new ParamException(String.format("%s and %s have been deployed at the same pod, so the operation of them must be same",
+                                opt.getAlias(), alias));
+                    }
+                    if(!isTagMatch(opt.getTag(), dst.getTag())){
+                        throw new ParamException(String.format("%s and %s have been deployed at the same pod, so the appTag of them must be same",
+                                opt.getAlias(), alias));
+                    }
+                    handleMap.put(alias, deployments.get(0));
+                    optList.add(dst);
+                }
+            }
+            K8sAppCollection collection = new K8sAppCollection(optList, domain, platform, deployment, services, ingresses, opt.getTimeout());
+            list.add(collection);
+        }
+        return list;
+    }
+
+    private List<K8sOperationInfo> generateDeployStepFromCollection(String jobId, K8sAppCollection collection) throws ParamException{
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        K8sOperation operation;
+        switch (collection.getOperation()){
+            case ADD:
+                operation = K8sOperation.CREATE;
+                break;
+            case DELETE:
+                operation = K8sOperation.DELETE;
+                break;
+            case UPDATE:
+                operation = K8sOperation.REPLACE;
+                break;
+            default:
+                throw new ParamException(String.format("unsupported operation %s for k8sAppCollection", collection.getOperation().name));
+        }
+        collection.getServices().forEach(s->{
+            K8sOperationInfo step = new K8sOperationInfo(jobId, collection.getPlatform().getPlatformId(), collection.getDomain().getDomainId(),
+                    K8sKind.SERVICE, s.getMetadata().getName(), operation, s, collection.getTimeout());
+            steps.add(step);
+        });
+        collection.getIngresses().forEach(s->{
+            K8sOperationInfo step = new K8sOperationInfo(jobId, collection.getPlatform().getPlatformId(), collection.getDomain().getDomainId(),
+                    K8sKind.INGRESS, s.getMetadata().getName(), operation, s, collection.getTimeout());
+            steps.add(step);
+        });
+        steps.add( new K8sOperationInfo(jobId, collection.getPlatform().getPlatformId(), collection.getDomain().getDomainId(),
+                K8sKind.INGRESS, collection.getDeployment().getMetadata().getName(), operation, collection.getDeployment(), collection.getTimeout()));
+        return steps;
+    }
+
     @Override
     public List<K8sOperationInfo> generateAddPlatformAppSteps(String jobId, AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform, boolean isNewPlatform) throws ParamException, ApiException, InterfaceCallException, IOException {
         String domainId = domain.getDomainId();
@@ -2040,8 +2215,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
-        String hostIp = appBase.getHostIp();
-        boolean fixedIp = appBase.isFixedIp();
         AppModuleVo module = this.appManagerService.queryAllRegisterAppModule(true).stream()
                 .filter(app->app.getAppName().equals(appName)&&app.getVersion().equals(version))
                 .collect(Collectors.toList()).get(0);
@@ -2349,11 +2522,10 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Override
     public List<K8sOperationInfo> generateDomainDeploySteps(
             String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
-            boolean isNewPlatform, BizSetDefine setDefine, V1Deployment glsserver) throws ApiException, InterfaceCallException, IOException, ParamException
+            boolean isNewPlatform, V1Deployment glsserver) throws ApiException, InterfaceCallException, IOException, ParamException
     {
         String domainId = plan.getDomainId();
         DomainPo domain = plan.getDomain(platformPo.getPlatformId());
-        Comparator<AppBase> sort = appManagerService.getAppSort(setDefine);
         List<K8sOperationInfo> steps = new ArrayList<>();
         String platformId = platformPo.getPlatformId();
         String k8sApiUrl = platformPo.getK8sApiUrl();
@@ -2376,30 +2548,18 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             K8sOperationInfo optInfo = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP, domainId, K8sOperation.CREATE, configMap);
             steps.add(optInfo);
         }
-        List<AppUpdateOperationInfo> deleteList = plan.getApps().stream()
-                .filter(opt->opt.getOperation().equals(AppUpdateOperation.DELETE)).sorted(sort.reversed())
-                .collect(Collectors.toList());
-        for(AppUpdateOperationInfo optInfo : deleteList) {
-            List<K8sOperationInfo> deleteSteps = getDeletePlatformAppSteps(jobId, optInfo.getAppName(),
-                    optInfo.getAlias(), optInfo.getVersion(), domainId, platformId, k8sApiUrl, k8sAuthToken);
-            steps.addAll(deleteSteps);
-        }
-        List<AppUpdateOperationInfo> addAndUpdateList = plan.getApps().stream()
-                .filter(opt->opt.getOperation().equals(AppUpdateOperation.ADD) || opt.getOperation().equals(AppUpdateOperation.UPDATE))
-                .sorted(sort).collect(Collectors.toList());
-        for(AppUpdateOperationInfo optInfo : addAndUpdateList) {
-            List<K8sOperationInfo> optSteps = optInfo.getOperation().equals(AppUpdateOperation.ADD) ?
-                    generateAddPlatformAppSteps(jobId, optInfo, domain, platformPo, isNewPlatform)
-                    : generateUpdatePlatformAppSteps(jobId, optInfo, domain, platformPo);
-            steps.addAll(optSteps);
-            if(optInfo.getAppName().equals("UCDServer")){
+        List<K8sAppCollection> collections = generateK8sAppCollections(plan.getApps(), domain, platformPo);
+        for(K8sAppCollection collection : collections){
+            List<K8sOperationInfo> appSteps = generateDeployStepFromCollection(jobId, collection);
+            if(collection.getAppName().equals("UCDServer")){
                 String glsDomId = glsserver.getMetadata().getLabels().get(domainIdLabel);
                 glsserver = gson.fromJson(gson.toJson(glsserver), V1Deployment.class);
-                glsserver.getMetadata().getLabels().put("restart-reason", String.format("%s-deployment-created", optInfo.getAlias()));
+                glsserver.getMetadata().getLabels().put("restart-reason", String.format("%s-deployment-created", collection.getName()));
                 K8sOperationInfo info = new K8sOperationInfo(jobId, platformId, glsDomId, K8sKind.DEPLOYMENT, glsserver.getMetadata().getName(), K8sOperation.REPLACE, glsserver);
                 info.setTimeout(60);
                 steps.add(info);
             }
+            steps.addAll(appSteps);
         }
         steps.forEach(s->s.setKernal(false));
         logger.info(String.format("deploy %s %d apps need %d steps", domainId, plan.getApps().size(), steps.size()));

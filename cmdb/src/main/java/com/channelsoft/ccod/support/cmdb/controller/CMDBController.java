@@ -10,8 +10,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
 import io.kubernetes.client.openapi.models.*;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
@@ -2263,7 +2262,9 @@ public class CMDBController {
         try
         {
             List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(ccodVersion, appType, appName, version);
-            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            JsonParser jp = new JsonParser();
+            JsonArray jo = jp.parse(gson.toJson(list)).getAsJsonArray();
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), jo);
             logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -2283,7 +2284,9 @@ public class CMDBController {
         try
         {
             List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(ccodVersion, appType, appName, null);
-            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            JsonParser jp = new JsonParser();
+            JsonArray jo = jp.parse(gson.toJson(list)).getAsJsonArray();
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), jo);
             logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -2303,7 +2306,9 @@ public class CMDBController {
         try
         {
             List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(ccodVersion, appType, null, null);
-            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            JsonParser jp = new JsonParser();
+            JsonArray jo = jp.parse(gson.toJson(list)).getAsJsonArray();
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), jo);
             logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
         }
         catch (Exception e)
@@ -2323,7 +2328,9 @@ public class CMDBController {
         try
         {
             List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(ccodVersion, null, null, null);
-            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            JsonParser jp = new JsonParser();
+            JsonArray jo = jp.parse(gson.toJson(list)).getAsJsonArray();
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), jo);
             logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
         }
         catch (Exception e)
