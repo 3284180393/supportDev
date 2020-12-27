@@ -254,7 +254,7 @@ public interface IK8sTemplateService {
 
     List<K8sOperationInfo> generateDomainDeploySteps(
             String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
-            boolean isNewPlatform, V1Deployment glsserver) throws ApiException, InterfaceCallException, IOException, ParamException;
+            boolean isNewPlatform) throws ApiException, InterfaceCallException, IOException, ParamException;
 
     /**
      * 查询指定平台所有ccod模块在k8s上的运行状态

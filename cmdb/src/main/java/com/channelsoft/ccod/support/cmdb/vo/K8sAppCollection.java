@@ -1,10 +1,10 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
 import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
-import com.channelsoft.ccod.support.cmdb.constant.K8sOperation;
 import com.channelsoft.ccod.support.cmdb.po.DomainPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformPo;
 import io.kubernetes.client.openapi.models.ExtensionsV1beta1Ingress;
+import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Service;
 
@@ -38,13 +38,15 @@ public class K8sAppCollection {
 
     private List<ExtensionsV1beta1Ingress> ingresses;
 
+    private List<V1ConfigMap> configMaps;
+
     private int timeout;
 
     public K8sAppCollection(){
     }
 
     public K8sAppCollection(List<AppUpdateOperationInfo> optList, DomainPo domain, PlatformPo platform, V1Deployment deployment,
-                            List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses, int timeout){
+                            List<V1Service> services, List<ExtensionsV1beta1Ingress> ingresses, List<V1ConfigMap> configMaps, int timeout){
         this.operation = optList.get(0).getOperation();
         this.optList = optList;
         this.domain = domain;
@@ -52,6 +54,7 @@ public class K8sAppCollection {
         this.deployment = deployment;
         this.services = services;
         this.ingresses = ingresses;
+        this.configMaps = configMaps;
         this.timeout = timeout;
         this.name = String.join("-", optList.stream().map(a->a.getAlias()).collect(Collectors.toList()));
         this.appName = String.join("-", optList.stream().map(a->a.getAppName()).collect(Collectors.toList()));
@@ -135,5 +138,13 @@ public class K8sAppCollection {
 
     public void setAppName(String appName) {
         this.appName = appName;
+    }
+
+    public List<V1ConfigMap> getConfigMaps() {
+        return configMaps;
+    }
+
+    public void setConfigMaps(List<V1ConfigMap> configMaps) {
+        this.configMaps = configMaps;
     }
 }

@@ -2130,6 +2130,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         UpdateStatus status = schema.getStatus();
         List<DomainUpdatePlanInfo> plans = schema.getDomains().stream().
                 filter(plan->plan.getStatus().equals(status)).sorted(sort).collect(Collectors.toList());
+        schema.setDomains(plans);
         boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) || schema.getTaskType().equals(PlatformUpdateTaskType.RESTORE) ? true : false;
         List<K8sOperationInfo> steps = new ArrayList<>();
         String platformId = platformPo.getPlatformId();
@@ -2193,7 +2194,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             if(domainMap.containsKey(plan.getDomainId()) && (plan.getPublicConfig() == null || plan.getPublicConfig().size() == 0))
                 plan.setPublicConfig(domainMap.get(plan.getDomainId()).getCfgs());
             List<PlatformAppDeployDetailVo> domainApps = domainAppMap.containsKey(plan.getDomainId()) ? domainAppMap.get(plan.getDomainId()) : new ArrayList<>();
-            List<K8sOperationInfo> deploySteps = k8sTemplateService.generateDomainDeploySteps(jobId, platformPo, plan, domainApps, isNewPlatform, deployGls);
+            BizSetDefine setDefine = getBizSetForDomainId(plan.getDomainId());
+            Comparator<AppBase> appSort = getAppSort(setDefine);
+            plan.setApps(plan.getApps().stream().sorted(appSort).collect(Collectors.toList()));
+            List<K8sOperationInfo> deploySteps = k8sTemplateService.generateDomainDeploySteps(jobId, platformPo, plan, domainApps, isNewPlatform);
             steps.addAll(deploySteps);
             if(isNewPlatform && hasUCDS){
                 List<K8sOperationInfo> opts = steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT) && s.getOperation().equals(K8sOperation.CREATE) && s.getName().matches("^glsserver\\-.+"))

@@ -384,39 +384,45 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //                k8sTemplateMapper.update(template);
 //            }
 //        }
+//        for(K8sTemplatePo template : templateList){
+//            if(template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+//                if(template.getId() == 22)
+//                    continue;
+//                if(template.getObjectTemplate().getIngresses() == null){
+//                    template.getObjectTemplate().setIngresses(new ArrayList<>());
+//                }
+//                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
+//                    d.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
+//                        c.setPorts(new ArrayList<>());
+//                        c.getReadinessProbe().setExec(null);
+//                        c.getReadinessProbe().setHttpGet(null);
+//                        c.getReadinessProbe().setTcpSocket(null);
+//                        c.getLivenessProbe().setExec(null);
+//                        c.getLivenessProbe().setHttpGet(null);
+//                        c.getLivenessProbe().setTcpSocket(null);
+//                    });
+//                    return d;
+//                }).collect(Collectors.toList()));
+//                k8sTemplateMapper.update(template);
+//            }
+//        }
+//        for(K8sTemplatePo template : templateList){
+//            if(template.getId() != 22){
+//                continue;
+//            }
+//            Map<String, String> labels = new HashMap<>();
+//            labels.put(appTypeLabel, AppType.BINARY_FILE.name);
+//            labels.put(ccodVersionLabel, "4.8");
+//            labels.put(appTagLabel, "freeswitch");
+//            template.setLabels(labels);
+//            template.getObjectTemplate().setLabels(labels);
+//            k8sTemplateMapper.update(template);
+//        }
         for(K8sTemplatePo template : templateList){
-            if(template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-                if(template.getId() == 22)
-                    continue;
-                if(template.getObjectTemplate().getIngresses() == null){
-                    template.getObjectTemplate().setIngresses(new ArrayList<>());
-                }
-                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
-                    d.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
-                        c.setPorts(new ArrayList<>());
-                        c.getReadinessProbe().setExec(null);
-                        c.getReadinessProbe().setHttpGet(null);
-                        c.getReadinessProbe().setTcpSocket(null);
-                        c.getLivenessProbe().setExec(null);
-                        c.getLivenessProbe().setHttpGet(null);
-                        c.getLivenessProbe().setTcpSocket(null);
-                    });
-                    return d;
-                }).collect(Collectors.toList()));
+            if(template.getId() != 22 && template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+                template.getObjectTemplate().setServices(new ArrayList<>());
                 k8sTemplateMapper.update(template);
             }
-        }
-        for(K8sTemplatePo template : templateList){
-            if(template.getId() != 22){
-                continue;
-            }
-            Map<String, String> labels = new HashMap<>();
-            labels.put(appTypeLabel, AppType.BINARY_FILE.name);
-            labels.put(ccodVersionLabel, "4.8");
-            labels.put(appTagLabel, "freeswitch");
-            template.setLabels(labels);
-            template.getObjectTemplate().setLabels(labels);
-            k8sTemplateMapper.update(template);
         }
     }
 
@@ -982,14 +988,13 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             throw new ParamException(String.format("can not find ingress template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
                     appBase.getAppName(), appBase.getVersion(), appBase.getAppType().name, platform.getCcodVersion(), appBase.getTag()));
         }
-        V1Service service = ((List<V1Service>)selectObject).get(0);
-        List<PortVo> portList = parsePort(portStr, portType, appType);
-        String[] ports = portStr.split(",");
+        V1Service service = new V1Service();
+        service.setMetadata(new V1ObjectMeta());
+        service.setSpec(new V1ServiceSpec());
+        List<PortVo> portList = parsePort(portStr, portType, appType);;
         String name = portType.equals(ServicePortType.NodePort) ? String.format("%s-%s-out", alias, domainId) : String.format("%s-%s", alias, domainId);
         service.getMetadata().setLabels(new HashMap<>());
         service.getMetadata().getLabels().put(this.domainIdLabel, domainId);
-        service.getMetadata().getLabels().put(this.appNameLabel, appName);
-        service.getMetadata().getLabels().put(this.serviceTypeLabel, portType.equals(ServicePortType.NodePort) ? K8sServiceType.DOMAIN_OUT_SERVICE.name : K8sServiceType.DOMAIN_SERVICE.name);
         service.getMetadata().getLabels().put(appName, alias);
         service.getMetadata().setName(name);
         service.getMetadata().setNamespace(platformId);
@@ -2105,13 +2110,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return steps;
     }
 
-    private List<K8sAppCollection> generateK8sAppCollections(List<AppUpdateOperationInfo> domainOpts, DomainPo domain, PlatformPo platform) throws ParamException{
+    private List<K8sAppCollection> generateK8sAppCollections(List<AppUpdateOperationInfo> domainOpts, DomainPo domain, PlatformPo platform) throws ParamException, IOException, InterfaceCallException{
+        String domainId = domain.getDomainId();
+        String platformId = platform.getPlatformId();
         List<K8sAppCollection> list = new ArrayList<>();
         Map<String, AppUpdateOperationInfo> aliasMap = domainOpts.stream().collect(Collectors.toMap(AppUpdateOperationInfo::getAlias, Function.identity()));
         Map<String, V1Deployment> handleMap = new HashMap<>();
         for(AppUpdateOperationInfo opt : domainOpts){
             if(handleMap.containsKey(opt.getAlias())){
-                handleMap.get(opt.getAlias()).getMetadata().getLabels().put(opt.getAppName(), opt.getAlias());
                 continue;
             }
             Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, opt.getAppName(), opt.getVersion(), opt.getAppType(), opt.getTag(), platform.getTag(), platform.getCcodVersion(), opt.getK8sMacroData(domain, platform));
@@ -2132,41 +2138,85 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 throw new ParamException(String.format("can not select service template for %s at %s", opt.getAlias(), domain.getDomainId()));
             }
             List<V1Service> services = (List<V1Service>) selectObject;
-            if(services.size() == 0){
-                throw new ParamException(String.format("selected service template for %s at %s is empty", opt.getAlias(), domain.getDomainId()));
-            }
             selectObject = selectK8sObjectForApp(K8sKind.INGRESS, opt.getAppName(), opt.getVersion(), opt.getAppType(), opt.getTag(), platform.getTag(), platform.getCcodVersion(), opt.getK8sMacroData(domain, platform));
             if(selectObject == null){
                 throw new ParamException(String.format("can not select ingress template for %s at %s", opt.getAlias(), domain.getDomainId()));
             }
             List<ExtensionsV1beta1Ingress> ingresses = (List<ExtensionsV1beta1Ingress>)selectObject;
+            selectObject = selectK8sObjectForApp(K8sKind.CONFIGMAP, opt.getAppName(), opt.getVersion(), opt.getAppType(), opt.getTag(), platform.getTag(), platform.getCcodVersion(), opt.getK8sMacroData(domain, platform));
+            if(selectObject == null){
+                throw new ParamException(String.format("can not select configMap template for %s at %s", opt.getAlias(), domain.getDomainId()));
+            }
+            List<V1ConfigMap> configMaps = (List<V1ConfigMap>)selectObject;
             List<AppUpdateOperationInfo> optList = new ArrayList<>();
+            List<V1ConfigMap> appConfigs = new ArrayList<>();
+            List<V1Service> appServices = new ArrayList<>();
             List<String> aliases = deployment.getSpec().getTemplate().getSpec().getContainers().stream().map(c->c.getName().replaceAll("\\-runtime$", "")).collect(Collectors.toList());
+            for(String alias : aliases){
+                if(!aliasMap.containsKey(alias)){
+                    throw new ParamException(String.format("%s and %s have been deployed at the same pod, so %s is wanted at opt list",
+                            opt.getAlias(), alias, alias));
+                }
+                AppUpdateOperationInfo dst = aliasMap.get(alias);
+                if(!dst.getOperation().equals(opt.getOperation())){
+                    throw new ParamException(String.format("%s and %s have been deployed at the same pod, so the operation of them must be same",
+                            opt.getAlias(), alias));
+                }
+                if(!isTagMatch(opt.getTag(), dst.getTag())){
+                    throw new ParamException(String.format("%s and %s have been deployed at the same pod, so the appTag of them must be same",
+                            opt.getAlias(), alias));
+                }
+                if(configMaps.size() == 0){
+                    V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, String.format("%s-%s", dst.getAlias(), domainId), dst.getAppName(),
+                            dst.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(nexusHostUrl)).collect(Collectors.toList()),
+                            nexusHostUrl, nexusUserName, nexusPassword);
+                    if(configMap.getMetadata().getLabels() == null){
+                        configMap.getMetadata().setLabels(new HashMap<>());
+                    }
+                    configMap.getMetadata().getLabels().put(domainIdLabel, domainId);
+                    configMap.getMetadata().getLabels().put(aliasMap.get(alias).getAppName(), alias);
+                    appConfigs.add(configMap);
+                }
+                else{
+                    configMaps = configMaps.stream().map(c->{
+                        if(c.getMetadata().getLabels() == null){
+                            c.getMetadata().setLabels(new HashMap<>());
+                        }
+                        c.getMetadata().getLabels().put(domainIdLabel, domainId);
+                        c.getMetadata().getLabels().put(dst.getAppName(), dst.getAlias());
+                        return c;
+                    }).collect(Collectors.toList());
+                }
+                if(services.size() == 0){
+                    V1Service service = this.generateCCODDomainAppService(dst, ServicePortType.ClusterIP, dst.getPorts(), domain, platform);
+                    appServices.add(service);
+                    if(StringUtils.isNotBlank(dst.getNodePorts())) {
+                        service = this.generateCCODDomainAppService(dst, ServicePortType.NodePort, dst.getNodePorts(), domain, platform);
+                        appServices.add(service);
+                    }
+                }
+                else{
+                    services = services.stream().map(s->{
+                        if(s.getMetadata().getLabels() == null){
+                            s.getMetadata().setLabels(new HashMap<>());
+                        }
+                        s.getMetadata().getLabels().put(domainIdLabel, domainId);
+                        s.getMetadata().getLabels().put(dst.getAppName(), dst.getAlias());
+                        return s;
+                    }).collect(Collectors.toList());
+                }
+                handleMap.put(alias, deployments.get(0));
+                optList.add(dst);
+            }
             if(aliases.size() == 1){
                 generateMountAndCmdForSingleDeployment(deployment, opt, domain, platform);
-                optList.add(opt);
-                handleMap.put(opt.getAlias(), deployments.get(0));
             }
-            else{
-                for(String alias : aliases){
-                    if(!aliasMap.containsKey(alias)){
-                        throw new ParamException(String.format("%s and %s have been deployed at the same pod, so %s is wanted at opt list",
-                                opt.getAlias(), alias, alias));
-                    }
-                    AppUpdateOperationInfo dst = aliasMap.get(alias);
-                    if(!dst.getOperation().equals(opt.getOperation())){
-                        throw new ParamException(String.format("%s and %s have been deployed at the same pod, so the operation of them must be same",
-                                opt.getAlias(), alias));
-                    }
-                    if(!isTagMatch(opt.getTag(), dst.getTag())){
-                        throw new ParamException(String.format("%s and %s have been deployed at the same pod, so the appTag of them must be same",
-                                opt.getAlias(), alias));
-                    }
-                    handleMap.put(alias, deployments.get(0));
-                    optList.add(dst);
-                }
-            }
-            K8sAppCollection collection = new K8sAppCollection(optList, domain, platform, deployment, services, ingresses, opt.getTimeout());
+            AppModuleVo module = appManagerService.queryAppByVersion(opt.getAppName(), opt.getVersion(), true);
+            Integer timeout = opt.getTimeout() == null ? module.getTimeout() : opt.getTimeout();
+            if(timeout == null)
+                timeout = 0;
+            K8sAppCollection collection = new K8sAppCollection(optList, domain, platform, deployment, services.size()==0 ? appServices:services, ingresses,
+                    configMaps.size()==0 ? appConfigs:configMaps, timeout);
             list.add(collection);
         }
         return list;
@@ -2188,6 +2238,11 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             default:
                 throw new ParamException(String.format("unsupported operation %s for k8sAppCollection", collection.getOperation().name));
         }
+        collection.getConfigMaps().forEach(c->{
+            K8sOperationInfo step = new K8sOperationInfo(jobId, collection.getPlatform().getPlatformId(), collection.getDomain().getDomainId(),
+                    K8sKind.CONFIGMAP, c.getMetadata().getName(), operation, c, collection.getTimeout());
+            steps.add(step);
+        });
         collection.getServices().forEach(s->{
             K8sOperationInfo step = new K8sOperationInfo(jobId, collection.getPlatform().getPlatformId(), collection.getDomain().getDomainId(),
                     K8sKind.SERVICE, s.getMetadata().getName(), operation, s, collection.getTimeout());
@@ -2199,7 +2254,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             steps.add(step);
         });
         steps.add( new K8sOperationInfo(jobId, collection.getPlatform().getPlatformId(), collection.getDomain().getDomainId(),
-                K8sKind.INGRESS, collection.getDeployment().getMetadata().getName(), operation, collection.getDeployment(), collection.getTimeout()));
+                K8sKind.DEPLOYMENT, collection.getDeployment().getMetadata().getName(), operation, collection.getDeployment(), collection.getTimeout()));
         return steps;
     }
 
@@ -2522,7 +2577,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     @Override
     public List<K8sOperationInfo> generateDomainDeploySteps(
             String jobId, PlatformPo platformPo, DomainUpdatePlanInfo plan, List<PlatformAppDeployDetailVo> domainApps,
-            boolean isNewPlatform, V1Deployment glsserver) throws ApiException, InterfaceCallException, IOException, ParamException
+            boolean isNewPlatform) throws ApiException, InterfaceCallException, IOException, ParamException
     {
         String domainId = plan.getDomainId();
         DomainPo domain = plan.getDomain(platformPo.getPlatformId());
@@ -2551,15 +2606,25 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         List<K8sAppCollection> collections = generateK8sAppCollections(plan.getApps(), domain, platformPo);
         for(K8sAppCollection collection : collections){
             List<K8sOperationInfo> appSteps = generateDeployStepFromCollection(jobId, collection);
-            if(collection.getAppName().equals("UCDServer")){
-                String glsDomId = glsserver.getMetadata().getLabels().get(domainIdLabel);
-                glsserver = gson.fromJson(gson.toJson(glsserver), V1Deployment.class);
-                glsserver.getMetadata().getLabels().put("restart-reason", String.format("%s-deployment-created", collection.getName()));
-                K8sOperationInfo info = new K8sOperationInfo(jobId, platformId, glsDomId, K8sKind.DEPLOYMENT, glsserver.getMetadata().getName(), K8sOperation.REPLACE, glsserver);
-                info.setTimeout(60);
-                steps.add(info);
-            }
             steps.addAll(appSteps);
+            if(collection.getAppName().equals("UCDServer")){
+                String glsDomId = collection.getDomain().getDomainId();
+                List<V1Deployment> glsList;
+                if(isNewPlatform){
+                    glsList = collections.stream().filter(c->c.getAppName().equals("glsServer")).map(c->c.getDeployment()).collect(Collectors.toList());
+                }
+                else{
+                    Map<String, String> selector = new HashMap<>();
+                    selector.put("glsServer", "glsserver");
+                    glsList = ik8sApiService.selectNamespacedDeployment(platformId, selector, k8sApiUrl, k8sAuthToken);
+                }
+                glsList.forEach(d->{
+                    K8sOperationInfo info = new K8sOperationInfo(jobId, platformId, glsDomId, K8sKind.DEPLOYMENT, d.getMetadata().getName(), K8sOperation.REPLACE, d);
+                    info.setTimeout(60);
+                    steps.add(info);
+                });
+            }
+
         }
         steps.forEach(s->s.setKernal(false));
         logger.info(String.format("deploy %s %d apps need %d steps", domainId, plan.getApps().size(), steps.size()));
