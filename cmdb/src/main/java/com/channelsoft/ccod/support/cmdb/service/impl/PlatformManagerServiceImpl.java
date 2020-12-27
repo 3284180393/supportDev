@@ -2138,22 +2138,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         schema.getDomains().stream()
                 .forEach(plan -> plan.getApps().stream().forEach(opt->opt.setDomainId(plan.getDomainId())));
-        V1Deployment deployGls = null;
         Map<String, List<AppUpdateOperationInfo>> optMap = plans.stream()
                 .flatMap(plan->plan.getApps().stream()).collect(Collectors.toList())
                 .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
-        List<AppUpdateOperationInfo> glsOpts = optMap.get("glsServer");
-        boolean hasUCDS = optMap.containsKey("UCDServer");
-        if(glsOpts != null && glsOpts.size() > 1)
-            throw new ParamException(String.format("operation of glsServer multi define"));
-        List<PlatformAppDeployDetailVo> deployedGlsList = platformDeployApps.stream().collect(Collectors.groupingBy(d->d.getAppName())).get("glsServer");
-        if(deployedGlsList != null && deployedGlsList.size() > 1){
-            throw new ParamException(String.format("glsserver of %s has been multi deployed", platformId));
-        }
         if(isNewPlatform) {
-            if(hasUCDS && glsOpts == null){
-                throw new ParamException(String.format("new platform %s has not glsServer", platformId));
-            }
             List<CCODThreePartAppPo> threePartApps = ccodThreePartAppMapper.select(schema.getCcodVersion(), null, null);
             String nfsServerIp = StringUtils.isBlank(schema.getNfsServerIp()) ? schema.getK8sHostIp() : schema.getNfsServerIp();
             List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), new ArrayList<>(),
@@ -2162,30 +2150,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), new ArrayList<>(),
                     null, null, threePartApps, schema.getThreePartServices(), nfsServerIp, platformPo);
             steps.addAll(platformCreateSteps);
-            generateYamlForDeploy(schema, steps);
-        }
-        else {
-            if(deployedGlsList != null && glsOpts != null && glsOpts.get(0).getOperation().equals(AppUpdateOperation.ADD)){
-                throw new ParamException(String.format("exist platform %s has a glsServer, can not be add new one", platformId));
-            }
-            if(hasUCDS){
-                if(deployedGlsList == null){
-                    throw new ParamException(String.format("exist platform %s has not glsServer", platformId));
-                }
-                else{
-                    Map<String, String> selector = new HashMap<>();
-                    selector.put("glsServer", deployedGlsList.get(0).getAlias());
-                    selector.put(domainIdLabel, deployedGlsList.get(0).getDomainId());
-                    List<V1Deployment> deploys = k8sApiService.selectNamespacedDeployment(platformId, selector, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
-                    if(deploys.size() == 0){
-                        throw new ParamException(String.format("not find glsServer deployment at exist platform %s", platformId));
-                    }
-                    else if(deploys.size() > 1){
-                        throw new ParamException(String.format("find %d glsServer deployment at exist platform %s", deploys.size(), platformId));
-                    }
-                    deployGls = deploys.get(0);
-                }
-            }
+//            generateYamlForDeploy(schema, steps);
         }
         Map<String, List<PlatformAppDeployDetailVo>> domainAppMap = platformDeployApps.stream()
                 .collect(Collectors.groupingBy(PlatformAppDeployDetailVo::getDomainId));
@@ -2199,13 +2164,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             plan.setApps(plan.getApps().stream().sorted(appSort).collect(Collectors.toList()));
             List<K8sOperationInfo> deploySteps = k8sTemplateService.generateDomainDeploySteps(jobId, platformPo, plan, domainApps, isNewPlatform);
             steps.addAll(deploySteps);
-            if(isNewPlatform && hasUCDS){
-                List<K8sOperationInfo> opts = steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT) && s.getOperation().equals(K8sOperation.CREATE) && s.getName().matches("^glsserver\\-.+"))
-                        .collect(Collectors.toList());
-                if(opts.size() > 0){
-                    deployGls = (V1Deployment)opts.get(0).getObj();
-                }
-            }
         }
         return steps;
     }
