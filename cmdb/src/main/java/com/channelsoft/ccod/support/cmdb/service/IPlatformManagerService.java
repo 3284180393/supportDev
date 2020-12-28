@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
+import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformDeployStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
@@ -272,6 +273,14 @@ public interface IPlatformManagerService {
      * @return 部署状态
      */
     PlatformDeployStatus getLastPlatformDeployTaskStatus();
+
+    /**
+     * 根据域id获取域归属的set信息
+     * @param domainId 域id
+     * @return 归属的set信息
+     * @throws ParamException
+     */
+    BizSetDefine getBizSetForDomainId(String domainId) throws ParamException;
 
     /**
      * 查询指定应用模块的配置文件

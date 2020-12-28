@@ -57,10 +57,13 @@ ccod:
       name: umg
     apps[1]:
       name: freeswitch
+      alias: sgw
     apps[2]:
       name: ssr
     apps[3]:
       name: slee
+    apps[4]:
+      name: fpsvr
   set[2]:
     name: 域服务
     id: domainService
@@ -106,21 +109,19 @@ ccod:
     apps[10]:
       name: EAService
     apps[11]:
-      name: fpsvr
-    apps[12]:
       name: psr
-    apps[13]:
+    apps[12]:
       name: slee
-    apps[14]:
+    apps[13]:
       name: StatSchedule
       alias: ss
-    apps[15]:
-      name: UCGateway
-    apps[16]:
+    apps[14]:
       name: AppGateWay
-    apps[17]:
+    apps[15]:
       name: DialEngine
-    apps[18]:
+    apps[16]:
+      name: UCGateway
+    apps[17]:
       name: MonitorProxy
   set[3]:
     name: 运营门户

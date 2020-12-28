@@ -17,7 +17,7 @@
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
     </resultMap>
     <sql id="Base_Column_List" >
-        dm.domain_id, dm.domain_name, dm.type, dm.platform_id, dm.create_time, dm.update_time, dm.`status`, dm.`comment`, dm.biz_set_name, dm.occurs, dm.max_occurs, dm.tag
+        dm.domain_id, dm.domain_name, dm.type, dm.platform_id, dm.create_time, dm.update_time, dm.`status`, dm.`comment`, dm.biz_set_name, dm.occurs, dm.max_occurs, dm.tags
     </sql>
     <select id="selectByPrimaryKey" resultMap="DomainMap" parameterType="java.lang.String">
         select
@@ -55,7 +55,7 @@
         biz_set_name,
         occurs,
         max_occurs,
-        tag,
+        tags,
         cfgs)
         values (
             #{domainId,jdbcType=VARCHAR},

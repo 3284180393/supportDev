@@ -362,9 +362,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            runtime.exec(command);
 //            logger.warn("write msg to sysLog success");
 //            updateK8sTemplate();
-            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
-            logger.error(gson.toJson(schema));
-            updatePlatformUpdateSchema(schema);
+//            PlatformUpdateSchemaInfo schema = restoreExistK8sPlatform("pahjgs");
+//            logger.error(gson.toJson(schema));
+//            updatePlatformUpdateSchema(schema);
 //            PlatformCreateParamVo paramVo = new PlatformCreateParamVo();
 //            paramVo.setParams("pahjgs");
 //            paramVo.setNfsServerIp("10.130.41.218");
@@ -3458,13 +3458,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return replace;
     }
 
-    /**
-     * 根据域id获得域所在的业务集群
-     *
-     * @param domainId 域id
-     * @return 域所在的业务集群
-     */
-    private BizSetDefine getBizSetForDomainId(String domainId) throws ParamException {
+    @Override
+    public BizSetDefine getBizSetForDomainId(String domainId) throws ParamException {
         logger.debug(String.format("to find bisSet for domainId %s", domainId));
         BizSetDefine setDefine = null;
         for (BizSetDefine set : this.ccodBiz.getSet()) {
@@ -3479,6 +3474,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         logger.debug(String.format("bizSet for domainId %s found", domainId));
         return setDefine;
     }
+
+    /**
+     * 根据域id获得域所在的业务集群
+     *
+     * @param domainId 域id
+     * @return 域所在的业务集群
+     */
+
 
     private AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException {
         Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(true)

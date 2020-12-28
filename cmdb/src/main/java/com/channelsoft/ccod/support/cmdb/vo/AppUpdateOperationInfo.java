@@ -182,7 +182,7 @@ public class AppUpdateOperationInfo extends AppBase {
 
     public PlatformAppPo getPlatformApp(int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId)
     {
-        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner, tag);
+        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, fixedIp,appRunner, tag);
         return po;
     }
 

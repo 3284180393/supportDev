@@ -1385,6 +1385,30 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
+    public boolean isRegisteredCCODAppImage(String imageUrl) {
+        logger.debug(String.format("check image %s is ccod app", imageUrl));
+        String[] arr = imageUrl.replaceAll(".*/", "").split(":");
+        if(arr.length != 2)
+            return false;
+        this.appReadLock.readLock().lock();
+        try{
+            for(String appName : this.registerAppMap.keySet())
+            {
+                if(appName.toLowerCase().equals(arr[0])){
+                    AppModuleVo module = this.registerAppMap.get(appName).stream()
+                            .collect(Collectors.toMap(a->a.getVersion(), v->v)).get(arr[1].replaceAll("\\-", ":"));
+                    if(module != null)
+                        return true;
+                }
+            }
+        }
+        finally {
+            this.appReadLock.readLock().unlock();
+        }
+        return false;
+    }
+
+    @Override
     public AppModuleVo getRegisteredCCODAppFromImageUrl(String imageUrl) throws ParamException{
         logger.debug(String.format("get ccod module register info from %s", imageUrl));
         String[] arr = imageUrl.replaceAll(".*/", "").split(":");

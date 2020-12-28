@@ -10,6 +10,7 @@
         <result column="domain_id" property="domainId" jdbcType="VARCHAR" />
         <result column="assemble_id" property="assembleId" jdbcType="INTEGER" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="fixed_ip" property="fixedIp" jdbcType="BOOLEAN" />
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="base_path" property="basePath" jdbcType="VARCHAR" />
         <result column="deploy_path" property="deployPath" jdbcType="VARCHAR" />
@@ -36,6 +37,7 @@
 	        pa.domain_id AS domain_id,
 	        pa.assemble_id AS assemble_id,
 	        pa.host_ip AS host_ip,
+	        pa.fixed_ip AS fixed_ip,
 	        pa.app_runner AS app_runner,
 	        pa.base_path AS base_path,
 	        pa.deploy_path AS deploy_path,
@@ -98,6 +100,7 @@
                 domain_id,
                 assemble_id,
                 host_ip,
+                fixed_ip,
                 app_runner,
                 base_path,
                 deploy_path,
@@ -122,6 +125,7 @@
                 #{domainId,jdbcType=VARCHAR},
                 #{assembleId,jdbcType=INTEGER},
                 #{hostIp,jdbcType=VARCHAR},
+                #{fixedIp,jdbcType=BOOLEAN},
                 #{appRunner,jdbcType=VARCHAR},
                 #{basePath,jdbcType=VARCHAR},
                 #{deployPath,jdbcType=VARCHAR},
@@ -160,6 +164,8 @@
     <update id="update" parameterType="com.channelsoft.ccod.support.cmdb.po.PlatformAppPo" >
         update platform_app set
             app_id = #{appId,jdbcType=INTEGER},
+            host_ip = #{hostIp,jdbcType=VARCHAR},
+            fixed_ip = #{fixedIp,jdbcType=BOOLEAN},
             base_path = #{basePath,jdbcType=VARCHAR},
             deploy_path = #{deployPath,jdbcType=VARCHAR},
             env_load_cmd = #{envLoadCmd,jdbcType=VARCHAR},

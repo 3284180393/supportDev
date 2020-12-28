@@ -17,6 +17,7 @@
         <result column="original_alias" property="originalAlias" jdbcType="VARCHAR" />
         <result column="app_type" property="appType" jdbcType="VARCHAR" />
         <result column="host_ip" property="hostIp" jdbcType="VARCHAR" />
+        <result column="fixed_ip" property="fixedIp" jdbcType="BOOLEAN" />
         <result column="app_runner" property="appRunner" jdbcType="VARCHAR" />
         <result column="ccod_version" property="ccodVersion" jdbcType="VARCHAR" />
         <result column="deploy_time" property="deployTime" jdbcType="TIMESTAMP" />
@@ -60,6 +61,7 @@
 	    pa.original_alias AS original_alias,
 	    a.app_type,
 	    pa.host_ip AS host_ip,
+	    pa.fixed_ip AS fixed_ip,
 	    a.version,
 	    pa.app_runner AS app_runner,
 	    a.ccod_version,

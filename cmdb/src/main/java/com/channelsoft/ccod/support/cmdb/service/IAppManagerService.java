@@ -209,6 +209,13 @@ public interface IAppManagerService {
     AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException;
 
     /**
+     * 指定镜像是不是ccod模块镜像
+     * @param imageUrl 指定镜像
+     * @return 是或是不是
+     */
+    boolean isRegisteredCCODAppImage(String imageUrl);
+
+    /**
      * 从imageUrl获取该镜像对应的ccod模块注册信息
      * @param imageUrl 镜像url
      * @return 模块注册信息

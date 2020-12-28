@@ -31,6 +31,8 @@ public class PlatformAppPo extends AppBase{
 
     protected String hostIp; //应用所在服务器的主机ip
 
+    protected boolean fixedIp; //ip是否固定
+
     protected String appRunner; //应用运行用户
 
     protected Date deployTime; //该应用的部署路径
@@ -40,7 +42,7 @@ public class PlatformAppPo extends AppBase{
     public PlatformAppPo(){}
 
     public PlatformAppPo(AppBase appBase, int appId, List<AppFileNexusInfo> cfgs, String platformId, String domainId, int assembleId, String originalAlias,
-                         String hostIp, String appRunner, String tag)
+                         String hostIp, boolean fixedIp, String appRunner, String tag)
     {
         super(appBase);
         this.cfgs = cfgs;
@@ -50,6 +52,7 @@ public class PlatformAppPo extends AppBase{
         this.originalAlias = originalAlias;
         this.assembleId = assembleId;
         this.hostIp = hostIp;
+        this.fixedIp = fixedIp;
         this.appRunner = appRunner;
         this.deployTime = new Date();
         this.tag = tag;

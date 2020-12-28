@@ -44,6 +44,8 @@ public class PlatformAppDeployDetailVo extends AppBase {
 
     private String hostIp; //服务器ip
 
+    private boolean fixedIp; //ip是否为固定
+
     private Integer replicas; //运行副本数目
 
     private Integer availableReplicas; //可用副本数目
@@ -280,9 +282,17 @@ public class PlatformAppDeployDetailVo extends AppBase {
         this.tag = tag;
     }
 
+    public boolean isFixedIp() {
+        return fixedIp;
+    }
+
+    public void setFixedIp(boolean fixedIp) {
+        this.fixedIp = fixedIp;
+    }
+
     public PlatformAppPo getPlatformApp()
     {
-        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp, appRunner, tag);
+        PlatformAppPo po = new PlatformAppPo(this, appId, cfgs, platformId, domainId, assembleId, originalAlias, hostIp,  fixedIp, appRunner, tag);
         po.setPlatformAppId(this.platformAppId);
         return po;
     }
