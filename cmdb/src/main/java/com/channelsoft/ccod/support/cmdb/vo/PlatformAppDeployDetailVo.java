@@ -302,10 +302,12 @@ public class PlatformAppDeployDetailVo extends AppBase {
         AppUpdateOperationInfo optInfo = new AppUpdateOperationInfo(this);
         optInfo.setDomainId(this.domainId);
         optInfo.setAssembleTag(this.getAssembleTag());
+        optInfo.setFixedIp(fixedIp);
         optInfo.setHostIp(this.hostIp);
         optInfo.setCfgs(this.getCfgs().stream().map(cfg->cfg.getAppFileNexusInfo()).collect(Collectors.toList()));
         optInfo.setAppRunner(this.appRunner);
         optInfo.setDomainName(this.domainName);
+        optInfo.setTag(tag);
         optInfo.setOperation(operation);
         optInfo.setOriginalVersion(this.originalAlias);
         optInfo.setOriginalAlias(this.originalAlias);

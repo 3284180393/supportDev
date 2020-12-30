@@ -178,8 +178,9 @@
             resources = #{resources,jdbcType=VARCHAR},
             initial_delay_seconds = #{initialDelaySeconds,jdbcType=INTEGER},
             period_seconds = #{periodSeconds,jdbcType=INTEGER},
-            cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler}
+            cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler},
+            tag = #{tag,jdbcType=VARCHAR},
             ports = #{ports,jdbcType=VARCHAR}
-        where platform_app_id = #{platformAppId,jdbcType=VARCHAR},
+        where platform_app_id = #{platformAppId,jdbcType=INTEGER}
     </update>
 </mapper>

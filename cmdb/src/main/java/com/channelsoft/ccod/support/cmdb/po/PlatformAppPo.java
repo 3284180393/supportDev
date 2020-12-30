@@ -58,12 +58,13 @@ public class PlatformAppPo extends AppBase{
         this.tag = tag;
     }
 
-    public void update(AppBase appBase, int appId, List<AppFileNexusInfo> cfgs, String hostIp, String tag)
+    public void update(AppUpdateOperationInfo appBase, int appId, List<AppFileNexusInfo> cfgs, String hostIp, String tag)
     {
         changeTo(appBase);
         this.cfgs = cfgs;
         this.appId = appId;
         this.hostIp = hostIp;
+        this.fixedIp = appBase.isFixedIp();
         this.tag = tag;
     }
 
