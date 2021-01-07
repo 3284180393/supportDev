@@ -11,8 +11,6 @@
         <result column="version" property="version" jdbcType="VARCHAR" />
         <result column="params" property="params" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" javaType="java.util.Map" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler"/>
-        <result column="volume" property="volume" jdbcType="VARCHAR" />
-        <result column="mount_sub_path" property="mountSubPath" jdbcType="VARCHAR" />
         <result column="timeout" property="timeout" jdbcType="INTEGER" />
     </resultMap>
     <sql id="Base_Column_List" >
@@ -25,8 +23,6 @@
         kind,
         params,
         cfgs,
-        volume,
-        mount_sub_path,
         timeout
     </sql>
     <select id="select" resultMap="CCODThreePartAppMap" >
@@ -54,8 +50,6 @@
             kind,
             params,
             cfgs,
-            volume,
-            mount_sub_path,
             timeout)
         values (
             #{ccodVersion,jdbcType=VARCHAR},
@@ -66,8 +60,6 @@
             #{kind,jdbcType=VARCHAR},
             #{params,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
             #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonMapTypeHandler},
-            #{volume,jdbcType=VARCHAR},
-            #{mountSubPath,jdbcType=VARCHAR},
             #{timeout,jdbcType=INTEGER})
     </insert>
     <delete id="delete" parameterType="java.lang.String">

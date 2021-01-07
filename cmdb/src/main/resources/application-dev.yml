@@ -301,12 +301,16 @@ ccod:
     fixedDomainId: backend
     apps[0]:
       name: bic-process
+      alias: process
     apps[1]:
       name: bic-portal
+      alias: portal
     apps[2]:
       name: cbs-cbs
+      alias: cbs
     apps[3]:
       name: cbs-ccs
+      alias: ccs
   startChains:
     chains[0]:
       name: glsServer

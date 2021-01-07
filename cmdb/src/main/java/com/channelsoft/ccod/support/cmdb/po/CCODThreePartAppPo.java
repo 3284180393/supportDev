@@ -31,10 +31,6 @@ public class CCODThreePartAppPo {
 
     private Map<String, String> params; //特定参数
 
-    private String volume; //数据卷名
-
-    private String mountSubPath; //挂载子目录
-
     private int timeout;  //deployment启动超时时长
 
     private Map<String, String> cfgs; //相关配置
@@ -48,6 +44,7 @@ public class CCODThreePartAppPo {
         this.tag = StringUtils.isBlank(tag) ? "standard" : tag;
         this.appName = appName;
         this.alias = alias;
+        this.kind = K8sKind.POD;
     }
 
     public int getId() {
@@ -104,22 +101,6 @@ public class CCODThreePartAppPo {
 
     public void setParams(Map<String, String> params) {
         this.params = params;
-    }
-
-    public String getVolume() {
-        return volume;
-    }
-
-    public void setVolume(String volume) {
-        this.volume = volume;
-    }
-
-    public String getMountSubPath() {
-        return mountSubPath;
-    }
-
-    public void setMountSubPath(String mountSubPath) {
-        this.mountSubPath = mountSubPath;
     }
 
     public int getTimeout() {

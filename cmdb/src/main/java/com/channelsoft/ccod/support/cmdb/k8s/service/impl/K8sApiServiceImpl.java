@@ -15,10 +15,7 @@ import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
-import io.kubernetes.client.openapi.apis.AppsV1Api;
-import io.kubernetes.client.openapi.apis.BatchV1Api;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.apis.ExtensionsV1beta1Api;
+import io.kubernetes.client.openapi.apis.*;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.util.ClientBuilder;
@@ -431,23 +428,54 @@ public class K8sApiServiceImpl implements IK8sApiService {
         return status;
     }
 
-    V1ConfigMap createConfigMapFromFile(String namespace, String configMapName, String fileSavePath, String k8sApiUrl, String authToken) throws ApiException, IOException
-    {
-        BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(new File(fileSavePath)),
-                "UTF-8"));
-        String lineTxt = null;
-        String context = "";
-        while ((lineTxt = br.readLine()) != null)
-        {
-            context += lineTxt + "\n";
-        }
-        br.close();
+    @Override
+    public List<V1beta1StorageClass> listStorageClass(String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list StorageClass from %s", k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
-        V1ObjectMeta meta = new V1ObjectMeta();
-        meta.setName(configMapName);
-        CoreV1Api apiInstance = new CoreV1Api();
-        V1ConfigMap body = new V1ConfigMap();
-        return body;
+        StorageV1beta1Api apiInstance = new StorageV1beta1Api();
+        V1beta1StorageClassList list = apiInstance.listStorageClass(null, null, null, null, null, null, null, null, null);
+        logger.info(String.format("find %d StorageClass %s from %s", list.getItems().size(), gson.toJson(list.getItems()), k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1beta1StorageClass readStorageClass(String name, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read StorageClass %s  from %s", name, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        StorageV1beta1Api apiInstance = new StorageV1beta1Api();
+        V1beta1StorageClass volume = apiInstance.readStorageClass(name, null, null, null);
+        logger.debug(String.format("find StorageClass %s from %s", gson.toJson(volume), k8sApiUrl));
+        return volume;
+    }
+
+    @Override
+    public V1beta1StorageClass createStorageClass(V1beta1StorageClass StorageClass, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create StorageClass %s from %s", gson.toJson(StorageClass), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        StorageV1beta1Api apiInstance = new StorageV1beta1Api();
+        V1beta1StorageClass create = apiInstance.createStorageClass(StorageClass, null, null, null);
+        logger.info(String.format("create StorageClass %s SUCCESS from %s", gson.toJson(create), k8sApiUrl));
+        return create;
+    }
+
+    @Override
+    public V1beta1StorageClass replaceStorageClass(String name, V1beta1StorageClass StorageClass, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("replace StorageClass %s to %s from %s", name, gson.toJson(StorageClass), k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        StorageV1beta1Api apiInstance = new StorageV1beta1Api();
+        V1beta1StorageClass replace = apiInstance.replaceStorageClass(name, StorageClass, null, null, null);
+        logger.info(String.format("%s StorageClass has been replaced by %s from %s", name, gson.toJson(replace), k8sApiUrl));
+        return replace;
+    }
+
+    @Override
+    public V1Status deleteStorageClass(String name, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete StorageClass %s from %s", name, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        StorageV1beta1Api apiInstance = new StorageV1beta1Api();
+        V1Status status = apiInstance.deleteStorageClass(name, null, null, null, null, null, null);
+        logger.info(String.format("StorageClass %s has been delete %s from %s", name, gson.toJson(status), k8sApiUrl));
+        return status;
     }
 
     @Override
@@ -505,6 +533,19 @@ public class K8sApiServiceImpl implements IK8sApiService {
         CoreV1Api apiInstance = new CoreV1Api();
         apiInstance.deleteNamespacedConfigMap(name, namespace, null, null, null, null, null, null);
         logger.debug(String.format("delete success"));
+    }
+
+    @Override
+    public List<V1ConfigMap> selectNamespacedConfig(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
+        String labelSelector = null;
+        if(selector != null && selector.size() > 0)
+            labelSelector = String.join(",", selector.keySet().stream().map(key->String.format("%s=%s", key, selector.get(key))).collect(Collectors.toList()));
+        logger.debug(String.format("select configMap at %s from %s for labelSelector=%s", namespace, k8sApiUrl, labelSelector));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        List<V1ConfigMap> list = apiInstance.listNamespacedConfigMap(namespace, null, null, null, null, labelSelector, null, null, null, null).getItems();
+        logger.info(String.format("select %d configMap at %s for labelSelector=%s", list.size(), namespace, labelSelector));
+        return list;
     }
 
     @Override
@@ -611,6 +652,103 @@ public class K8sApiServiceImpl implements IK8sApiService {
         AppsV1Api appsV1Api = new AppsV1Api();
         List<V1Deployment> list = appsV1Api.listNamespacedDeployment(namespace, null, null, null, null, labelSelector, null, null, null, null).getItems();
         logger.info(String.format("select %d deployment at %s for labelSelector=%s", list.size(), namespace, labelSelector));
+        return list;
+    }
+
+    @Override
+    public List<V1StatefulSet> listNamespacedStatefulSet(String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("list statefulSet at %s from %s", namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api appsV1Api = new AppsV1Api();
+        V1StatefulSetList list = appsV1Api.listNamespacedStatefulSet(namespace, null, null, null, null, null, null, null, null, null);
+        logger.info(String.format("find %d statefulSet %s at %s from %s", list.getItems().size(), gson.toJson(list.getItems()), namespace, k8sApiUrl));
+        return list.getItems();
+    }
+
+    @Override
+    public V1StatefulSet readNamespacedStatefulSet(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read statefulSet %s from %s at %s", name, k8sApiUrl, namespace));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api appsV1Api = new AppsV1Api();
+        V1StatefulSet statefulSet = appsV1Api.readNamespacedStatefulSet(name, namespace, null, null, null);
+        logger.debug(String.format("find statefulSet %s from %s", gson.toJson(statefulSet), k8sApiUrl));
+        return statefulSet;
+    }
+
+    @Override
+    public K8sStatus readNamespacedStatefulSetStatus(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read deployment status %s from %s at %s", name, k8sApiUrl, namespace));
+        V1StatefulSet statefulSet = readNamespacedStatefulSet(name, namespace, k8sApiUrl, authToken);
+        K8sStatus status = getStatusFromStatefulSet(statefulSet);
+        logger.info(String.format("status of statefulSet %s is %s", name, status.name));
+        return status;
+    }
+
+    @Override
+    public K8sStatus getStatusFromStatefulSet(V1StatefulSet statefulSet) {
+        K8sStatus status = K8sStatus.UPDATING;
+        if( statefulSet.getStatus().getReplicas() != null && statefulSet.getStatus().getCurrentReplicas() != null && statefulSet.getStatus().getReplicas() == statefulSet.getStatus().getCurrentReplicas())
+            status = K8sStatus.ACTIVE;
+        else{
+            Map<String, String> statusMap = statefulSet.getStatus().getConditions().stream().collect(Collectors.toMap(c->c.getType(), v->v.getStatus()));
+            if(statusMap.containsKey("Progressing") && statusMap.get("Progressing").equals("False") && statusMap.containsKey("Available") && statusMap.get("Available").equals("False"))
+                status = K8sStatus.ERROR;
+        }
+        return status;
+    }
+
+    @Override
+    public V1StatefulSet createNamespacedStatefulSet(String namespace, V1StatefulSet statefulSet, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("create statefulSet %s for %s at %s", gson.toJson(statefulSet), namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1StatefulSet create = apiInstance.createNamespacedStatefulSet(namespace, statefulSet, null, null, null);
+        logger.info(String.format("statefulSet %s created for %s at %s", gson.toJson(create), namespace, k8sApiUrl));
+        return create;
+    }
+
+    @Override
+    public V1Status deleteNamespacedStatefulSet(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("delete statefulSet %s at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1Status status = apiInstance.deleteNamespacedStatefulSet(name, namespace, null, null, null, null, null, null);
+        logger.info(String.format("delete statefulSet %s at %s from %s : %s", name, namespace, k8sApiUrl, gson.toJson(status)));
+        return status;
+    }
+
+    @Override
+    public boolean isNamespacedStatefulSetExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("check statefulSet %s exist at %s from %s", name, namespace, k8sApiUrl));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        String fieldSelector = String.format("metadata.name=%s", name);
+        V1StatefulSetList statefulSetList = apiInstance.listNamespacedStatefulSet(namespace, null, null, null, fieldSelector, null, null, null, null, null);
+        boolean exist = statefulSetList.getItems().size() == 0 ? false : true;
+        logger.info(String.format("statefulSet %s at %s exist : %b", name, namespace, exist));
+        return exist;
+    }
+
+    @Override
+    public V1StatefulSet replaceNamespacedStatefulSet(String name, String namespace, V1StatefulSet statefulSet, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("replace statefulSet %s at %s from %s to %s", name, namespace, k8sApiUrl, gson.toJson(statefulSet)));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api apiInstance = new AppsV1Api();
+        V1StatefulSet replace = apiInstance.replaceNamespacedStatefulSet(name, namespace, statefulSet, null, null, null);
+        logger.info(String.format("replace statefulSet %s at %s from %s to %s SUCCESS", name, namespace, k8sApiUrl, gson.toJson(replace)));
+        return replace;
+    }
+
+    @Override
+    public List<V1StatefulSet> selectNamespacedStatefulSet(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
+        String labelSelector = null;
+        if(selector != null && selector.size() > 0)
+            labelSelector = String.join(",", selector.keySet().stream().map(key->String.format("%s=%s", key, selector.get(key))).collect(Collectors.toList()));
+        logger.debug(String.format("select statefulSet at %s from %s for labelSelector=%s", namespace, k8sApiUrl, labelSelector));
+        getConnection(k8sApiUrl, authToken);
+        AppsV1Api appsV1Api = new AppsV1Api();
+        List<V1StatefulSet> list = appsV1Api.listNamespacedStatefulSet(namespace, null, null, null, null, labelSelector, null, null, null, null).getItems();
+        logger.info(String.format("select %d statefulSet at %s for labelSelector=%s", list.size(), namespace, labelSelector));
         return list;
     }
 
@@ -1120,5 +1258,9 @@ public class K8sApiServiceImpl implements IK8sApiService {
         logger.error(templateParseGson.toJson(service));
         ExtensionsV1beta1Ingress ingress = readNamespacedIngress("dcms-manage01", testPlatformId, testK8sApiUrl, testAuthToken);
         logger.error(templateParseGson.toJson(ingress));
+    }
+
+    private void storageClassTest() throws Exception{
+        V1beta1StorageClass sc = new V1beta1StorageClass();
     }
 }

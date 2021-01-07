@@ -214,14 +214,14 @@ public interface IK8sApiService {
 
     /**
      * 查询指定命名空间下的指定名称的PersistentVolumeClaim
+     * @param name volumeClaim的名称
      * @param namespace 命名空间
-     * @param persistentVolumeClaimName volumeClaim的名称
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
      * @return 指定条件的PersistentVolumeClaim信息
      * @throws ApiException
      */
-    V1PersistentVolumeClaim readNamespacedPersistentVolumeClaim(String namespace, String persistentVolumeClaimName, String k8sApiUrl, String authToken) throws ApiException;
+    V1PersistentVolumeClaim readNamespacedPersistentVolumeClaim(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 为指定命名空间创建PersistentVolumeClaim
@@ -308,6 +308,56 @@ public interface IK8sApiService {
     V1PersistentVolume replacePersistentVolume(String name, V1PersistentVolume persistentVolume, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 查询所有StorageClass
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return k8s服务器上所有的StorageClass
+     * @throws ApiException
+     */
+    List<V1beta1StorageClass> listStorageClass(String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定的StorageClass信息
+     * @param name StorageClassName名
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的StorageClass信息
+     * @throws ApiException 查询失败
+     */
+    V1beta1StorageClass readStorageClass(String name, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 向k8s添加新的 storageClass
+     * @param storageClass 需要添加的StorageClass
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 新创建的StorageClass信息
+     * @throws ApiException 查询失败
+     */
+    V1beta1StorageClass createStorageClass(V1beta1StorageClass storageClass, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 从k8s删除已有的StorageClass
+     * @param name 需要被删除的StorageClass名称
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 删除结果
+     * @throws ApiException 查询失败
+     */
+    V1Status deleteStorageClass(String name, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 替换已有的StorageClass
+     * @param name 需要被替换的storageClass的名称
+     * @param storageClass 用来替换的StorageClass
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 替换后的StorageClass信息
+     * @throws ApiException 查询失败
+     */
+    V1beta1StorageClass replaceStorageClass(String name, V1beta1StorageClass storageClass, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
      * 查询命名空间下的所有ConfigMap
      * @param namespace 指定的命名空间
      * @param k8sApiUrl k8s的api的url
@@ -385,6 +435,17 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     void deleteNamespacedConfigMap(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 选择指定命名空间下满足条件的所有configMap
+     * @param namespace 命名空间
+     * @param selector 选择条件
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 选择结果
+     * @throws ApiException
+     */
+    List<V1ConfigMap> selectNamespacedConfig(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 查询命名空间下的所有Deployment
@@ -491,6 +552,103 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     List<V1Deployment> selectNamespacedDeployment(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询命名空间下的所有StatefulSet
+     * @param namespace 指定的命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定命名空间下的所有StatefulSet
+     * @throws ApiException
+     * @throws ApiException
+     */
+    List<V1StatefulSet> listNamespacedStatefulSet(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定的StatefulSet信息
+     * @param name StatefulSet名
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的StatefulSet信息
+     * @throws ApiException 查询失败
+     */
+    V1StatefulSet readNamespacedStatefulSet(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 查询指定的StatefulSet的状态
+     * @param name StatefulSet名
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定条件的status信息
+     * @throws ApiException 查询失败
+     */
+    K8sStatus readNamespacedStatefulSetStatus(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 从指定的StatefulSet获得StatefulSet的状态
+     * @param statefulSet 指定的StatefulSet
+     * @return StatefulSet状态
+     */
+    K8sStatus getStatusFromStatefulSet(V1StatefulSet statefulSet);
+
+    /**
+     * 在指定的k8s系统里为指定命名空间创建StatefulSet
+     * @param namespace 需要创建StatefulSet的命名空间
+     * @param StatefulSet 需要被创建的StatefulSet
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 创建后的StatefulSet
+     * @throws ApiException
+     */
+    V1StatefulSet createNamespacedStatefulSet(String namespace, V1StatefulSet statefulSet, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 删除命名空间下的指定statefulSet
+     * @param namespace 命名空间
+     * @param name 被删除的StatefulSet名称
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 删除结果
+     * @throws ApiException
+     */
+    V1Status deleteNamespacedStatefulSet(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 指定名称的StatefulSet是否存在
+     * @param name 名称
+     * @param namespace 命名空间
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return true存在，false不存在
+     * @throws ApiException
+     */
+    boolean isNamespacedStatefulSetExist(String name, String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+
+    /**
+     * 替换已有的StatefulSet
+     * @param name 被替换的StatefulSet的name
+     * @param namespace 被替换的StatefulSet所属的命名空间
+     * @param statefulSet 用来替换的StatefulSet
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 替换完成的StatefulSet
+     * @throws ApiException
+     */
+    V1StatefulSet replaceNamespacedStatefulSet(String name, String namespace, V1StatefulSet statefulSet, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 选择指定命名空间下满足条件的所有StatefulSet
+     * @param namespace 命名空间
+     * @param selector 选择条件
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 选择结果
+     * @throws ApiException
+     */
+    List<V1StatefulSet> selectNamespacedStatefulSet(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
      * 查询指定的服务信息

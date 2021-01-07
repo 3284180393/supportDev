@@ -416,31 +416,18 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //        appDebugDetailMapper.delete("test", "domain01", "cmsserver", "cms01");
     }
 
-//    private void initThreePartAppDepend()
-//    {
-//        List<CCODThreePartAppPo> list = new ArrayList<>();
-//        CCODThreePartAppPo appPo = new CCODThreePartAppPo("3.9", null, "mysql", "mysql");
-//        list.add(appPo);
-//        appPo = new CCODThreePartAppPo("3.9", null, "oracle", "oracle");
-//        list.add(appPo);
-//        appPo = new CCODThreePartAppPo("4.1", null, "mysql", "mysql");
-//        list.add(appPo);
-//        appPo = new CCODThreePartAppPo("4.1", null, "oracle", "oracle");
-//        list.add(appPo);
-//        appPo = new CCODThreePartAppPo("4.8", null, "mysql", "mysql");
-//        list.add(appPo);
-//        appPo = new CCODThreePartAppPo("4.8", null, "wgw", "wgw");
-//        list.add(appPo);
-//        appPo = new CCODThreePartAppPo("4.8", null, "sgw", "sgw");
-//        list.add(appPo);
-////        list.forEach(a->ccodThreePartAppMapper.insert(a));
-//        List<CCODThreePartAppPo> results = ccodThreePartAppMapper.select("3.9", "standard", null);
-//        System.out.println(gson.toJson(results));
-//        results = ccodThreePartAppMapper.select("4.1", "standard", null);
-//        System.out.println(gson.toJson(results));
-//        results = ccodThreePartAppMapper.select("4.8", "standard", null);
-//        System.out.println(gson.toJson(results));
-//    }
+    private void initThreePartAppDepend()
+    {
+        List<CCODThreePartAppPo> list = new ArrayList<>();
+        CCODThreePartAppPo appPo = new CCODThreePartAppPo("bic", "standard", "mysql", "mysql");
+        ccodThreePartAppMapper.insert(appPo);
+        appPo = new CCODThreePartAppPo("bic", "standard", "redis", "redis");
+        ccodThreePartAppMapper.insert(appPo);
+        appPo = new CCODThreePartAppPo("bic", "standard", "fastdfs", "fastdfs");
+        ccodThreePartAppMapper.insert(appPo);
+        appPo = new CCODThreePartAppPo("bic", "standard", "filepreview", "preview");
+        ccodThreePartAppMapper.insert(appPo);
+    }
 
     private void updateThreePartApp(){
 //        List<String> versions = Arrays.asList(new String[]{"3.9", "4.1", "4.8"});
@@ -1008,7 +995,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, AssemblePo> assembleMap = domainAssembleList.stream().collect(Collectors.toMap(AssemblePo::getTag, Function.identity()));
         for (AppUpdateOperationInfo optInfo : updateList) {
             PlatformAppPo src = domainAppList.stream()
-                    .collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(optInfo.getAlias()).getPlatformApp();
+                    .collect(Collectors.toMap(PlatformAppDeployDetailVo::getAlias, Function.identity())).get(optInfo.getAlias()).getPlatformApp();
             int appId = registerAppMap.get(optInfo.getAppName()).stream()
                     .collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(optInfo.getVersion()).getAppId();
             String hostIp = StringUtils.isNotBlank(optInfo.getHostIp()) ? optInfo.getHostIp() : src.getHostIp();
