@@ -86,24 +86,6 @@ public interface IK8sTemplateService {
     V1Namespace generateNamespace(String ccodVersion, String platformId, String platformTag) throws ParamException;
 
     /**
-     * 为指定平台生成缺省pv
-     * @param platform 平台信息
-     * @param isBase 该pv是用于platform.platformId还是base-platform.platformId
-     * @return 生成的pv
-     * @throws ParamException
-     */
-    List<V1PersistentVolume> generatePersistentVolume(PlatformPo platform, boolean isBase) throws ParamException;
-
-    /**
-     * 生成指定的平台pvc
-     * @param platform 平台信息
-     * @param isBase 该pvc是用于platform.platformId还是base-platform.platformId
-     * @return 生成的pvc
-     * @throws ParamException
-     */
-    List<V1PersistentVolumeClaim> generatePersistentVolumeClaim(PlatformPo platform, boolean isBase) throws ParamException;
-
-    /**
      * 生成平台初始job
      * @param platform 需要生成初始job的平台
      * @param isBase 该job是运行于base-platform.platformId命名空间还是platform.platformId命名空间
@@ -211,35 +193,21 @@ public interface IK8sTemplateService {
     /**
      * 生成平台创建步骤
      * @param jobId 创建平台的任务id
-     * @param job 创建平台需要预执行的job
-     * @param namespace 创建平台的namespace信息，如果为空将根据现有模板自动创建
-     * @param secrets 平台的相关secret，如果为空将自动创建ssl cert
-     * @param pv 平台使用的pv,如果为空将通过模板自动创建
-     * @param pvc 平台使用的pvc,如果为空将通过模板自动创建
-     * @param threePartApps 平台依赖的第三方应用，如果为空将根据模板自动创建oracle和mysql
-     * @param threePartServices 平台依赖的第三方服务，如果为空将根据模板自动创建umg141,umg147和umg41三个缺省第三方服务
-     * @param nfsServerIp 挂载的nfs的server ip
      * @param platform 需要被创建的平台
+     * @param threePartApps 平台依赖的第三方应用
      * @return 平台创建所需执行的步骤
      * @throws ApiException
      * @throws ParamException
      * @throws IOException
      * @throws InterfaceCallException
      */
-    List<K8sOperationInfo> generatePlatformCreateSteps(String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<CCODThreePartAppPo> threePartApps, List<K8sThreePartServiceVo> threePartServices, String nfsServerIp, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException;
+    List<K8sOperationInfo> generatePlatformCreateSteps(String jobId, PlatformPo platform, List<CCODThreePartAppPo> threePartApps) throws ApiException, ParamException, IOException, InterfaceCallException;
 
     /**
      * 生成只运行第三方应用的基础平台创建步骤
      * @param jobId 创建平台的任务id
-     * @param job 创建平台需要预执行的job
-     * @param namespace 创建平台的namespace信息，如果为空将根据现有模板自动创建
-     * @param secrets 平台的相关secret，如果为空将自动创建ssl cert
-     * @param pv 平台使用的pv,如果为空将通过模板自动创建
-     * @param pvc 平台使用的pvc,如果为空将通过模板自动创建
-     * @param threePartApps 平台依赖的第三方应用，如果为空将根据模板自动创建oracle和mysql
-     * @param nfsServerIp 挂载的nfs的server ip
-     * @param baseNamespaceId 基础平台id
      * @param platform 需要被创建的平台
+     * @param threePartApps 平台依赖的第三方应用
      * @return 平台创建所需执行的步骤
      * @throws ApiException
      * @throws ParamException
@@ -247,9 +215,7 @@ public interface IK8sTemplateService {
      * @throws InterfaceCallException
      */
     List<K8sOperationInfo> generateBasePlatformCreateSteps(
-            String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
-            V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<CCODThreePartAppPo> threePartApps,
-            String nfsServerIp, String baseNamespaceId, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException;
+            String jobId, PlatformPo platform, List<CCODThreePartAppPo> threePartApps) throws ApiException, ParamException, IOException, InterfaceCallException;
 
 
     List<K8sOperationInfo> generateDomainDeploySteps(

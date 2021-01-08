@@ -1068,13 +1068,13 @@ public class K8sApiServiceImpl implements IK8sApiService {
     {
         try
         {
-            String fileName = "hahaha.tar.gz";
-            System.out.println(fileName.split("\\.")[0]);
-            fileName = "hahaha.tar";
-            System.out.println(fileName.split("\\.")[0]);
-            String path = "/root/Platform/bin";
-            String logPath = path.replaceAll("/[^/]+$", "/logs");
-            System.out.println(logPath);
+//            String fileName = "hahaha.tar.gz";
+//            System.out.println(fileName.split("\\.")[0]);
+//            fileName = "hahaha.tar";
+//            System.out.println(fileName.split("\\.")[0]);
+//            String path = "/root/Platform/bin";
+//            String logPath = path.replaceAll("/[^/]+$", "/logs");
+//            System.out.println(logPath);
 //            deployReplaceTest();
 //            namespaceCreateTest();
 //            createDeploymentTest();
@@ -1085,7 +1085,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
 //            createEndpointsTest();
 //            getTemplateJsonTest();
 //            deploySelectTest();
-            strTest();
+//            strTest();
+            secretTest();
         }
         catch (Exception ex)
         {
@@ -1107,6 +1108,15 @@ public class K8sApiServiceImpl implements IK8sApiService {
         AppsV1Api apiInstance = new AppsV1Api();
         V1DeploymentList deploymentList = apiInstance.listNamespacedDeployment(testPlatformId, null, null, null, "", "domain-id=cloud01,cmsserver=cms1", null, null, null, null);
         System.out.println(gson.toJson(deploymentList.getItems()));
+    }
+
+    private void secretTest() throws Exception{
+        getConnection(this.testK8sApiUrl, this.testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        String namespace = "base-pahjgs";
+        String json = "{\"apiVersion\":\"v1\",\"data\":{\"mysql-password\":[97,100,109,105,110],\"mysql-root-password\":[68,90,77,51,110,99,70,67,97,105]},\"kind\":\"Secret\",\"metadata\":{\"labels\":{\"app\":\"mysql\",\"chart\":\"mysql-1.3.1\",\"heritage\":\"Tiller\",\"io.cattle.field/appId\":\"mysql\",\"release\":\"mysql\"},\"name\":\"mysql\",\"namespace\":\"base-pahjgs\"},\"type\":\"Opaque\"}";
+        V1Secret secret = gson.fromJson(json, V1Secret.class);
+        apiInstance.createNamespacedSecret(namespace, secret, null, null, null);
     }
 
     private void deployReplaceTest() throws Exception

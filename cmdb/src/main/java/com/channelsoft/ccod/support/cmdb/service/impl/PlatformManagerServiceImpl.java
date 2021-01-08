@@ -2123,7 +2123,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         schema.setDomains(plans);
         boolean isNewPlatform = schema.getTaskType().equals(PlatformUpdateTaskType.CREATE) || schema.getTaskType().equals(PlatformUpdateTaskType.RESTORE) ? true : false;
         List<K8sOperationInfo> steps = new ArrayList<>();
-        String platformId = platformPo.getPlatformId();
         String jobId = schema.getSchemaId();
         Map<String, DomainPo> domainMap = domainList.stream().collect(Collectors.toMap(DomainPo::getDomainId, Function.identity()));
         schema.getDomains().stream()
@@ -2132,13 +2131,10 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 .flatMap(plan->plan.getApps().stream()).collect(Collectors.toList())
                 .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
         if(isNewPlatform) {
-            List<CCODThreePartAppPo> threePartApps = ccodThreePartAppMapper.select(schema.getCcodVersion(), null, null);
-            String nfsServerIp = StringUtils.isBlank(schema.getNfsServerIp()) ? schema.getK8sHostIp() : schema.getNfsServerIp();
-            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), new ArrayList<>(),
-                    null, null, threePartApps, nfsServerIp, String.format("base-%s", platformPo.getPlatformId()), platformPo);
-            steps.addAll(baseCreateSteps);
-            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, schema.getK8sJob(), schema.getNamespace(), new ArrayList<>(),
-                    null, null, threePartApps, schema.getThreePartServices(), nfsServerIp, platformPo);
+            List<CCODThreePartAppPo> threePartApps = ccodThreePartAppMapper.select(schema.getCcodVersion(), StringUtils.isBlank(platformPo.getTag()) ? "standard" : platformPo.getTag(), null);
+//            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId,  platformPo, threePartApps);
+//            steps.addAll(baseCreateSteps);
+            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, platformPo, threePartApps);
             steps.addAll(platformCreateSteps);
 //            generateYamlForDeploy(schema, steps);
         }

@@ -458,13 +458,23 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //            }
 //        }
 //        getPlatformTemplateForBic();
+//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
+//        for(K8sTemplatePo template : templateList){
+//            if(template.getLabels().get(ccodVersionLabel).equals("bic")){
+//                if(!template.getLabels().containsKey(appTypeLabel)){
+//                    template.getLabels().put(platformTagLabel, "standard");
+//                    template.getObjectTemplate().getLabels().put(platformTagLabel, "standard");
+//                    k8sTemplateMapper.update(template);
+//                }
+//            }
+//        }
         List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
         for(K8sTemplatePo template : templateList){
             if(template.getLabels().get(ccodVersionLabel).equals("bic")){
-                if(!template.getLabels().containsKey(appTypeLabel)){
-                    template.getLabels().put(platformTagLabel, "standard");
-                    template.getObjectTemplate().getLabels().put(platformTagLabel, "standard");
-                    k8sTemplateMapper.update(template);
+                if(template.getLabels().containsKey(appTypeLabel) && template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+                    String json = templateParseGson.toJson(template);
+                    json = json.replace("\"namespace\":\"${PLATFORMID}\"", "\"namespace\":\"base-${PLATFORMID}\"");
+                    k8sTemplateMapper.update(templateParseGson.fromJson(json, K8sTemplatePo.class));
                 }
             }
         }
@@ -2001,7 +2011,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String appName = threePartAppPo.getAppName();
         String version = threePartAppPo.getVersion();
         String alias = threePartAppPo.getAlias();
-        String platformId = !isBase ? platform.getPlatformId() : String.format("base-%s", platform.getPlatformId());
         Map<String, String> k8sMacroData = threePartAppPo.getK8sMacroData(platform);
         Object selectObject = selectK8sObjectForApp(K8sKind.DEPLOYMENT, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
@@ -2010,18 +2019,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         List<V1Deployment> deploys = (List<V1Deployment>)selectObject;
         for(V1Deployment deploy : deploys){
-            deploy.getMetadata().setNamespace(platformId);
-            deploy.getMetadata().setName(alias);
-            deploy.getMetadata().setLabels(new HashMap<>());
+//            deploy.getMetadata().setLabels(new HashMap<>());
             deploy.getMetadata().getLabels().put(appName, alias);
-            deploy.getMetadata().getLabels().put(this.appVersionLabel, version);
-            if(StringUtils.isBlank(version)){
-                deploy.getMetadata().getLabels().remove(this.appVersionLabel);
+            if(StringUtils.isNotBlank(version)){
+                deploy.getMetadata().getLabels().put(this.appVersionLabel, version);
             }
-            deploy.getSpec().getSelector().setMatchLabels(new HashMap<>());
-            deploy.getSpec().getSelector().getMatchLabels().put(appName, alias);
-            deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
-            deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
+//            deploy.getSpec().getSelector().setMatchLabels(new HashMap<>());
+//            deploy.getSpec().getSelector().getMatchLabels().put(appName, alias);
+//            deploy.getSpec().getTemplate().getMetadata().setLabels(new HashMap<>());
+//            deploy.getSpec().getTemplate().getMetadata().getLabels().put(appName, alias);
 //            List<V1Volume> volumes = deploy.getSpec().getTemplate().getSpec().getVolumes().stream()
 //                    .collect(Collectors.groupingBy(V1Volume::getName)).get(threePartAppPo.getVolume());
 ////            if(volumes == null){
@@ -2067,45 +2073,79 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return ns;
     }
 
-    @Override
-    public List<V1PersistentVolume> generatePersistentVolume(PlatformPo platform, boolean isBase) throws ParamException {
-        String platformId = platform.getPlatformId();
+    /**
+     * 为指定平台生成缺省secret
+     * @param platform 平台信息
+     * @param platformTag 平台标签
+     * @return 生成的secret
+     * @throws ParamException
+     */
+    private List<V1Secret> generateSecret(PlatformPo platform, String platformTag) throws ParamException, ApiException{
         String ccodVersion = platform.getCcodVersion();
-        String nfsServerIp = StringUtils.isBlank(platform.getNfsServerIp()) ? (String)platform.getParams().get(PlatformBase.nfsServerIpKey) : platform.getNfsServerIp();
-        Object selectObject = selectK8sObjectForPlatform(K8sKind.PV, platform.getTag(), ccodVersion, platform.getK8sMacroData());
+        logger.debug(String.format("begin to generate secret for ccodVersion=%s with tag=%s", ccodVersion, platformTag));
+        Object selectObject = selectK8sObjectForPlatform(K8sKind.SECRET, platformTag, ccodVersion, platform.getK8sMacroData());
+        if(selectObject == null){
+            throw new ParamException(String.format("can not select pv template for ccodVersion=%s and platformTag=%s", platform.getCcodVersion(), platform.getTag()));
+        }
+        List<V1Secret> secrets = (List<V1Secret>)selectObject;
+        logger.debug(String.format("generate secret is %s", gson.toJson(secrets)));
+        return secrets;
+    }
+
+    /**
+     * 为指定平台生成缺省pv
+     * @param platform 平台信息
+     * @param platformTag 平台标签
+     * @return 生成的pv
+     * @throws ParamException
+     */
+    private List<V1ConfigMap> generateConfigMap(PlatformPo platform, String platformTag) throws ParamException {
+        String ccodVersion = platform.getCcodVersion();
+        logger.debug(String.format("begin to generate configMap for ccodVersion=%s with tag=%s", ccodVersion, platformTag));
+        Object selectObject = selectK8sObjectForPlatform(K8sKind.CONFIGMAP, platformTag, ccodVersion, platform.getK8sMacroData());
+        if(selectObject == null){
+            selectObject = new ArrayList<>();
+        }
+        List<V1ConfigMap> configs = (List<V1ConfigMap>)selectObject;
+        logger.debug(String.format("generate pv is %s", gson.toJson(configs)));
+        return configs;
+    }
+
+    /**
+     * 为指定平台生成缺省pv
+     * @param platform 平台信息
+     * @param platformTag 平台标签
+     * @return 生成的pv
+     * @throws ParamException
+     */
+    private List<V1PersistentVolume> generatePersistentVolume(PlatformPo platform, String platformTag) throws ParamException {
+        String ccodVersion = platform.getCcodVersion();
+        logger.debug(String.format("begin to generate pv for ccodVersion=%s with tag=%s", ccodVersion, platformTag));
+        Object selectObject = selectK8sObjectForPlatform(K8sKind.PV, platformTag, ccodVersion, platform.getK8sMacroData());
         if(selectObject == null){
             throw new ParamException(String.format("can not select pv template for ccodVersion=%s and platformTag=%s", platform.getCcodVersion(), platform.getTag()));
         }
         List<V1PersistentVolume> pvList = (List<V1PersistentVolume>)selectObject;
-        for(V1PersistentVolume pv : pvList){
-//            String name = String.format("base-volume-%s", platformId);
-//            pv.getMetadata().setName(name);
-//            pv.getSpec().getClaimRef().setNamespace(isBase ? String.format("base-%s", platformId) : platformId);
-//            pv.getSpec().getClaimRef().setName(name);
-//            pv.getSpec().getNfs().setPath(String.format("/home/kubernetes/volume/%s", platform.getPlatformId()));
-//            pv.getSpec().getNfs().setServer(nfsServerIp);
-//            pv.getSpec().setStorageClassName(name);
-            logger.info(String.format("generate persistentVolume is %s", gson.toJson(pv)));
-        }
+        logger.debug(String.format("generate pv is %s", gson.toJson(pvList)));
         return pvList;
     }
 
-    @Override
-    public List<V1PersistentVolumeClaim> generatePersistentVolumeClaim(PlatformPo platform, boolean isBase) throws ParamException {
+    /**
+     * 生成指定的平台pvc
+     * @param platform 平台信息
+     * @param platformTag 平台标签
+     * @return 生成的pvc
+     * @throws ParamException
+     */
+    private List<V1PersistentVolumeClaim> generatePersistentVolumeClaim(PlatformPo platform, String platformTag) throws ParamException {
         String ccodVersion = platform.getCcodVersion();
-        Object selectObject = selectK8sObjectForPlatform(K8sKind.PVC, platform.getTag(), ccodVersion, platform.getK8sMacroData());
+        logger.debug(String.format("begin to generate pvc for ccodVersion=%s with tag=%s", ccodVersion, platformTag));
+        Object selectObject = selectK8sObjectForPlatform(K8sKind.PVC, platformTag, ccodVersion, platform.getK8sMacroData());
         if(selectObject == null){
             throw new ParamException(String.format("can not select pv template for ccodVersion=%s and platformTag=%s", platform.getCcodVersion(), platform.getTag()));
         }
         List<V1PersistentVolumeClaim> pvcList = (List<V1PersistentVolumeClaim>)selectObject;
-        for(V1PersistentVolumeClaim pvc : pvcList){
-//            String name = String.format("base-volume-%s", platform.getPlatformId());
-//            pvc.getMetadata().setName(name);
-//            pvc.getSpec().setStorageClassName(name);
-//            pvc.getSpec().setVolumeName(name);
-            pvc.getMetadata().setNamespace(isBase ? String.format("base-%s", platform.getPlatformId()) : platform.getPlatformId());
-            logger.info(String.format("generate pvc is %s", gson.toJson(pvc)));
-        }
+        logger.debug(String.format("generate pv is %s", gson.toJson(pvcList)));
         return pvcList;
     }
 
@@ -2854,67 +2894,49 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return selector;
     }
 
-    @Override
-    public List<K8sOperationInfo> generatePlatformCreateSteps(
-            String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets,
-            V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<CCODThreePartAppPo> threePartApps,
-            List<K8sThreePartServiceVo> threePartServices, String nfsServerIp, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException {
-        String platformId = platform.getPlatformId();
-        String platformName = platform.getPlatformName();
+    private List<K8sOperationInfo> generatePlatformBaseSteps(String jobId, PlatformPo platform, boolean isBase) throws ApiException, ParamException, IOException, InterfaceCallException
+    {
+        String ns = isBase ? String.format("base-%s", platform.getPlatformId()) : platform.getPlatformId();
         String ccodVersion = platform.getCcodVersion();
-        String hostUrl = platform.getHostUrl();
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
-        if(this.ik8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken))
-            throw new ParamException(String.format("namespace %s has exist at %s", platformId, k8sApiUrl));
-        List<K8sOperationInfo> steps = new ArrayList<>();
-        if(namespace == null)
-            namespace = generateNamespace(ccodVersion, platformId, platform.getTag());
-        if(!namespace.getMetadata().getName().equals(platformId))
-            throw new ParamException(String.format("name of namespace should be %s not %s", platformId, namespace.getMetadata().getName()));
-        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, platformId, K8sOperation.CREATE, namespace);
-        steps.add(step);
-        if(secrets == null)
-            secrets = new ArrayList<>();
-        Map<String, List<V1ObjectMeta>> metaMap = secrets.stream().map(se->se.getMetadata()).collect(Collectors.toList())
-                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
-        for(String name : metaMap.keySet())
-        {
-            if(metaMap.get(name).size() > 1)
-                throw new ParamException(String.format("secret %s multi define", name));
+        String checkPlatformId = isBase ? String.format("base-%s", platform.getPlatformId()) : platform.getPlatformId();
+        if(this.ik8sApiService.isNamespaceExist(checkPlatformId, k8sApiUrl, k8sAuthToken))
+            throw new ParamException(String.format("namespace %s has exist at %s", checkPlatformId, k8sApiUrl));
+        String platformTag = StringUtils.isBlank(platform.getTag()) ? "standard" : platform.getTag();
+        if(isBase){
+            platformTag = String.format("%s,base", platformTag);
         }
-        if(!metaMap.containsKey("ssl"))
-        {
-            V1Secret sslCert = this.ik8sApiService.generateNamespacedSSLCert(platformId, k8sApiUrl, k8sAuthToken);
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        V1Namespace namespace = generateNamespace(ccodVersion, platform.getPlatformId(), platformTag);
+        K8sOperationInfo step = new K8sOperationInfo(jobId, ns, null, K8sKind.NAMESPACE, ns, K8sOperation.CREATE, namespace);
+        steps.add(step);
+        List<V1Secret> secrets = generateSecret(platform, platformTag);
+        if(!isBase && !secrets.stream().map(s->s.getMetadata().getName()).collect(Collectors.toSet()).contains("ssl")){
+            V1Secret sslCert = this.ik8sApiService.generateNamespacedSSLCert(platform.getPlatformId(), platform.getK8sApiUrl(), platform.getK8sAuthToken());
             secrets.add(sslCert);
         }
-        for(V1Secret secret : secrets)
-        {
-            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.SECRET, secret.getMetadata().getName(), K8sOperation.CREATE, secret);
+        for(V1Secret secret : secrets) {
+            step = new K8sOperationInfo(jobId, ns, null, K8sKind.SECRET, secret.getMetadata().getName(), K8sOperation.CREATE, secret);
             steps.add(step);
         }
-//        if(pv == null)
-//            pv = generatePersistentVolume(platform, nfsServerIp);
-//        step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PV, pv.getMetadata().getName(), K8sOperation.CREATE, pv);
-//        steps.add(step);
-//        if(pvc == null)
-//            pvc = generatePersistentVolumeClaim(ccodVersion, platformId);
-//        step = new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, pvc.getMetadata().getName(), K8sOperation.CREATE, pvc);
-//        steps.add(step);
-//        job = job == null ? generatePlatformInitJob(platform) : job;
-//        if(job != null)
-//        {
-//            if(!job.getMetadata().getNamespace().equals(platformId))
-//                throw new ParamException(String.format("namespace of job should be %s not %s", platformId, namespace.getMetadata().getNamespace()));
-//            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, job.getMetadata().getName(), K8sOperation.CREATE, job);
-//            steps.add(step);
-//        }
-        V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, platformId, platformId,
+        generatePersistentVolume(platform, platformTag).forEach(v->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.PV, v.getMetadata().getName(), K8sOperation.CREATE, v)));
+        generatePersistentVolumeClaim(platform, platformTag).forEach(v->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.PVC, v.getMetadata().getName(), K8sOperation.CREATE, v)));
+        List<V1ConfigMap> configMaps = generateConfigMap(platform,  platformTag);
+        V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(ns, ns, ns,
                 platform.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
                 this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
-        K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP,
-                platformId, K8sOperation.CREATE, configMap);
-        steps.add(k8sOpt);
+        configMaps.add(configMap);
+        configMaps.forEach(c->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.CONFIGMAP,
+                ns, K8sOperation.CREATE, c)));
+        return steps;
+    }
+
+    @Override
+    public List<K8sOperationInfo> generatePlatformCreateSteps(
+            String jobId, PlatformPo platform, List<CCODThreePartAppPo> threePartApps) throws ApiException, ParamException, IOException, InterfaceCallException {
+        String platformId = platform.getPlatformId();
+        List<K8sOperationInfo> steps = generatePlatformBaseSteps(jobId, platform, false);
         generateThreePartServices(String.format("base-%s", platformId), threePartApps, platform).forEach(s->{
             steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.SERVICE, s.getMetadata().getName(), K8sOperation.CREATE, s));
         });
@@ -2922,63 +2944,17 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
-    public List<K8sOperationInfo> generateBasePlatformCreateSteps(String jobId, V1Job job, V1Namespace namespace, List<V1Secret> secrets, V1PersistentVolume pv, V1PersistentVolumeClaim pvc, List<CCODThreePartAppPo> threePartApps, String nfsServerIp, String baseNamespaceId, PlatformPo platform) throws ApiException, ParamException, IOException, InterfaceCallException {
-        String platformId = String.format("base-%s", platform.getPlatformId());
-        String ccodVersion = platform.getCcodVersion();
-        String k8sApiUrl = platform.getK8sApiUrl();
-        String k8sAuthToken = platform.getK8sAuthToken();
-        if(this.ik8sApiService.isNamespaceExist(platformId, k8sApiUrl, k8sAuthToken))
-            throw new ParamException(String.format("namespace %s has exist at %s", platformId, k8sApiUrl));
-        String platformTag = StringUtils.isBlank(platform.getTag()) ? "standard" : String.format("%s,base", platform.getTag());
-        List<K8sOperationInfo> steps = new ArrayList<>();
-        if(namespace == null)
-            namespace = generateNamespace(ccodVersion, platformId, platformTag);
-        if(!namespace.getMetadata().getName().equals(platformId))
-            throw new ParamException(String.format("name of namespace should be %s not %s", platformId, namespace.getMetadata().getName()));
-        K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, null, K8sKind.NAMESPACE, platformId, K8sOperation.CREATE, namespace);
-        steps.add(step);
-        if(secrets == null)
-            secrets = new ArrayList<>();
-        Map<String, List<V1ObjectMeta>> metaMap = secrets.stream().map(se->se.getMetadata()).collect(Collectors.toList())
-                .stream().collect(Collectors.groupingBy(V1ObjectMeta::getName));
-        for(String name : metaMap.keySet())
-        {
-            if(metaMap.get(name).size() > 1)
-                throw new ParamException(String.format("secret %s multi define", name));
-        }
-        if(!metaMap.containsKey("ssl"))
-        {
-            V1Secret sslCert = this.ik8sApiService.generateNamespacedSSLCert(platformId, k8sApiUrl, k8sAuthToken);
-            secrets.add(sslCert);
-        }
-        for(V1Secret secret : secrets)
-        {
-            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.SECRET, secret.getMetadata().getName(), K8sOperation.CREATE, secret);
-            steps.add(step);
-        }
-        generatePersistentVolume(platform, true).forEach(v->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.PV, v.getMetadata().getName(), K8sOperation.CREATE, v)));
-        generatePersistentVolumeClaim(platform, true).forEach(v->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.PVC, v.getMetadata().getName(), K8sOperation.CREATE, v)));
-//        job = job == null ? generatePlatformInitJob(platform, true) : job;
-//        if(job != null)
-//        {
-//            if(!job.getMetadata().getNamespace().equals(platformId))
-//                throw new ParamException(String.format("namespace of job should be %s not %s", platformId, namespace.getMetadata().getNamespace()));
-//            step = new K8sOperationInfo(jobId, platformId, null, K8sKind.JOB, job.getMetadata().getName(), K8sOperation.CREATE, job);
-//            steps.add(step);
-//        }
-        V1ConfigMap configMap = this.ik8sApiService.getConfigMapFromNexus(platformId, platformId, platformId,
-                platform.getCfgs().stream().map(cfg->cfg.getNexusAssetInfo(this.nexusHostUrl)).collect(Collectors.toList()),
-                this.nexusHostUrl, this.nexusUserName, this.nexusPassword);
-        K8sOperationInfo k8sOpt = new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP,
-                platformId, K8sOperation.CREATE, configMap);
-        steps.add(k8sOpt);
+    public List<K8sOperationInfo> generateBasePlatformCreateSteps(String jobId, PlatformPo platform, List<CCODThreePartAppPo> threePartApps) throws ApiException, ParamException, IOException, InterfaceCallException {
+        String ns = String.format("base-%s", platform.getPlatformId());
+        List<K8sOperationInfo> steps = generatePlatformBaseSteps(jobId, platform, true);
         for(CCODThreePartAppPo threePartAppPo : threePartApps){
             K8sThreePartAppVo vo = generateK8sThreePartApp(platform, threePartAppPo, true);
-            vo.getConfigMaps().forEach(c->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.CONFIGMAP, c.getMetadata().getName(), K8sOperation.CREATE, c)));
-            vo.getEndpoints().forEach(e->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.ENDPOINTS, e.getMetadata().getName(), K8sOperation.CREATE, e)));
-            vo.getServices().forEach(s->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.SERVICE, s.getMetadata().getName(), K8sOperation.CREATE, s)));
-            vo.getDeploys().forEach(d->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.DEPLOYMENT, d.getMetadata().getName(), K8sOperation.CREATE, d, threePartAppPo.getTimeout())));
-            vo.getStatefulSets().forEach(s->steps.add(new K8sOperationInfo(jobId, platformId, null, K8sKind.STATEFULSET, s.getMetadata().getName(), K8sOperation.CREATE, s)));
+            vo.getConfigMaps().forEach(c->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.CONFIGMAP, c.getMetadata().getName(), K8sOperation.CREATE, c)));
+            vo.getEndpoints().forEach(e->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.ENDPOINTS, e.getMetadata().getName(), K8sOperation.CREATE, e)));
+            vo.getServices().forEach(s->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.SERVICE, s.getMetadata().getName(), K8sOperation.CREATE, s)));
+            vo.getDeploys().forEach(d->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.DEPLOYMENT, d.getMetadata().getName(), K8sOperation.CREATE, d, threePartAppPo.getTimeout())));
+            vo.getStatefulSets().forEach(s->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.STATEFULSET, s.getMetadata().getName(), K8sOperation.CREATE, s)));
+            vo.getIngresses().forEach(s->steps.add(new K8sOperationInfo(jobId, ns, null, K8sKind.INGRESS, s.getMetadata().getName(), K8sOperation.CREATE, s)));
         }
         return steps;
     }
@@ -3065,18 +3041,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 V1Service svc = new V1Service();
                 svc.setApiVersion("v1");
                 svc.setKind("Service");
-                Map<String, String> labels = new HashMap<>();
-                labels.put(appTypeLabel, AppType.THREE_PART_APP.name);
-                labels.put(appNameLabel, threePartAppPo.getAppName());
-                labels.put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
                 V1ObjectMeta meta = new V1ObjectMeta();
-                meta.setLabels(labels);
+                meta.setLabels(s.getMetadata().getLabels());
                 meta.setNamespace(platform.getPlatformId());
-                meta.setName(threePartAppPo.getAlias());
+                meta.setName(s.getMetadata().getName());
                 svc.setMetadata(meta);
                 V1ServiceSpec spec = new V1ServiceSpec();
                 spec.setType("ExternalName");
-                spec.setExternalName(String.format("%s.%s.svc.cluster.local", threePartAppPo.getAlias(), baseNamespace));
+                spec.setExternalName(String.format("%s.%s.svc.cluster.local", s.getMetadata().getName(), baseNamespace));
                 svc.setSpec(spec);
                 allServices.add(svc);
             });
@@ -3086,8 +3058,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     private K8sThreePartAppVo generateK8sThreePartApp(PlatformPo platform, CCODThreePartAppPo threePartAppPo, boolean isBase) throws ParamException
     {
-        if(threePartAppPo.getAppName().equals("umg"))
-            System.out.println("hello umg");
         Map<String, String> k8sMacroData = threePartAppPo.getK8sMacroData(platform);
         Object selectObject = selectK8sObjectForApp(K8sKind.SERVICE, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
         if(selectObject == null){
@@ -3135,7 +3105,18 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             s.getMetadata().getLabels().put(appNameLabel, threePartAppPo.getAppName());
             s.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
         });
-        K8sThreePartAppVo appVo = new K8sThreePartAppVo(threePartAppPo.getAppName(), threePartAppPo.getAlias(), threePartAppPo.getVersion(), deployments, statefulSets, services, endpoints, configMaps);
+
+        selectObject = selectK8sObjectForApp(K8sKind.INGRESS, threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP, threePartAppPo.getTag(), platform.getTag(), platform.getCcodVersion(), k8sMacroData);
+        if(selectObject == null){
+            throw new ParamException(String.format("can not find ingress template for appName=%s, version=%s, appType=%s, ccodVersion=%s and appTag=%s",
+                    threePartAppPo.getAppName(), threePartAppPo.getVersion(), AppType.THREE_PART_APP.name, platform.getCcodVersion(), threePartAppPo.getTag()));
+        }
+        List<ExtensionsV1beta1Ingress> ingresses = (List<ExtensionsV1beta1Ingress>)selectObject;
+        ingresses.forEach(s->{
+            s.getMetadata().getLabels().put(appNameLabel, threePartAppPo.getAppName());
+            s.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
+        });
+        K8sThreePartAppVo appVo = new K8sThreePartAppVo(threePartAppPo.getAppName(), threePartAppPo.getAlias(), threePartAppPo.getVersion(), deployments, statefulSets, services, endpoints, configMaps, ingresses);
         return appVo;
     }
 

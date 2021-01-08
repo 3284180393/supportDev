@@ -29,7 +29,11 @@ public class K8sThreePartAppVo {
 
     private List<V1ConfigMap> configMaps; //对应的第三方应用配置
 
-    public K8sThreePartAppVo(String appName, String alias, String version, List<V1Deployment> deploys, List<V1StatefulSet> statefulSets, List<V1Service> services, List<V1Endpoints> endpoints, List<V1ConfigMap> configMaps)
+    private List<ExtensionsV1beta1Ingress> ingresses; //对应的第三方ingress配置
+
+    public K8sThreePartAppVo(
+            String appName, String alias, String version, List<V1Deployment> deploys, List<V1StatefulSet> statefulSets,
+            List<V1Service> services, List<V1Endpoints> endpoints, List<V1ConfigMap> configMaps, List<ExtensionsV1beta1Ingress> ingresses)
     {
         this.appName = appName;
         this.alias = alias;
@@ -39,6 +43,7 @@ public class K8sThreePartAppVo {
         this.services = services;
         this.endpoints = endpoints;
         this.configMaps = configMaps;
+        this.ingresses = ingresses;
     }
 
     public String getAppName() {
@@ -103,5 +108,13 @@ public class K8sThreePartAppVo {
 
     public void setStatefulSets(List<V1StatefulSet> statefulSets) {
         this.statefulSets = statefulSets;
+    }
+
+    public List<ExtensionsV1beta1Ingress> getIngresses() {
+        return ingresses;
+    }
+
+    public void setIngresses(List<ExtensionsV1beta1Ingress> ingresses) {
+        this.ingresses = ingresses;
     }
 }
