@@ -2,6 +2,7 @@ package com.channelsoft.ccod.support.cmdb.service.impl;
 
 import com.channelsoft.ccod.support.cmdb.config.GsonDateUtil;
 import com.channelsoft.ccod.support.cmdb.constant.*;
+import com.channelsoft.ccod.support.cmdb.dao.CCODThreePartAppMapper;
 import com.channelsoft.ccod.support.cmdb.dao.K8sTemplateMapper;
 import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.NexusException;
@@ -59,6 +60,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     @Autowired
     K8sTemplateMapper k8sTemplateMapper;
+
+    @Autowired
+    CCODThreePartAppMapper ccodThreePartAppMapper;
 
     @Value("${nexus.platform-app-cfg-repository}")
     private String platformAppCfgRepository;
@@ -469,13 +473,30 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //            }
 //        }
         List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
+//        for(K8sTemplatePo template : templateList){
+//            if(template.getLabels().get(ccodVersionLabel).equals("bic")){
+//                if(template.getLabels().containsKey(appTypeLabel) && template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
+//                    String json = templateParseGson.toJson(template);
+//                    json = json.replace("\"namespace\":\"${PLATFORMID}\"", "\"namespace\":\"base-${PLATFORMID}\"");
+//                    k8sTemplateMapper.update(templateParseGson.fromJson(json, K8sTemplatePo.class));
+//                }
+//            }
+//        }
         for(K8sTemplatePo template : templateList){
-            if(template.getLabels().get(ccodVersionLabel).equals("bic")){
-                if(template.getLabels().containsKey(appTypeLabel) && template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-                    String json = templateParseGson.toJson(template);
-                    json = json.replace("\"namespace\":\"${PLATFORMID}\"", "\"namespace\":\"base-${PLATFORMID}\"");
-                    k8sTemplateMapper.update(templateParseGson.fromJson(json, K8sTemplatePo.class));
+            if(template.getLabels().containsKey(appTypeLabel)){
+                if(template.getObjectTemplate().getIngresses() == null){
+                    template.getObjectTemplate().setIngresses(new ArrayList<>());
                 }
+                if(template.getObjectTemplate().getSecrets() == null){
+                    template.getObjectTemplate().setSecrets(new ArrayList<>());
+                }
+                if(template.getObjectTemplate().getConfigMaps() == null){
+                    template.getObjectTemplate().setConfigMaps(new ArrayList<>());
+                }
+                if(template.getObjectTemplate().getStatefulSets() == null){
+                    template.getObjectTemplate().setSecrets(new ArrayList<>());
+                }
+                k8sTemplateMapper.update(template);
             }
         }
     }
@@ -686,6 +707,8 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String hostUrl = "bic.ccod.io";
         String testK8sApiUrl = "https://10.130.36.102:6443";
         String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjBMWWJQVEczMTFKRzllVnhDazI1SC0tOU0xNjdHTGVrS0ltaVQ2VUpQN2sifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi10b2tlbi1ndGR6eCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJhZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImVhZmE2OGYwLWFmNTYtNDg1MC05NzZiLTBiMjRmODdhZDM4OCIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTphZG1pbiJ9.gHuo1vZXLXKrpJFXqefjNZ2RdAPKf095msES1AilAFxzWD-3Sei4Meigy_DkzJnZcG1F7Dg7b9T9WNzuE9dDOWIbvRF_fCSj53Of3DuMw873yMAAZXn6sZkXP4_61nPhBp1GGTqdk8CVPYXiaOgF69In_U32e9A4tbRrj3NhWV0MN34mGtqAvRKCQrBDVklIpzl17E-vniNs4MDv0lCotCWn2BTw2s8yuRWWyJGyJBgIp9ZfoGdlTD5FcXJNwXSdaeH6lCsb8l0ummFb_8_QVpEoTyv4IwXM1jQDu8ElPAJRsEbttBrPtaa5gyK7NnlneqDYqCfPf2BWVQJ8h-iDPQ";
+        V1Deployment test = ik8sApiService.readNamespacedDeployment("test", "bic", testK8sApiUrl, testAuthToken);
+        logger.warn(String.format("test=%s", templateParseGson.toJson(test)));
         K8sObjectTemplatePo obj;
         String appName;
         List<String> deploymentNames;
@@ -1217,6 +1240,16 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
     }
 
     @Override
+    public List<K8sObjectTemplatePo> queryK8sObjectTemplate(Map<String, String> labels) {
+        logger.debug(String.format("begin to query template with labels=%s", gson.toJson(labels)));
+        if(labels == null || labels.size() == 0){
+            return objectTemplateList;
+        }
+
+        return null;
+    }
+
+    @Override
     public void addNewK8sObjectTemplate(K8sObjectTemplatePo template) throws ParamException {
         logger.debug(String.format("begin to add new template %s", gson.toJson(template)));
         checkTemplate(template);
@@ -1275,6 +1308,97 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         objectTemplateList.clear();
         list.forEach(t->objectTemplateList.add(t.getObjectTemplate()));
         logger.info(String.format("template delete success"));
+    }
+
+    @Override
+    public List<K8sObjectTemplatePo> cloneExistPlatformTemplate(String srcCcodVersion, String srcPlatformTag, String dstCcodVersion, String dstPlatformTag) throws ParamException {
+        logger.debug(String.format("clone ccod template from ccodVersion=%s and platformTag=%s to %s(%s)",
+                srcCcodVersion, srcPlatformTag, dstCcodVersion, dstPlatformTag));
+        if(StringUtils.isBlank(srcCcodVersion)){
+            throw new ParamException(String.format("srcCcodVersion can not be blank"));
+        }
+        if(StringUtils.isBlank(srcPlatformTag)){
+            throw new ParamException(String.format("srcPlatformTag can not be blank"));
+        }
+        if(StringUtils.isBlank(dstCcodVersion)){
+            throw new ParamException(String.format("dstCcodVersion can not be blank"));
+        }
+        if(StringUtils.isBlank(dstPlatformTag)){
+            throw new ParamException(String.format("dstPlatformTag can not be blank"));
+        }
+        if(srcCcodVersion.equals(dstCcodVersion) && srcPlatformTag.equals(srcPlatformTag)){
+            throw new ParamException(String.format("can not clone to self"));
+        }
+        List<K8sObjectTemplatePo> templateList = new ArrayList<>();
+        for(K8sObjectTemplatePo obj : objectTemplateList){
+            String ccodVersion = obj.getLabels().get(ccodVersionLabel);
+            String tag = obj.getLabels().get(platformTagLabel);
+            if(ccodVersion == null || !ccodVersion.equals(srcCcodVersion) || tag == null ){
+                continue;
+            }
+            if(!isTagMatch(tag, srcPlatformTag) && !isTagMatch(tag, String.format("%s,base", srcPlatformTag))){
+                continue;
+            }
+            K8sObjectTemplatePo template = gson.fromJson(gson.toJson(obj), K8sObjectTemplatePo.class);
+            template.getLabels().put(ccodVersionLabel, dstCcodVersion);
+            if(isTagMatch(tag, srcPlatformTag)){
+                template.getLabels().put(platformTagLabel, dstPlatformTag);
+            }
+            else{
+                template.getLabels().put(platformTagLabel, String.format("%s,base", dstPlatformTag));
+            }
+            checkTemplate(template);
+            templateList.add(template);
+        }
+        for(K8sObjectTemplatePo obj : templateList){
+            K8sTemplatePo template = new K8sTemplatePo(obj);
+            k8sTemplateMapper.insert(template);
+        }
+        ccodThreePartAppMapper.delete(dstCcodVersion, dstPlatformTag, null, null);
+        ccodThreePartAppMapper.select(dstCcodVersion, dstPlatformTag, null).forEach(a->{
+            a.setCcodVersion(dstCcodVersion);
+            a.setTag(dstPlatformTag);
+            ccodThreePartAppMapper.insert(a);
+        });
+        objectTemplateList.clear();
+        k8sTemplateMapper.select().forEach(t->objectTemplateList.add(t.getObjectTemplate()));
+        return templateList;
+    }
+
+    @Override
+    public List<K8sObjectTemplatePo> cloneExistAppTemplate(String srcCcodVersion, String dstCcodVersion) throws ParamException {
+        logger.debug(String.format("clone ccod app template from ccodVersion=%s  to %s", srcCcodVersion, dstCcodVersion));
+        if(StringUtils.isBlank(srcCcodVersion)){
+            throw new ParamException(String.format("srcCcodVersion can not be blank"));
+        }
+        if(StringUtils.isBlank(dstCcodVersion)){
+            throw new ParamException(String.format("dstCcodVersion can not be blank"));
+        }
+        if(srcCcodVersion.equals(dstCcodVersion)){
+            throw new ParamException(String.format("srcCcodVersion and dstCcodVersion can not be equal"));
+        }
+        List<K8sObjectTemplatePo> templateList = new ArrayList<>();
+        for(K8sObjectTemplatePo obj : objectTemplateList){
+            String ccodVersion = obj.getLabels().get(ccodVersionLabel);
+            String appType = obj.getLabels().get(appTypeLabel);
+            if(ccodVersion == null || !ccodVersion.equals(srcCcodVersion) || appType == null || obj.getLabels().containsKey(appTagLabel)){
+                continue;
+            }
+            if(!appType.equals(AppType.THREE_PART_APP.name) && obj.getLabels().size() > 2){
+                continue;
+            }
+            K8sObjectTemplatePo template = gson.fromJson(gson.toJson(obj), K8sObjectTemplatePo.class);
+            template.getLabels().put(ccodVersionLabel, dstCcodVersion);
+            checkTemplate(template);
+            templateList.add(template);
+        }
+        for(K8sObjectTemplatePo obj : templateList){
+            K8sTemplatePo template = new K8sTemplatePo(obj);
+            k8sTemplateMapper.insert(template);
+        }
+        objectTemplateList.clear();
+        k8sTemplateMapper.select().forEach(t->objectTemplateList.add(t.getObjectTemplate()));
+        return templateList;
     }
 
     private void checkTemplate(K8sObjectTemplatePo template) throws ParamException
@@ -1337,9 +1461,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         if(template.getNamespaces() != null){
             throw new ParamException("namespace should been null");
-        }
-        if(template.getSecrets() != null){
-            throw new ParamException("secret should be null");
         }
         if(template.getEndpoints() == null && template.getIngresses() == null && template.getStatefulSets() == null
                 && template.getDeployments() == null && template.getServices() == null){
@@ -1786,12 +1907,14 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             execParam = String.format("%s;cd %s;%s", execParam, cwd, appBase.getInitCmd());
         switch (appType){
             case NODEJS:
-                String deployDir = deployPath.replaceAll(".*/", "");
-                String newDir = String.format("%s-%s", alias, domainId);
-                execParam = String.format("%s;cd %s;mv %s %s", execParam, deployPath.replaceAll(String.format("/%s$", deployDir), ""), deployDir, newDir);
-                basePath = basePath.replaceAll(String.format("/%s$", deployDir), "/" + newDir);
-                cwd = deployPath.replaceAll(String.format("/%s$", deployDir), "/" + newDir);
-                deployPath = cwd;
+                if(!deployPath.matches(".*/nginx/html(/)?$")){
+                    String deployDir = deployPath.replaceAll(".*/", "");
+                    String newDir = String.format("%s-%s", alias, domainId);
+                    execParam = String.format("%s;cd %s;mv %s %s", execParam, deployPath.replaceAll(String.format("/%s$", deployDir), ""), deployDir, newDir);
+                    basePath = basePath.replaceAll(String.format("/%s$", deployDir), "/" + newDir);
+                    cwd = deployPath.replaceAll(String.format("/%s$", deployDir), "/" + newDir);
+                    deployPath = cwd;
+                }
                 break;
             default:
                 break;

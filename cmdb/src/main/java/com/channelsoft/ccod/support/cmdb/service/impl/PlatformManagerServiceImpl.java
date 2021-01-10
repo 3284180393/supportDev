@@ -1104,8 +1104,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     }
                     String directory = optInfo.getPlatformAppCfgDirectory(date, platformId, domainId);
                     logger.debug(String.format("download cfg of %s at %s and upload to %s/%s", optInfo.getAlias(), domainId, this.platformAppCfgRepository, directory));
-                    List<AppFileNexusInfo> cfgs = appManagerService.downloadAndUploadAppFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, optInfo.getCfgs(), this.platformAppCfgRepository, directory);
-                    assetMap.put(optInfo.getAlias(), cfgs);
+                    if(optInfo.getCfgs() != null && optInfo.getCfgs().size() > 0){
+                        List<AppFileNexusInfo> cfgs = appManagerService.downloadAndUploadAppFiles(this.nexusHostUrl, this.nexusUserName, this.nexusPassword, optInfo.getCfgs(), this.platformAppCfgRepository, directory);
+                        assetMap.put(optInfo.getAlias(), cfgs);
+                    }
+                    else{
+                        assetMap.put(optInfo.getAlias(), new ArrayList<>());
+                    }
                     break;
                 default:
                     break;
@@ -1142,7 +1147,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     Assert.notNull(platformBase.getGlsDBUser(), "glsDBUser can not be null");
                     Assert.notNull(platformBase.getGlsDBPwd(), "glsDBPwd can not be null");
                     Assert.notNull(platformBase.getCfgs(), "cfgs of platform can not be null");
-                    Assert.notEmpty(platformBase.getCfgs(), "cfgs of platform can not be empty");
                 }
                 List<DomainUpdatePlanInfo> notAddList = plans==null ? new ArrayList<>() : plans.stream().filter(p->!p.getUpdateType().equals(DomainUpdateType.ADD)).collect(Collectors.toList());
                 Assert.isTrue(notAddList.size()==0, String.format("%d domain is not ADD for new CREATE platform", notAddList.size()));
@@ -2132,8 +2136,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
         if(isNewPlatform) {
             List<CCODThreePartAppPo> threePartApps = ccodThreePartAppMapper.select(schema.getCcodVersion(), StringUtils.isBlank(platformPo.getTag()) ? "standard" : platformPo.getTag(), null);
-//            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId,  platformPo, threePartApps);
-//            steps.addAll(baseCreateSteps);
+            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId,  platformPo, threePartApps);
+            steps.addAll(baseCreateSteps);
             List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, platformPo, threePartApps);
             steps.addAll(platformCreateSteps);
 //            generateYamlForDeploy(schema, steps);
@@ -3654,6 +3658,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         case DELETE:
                             this.k8sApiService.deleteNamespacedSecret(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
                             break;
+                        case REPLACE:
+                            retVal = this.k8sApiService.replaceNamespacedSecret(optInfo.getName(), platformId, (V1Secret) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            break;
                     }
                     break;
                 case PV:
@@ -3666,8 +3673,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             this.k8sApiService.deletePersistentVolume(optInfo.getName(), k8sApiUrl, k8sAuthToken);
                             break;
                         case REPLACE:
-                            this.k8sApiService.replacePersistentVolume(optInfo.getName(), (V1PersistentVolume)optInfo.getObj(), k8sApiUrl, k8sAuthToken);
-                            break;
+                            throw new ParamException(String.format("pv not support replace operation"));
                     }
                     break;
                 case PVC:
@@ -3679,6 +3685,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         case DELETE:
                             this.k8sApiService.deleteNamespacedPersistentVolumeClaim(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
                             break;
+                        case REPLACE:
+                            throw new ParamException(String.format("pvc not support replace operation"));
                     }
                     break;
                 case CONFIGMAP:
@@ -3689,6 +3697,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedConfigMap(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case REPLACE:
+                            retVal = this.k8sApiService.replaceNamespacedConfigMap(optInfo.getName(), platformId, (V1ConfigMap) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                     }
                     break;
@@ -3701,6 +3712,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         case DELETE:
                             this.k8sApiService.deleteNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
                             break;
+                        case REPLACE:
+                            retVal = this.k8sApiService.replaceNamespacedDeployment(optInfo.getName(), platformId, (V1Deployment) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            break;
                     }
                     break;
                 case SERVICE:
@@ -3712,6 +3726,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         case DELETE:
                             this.k8sApiService.deleteNamespacedService(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
                             break;
+                        case REPLACE:
+                            retVal = this.k8sApiService.replaceNamespacedService(optInfo.getName(), platformId, (V1Service) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            break;
                     }
                     break;
                 case INGRESS:
@@ -3722,6 +3739,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case REPLACE:
+                            retVal = this.k8sApiService.replaceNamespacedIngress(optInfo.getName(), platformId, (ExtensionsV1beta1Ingress) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                     }
                     break;
@@ -3735,6 +3755,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                         case DELETE:
                             this.k8sApiService.deleteNamespacedIngress(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
                             break;
+                        case REPLACE:
+                            throw new ParamException(String.format("job not support replace operation"));
                     }
                     break;
                 case ENDPOINTS:
@@ -3745,6 +3767,23 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                             break;
                         case DELETE:
                             this.k8sApiService.deleteNamespacedEndpoints(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case REPLACE:
+                            retVal = this.k8sApiService.replaceNamespacedEndpoints(optInfo.getName(), platformId, (V1Endpoints) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            break;
+                    }
+                    break;
+                case STATEFULSET:
+                    switch (optInfo.getOperation())
+                    {
+                        case CREATE:
+                            retVal = this.k8sApiService.createNamespacedStatefulSet(platformId, (V1StatefulSet) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
+                            break;
+                        case DELETE:
+                            this.k8sApiService.deleteNamespacedDeployment(optInfo.getName(), platformId, k8sApiUrl, k8sAuthToken);
+                            break;
+                        case REPLACE:
+                            retVal = this.k8sApiService.replaceNamespacedStatefulSet(optInfo.getName(), platformId, (V1StatefulSet) optInfo.getObj(), k8sApiUrl, k8sAuthToken);
                             break;
                     }
                     break;

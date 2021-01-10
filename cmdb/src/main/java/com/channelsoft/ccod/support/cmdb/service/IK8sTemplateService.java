@@ -255,6 +255,13 @@ public interface IK8sTemplateService {
     List<K8sObjectTemplatePo> queryK8sObjectTemplate(String ccodVersion, AppType appType, String appName, String version);
 
     /**
+     * 查询满足指定标签的k8s对象模板
+     * @param labels 用来查询的标签
+     * @return 查询结果
+     */
+    List<K8sObjectTemplatePo> queryK8sObjectTemplate(Map<String, String> labels);
+
+    /**
      * 向数据库添加一条新的k8s对象模板记录
      * @param template 对象模板
      * @throws ParamException
@@ -274,5 +281,25 @@ public interface IK8sTemplateService {
      * @throws ParamException
      */
     void deleteObjectTemplate(Map<String, String> labels) throws ParamException;
+
+    /**
+     * 从已有的平台模板克隆出新的平台模板
+     * @param srcCcodVersion 被克隆的平台ccod版本号
+     * @param srcPlatformTag 被克隆的平台标签
+     * @param dstCcodVersion 新的平台ccod版本号
+     * @param dstPlatformTag 新的平台标签
+     * @return 克隆出的平台模板
+     * @throws ParamException
+     */
+    List<K8sObjectTemplatePo> cloneExistPlatformTemplate(String srcCcodVersion, String srcPlatformTag, String dstCcodVersion, String dstPlatformTag) throws ParamException;
+
+    /**
+     * 克隆已经存在的ccod应用模板
+     * @param srcCcodVersion 被克隆的平台ccod版本号
+     * @param dstCcodVersion 新的平台ccod版本号
+     * @return 克隆出的平台应用模板
+     * @throws ParamException
+     */
+    List<K8sObjectTemplatePo> cloneExistAppTemplate(String srcCcodVersion, String dstCcodVersion) throws ParamException;
 
 }

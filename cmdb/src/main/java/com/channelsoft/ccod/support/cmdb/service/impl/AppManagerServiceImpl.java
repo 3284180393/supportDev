@@ -782,8 +782,8 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     sb.append(String.format("logOutputCmd for %s is blank;", tag));
                 if(StringUtils.isBlank(appBase.getPorts()))
                     sb.append(String.format("ports is blank for %s;", tag));
-                if(appBase.getCfgs() == null || appBase.getCfgs().size() == 0)
-                    sb.append(String.format("cfgs of %s is empty;", tag));
+                if(appBase.getCfgs() == null)
+                    sb.append(String.format("cfgs of %s is null;", tag));
                 if(appBase.getInitialDelaySeconds() == null)
                     sb.append(String.format("initialDelaySeconds can not be null for %s", tag));
                 if(appBase.getPeriodSeconds() == null)

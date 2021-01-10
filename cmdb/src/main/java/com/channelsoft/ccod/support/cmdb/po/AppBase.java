@@ -283,7 +283,7 @@ public abstract class AppBase {
         this.ports = StringUtils.isBlank(this.ports) ? appBase.ports : this.ports;
         this.resources = StringUtils.isBlank(this.resources) ? appBase.resources : this.resources;
         this.startCmd = StringUtils.isBlank(this.startCmd) ? appBase.startCmd : this.startCmd;
-        this.cfgs = this.cfgs == null || this.cfgs.size() == 0 ? appBase.cfgs : this.cfgs;
+        this.cfgs = this.cfgs == null ? appBase.cfgs : this.cfgs;
         this.installPackage = this.installPackage == null ? appBase.installPackage : this.installPackage;
     }
 
