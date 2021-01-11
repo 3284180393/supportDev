@@ -3,6 +3,7 @@ package com.channelsoft.ccod.support.cmdb.vo;
 import com.channelsoft.ccod.support.cmdb.constant.*;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartAppVo;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
+import com.channelsoft.ccod.support.cmdb.po.CCODThreePartAppPo;
 import com.channelsoft.ccod.support.cmdb.po.PlatformBase;
 import com.google.gson.Gson;
 import io.kubernetes.client.openapi.models.*;
@@ -44,7 +45,7 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
 
     private V1Job k8sJob; //需要执行的k8s job
 
-    private List<K8sThreePartAppVo> threePartApps;
+    private List<CCODThreePartAppPo> threePartApps;
 
     private List<K8sThreePartServiceVo> threePartServices;
 
@@ -141,11 +142,11 @@ public class PlatformUpdateSchemaInfo extends PlatformBase {
         this.namespace = namespace;
     }
 
-    public List<K8sThreePartAppVo> getThreePartApps() {
+    public List<CCODThreePartAppPo> getThreePartApps() {
         return threePartApps;
     }
 
-    public void setThreePartApps(List<K8sThreePartAppVo> threePartApps) {
+    public void setThreePartApps(List<CCODThreePartAppPo> threePartApps) {
         this.threePartApps = threePartApps;
     }
 

@@ -24,7 +24,7 @@ public class JsonAppNexusFileHandler extends BaseTypeHandler<List<AppFileNexusIn
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, List<AppFileNexusInfo> appFileNexusInfos, JdbcType jdbcType) throws SQLException {
         if (appFileNexusInfos == null || appFileNexusInfos.size() == 0) {
-            ps.setNull(i, Types.VARCHAR);
+            ps.setString(i, "");
         } else {
             ps.setString(i, gson.toJson(appFileNexusInfos));
         }

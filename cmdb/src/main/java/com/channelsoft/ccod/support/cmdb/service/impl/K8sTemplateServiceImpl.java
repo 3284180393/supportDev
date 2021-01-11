@@ -472,7 +472,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //                }
 //            }
 //        }
-        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
+//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
 //        for(K8sTemplatePo template : templateList){
 //            if(template.getLabels().get(ccodVersionLabel).equals("bic")){
 //                if(template.getLabels().containsKey(appTypeLabel) && template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
@@ -482,23 +482,24 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //                }
 //            }
 //        }
-        for(K8sTemplatePo template : templateList){
-            if(template.getLabels().containsKey(appTypeLabel)){
-                if(template.getObjectTemplate().getIngresses() == null){
-                    template.getObjectTemplate().setIngresses(new ArrayList<>());
-                }
-                if(template.getObjectTemplate().getSecrets() == null){
-                    template.getObjectTemplate().setSecrets(new ArrayList<>());
-                }
-                if(template.getObjectTemplate().getConfigMaps() == null){
-                    template.getObjectTemplate().setConfigMaps(new ArrayList<>());
-                }
-                if(template.getObjectTemplate().getStatefulSets() == null){
-                    template.getObjectTemplate().setSecrets(new ArrayList<>());
-                }
-                k8sTemplateMapper.update(template);
-            }
-        }
+//        for(K8sTemplatePo template : templateList){
+//            if(template.getLabels().containsKey(appTypeLabel)){
+//                if(template.getObjectTemplate().getIngresses() == null){
+//                    template.getObjectTemplate().setIngresses(new ArrayList<>());
+//                }
+//                if(template.getObjectTemplate().getSecrets() == null){
+//                    template.getObjectTemplate().setSecrets(new ArrayList<>());
+//                }
+//                if(template.getObjectTemplate().getConfigMaps() == null){
+//                    template.getObjectTemplate().setConfigMaps(new ArrayList<>());
+//                }
+//                if(template.getObjectTemplate().getStatefulSets() == null){
+//                    template.getObjectTemplate().setSecrets(new ArrayList<>());
+//                }
+//                k8sTemplateMapper.update(template);
+//            }
+//        }
+//        cloneExistPlatformTemplate("4.8", "standard", "4.8", "icbc");
     }
 
 //    private void updateTemplate() throws Exception
@@ -1326,7 +1327,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         if(StringUtils.isBlank(dstPlatformTag)){
             throw new ParamException(String.format("dstPlatformTag can not be blank"));
         }
-        if(srcCcodVersion.equals(dstCcodVersion) && srcPlatformTag.equals(srcPlatformTag)){
+        if(srcCcodVersion.equals(dstCcodVersion) && srcPlatformTag.equals(dstCcodVersion)){
             throw new ParamException(String.format("can not clone to self"));
         }
         List<K8sObjectTemplatePo> templateList = new ArrayList<>();
@@ -1355,7 +1356,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
             k8sTemplateMapper.insert(template);
         }
         ccodThreePartAppMapper.delete(dstCcodVersion, dstPlatformTag, null, null);
-        ccodThreePartAppMapper.select(dstCcodVersion, dstPlatformTag, null).forEach(a->{
+        ccodThreePartAppMapper.select(srcCcodVersion, "standard", null).forEach(a->{
             a.setCcodVersion(dstCcodVersion);
             a.setTag(dstPlatformTag);
             ccodThreePartAppMapper.insert(a);

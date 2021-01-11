@@ -418,16 +418,54 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private void initThreePartAppDepend()
     {
+        String ccodVersion = "4.8";
+        String tag = "icbc";
         List<CCODThreePartAppPo> list = new ArrayList<>();
-        CCODThreePartAppPo appPo = new CCODThreePartAppPo("bic", "standard", "mysql", "mysql");
+        CCODThreePartAppPo appPo = new CCODThreePartAppPo(ccodVersion, tag, "mysql", "mysql");
         ccodThreePartAppMapper.insert(appPo);
-        appPo = new CCODThreePartAppPo("bic", "standard", "redis", "redis");
+        appPo = new CCODThreePartAppPo(ccodVersion, tag, "redis", "redis");
         ccodThreePartAppMapper.insert(appPo);
         appPo = new CCODThreePartAppPo("bic", "standard", "fastdfs", "fastdfs");
         ccodThreePartAppMapper.insert(appPo);
-        appPo = new CCODThreePartAppPo("bic", "standard", "filepreview", "preview");
-        ccodThreePartAppMapper.insert(appPo);
+//        appPo = new CCODThreePartAppPo("bic", "standard", "filepreview", "preview");
+//        ccodThreePartAppMapper.insert(appPo);
     }
+
+    private List<CCODThreePartAppPo> getThreeApp(String ccodVersion, String platformTag) throws  ParamException{
+        List<CCODThreePartAppPo> list = new ArrayList<>();
+        if(ccodVersion.equals("bic") && (StringUtils.isBlank(platformTag) || platformTag.equals("standard"))){
+            CCODThreePartAppPo appPo = new CCODThreePartAppPo(ccodVersion, "standard", "mysql", "mysql");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo(ccodVersion, "standard", "redis", "redis");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo(ccodVersion, "standard", "fastdfs", "fastdfs");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo("bic", "standard", "filepreview", "preview");
+            list.add(appPo);
+        }
+        else if(ccodVersion.equals("4.8") && (StringUtils.isBlank(platformTag) || platformTag.equals("standard"))){
+            CCODThreePartAppPo appPo = new CCODThreePartAppPo(ccodVersion, "standard", "mysql", "mysql");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo(ccodVersion, "standard", "redis", "redis");
+            list.add(appPo);
+        }
+        else if(ccodVersion.equals("4.8") &&  platformTag.equals("icbc-dc")){
+            CCODThreePartAppPo appPo = new CCODThreePartAppPo(ccodVersion, "standard", "mysql", "mysql");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo(ccodVersion, "sd", "mysql", "sdmysql");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo(ccodVersion, "standard", "redis", "redis");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo(ccodVersion, "standard", "redis", "redis");
+            list.add(appPo);
+        }
+        else{
+            throw new ParamException(String.format("can not find three part app for ccod %s with tag",
+                    ccodVersion, platformTag));
+        }
+        return list;
+    }
+
 
     private void updateThreePartApp(){
 //        List<String> versions = Arrays.asList(new String[]{"3.9", "4.1", "4.8"});
@@ -1890,6 +1928,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         List<AssemblePo> assembleList = this.assembleMapper.select(updateSchema.getPlatformId(), null);
         makeupDomainIdAndAliasForSchema(updateSchema, domainList, platformDeployApps, clone);
+        if(updateSchema.getThreePartApps() == null || updateSchema.getThreePartApps().size() == 0){
+            updateSchema.setThreePartApps(getThreePartAppDepend(ccodVersion, updateSchema.getTag()));
+        }
         this.platformUpdateSchemaMap.put(updateSchema.getPlatformId(), updateSchema);
         this.platformUpdateSchemaMapper.delete(updateSchema.getPlatformId());
         PlatformUpdateSchemaPo schemaPo = new PlatformUpdateSchemaPo();
@@ -2135,10 +2176,9 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 .flatMap(plan->plan.getApps().stream()).collect(Collectors.toList())
                 .stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getAppName));
         if(isNewPlatform) {
-            List<CCODThreePartAppPo> threePartApps = ccodThreePartAppMapper.select(schema.getCcodVersion(), StringUtils.isBlank(platformPo.getTag()) ? "standard" : platformPo.getTag(), null);
-            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId,  platformPo, threePartApps);
+            List<K8sOperationInfo> baseCreateSteps = this.k8sTemplateService.generateBasePlatformCreateSteps(jobId,  platformPo, schema.getThreePartApps());
             steps.addAll(baseCreateSteps);
-            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, platformPo, threePartApps);
+            List<K8sOperationInfo> platformCreateSteps = this.k8sTemplateService.generatePlatformCreateSteps(jobId, platformPo, schema.getThreePartApps());
             steps.addAll(platformCreateSteps);
 //            generateYamlForDeploy(schema, steps);
         }
@@ -3864,8 +3904,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            logger.debug("exec command success");
         }
         PlatformSchemaExecResultVo execResultVo = new PlatformSchemaExecResultVo(jobId, platformId, k8sOptList);
-        execK8sDeploySteps(platformPo, k8sOptList, execResults);
-        boolean execSucc = execResults.get(execResults.size() - 1).isSuccess();
+        boolean execSucc = execK8sDeploySteps(platformPo, k8sOptList, execResults);
         logger.info(String.format("%s schema with jobId=%s execute : %b", platformId, jobId, execSucc));
         if(execSucc)
             execResultVo.execResult(execResults);
@@ -3896,7 +3935,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return execResultVo;
     }
 
-    private void execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults) throws ApiException, ParamException
+    private boolean execK8sDeploySteps(PlatformPo platform, List<K8sOperationInfo> k8sOptList, List<K8sOperationPo> execResults) throws ApiException, ParamException
     {
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
@@ -3976,9 +4015,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 logger.error(String.format("exec %s fail", gson.toJson(k8sOpt)), ex);
                 ret.fail(ex.getMessage());
                 execResults.add(ret);
+                return false;
             }
             execResults.add(ret);
         }
+        return true;
     }
 
     @Override
