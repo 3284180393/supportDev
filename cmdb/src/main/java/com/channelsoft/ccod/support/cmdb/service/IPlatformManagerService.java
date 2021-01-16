@@ -61,6 +61,37 @@ public interface IPlatformManagerService {
     void createNewPlatformAppDataUpdateTask(String platformId, String platformName) throws Exception;
 
     /**
+     * 查询指定id的平台
+     * @param platformId 平台id
+     * @return 查询到的平台记录
+     * @throws ParamException
+     */
+    PlatformPo queryPlatformById(String platformId) throws ParamException;
+
+    /**
+     * 查询所有的平台记录
+     * @return 查询到的所有平台记录
+     */
+    List<PlatformPo> queryAllPlatform();
+
+    /**
+     * 查询指定平台下的指定id的域
+     * @param domainId 域id
+     * @param platformId 平台id
+     * @return 查询结果
+     * @throws ParamException
+     */
+    DomainPo queryDomainById(String domainId, String platformId) throws ParamException;
+
+    /**
+     * 查询指定平台下的所有域
+     * @param platformId
+     * @return 指定平台下的所有域
+     * @throws ParamException
+     */
+    List<DomainPo> queryAllDomain(String platformId) throws ParamException;
+
+    /**
      * 删除已有的平台
      * @param platformId 被删除的平台的id
      * @throws ParamException 被删除的平台不存在

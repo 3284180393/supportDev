@@ -32,6 +32,8 @@ public class K8sObjectTemplatePo {
 
     public final static String APP_VERSION = "${APPVERSION}"; //用来定义应用名小写宏标签
 
+    public final static String APP_TYPE = "${APPTYPE}"; //用来定义应用类型标签
+
     public final static String ALIAS = "${ALIAS}"; //用来定义应用别名宏标签
 
     public final static String HOST_URL = "${HOSTURL}"; //用来定义ccod平台域名宏标签
@@ -65,6 +67,8 @@ public class K8sObjectTemplatePo {
     private List<V1PersistentVolume> pvList;
 
     private List<V1PersistentVolumeClaim> pvcList;
+
+    private String comment;
 
     public Map<String, String> getLabels() {
         return labels;
@@ -168,6 +172,14 @@ public class K8sObjectTemplatePo {
 
     public void setConfigMaps(List<V1ConfigMap> configMaps) {
         this.configMaps = configMaps;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
     }
 
     public Object getK8sObject(K8sKind kind){

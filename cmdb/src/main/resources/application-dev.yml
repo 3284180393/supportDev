@@ -47,6 +47,11 @@ ccod:
       name: DataKeeper
     apps[6]:
       name: tsr2
+    apps[7]:
+      name: freeswitch
+      alias: wgw
+    apps[8]:
+      name: wgw
   set[1]:
     name: 网关接入
     id: gatewayAccess
@@ -64,6 +69,8 @@ ccod:
       name: slee
     apps[4]:
       name: fpsvr
+    apps[5]:
+      name: sgw
   set[2]:
     name: 域服务
     id: domainService
@@ -293,6 +300,11 @@ ccod:
     fixedDomainId: ui
     apps[0]:
       name: bic-ui
+    apps[1]:
+      name: filepreview
+    apps[2]:
+      name: bic-report-server
+      alias: bic-report
   set[8]:
     name: 后端模块
     id: backend
@@ -306,10 +318,10 @@ ccod:
       name: bic-portal
       alias: portal
     apps[2]:
-      name: cbs-cbs
+      name: cbs
       alias: cbs
     apps[3]:
-      name: cbs-ccs
+      name: ccs
       alias: ccs
   startChains:
     chains[0]:
@@ -451,7 +463,7 @@ ci:
     default-msg-image-url: https://hao1.qhimg.com/t01ea3a44e231e5d6f4.png
     msg-type: action_card
     msg-send-type: userName
-    default-receiver: 兰海波|王寓锋|吴培豪
+    default-receiver: 王寓锋|吴培豪
 
 jobs:
   app-debug:

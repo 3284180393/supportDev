@@ -1,6 +1,5 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
-import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.K8sKind;
 import com.channelsoft.ccod.support.cmdb.constant.ServicePortType;
@@ -8,7 +7,6 @@ import com.channelsoft.ccod.support.cmdb.exception.InterfaceCallException;
 import com.channelsoft.ccod.support.cmdb.exception.NexusException;
 import com.channelsoft.ccod.support.cmdb.exception.ParamException;
 import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sCCODDomainAppVo;
-import com.channelsoft.ccod.support.cmdb.k8s.vo.K8sThreePartServiceVo;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import io.kubernetes.client.openapi.ApiException;
@@ -281,6 +279,32 @@ public interface IK8sTemplateService {
      * @throws ParamException
      */
     void deleteObjectTemplate(Map<String, String> labels) throws ParamException;
+
+    /**
+     * 从已经存在的k8s命名空间自动生成应用k8s部署模板
+     * @param appType 应用类型
+     * @param alias 应用别名
+     * @param appName 应用名
+     * @param deploymentNames 应用关联的deployment名
+     * @param statefulSetNames 应用关联的statefulSet名
+     * @param serviceNames 应用关联的service名
+     * @param endpointNames 应用关联的endpoint名
+     * @param ingressNames 应用关联的ingress名
+     * @param configMapNames 应用关联的configMap名
+     * @param secretNames 应用关联的secret名
+     * @param platformId app归属的平台/命名空间
+     * @param domainId app归属的域id，可以为空
+     * @param hostUrl 部署app的平台域名，
+     * @param k8sApiUrl 部署app的k8s的api地址，不可为空
+     * @param k8sApiAuthToken 访问k8s的api的token，不可为空
+     * @return
+     * @throws ApiException
+     * @throws ParamException
+     */
+    K8sObjectTemplatePo getAppObjectTemplateFromExist(
+            AppType appType, String appName, String alias, List<String> deploymentNames, List<String> statefulSetNames,
+            List<String> serviceNames, List<String> endpointNames, List<String> ingressNames, List<String> configMapNames,  List<String> secretNames,
+            String platformId, String domainId, String hostUrl, String k8sApiUrl, String k8sApiAuthToken) throws ApiException, ParamException;
 
     /**
      * 从已有的平台模板克隆出新的平台模板

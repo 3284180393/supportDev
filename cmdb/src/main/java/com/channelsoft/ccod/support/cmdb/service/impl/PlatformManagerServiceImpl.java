@@ -379,6 +379,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            String json = "{\"platformAppId\":6017,\"appId\":433,\"originalAlias\":\"rmserver\",\"platformId\":\"icbcsite\",\"domainId\":\"public01\",\"assembleId\":4029,\"hostIp\":\"10.130.41.218\",\"appRunner\":\"rmserver\",\"deployTime\":\"Dec 29, 2020 10:11:21 AM\",\"appName\":\"RMServer\",\"alias\":\"rmserver\",\"appType\":\"BINARY_FILE\",\"version\":\"218:3544\",\"ccodVersion\":\"4.8\",\"basePath\":\"/root/Platform\",\"deployPath\":\"./bin/\",\"envLoadCmd\":\"\",\"initCmd\":\"\",\"startCmd\":\"./RMServer;sleep 5;\",\"logOutputCmd\":\"tail -F ../log/*.log\",\"ports\":\"18918/TCP,17007/TCP\",\"nodePorts\":\"18918/TCP,17007/TCP\",\"checkAt\":\"18918/TCP\",\"resources\":\"\",\"initialDelaySeconds\":20,\"periodSeconds\":10,\"cfgs\":[{\"fileName\":\"rm_config.cfg\",\"ext\":\"\",\"md5\":\"40eb357c553fa0210c75baf525a30e18\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"icbcsite/20201229101119/public01/RMServer/rmserver/218:3544/rm_config.cfg\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzoxM2IyOWU0NDlmMGUzYjhkMTk5ZDAxODAyZjVlYmVmMA\"},{\"fileName\":\"rm_logger.cfg\",\"ext\":\"\",\"md5\":\"eaf7c77d42e480f325216105f1df92cc\",\"deployPath\":\"./cfg/\",\"nexusRepository\":\"platform_app_cfg\",\"nexusPath\":\"icbcsite/20201229101119/public01/RMServer/rmserver/218:3544/rm_logger.cfg\",\"nexusAssetId\":\"cGxhdGZvcm1fYXBwX2NmZzowYWI4MGE3NDM5MjFlNDI2M2FiMmFjZmM2ZTU3Y2YzZQ\"}],\"installPackage\":{\"fileName\":\"RMServer\",\"ext\":\"\",\"md5\":\"676256b373b4aa4f81ff7eda2be5cc48\",\"deployPath\":\"./bin/\",\"nexusRepository\":\"ccod_module_releases\",\"nexusPath\":\"RMServer/218:3544/RMServer\",\"nexusAssetId\":\"Y2NvZF9tb2R1bGVfcmVsZWFzZXM6ODUxMzU2NTJhOTc4YmU5YWFiNTkyMDdiOGVjMWMxMzM\"}}";
 //            PlatformAppPo po = gson.fromJson(json, PlatformAppPo.class);
 //            platformAppMapper.update(po);
+            updateAppRegisterInfo();
 
         } catch (Exception ex) {
             logger.error("write msg error", ex);
@@ -652,6 +653,22 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 //            }
 //        });
         logger.error(gson.toJson(templateList));
+    }
+
+    private void updateAppRegisterInfo() throws Exception{
+        String json = "{\"comment\":\"create by MANUAL\",\"platformId\":\"bicys\",\"schemaId\":\"dkyrjtrbu6\",\"hostUrl\":\"bicys.ccod.com\",\"k8sHostIp\":\"10.130.41.218\",\"tag\":null,\"taskType\":\"CREATE\",\"configCenterData\":{},\"k8sJob\":null,\"depend\":null,\"title\":\"内控验收平台[bicys]新建计划\",\"threePartApps\":[],\"namespace\":null,\"k8sAuthToken\":\"eyJhbGciOiJSUzI1NiIsImtpZCI6IkQwUFZRU3Vzano0cS03eWxwTG8tZGM1YS1aNzdUOE5HNWNFUXh6YThrUG8ifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbi10b2tlbi10cnZ4aiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJrdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImI5ZjQ2YWZlLTQ0ZTYtNDllNC1iYWE2LTY3ODZmY2NhNTkyYiIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTprdWJlcm5ldGVzLWRhc2hib2FyZC1hZG1pbiJ9.emXO4luNDCozenbvjxAmk4frqzrzpJzFbn-dBV6lLUjXhuRKWbrRbflko_6Xbwj5Gd1X-0L__a_q1BrE0W-e88uDlu-9dj5FHLihk1hMgrBfJiMiuKLQQmqcJ2-XjXAEZoNdVRY-LTO7C8tkSvYVqzl_Nt2wPxceWVthKc_dpRNEgHsyic4OejqgjI0Txr_awJyjwcF-mndngivX0G1aucrK-RRnM6aj2Xhc9xxDnwB01cS8C2mqKApE_DsBGTgUiCWwee2rr1D2xGMqewGE-LQtQfkb05hzTNUfJRwaKKk6Myby7GqizzPci0O3Y4PwwKFDgY04CI32acp6ltA1cA\",\"k8sApiUrl\":\"https://10.130.41.218:6443\",\"type\":\"K8S_CONTAINER\",\"k8sSecrets\":[],\"threePartServices\":[],\"status\":\"EXEC\",\"nginx\":null,\"createMethod\":\"MANUAL\",\"func\":\"TEST\",\"baseDataNexusPath\":\"initSql/4.1/initPlatformData-2020-09-23.gz\",\"baseDataNexusRepository\":\"platform_base_data\",\"platformName\":\"内控验收平台\",\"srcPlatformId\":null,\"glsDBService\":null,\"bkBizId\":47,\"hosts\":null,\"ccodVersion\":\"bic\",\"cfgs\":[],\"domains\":[{\"status\":\"EXEC\",\"comment\":\"new domain comment\",\"domainId\":\"ui01\",\"ingresses\":[],\"domainType\":\"K8S_CONTAINER\",\"domainName\":\"前端1\",\"updateType\":\"ADD\",\"apps\":[{\"appType\":\"NODEJS\",\"appName\":\"bic-ui\",\"platformId\":null,\"assembleTag\":\"@78a65\",\"nodePorts\":null,\"periodSeconds\":10,\"tag\":null,\"deployPath\":\"./\",\"operation\":\"ADD\",\"originalVersion\":null,\"checkAt\":null,\"fixedIp\":false,\"version\":\"b0a7b66a778907f9fc5c4093936852e44f0d6244\",\"installPackage\":null,\"resources\":null,\"ccodVersion\":\"bic\",\"initCmd\":null,\"initialDelaySeconds\":20,\"domainCfg\":null,\"appRunner\":\"bic-ui\",\"hostIp\":\"10.130.41.218\",\"logOutputCmd\":\"ls\",\"domainId\":null,\"domainName\":null,\"cfgs\":[],\"basePath\":\"/usr/share/nginx/html/\",\"envLoadCmd\":null,\"alias\":\"bic-ui\",\"timeout\":60,\"runtime\":null,\"startCmd\":\"nginx -g 'daemon off;'\",\"ports\":\"80/TCP\",\"originalAlias\":\"bic-ui\"}],\"publicConfig\":null,\"services\":[],\"bkSetName\":\"前端模块\",\"maxOccurs\":1000,\"deployments\":[],\"tag\":null,\"occurs\":600},{\"status\":\"EXEC\",\"comment\":\"new domain comment\",\"domainId\":\"backend01\",\"ingresses\":[],\"domainType\":\"K8S_CONTAINER\",\"domainName\":\"后端1\",\"updateType\":\"ADD\",\"apps\":[{\"appType\":\"JAR\",\"appName\":\"bic-process\",\"platformId\":null,\"assembleTag\":\"@ce068\",\"nodePorts\":null,\"periodSeconds\":10,\"tag\":null,\"deployPath\":\"./\",\"operation\":\"ADD\",\"originalVersion\":null,\"checkAt\":\"8081/TCP\",\"fixedIp\":false,\"version\":\"9b2ddc793a311d6d9309aaeea8ff4ce59f1920ba\",\"installPackage\":null,\"resources\":null,\"ccodVersion\":\"bic\",\"initCmd\":null,\"initialDelaySeconds\":30,\"domainCfg\":null,\"appRunner\":\"bic-process\",\"hostIp\":\"10.130.41.218\",\"logOutputCmd\":\"ls\",\"domainId\":null,\"domainName\":null,\"cfgs\":[],\"basePath\":\"/root/Platform\",\"envLoadCmd\":null,\"alias\":\"bic-process\",\"timeout\":60,\"runtime\":null,\"startCmd\":\"java -jar  -Dspring.profiles.active=pro bic-process.jar\",\"ports\":\"80:8081/TCP\",\"originalAlias\":\"bic-process\"},{\"appType\":\"JAR\",\"appName\":\"bic-portal\",\"platformId\":null,\"assembleTag\":\"@4c758\",\"nodePorts\":null,\"periodSeconds\":10,\"tag\":null,\"deployPath\":\"./\",\"operation\":\"ADD\",\"originalVersion\":null,\"checkAt\":\"8080/TCP\",\"fixedIp\":false,\"version\":\"9b2ddc793a311d6d9309aaeea8ff4ce59f1920ba\",\"installPackage\":null,\"resources\":null,\"ccodVersion\":\"bic\",\"initCmd\":null,\"initialDelaySeconds\":30,\"domainCfg\":null,\"appRunner\":\"bic-portal\",\"hostIp\":\"10.130.41.218\",\"logOutputCmd\":\"ls\",\"domainId\":null,\"domainName\":null,\"cfgs\":[],\"basePath\":\"/root/Platform\",\"envLoadCmd\":null,\"alias\":\"bic-portal\",\"timeout\":60,\"runtime\":null,\"startCmd\":\"java -jar bic-portal.jar\",\"ports\":\"80/TCP\",\"originalAlias\":\"bic-portal\"},{\"appType\":\"TOMCAT_WEB_APP\",\"appName\":\"cbs-cbs\",\"platformId\":null,\"assembleTag\":\"@63108\",\"nodePorts\":null,\"periodSeconds\":10,\"tag\":null,\"deployPath\":\"./webapps\",\"operation\":\"ADD\",\"originalVersion\":null,\"checkAt\":\"8080/TCP\",\"fixedIp\":false,\"version\":\"050cc5e734a7fe2d865e22d84d724ed91d884ff7\",\"installPackage\":null,\"resources\":null,\"ccodVersion\":\"bic\",\"initCmd\":null,\"initialDelaySeconds\":90,\"domainCfg\":null,\"appRunner\":\"cbs-cbs\",\"hostIp\":\"10.130.41.218\",\"logOutputCmd\":\"tail -F ./logs/catalina.out\",\"domainId\":null,\"domainName\":null,\"cfgs\":[],\"basePath\":\"/usr/local/tomcat\",\"envLoadCmd\":null,\"alias\":\"cbs-cbs\",\"timeout\":60,\"runtime\":null,\"startCmd\":\"./bin/startup.sh\",\"ports\":\"80/TCP\",\"originalAlias\":\"cbs-cbs\"},{\"appType\":\"TOMCAT_WEB_APP\",\"appName\":\"cbs-ccs\",\"platformId\":null,\"assembleTag\":\"@f6124\",\"nodePorts\":null,\"periodSeconds\":10,\"tag\":null,\"deployPath\":\"./webapps\",\"operation\":\"ADD\",\"originalVersion\":null,\"checkAt\":\"8080/TCP\",\"fixedIp\":false,\"version\":\"6943cc0984682431df6510ee9f8ad43a4566b135\",\"installPackage\":null,\"resources\":null,\"ccodVersion\":\"bic\",\"initCmd\":null,\"initialDelaySeconds\":90,\"domainCfg\":null,\"appRunner\":\"cbs-ccs\",\"hostIp\":\"10.130.41.218\",\"logOutputCmd\":\"tail -F ./logs/catalina.out\",\"domainId\":null,\"domainName\":null,\"cfgs\":[],\"basePath\":\"/usr/local/tomcat\",\"envLoadCmd\":null,\"alias\":\"cbs-ccs\",\"timeout\":60,\"runtime\":null,\"startCmd\":\"./bin/startup.sh\",\"ports\":\"80/TCP\",\"originalAlias\":\"cbs-ccs\"}],\"publicConfig\":null,\"services\":[],\"bkSetName\":\"后端模块\",\"maxOccurs\":1000,\"deployments\":[],\"tag\":null,\"occurs\":600}],\"nfsServerIp\":null,\"glsDBPwd\":\"ccod\",\"bkCloudId\":32,\"glsDBUser\":\"ccod\",\"glsDBType\":\"MYSQL\"}";
+        PlatformUpdateSchemaInfo schema = gson.fromJson(json, PlatformUpdateSchemaInfo.class);
+        schema.getDomains().stream().flatMap(d->d.getApps().stream()).forEach(a->{
+            List<AppPo> appList = appMapper.select(null, a.getAppName().replaceAll(".*\\-", ""));
+            appList.forEach(u->{
+                String v = u.getVersion();
+                u.changeTo(a);
+                u.setVersion(v);
+                u.setInitCmd(null);
+                u.setEnvLoadCmd(null);
+                appMapper.update(u);
+            });
+        });
     }
 
     @Override
@@ -1022,7 +1039,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             String alias = optInfo.getAlias();
             String tag = String.format("DELETE %s in %s", alias, domainId);
             logger.debug(String.format("begin to %s", tag));
-            int platformAppId = domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getOriginalAlias, Function.identity())).get(alias).getPlatformAppId();
+            int platformAppId = domainAppList.stream().collect(Collectors.toMap(PlatformAppDeployDetailVo::getAlias, Function.identity())).get(alias).getPlatformAppId();
             logger.debug(String.format("delete platform_app_bk_module with platformAppId=%d", platformAppId));
             this.platformAppBkModuleMapper.delete(platformAppId, null, null, null);
             logger.debug(String.format("delete platform_app_cfg_file with platformAppId=%d", platformAppId));
@@ -1789,6 +1806,42 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         po.setStatus(status);
         logger.debug(String.format("three part app %s : %s", appName, gson.toJson(po)));
         return po;
+    }
+
+    @Override
+    public PlatformPo queryPlatformById(String platformId) throws ParamException {
+        logger.debug(String.format("begin to query id=%s platform", platformId));
+        PlatformPo platform = platformMapper.selectByPrimaryKey(platformId);
+        if(platform == null){
+            throw new ParamException(String.format("%s platform not exist", platformId));
+        }
+        return platform;
+    }
+
+    @Override
+    public List<PlatformPo> queryAllPlatform() {
+        logger.debug("begin to query all platform");
+        return platformMapper.select(null);
+    }
+
+    @Override
+    public DomainPo queryDomainById(String domainId, String platformId) throws ParamException {
+        logger.debug(String.format("begin to query domain %s at %s", domainId, platformId));
+        queryPlatformById(platformId);
+        DomainPo domain = domainMapper.selectByPrimaryKey(platformId, domainId);
+        if(domain == null){
+            throw new ParamException(String.format("domain %s at %s not exist", domainId, platformId));
+        }
+        return domain;
+    }
+
+    @Override
+    public List<DomainPo> queryAllDomain(String platformId) throws ParamException {
+        logger.debug(String.format("begin to query all domain at %s", platformId));
+        queryPlatformById(platformId);
+        List<DomainPo> list = domainMapper.select(platformId, null);
+        logger.debug(String.format("find %d domain at %s", list.size(), platformId));
+        return list;
     }
 
     @Override

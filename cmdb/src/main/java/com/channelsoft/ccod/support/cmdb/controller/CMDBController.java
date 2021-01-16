@@ -23,6 +23,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -676,6 +677,25 @@ public class CMDBController {
 //        return resultPo;
 //    }
 
+    @RequestMapping(value = "/hosts/{bizId}", method = RequestMethod.GET)
+    public AjaxResultPo queryBizHost(@PathVariable int bizId)
+    {
+        String uri = String.format("GET %s/hosts/%d", this.apiBasePath, bizId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<LJHostInfo> hosts = ljPaasService.queryBKHost(bizId, null, null, null, null);
+            resultPo = new AjaxResultPo(true, "query SUCCESS", hosts.size(), hosts);
+            logger.info(String.format("query host SUCCESS, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("query host %s exception", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return resultPo;
+    }
 
     @RequestMapping(value = "/sets", method = RequestMethod.GET)
     public AjaxResultPo queryAllCCODBizSet(String ccodVersion, Boolean hasImage)
@@ -1119,6 +1139,78 @@ public class CMDBController {
         {
             logger.error(String.format("delete platform update schema FAIL"), ex);
             resultPo = new AjaxResultPo(false, String.format("delete platform update schema FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platforms/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo getPlatform(@PathVariable String platformId){
+        String uri = String.format("GET %s/platforms?platformId=%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            PlatformPo platform = platformManagerService.queryPlatformById(platformId);
+            resultPo = new AjaxResultPo(true, "query platform success", 1, platform);
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("query platform FAIL"), ex);
+            resultPo = new AjaxResultPo(false, String.format("query platform FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/platforms", method = RequestMethod.GET)
+    public AjaxResultPo getAllPlatform(){
+        String uri = String.format("GET %s/platforms", this.apiBasePath);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<PlatformPo> list = platformManagerService.queryAllPlatform();
+            resultPo = new AjaxResultPo(true, "query platform success", list.size(), list);
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("query platform FAIL"), ex);
+            resultPo = new AjaxResultPo(false, String.format("query platform FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/domains/{platformId}/{domainId}", method = RequestMethod.GET)
+    public AjaxResultPo getDomain(@PathVariable String platformId, @PathVariable String domainId){
+        String uri = String.format("GET %s/domains/%s/%s", this.apiBasePath, platformId, domainId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            DomainPo domain = platformManagerService.queryDomainById(domainId, platformId);
+            resultPo = new AjaxResultPo(true, "query domain success", 1, domain);
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("query domain FAIL"), ex);
+            resultPo = new AjaxResultPo(false, String.format("query domain FAIL : %s", ex.getMessage()));
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/domains/{platformId}", method = RequestMethod.GET)
+    public AjaxResultPo getAllDomain(@PathVariable String platformId){
+        String uri = String.format("GET %s/domains/%s", this.apiBasePath, platformId);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<DomainPo> list = platformManagerService.queryAllDomain(platformId);
+            resultPo = new AjaxResultPo(true, "query domain success", list.size(), list);
+        }
+        catch (Exception ex)
+        {
+            logger.error(String.format("query domain FAIL"), ex);
+            resultPo = new AjaxResultPo(false, String.format("query domain FAIL : %s", ex.getMessage()));
         }
         return resultPo;
     }
@@ -2342,20 +2434,50 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/k8sObjectTemplate", method = RequestMethod.GET)
-    public AjaxResultPo queryK8sObjectTemplate()
+    public AjaxResultPo queryK8sObjectTemplate(@RequestBody Map<String, String> labels)
     {
         String uri = String.format("GET %s/k8sObjectTemplate", this.apiBasePath);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(null, null, null, null);
-            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), list);
+            List<K8sObjectTemplatePo> list = this.k8sTemplateService.queryK8sObjectTemplate(labels);
+            JsonParser jp = new JsonParser();
+            JsonArray jo = jp.parse(gson.toJson(list)).getAsJsonArray();
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", list.size(), jo);
             logger.info(String.format("query k8s object template SUCCESS, quit %s", uri));
         }
         catch (Exception e)
         {
             logger.error(String.format("query k8s object template exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping(value = "/appK8sObjectTemplate", method = RequestMethod.GET)
+    public AjaxResultPo queryAppK8sObjectTemplate(@RequestBody K8sTemplateParamVo paramVo)
+    {
+        String uri = String.format("GET %s/k8sObjectTemplate, params=%s", this.apiBasePath, gson.toJson(paramVo));
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            K8sObjectTemplatePo template = this.k8sTemplateService.getAppObjectTemplateFromExist(paramVo.getAppType(),
+                    paramVo.getAppName(), paramVo.getAlias(), paramVo.getDeploymentNames() == null ? new ArrayList<>() : paramVo.getDeploymentNames(),
+                    paramVo.getStatefulSetNames()==null ? new ArrayList<>():paramVo.getStatefulSetNames(), paramVo.getServiceNames()==null ? new ArrayList<>():paramVo.getServiceNames(),
+                    paramVo.getEndpointNames()==null ? new ArrayList<>():paramVo.getEndpointNames(), paramVo.getIngressNames()==null ? new ArrayList<>():paramVo.getIngressNames(),
+                    paramVo.getConfigMapNames()==null ? new ArrayList<>():paramVo.getConfigMapNames(), paramVo.getSecretNames()==null ? new ArrayList<>():paramVo.getSecretNames(),
+                    paramVo.getPlatformId(), paramVo.getDomainId(), paramVo.getHostUrl(), paramVo.getK8sApiUrl(), paramVo.getK8sApiAuthToken()
+            );
+            JsonParser jp = new JsonParser();
+            JsonObject jo = jp.parse(gson.toJson(template)).getAsJsonObject();
+            resultPo = new AjaxResultPo(true, "query k8s object template SUCCESS", 1, jo);
+            logger.info(String.format("get k8s object template success, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("get k8s object template exception, quit %s controller", uri), e);
             resultPo = AjaxResultPo.failed(e);
         }
         return resultPo;

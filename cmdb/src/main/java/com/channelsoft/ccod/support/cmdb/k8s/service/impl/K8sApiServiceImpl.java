@@ -1086,7 +1086,8 @@ public class K8sApiServiceImpl implements IK8sApiService {
 //            getTemplateJsonTest();
 //            deploySelectTest();
 //            strTest();
-            secretTest();
+//            secretTest();
+            svcReplaceTest();
         }
         catch (Exception ex)
         {
@@ -1178,6 +1179,19 @@ public class K8sApiServiceImpl implements IK8sApiService {
         String allName = String.join(",", deployments.stream().collect(Collectors.toMap(V1Deployment::getMetadata, Function.identity())).keySet().stream().collect(Collectors.toMap(V1ObjectMeta::getName, Function.identity())).keySet());
         System.out.println(allName);
         return allName;
+    }
+
+    private void svcReplaceTest() throws Exception
+    {
+        String json = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"domain-id\":\"ui01\",\"bic-ui\":\"bic-ui\"},\"name\":\"bic-ui-ui01\",\"namespace\":\"bicys\"},\"spec\":{\"ports\":[{\"name\":\"80\",\"port\":80,\"protocol\":\"TCP\",\"targetPort\":80}],\"selector\":{\"domain-id\":\"ui01\",\"bic-ui\":\"bic-ui\"},\"type\":\"ClusterIP\"}}";
+        V1Service svc = gson.fromJson(json, V1Service.class);
+        svc.getMetadata().getLabels().put("some", "test");
+//        svc.setSpec(null);
+        System.out.println(gson.toJson(svc));
+        svc = readNamespacedService("bic-ui-ui01", "bicys", testK8sApiUrl, testAuthToken);
+        svc.getMetadata().getLabels().put("some", "test");
+        replaceNamespacedService("bic-ui-ui01", "bicys", svc, testK8sApiUrl, testAuthToken);
+        System.out.println("ok");
     }
 
     private void createPVTest() throws Exception

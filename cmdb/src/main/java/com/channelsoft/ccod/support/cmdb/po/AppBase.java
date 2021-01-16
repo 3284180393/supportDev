@@ -255,14 +255,14 @@ public abstract class AppBase {
         this.deployPath = StringUtils.isNotBlank(appBase.deployPath) ? appBase.deployPath : this.deployPath;
         this.envLoadCmd = StringUtils.isNotBlank(appBase.envLoadCmd) ? appBase.envLoadCmd : this.envLoadCmd;
         this.initCmd = StringUtils.isNotBlank(appBase.initCmd) ? appBase.initCmd : this.initCmd;
-        this.initialDelaySeconds = appBase != null ? appBase.initialDelaySeconds : this.initialDelaySeconds;
+        this.initialDelaySeconds = appBase.initialDelaySeconds != null && appBase.initialDelaySeconds > 0 ? appBase.initialDelaySeconds : this.initialDelaySeconds;
         this.logOutputCmd = StringUtils.isNotBlank(appBase.logOutputCmd) ? appBase.logOutputCmd : this.logOutputCmd;
         this.nodePorts = StringUtils.isNotBlank(appBase.nodePorts) ? appBase.nodePorts : this.nodePorts;
-        this.periodSeconds = appBase.periodSeconds != null ? appBase.periodSeconds : this.periodSeconds;
+        this.periodSeconds = appBase.periodSeconds != null && appBase.periodSeconds > 0 ? appBase.periodSeconds : this.periodSeconds;
         this.ports = StringUtils.isNotBlank(appBase.ports) ? appBase.ports : this.ports;
         this.resources = StringUtils.isNotBlank(appBase.resources) ? appBase.resources : this.resources;
         this.startCmd = StringUtils.isNotBlank(appBase.startCmd) ? appBase.startCmd : this.startCmd;
-        this.cfgs = appBase.cfgs != null && appBase.cfgs.size() > 0 ? appBase.cfgs : this.cfgs;
+        this.cfgs = appBase.cfgs != null ? appBase.cfgs : this.cfgs;
         this.installPackage = appBase.installPackage != null ? appBase.installPackage : this.installPackage;
     }
 
