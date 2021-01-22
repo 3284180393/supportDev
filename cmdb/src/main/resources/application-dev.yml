@@ -323,6 +323,9 @@ ccod:
     apps[3]:
       name: ccs
       alias: ccs
+    apps[4]:
+      name: filepreview
+      alias: filepreview
   startChains:
     chains[0]:
       name: glsServer

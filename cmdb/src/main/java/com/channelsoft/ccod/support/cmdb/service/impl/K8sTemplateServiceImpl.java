@@ -22,7 +22,6 @@ import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.custom.IntOrString;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
-import io.kubernetes.client.util.Yaml;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -197,11 +196,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         try{
 //            updateTemplate();
 //            getTemplateForBic();
-//            String json = "{\"service\":{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"name\":\"umg41\"},\"name\":\"umg41\",\"namespace\":\"test-by-wyf\"},\"spec\":{\"ports\":[{\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"type\":\"ClusterIP\"}},\"endpoints\":{\"apiVersion\":\"v1\",\"kind\":\"Endpoints\",\"metadata\":{\"labels\":{\"name\":\"umg41\"},\"name\":\"umg41\",\"namespace\":\"test-by-wyf\"},\"subsets\":[{\"addresses\":[{\"ip\":\"10.130.41.41\"}],\"ports\":[{\"port\":12000,\"protocol\":\"TCP\"}]}]}}";
-//            json = json.replace("test-by-wyf", String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
-//            json = json.replace("umg41", K8sObjectTemplatePo.ALIAS);
-//            json = json.replace("10.130.41.41", "${PARAM.IP}");
-//            System.out.println(json);
+            String json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"annotations\":{\"deployment.kubernetes.io/revision\":\"2\"},\"creationTimestamp\":\"2021-01-13T09:40:17Z\",\"generation\":2,\"labels\":{\"app-name\":\"filepreview\",\"cattle.io/creator\":\"norman\",\"filepreview\":\"preview\",\"workload.user.cattle.io/workloadselector\":\"deployment-bicys-filepreview\"},\"name\":\"filepreview\",\"namespace\":\"base-bicys\",\"resourceVersion\":\"78357130\",\"selfLink\":\"/apis/apps/v1/namespaces/base-bicys/deployments/filepreview\",\"uid\":\"c042395c-9716-4f22-9577-96059da616db\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"workload.user.cattle.io/workloadselector\":\"deployment-bicys-filepreview\"}},\"strategy\":{\"rollingUpdate\":{\"maxSurge\":\"25%\",\"maxUnavailable\":\"25%\"},\"type\":\"RollingUpdate\"},\"template\":{\"metadata\":{\"annotations\":{\"cattle.io/timestamp\":\"2021-01-15T10:11:28Z\",\"field.cattle.io/ports\":\"[[{\\\"containerPort\\\":80,\\\"dnsName\\\":\\\"filepreview\\\",\\\"hostPort\\\":0,\\\"kind\\\":\\\"ClusterIP\\\",\\\"name\\\":\\\"ui\\\",\\\"protocol\\\":\\\"TCP\\\",\\\"sourcePort\\\":0}]]\"},\"creationTimestamp\":null,\"labels\":{\"app\":\"filepreview\",\"workload.user.cattle.io/workloadselector\":\"deployment-bicys-filepreview\"}},\"spec\":{\"containers\":[{\"env\":[{\"name\":\"DOMAIN_NAME\",\"value\":\"bicys.ccod.com\"}],\"image\":\"ccod/filepreview:2.2.1\",\"imagePullPolicy\":\"Always\",\"livenessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":80},\"timeoutSeconds\":1},\"name\":\"filepreview\",\"ports\":[{\"containerPort\":80,\"name\":\"ui\",\"protocol\":\"TCP\"}],\"readinessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":80},\"timeoutSeconds\":1},\"resources\":{},\"securityContext\":{\"capabilities\":{}},\"stdin\":true,\"terminationMessagePath\":\"/dev/termination-log\",\"terminationMessagePolicy\":\"File\",\"tty\":true}],\"dnsPolicy\":\"ClusterFirst\",\"restartPolicy\":\"Always\",\"schedulerName\":\"default-scheduler\",\"securityContext\":{},\"terminationGracePeriodSeconds\":30}}},\"status\":{\"availableReplicas\":1,\"conditions\":[{\"lastTransitionTime\":\"2021-01-13T09:40:53Z\",\"lastUpdateTime\":\"2021-01-13T09:40:53Z\",\"message\":\"Deployment has minimum availability.\",\"reason\":\"MinimumReplicasAvailable\",\"status\":\"True\",\"type\":\"Available\"},{\"lastTransitionTime\":\"2021-01-13T09:40:17Z\",\"lastUpdateTime\":\"2021-01-15T10:12:35Z\",\"message\":\"ReplicaSet \\\"filepreview-84f74f67f6\\\" has successfully progressed.\",\"reason\":\"NewReplicaSetAvailable\",\"status\":\"True\",\"type\":\"Progressing\"}],\"observedGeneration\":2,\"readyReplicas\":1,\"replicas\":1,\"updatedReplicas\":1}}";
+            V1Deployment deployment = templateParseGson.fromJson(json, V1Deployment.class);
+            System.out.println(templateParseGson.toJson(deployment));
         }
         catch (Exception ex){
             ex.printStackTrace();
@@ -210,450 +207,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
     private void updateTemplate() throws Exception
     {
-//        for(K8sTemplatePo template : temps){
-//            if(!template.getLabels().containsKey(appTypeLabel) || template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name))
-//                continue;
-//            for(V1Deployment d : template.getObjectTemplate().getDeployments()){
-//                for(V1Container c : d.getSpec().getTemplate().getSpec().getInitContainers()) {
-//                    c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION));
-//                }
-//            }
-//            k8sTemplateMapper.update(template);
-//        }
-//        k8sTemplateMapper.select().forEach(t->{
-//            if (t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP)) {
-//
-//                K8sObjectTemplatePo o = t.getObjectTemplate();
-//                if(o.getDeployments() == null){
-//                    o.setDeployments(new ArrayList<>());
-//                }
-//                if(o.getEndpoints() == null){
-//                    o.setEndpoints(new ArrayList<>());
-//                }
-//                if(o.getConfigMaps() == null){
-//                    o.setConfigMaps(new ArrayList<>());
-//                }
-//                if(o.getStatefulSets() == null){
-//                    o.setStatefulSets(new ArrayList<>());
-//                }
-//                k8sTemplateMapper.update(t);
-//            }
-//        });
-//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
-//        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)).forEach(t->{
-//            t.getLabels().put(appTagLabel, "standard");
-//            t.getObjectTemplate().getLabels().put(appTagLabel, "standard");
-//            k8sTemplateMapper.update(t);
-//        });
-//        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getObjectTemplate().getStatefulSets() == null).forEach(t->{
-//            t.getObjectTemplate().setStatefulSets(new ArrayList<>());
-//            k8sTemplateMapper.update(t);
-//        });
-//
-//
-//        String platformId = K8sObjectTemplatePo.PLATFORM_ID;
-//        String domainId = K8sObjectTemplatePo.DOMAIN_ID;
-//        String appName = K8sObjectTemplatePo.APP_NAME;
-//        String alias = K8sObjectTemplatePo.ALIAS;
-//        String hostUrl = K8sObjectTemplatePo.HOST_URL;
-//        String k8sHostIp = K8sObjectTemplatePo.K8S_HOST_IP;
-//        String nfsServerIp = K8sObjectTemplatePo.NFS_SERVER_IP;
-//        for(K8sTemplatePo template : templateList){
-//            Map<String, String> labels = template.getLabels();
-//            if(template.getLabels().containsKey(appTypeLabel)){
-//                resetAppTemplate(template.getObjectTemplate());
-//                k8sTemplateMapper.update(template);
-//            }
-//            String json = gson.toJson(template);
-//
-//            json = json.replace("\"server\":\"10.130.41.218\"", String.format("\"server\":\"%s\"", nfsServerIp));
-//
-//            json = json.replace("test-by-wyf.ccod.com", hostUrl);
-//            json = json.replace("jhkgs.ccod.com", hostUrl);
-//            json = json.replace("jhkzx-1.ccod.com", hostUrl);
-//            json = json.replace("10.130.41.218", k8sHostIp);
-//
-//            json = json.replace("cas-manage01", String.format("%s-%s", alias, domainId));
-//            json = json.replace("\"cas\"", String.format("\"%s\"", alias));
-//            json = json.replace("\"cas-", String.format("\"%s-", alias));
-//            json = json.replace("manage01", domainId);
-//
-//            json = json.replace("ucds", alias);
-//            json = json.replace("cloud01", domainId);
-//
-//            json = json.replace("dcms", alias);
-//            json = json.replace("dcmswebservice", alias);
-//            json = json.replace("freeswitch-wgw", alias);
-//
-//            json = json.replace("test-by-wyf", platformId);
-//            json = json.replace("someTest", platformId);
-//            json = json.replace("jhkzx-1", platformId);
-//            json = json.replace("test08", platformId);
-//            json = json.replace("test48", platformId);
-//            json = json.replace("k8s-test", platformId);
-//
-//            json = json.replace("base-volume/db/oracle/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
-//            json = json.replace("base-volume/db/oracle/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
-//            json = json.replace("base-volume/db/mysql/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
-//            json = json.replace("base-volume/db/mysql/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
-//
-//            json = json.replace("202005-test", K8sObjectTemplatePo.PLATFORM_ID);
-//
-//            K8sTemplatePo po = gson.fromJson(json, K8sTemplatePo.class);
-//            po.setLabels(labels);
-//            po.getObjectTemplate().setLabels(labels);
-//            k8sTemplateMapper.update(po);
-//            logger.error(String.format("template=%s", gson.toJson(po)));
-//        }
-//        templateList = k8sTemplateMapper.select();
-//        for(K8sTemplatePo template : templateList){
-//            Map<String, String> labels = template.getLabels();
-//            if(labels.containsKey(appTypeLabel) && labels.get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//                String name = null;
-//                for(String key : labels.keySet()){
-//                    if(key.equals(appTypeLabel) || key.equals(ccodVersionLabel) || key.equals(appTagLabel))
-//                        continue;
-//                    name = labels.get(key);
-//                    break;
-//                }
-//                labels.put(name, forAllVersion);
-//                labels.remove(appNameLabel);
-//                template.setLabels(labels);
-//                template.getObjectTemplate().setLabels(labels);
-//                k8sTemplateMapper.update(template);
-//            }
-//        }
-//        List<K8sTemplatePo> temps = k8sTemplateMapper.select();
-//        for(K8sTemplatePo template : temps){
-//            if(template.getObjectTemplate().getPvList() != null){
-//                template.getObjectTemplate().setPvList(template.getObjectTemplate().getPvList().stream().map(v->{
-//                    v.getSpec().getClaimRef().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
-//                    return v;
-//                }).collect(Collectors.toList()));
-//                k8sTemplateMapper.update(template);
-//                System.out.println("hello");
-//            }
-//            else if(template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
-//                    d.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION)));
-//                    return d;
-//                }).collect(Collectors.toList()));
-//                System.out.println("hello");
-//                k8sTemplateMapper.update(template);
-//            }
-//            if(template.getObjectTemplate().getPvcList() != null){
-//                template.getObjectTemplate().setJobs(new ArrayList<>());
-//                template.getObjectTemplate().setPvcList(template.getObjectTemplate().getPvcList().stream().map(v->{
-//                    v.getMetadata().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
-//                    return v;
-//                }).collect(Collectors.toList()));
-//                k8sTemplateMapper.update(template);
-//                System.out.println("hello");
-//            }
-//            else if(template.getLabels().containsKey(appTypeLabel) && template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
-//                    d.getMetadata().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
-//                    return d;
-//                }).collect(Collectors.toList()));
-//                if(template.getObjectTemplate().getServices() == null){
-//                    System.out.println("bye");
-//                }
-//                template.getObjectTemplate().setServices(template.getObjectTemplate().getServices().stream().map(d->{
-//                    d.getMetadata().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
-//                    return d;
-//                }).collect(Collectors.toList()));
-//                template.getObjectTemplate().setEndpoints(template.getObjectTemplate().getEndpoints().stream().map(d->{
-//                    d.getMetadata().setNamespace(String.format("base-%s", K8sObjectTemplatePo.PLATFORM_ID));
-//                    return d;
-//                }).collect(Collectors.toList()));
-//                System.out.println("hello");
-//                k8sTemplateMapper.update(template);
-//            }
-//            if(template.getObjectTemplate().getPvList() != null){
-//                template.getObjectTemplate().setPvList(template.getObjectTemplate().getPvList().stream().map(v->{
-//                    v.getSpec().getNfs().setPath("/home/kubernetes/volume/${PLATFORMID}");
-//                    return v;
-//                }).collect(Collectors.toList()));
-//                k8sTemplateMapper.update(template);
-//                System.out.println("hello");
-//            }
-//            if(template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
-//                    d.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->c.setName(String.format(K8sObjectTemplatePo.ALIAS)));
-//                    return d;
-//                }).collect(Collectors.toList()));
-//                System.out.println("hello");
-//                k8sTemplateMapper.update(template);
-//            }
-//        }
-//        temps.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
-//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getObjectTemplate().getEndpoints() != null && template.getObjectTemplate().getEndpoints().size() > 0){
-//                template.getObjectTemplate().setEndpoints(template.getObjectTemplate().getEndpoints().stream().map(e->{
-//                    e.getSubsets().forEach(s->s.getAddresses().forEach(a->a.setIp("${UMG.IP}")));
-//                    return e;
-//                }).collect(Collectors.toList()));
-//                k8sTemplateMapper.update(template);
-//            }
-//        }
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//                if(template.getId() == 22)
-//                    continue;
-//                if(template.getObjectTemplate().getIngresses() == null){
-//                    template.getObjectTemplate().setIngresses(new ArrayList<>());
-//                }
-//                template.getObjectTemplate().setDeployments(template.getObjectTemplate().getDeployments().stream().map(d->{
-//                    d.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
-//                        c.setPorts(new ArrayList<>());
-//                        c.getReadinessProbe().setExec(null);
-//                        c.getReadinessProbe().setHttpGet(null);
-//                        c.getReadinessProbe().setTcpSocket(null);
-//                        c.getLivenessProbe().setExec(null);
-//                        c.getLivenessProbe().setHttpGet(null);
-//                        c.getLivenessProbe().setTcpSocket(null);
-//                    });
-//                    return d;
-//                }).collect(Collectors.toList()));
-//                k8sTemplateMapper.update(template);
-//            }
-//        }
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getId() != 22){
-//                continue;
-//            }
-//            Map<String, String> labels = new HashMap<>();
-//            labels.put(appTypeLabel, AppType.BINARY_FILE.name);
-//            labels.put(ccodVersionLabel, "4.8");
-//            labels.put(appTagLabel, "freeswitch");
-//            template.setLabels(labels);
-//            template.getObjectTemplate().setLabels(labels);
-//            k8sTemplateMapper.update(template);
-//        }
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getId() != 22 && template.getLabels().containsKey(appTypeLabel) && !template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//                template.getObjectTemplate().setServices(new ArrayList<>());
-//                k8sTemplateMapper.update(template);
-//            }
-//        }
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getId() != 22){
-//                k8sTemplateMapper.update(template);
-//            }
-//        }
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getId() != 22)
-//                continue;
-//            String json = "{\"labels\":{\"ccod-version\":\"4.8\",\"app-type\":\"THREE_PART_APP\",\"app-tag\":\"freeswitch\"},\"deployments\":[{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"domain-id\":\"${DOMAINID}\",\"sgw\":\"sgw-${DOMAINID}\",\"umg\":\"umg-${DOMAINID}\",\"ssr\":\"ssr-${DOMAINID}\",\"fpsvr\":\"fpsvr-${DOMAINID}\"},\"name\":\"sgw-${DOMAINID}\",\"namespace\":\"${PLATFORMID}\"},\"spec\":{\"progressDeadlineSeconds\":600,\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"sgw\":\"sgw-${DOMAINID}\"}},\"strategy\":{\"type\":\"Recreate\"},\"template\":{\"metadata\":{\"labels\":{\"sgw\":\"sgw-${DOMAINID}\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"configMap\":{\"name\":\"umg-${DOMAINID}\"},\"name\":\"umg-${DOMAINID}-config\"},{\"configMap\":{\"items\":[{\"key\":\"log4cpp.cfg\",\"path\":\"log4cpp.cfg\"},{\"key\":\"kafkaproducer.cfg\",\"path\":\"kafkaproducer.cfg\"},{\"key\":\"fps.cfg\",\"path\":\"fps.cfg\"}],\"name\":\"fpsvr-${DOMAINID}\"},\"name\":\"fpsvr-${DOMAINID}-config\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/default/log/\",\"type\":\"\"},\"name\":\"log\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/default/core/\",\"type\":\"\"},\"name\":\"core\"},{\"hostPath\":{\"path\":\"/var/ccod-runtime/default/record/\",\"type\":\"\"},\"name\":\"record\"}],\"containers\":[{\"name\":\"sgw\",\"image\":\"ccod/freeswitch:1.10.2-qn-002\",\"imagePullPolicy\":\"Always\",\"ports\":[{\"containerPort\":8021,\"name\":\"secket\",\"protocol\":\"TCP\"}],\"livenessProbe\":{\"exec\":{\"command\":[\"/bin/sh\",\"-c\",\"kill -0 $(ps -C freeswitch -o pid=)\"]},\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"timeoutSeconds\":1},\"readinessProbe\":{\"exec\":{\"command\":[\"/bin/sh\",\"-c\",\"kill -0 $(ps -C freeswitch -o pid=)\"]},\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"timeoutSeconds\":1},\"resources\":{\"limits\":{\"cpu\":\"2\",\"memory\":\"2000Mi\"},\"requests\":{\"cpu\":\"2\",\"memory\":\"2000Mi\"}},\"workingDir\":\"/usr/local/freeswitch\",\"command\":[\"/bin/sh\",\"-c\"],\"args\":[\"/usr/local/freeswitch/bin/start.sh SGW; tail -F log/freeswitch.log\"],\"volumeMounts\":[{\"mountPath\":\"/record\",\"name\":\"record\"},{\"mountPath\":\"/usr/local/freeswitch/log/\",\"name\":\"log\",\"subPath\":\"freeswitch\"}]},{\"name\":\"umg\",\"image\":\"ccod/umg:14a46aefb7629a4e95af779b68aae6fb592096b0\",\"imagePullPolicy\":\"Always\",\"ports\":[{\"containerPort\":11500,\"name\":\"umg\",\"protocol\":\"TCP\"}],\"workingDir\":\"/root/ATS/bin\",\"command\":[\"/bin/bash\",\"-c\"],\"args\":[\"while [ `netstat -anp | grep :8021 | wc -l` -le 0 ]; do sleep 3; echo \\\"wait sgw running\\\"; done; mv adapter.cfg ../cfg/ ; ./UMG2 ; tail -F /root/ATS/runlog/*;\"],\"livenessProbe\":{\"failureThreshold\":5,\"initialDelaySeconds\":30,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":11500},\"timeoutSeconds\":1},\"readinessProbe\":{\"failureThreshold\":5,\"initialDelaySeconds\":30,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":11500},\"timeoutSeconds\":1},\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"},\"requests\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/root/ATS/config\",\"name\":\"umg-${DOMAINID}-config\"},{\"mountPath\":\"/root/ATS/runlog\",\"name\":\"log\",\"subPath\":\"umg\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\",\"subPath\":\"umg\"}]},{\"name\":\"ssr\",\"image\":\"ccod/ssr:225-3543\",\"imagePullPolicy\":\"Always\",\"ports\":[{\"containerPort\":12000,\"name\":\"ssr\",\"protocol\":\"TCP\"}],\"workingDir\":\"/root/ATS/bin\",\"command\":[\"/bin/bash\",\"-c\"],\"args\":[\"mv adapter.cfg ../cfg/ ; ./SSR2 ; tail -F /root/ATS/runlog/*;\"],\"livenessProbe\":{\"failureThreshold\":5,\"initialDelaySeconds\":30,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"readinessProbe\":{\"failureThreshold\":5,\"initialDelaySeconds\":30,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"},\"requests\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/root/ATS/config\",\"name\":\"umg-${DOMAINID}-config\"},{\"mountPath\":\"/root/ATS/runlog\",\"name\":\"log\",\"subPath\":\"ssr\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\",\"subPath\":\"ssr\"}]},{\"name\":\"fpsvr\",\"image\":\"nexus.io:5000/ccod/fpsvr:20053-22318\",\"imagePullPolicy\":\"IfNotPresent\",\"workingDir\":\"/root/Platform/bin\",\"env\":[{\"name\":\"LD_LIBRARY_PATH\",\"value\":\"/usr/local/lib/:/usr/lib/\"}],\"command\":[\"/bin/sh\",\"-c\"],\"args\":[\"./fpsvr;sleep 5;tail -F /root/Platform/log/*/*.log\"],\"livenessProbe\":{\"exec\":{\"command\":[\"/bin/sh\",\"-c\",\"kill -0 $(ps -C fpsvr -o pid=)\"]},\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"timeoutSeconds\":1},\"readinessProbe\":{\"exec\":{\"command\":[\"/bin/sh\",\"-c\",\"kill -0 $(ps -C fpsvr -o pid=)\"]},\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"timeoutSeconds\":1},\"resources\":{\"limits\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"},\"requests\":{\"cpu\":\"1\",\"memory\":\"1000Mi\"}},\"volumeMounts\":[{\"mountPath\":\"/record\",\"name\":\"record\"},{\"mountPath\":\"/root/Platform/cfg\",\"name\":\"fpsvr-${DOMAINID}-config\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\",\"subPath\":\"fpsvr\"},{\"mountPath\":\"/root/Platform/log\",\"name\":\"log\",\"subPath\":\"fpsvr\"}]}]}}}}],\"services\":[{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"name\":\"sgw-${DOMAINID}\",\"service-type\":\"THREE_PART_APP\"},\"name\":\"sgw-${DOMAINID}\",\"namespace\":\"${PLATFORMID}\"},\"spec\":{\"ports\":[{\"name\":\"ssr\",\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"selector\":{\"sgw\":\"sgw-${DOMAINID}\"},\"type\":\"ClusterIP\"}}],\"endpoints\":[],\"configMaps\":[{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"umg-${DOMAINID}\",\"namespace\":\"${PLATFORMID}\"},\"data\":{\"ATSEConfigData.cfg\":\"<?xml version=\\\"1.0\\\" encoding=\\\"GB2312\\\"?>\\n<ATSE>\\n  <AttributeSet MediaServerIP=\\\"\\\" AutoAnswer = \\\"true\\\" StatisticsLevel=\\\"3\\\" IsDebug=\\\"true\\\" LogLevel=\\\"DT\\\" RunLog=\\\"true\\\" UseDRWRClient=\\\"true\\\" WriteUserDefinedCallID=\\\"true\\\" AutoClear = \\\"5\\\" MaxUserIdleSeconds=\\\"\\\" SMSMediaServerIP=\\\"\\\" SupportFileOnUnix=\\\"true\\\">\\n    <SSR2 IP=\\\"127.0.0.1\\\" Port=\\\"12000\\\" SLEEName=\\\"Slee1_name\\\" SLEEPassword=\\\"Slee1_pwd\\\"/>\\n    <SNMPAgent TargetAddress=\\\"127.0.0.1\\\" ListenPort=\\\"10015\\\" TargetPort=\\\"10061\\\" NodeId=\\\"100\\\" NodeLocation=\\\"wuxz_notebook\\\" NodeName=\\\"slee100\\\"/>\\n    <SDR NodeCode=\\\"1001\\\" DeviceCode=\\\"001001\\\"/>\\n  </AttributeSet>\\n  <DNGroups>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"outbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"3001\\\" EndDN=\\\"3001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"b.usml\\\" IsInbound=\\\"false\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n    </ResGroup>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"inbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"5001\\\" EndDN=\\\"5001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"inbound.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n      </ResGroup>\\n        <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"App\\\">\\n          <DNList>\\n            <ComplexDN StartDN=\\\"7003\\\" EndDN=\\\"7003\\\"/>\\n          </DNList>\\n          <RunTime>\\n            <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n              <Application Name=\\\"ATS服务\\\" XMLFile=\\\"a3.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n            </RunPeriod>\\n          </RunTime>\\n    </ResGroup>\\n  </DNGroups>\\n  <Components>\\n    <Component ProgID=\\\"QNWriteFileCOM.clsWriteFile\\\"     ClassName=\\\"com.channelsoft.reusable.comobj.writefilecom.WriteFileCom\\\">    \\n      <Config>\\n        <Entry Key=\\\"WriteFilePath\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"QNDBCOM.clsQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QuerySQL.CQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QNNetCOM.clsHttp\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"PublicUnity.CHTTP\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"MSSOAP.SoapClient30\\\" ClassName=\\\"com.channelsoft.reusable.comobj.ws.SoapClientByWSIF\\\"/>\\n    <Component ProgID=\\\"QnINICOM.ini\\\" ClassName=\\\"com.channelsoft.reusable.comobj.inicom.IniCom\\\"/>\\n    <Component ProgID=\\\"MD5Com.MD5Entity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.md5com.Md5Com\\\"/>            \\n    <Component ProgID=\\\"JMSCom.JMSEntity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.jmscom.JmsCom\\\"/>    \\n    <Component ProgID=\\\"CCOD.AssociatedData\\\" ClassName=\\\"com.channelsoft.slee.callagent.ccod.servicedata.V2_ServiceData\\\"/>\\n    <Component ProgID=\\\"CONFNODE.ConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"TConfCom.TConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"QnFaxForAgent.clsOprTask\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"TDP.IVRInterface\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>    \\n    <Component ProgID=\\\"Microsoft.XMLDOM\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"MSXML2.DOMDocument.4.0\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"CASRouterClient\\\" ClassName=\\\"com.channelsoft.reusable.comobj.cas.RouterClient\\\">\\n      <Config>\\n        <Entry Key=\\\"CASServerIP\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"CASServerPort\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"ListenServerPort\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n  </Components>\\n  <ServiceProviders>\\n    <ReasoningProvider>\\n      <ClassName>com.channelsoft.reusable.debugproxy.DebugAgent</ClassName>\\n      <Enabled>false</Enabled>\\n    </ReasoningProvider>\\n  </ServiceProviders>\\n</ATSE>\",\"SSR.ini\":\"[System]\\nUMGIP=127.0.0.1\\nUMGPort=11500\\nRouteStratgy_1=ani\\nRouteStratgy_2=dnis\\nRouteStratgy_3=oriani\\nRouteStratgy_4=ani\\nRouteStratgy_5=mediatype\\nRouteStratgy_6=weight\\nRouteStratgy_7=average\\nClientCount=2\\nListenPort=12000\\nLog_path=../runlog\\nLog_level=debug\\n[Client1]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\\n[Client2]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\",\"UMG.ini\":\"[SYSTEM]\\nlog_path=../runlog/\\nlog_level=debug\\nHWType=freeswitch\\nVGCP_listen_port=11500\\nchannel_worker_number=16\\nDefaultCallingNumber=1000\\nAccept_Route_Play=yes\\nMultiProcess=No\\nVolume=0\\nMax_Time_Drop_Enable=yes #是否启用超时挂断\\nMax_Drop_Time=7200 #超时挂断事件（S）该事件最低为300s，配置低于300默认为300\\nU2UInfo_for_OriANI = yes\\nRedis_Location = redis-headless:27379,redis-headless:27379,redis-headless:27379\\n[CPRLIST]\\ntotal=0\\ntone_clamp=yes\\necho_cancel=yes\\nneed_record=yes\\n[FilePath_Transfer]\\norig_path=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\\\ndest_path=/data/record/recording/\\norig_path_fax=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\Document\\\\\\ndest_path_fax=./\\nnew_record_path = umg69\\n[PSR]\\nConnect_PSR = no\\nMasterEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11280\\nSlaveEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11481\\nEventServer = PSREventServer:tcp_-h_127.0.0.1_-p_14681\\nUMG4PSREndpoint = UMG:tcp_-h_10.9.43.75_-p_10072\\n[XoIP]\\nsip_server_address=wgw #WGW地址\\nsip_server_port=6080 #WGW端口\\nRegister_Period=3000\\nRegister_Expires=3600\\nRegister_Num_Begin=1000\\nRegister_Count=20\\nRegister_PhoneNumInterval=2\\nrtp_media_coding0=g711a\\nrtp_media_coding1=g711mu\\n[ModNumber]\\nIsNeedModNumber=yes #yes/no \\nModules_Params = ../hlr/hlr.13x, ../hlr/hlr.14x, ../hlr/hlr.15x, ../hlr/hlr.17x, ../hlr/hlr.18x\\n#[TRUNK_GROUP$]\\n#sip_server_address=user #客户交本地注册用户\\n[AccessExtMoudle] #iceserver链接配置 回呼\\nuse=true\\nIce_server=127.0.0.1\\nIce_port = 8001\\nIce_timeout = 5000\\n[StreamPlay] #流式放音\\nsupport =no                                                              \\nuri=10.9.43.75:8000\\n[StreamRecord] #流式录音\\nsupport = no\\nuri=10.9.43.75:8000\\nuser=source\\npasswd=hackme\\n[TRUNK_GROUP]\\ntotal=7\\n#linkChannels=960,962,964,966,968,970,972,974,976,978,980,982,984,986,988\\n#linkChannels=1025,1026,1027,1028,1029,1030,1032,1034,1036,1038,1040,1042,1044,1046,1048,1050,1052,1054,1055\\n[TRUNK_GROUP1]\\ntac=s\\nstart_number=0\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\n#sip_server_address=\\n#sip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP2]\\ntac=t\\nstart_number=5096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=wgw #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\nModNumber_Rules=../config/mod_number/beijing.xml\\n[TRUNK_GROUP3]\\ntac=w\\nstart_number=6096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=wgw #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP4]\\ntac=z\\nstart_number=7096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.15.145 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\n#sip_server_address=10.9.43.75\\n#sip_server_port=6090\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal-ylxt\\n[TRUNK_GROUP5]\\ntac=o\\nstart_number=8096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.58.178 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\nbillingcode=cd693\\nis_need_csr=yes\\nfstrunck=gateway/zealcomm\\n[TRUNK_GROUP6]\\ntac=m\\nstart_number=9096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75\\nsip_server_port=7080\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP7]\\ntac=n\\nstart_number=10096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.0.243\\nsip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[CDR]\\nsupport_cdr=yes\\ndevice_code=010VG1\\n[IvrMonitor]\\nsupported=no\\nivrmonitor_port=4321\\n[CtiAdapter]\\nsupported=yes\\nEndPoint=QRServer:tcp_-h_tsr2-cloud01.countrybank_-p_11480 #tsr地址\\nLocalPath=/data/local/\\nRemoteUrl=/data/remote/\\nTimeOut=3000\\nKeepAlive=false\\nLogFile=../runlog/\\n[SpecialAniAddrNature]\\naddr_nature=3\\nANI=95511,95533\\n[CloudData]\\nsupport =no\\nNodeID = 23\\nUMG_IP = 10.9.43.75 #中信测试环境未部署云接入\\nUMG_Port = 12000\\nzookeeper_ip = 10.130.41.140\\nzookeeper_port =2181\\nUMGName4Zookeeper=umg_fs_141\\nZooKeeperPath=/umg_cloud/cluster\\ntrunk_num = 2\\n[CloudData_Trunk1]\\nTac = s\\nType = SIP\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd691\\n[CloudData_Trunk2]\\nTac = t\\nType = PSTN\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble = 1\\nbillingcode = cd692\\n[Monitor]\\nIsNeedMonitor = no # 是否启用运行监控消息输出\\nMonitorFilePath = ../cctrack/umg # 运行监控消息输出目录，需要手动建立\\nMonitorFileName = UMG_TEST69 # 运行监控消息输出文件名\\nModuleName = UMG_TEST69 # 运行监控消息输出服务名  \\n[UUINFO]\\nvalue = \\\"ANI:15210508909|ID:2255|CLIENTNO:1002|CTINO:1002|SYSTEM:253648\\\"\\n[SS7ANI4BJLT]\\nSetSS7AniType = 1 #use:1  nouse:0\\n[GLS]\\nConnect_GLS = yes\\nServiceName = UMG-DEMO\\nGlsLocation = GLSServer:tcp_glsserver-public01.countrybank_-p_17020\\n[FrontCode]\\nsupport = yes\\nCode = 9999\\nANIFile = ../config/ANIFile.cfg\\n[DataBase]\\nUSE_ICE=0\\n[IceServer]\\nIce_server=10.130.41.35\\nIce_port=10000\\n[FSW]\\nInboundTrunkTac=s\\nFSWServerAddr=127.0.0.1 #SGW地址\\nFSWServerPort=8021 #SGW端口\\nrecordingpath=/data/record/recording/\\nrecordedpath=/data/record/recorded/\\nsplitfileext=.wav\\nmixfileext=.wav\\nneed_add_alert=true\\n[Anon]\\nEnable=yes\\nExcTimeout=5\\nConTimeout=5\\nAgentid=010\\nUrl=http://ccod1:8082/ccod/getSerialNumber\\nAppID=ccodprivate\\nAppPWD=7cd3f4920ac00fad603a8205309c6e4c\\nRule=TEL:99\",\"drwr_client.cfg\":\"#######################################################################\\n# 话单存储器配置文件\\n# 林维志，2005-12-12\\n# 青牛（北京）技术有限公司 版权所有\\n#######################################################################\\n# ===========================\\n# 下面指定话单文件相关参数\\n# ===========================\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/sdr/temp/DRWRClient.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 10\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 10000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/sdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 1\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\n#drwr_file_backup_path = $USBOSS_HOME/sdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 1\\n# ===========================\\n# 下面指定服务器相关参数\\n# ===========================\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 1\\n# 服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 134.96.71.108\\n# 服务器的端口\\ndrwr_server_port = 9091\\n# ===========================\\n# 下面指定日志参数\\n# ===========================\\n# 日志文件名，最好为全路径名，且不需要指定扩展名。若此参数为空则不写日志。\\ndrwr_log_filename = $USBOSS_HOME/sdr/Log/\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = INFO\",\"umg_cdr.cfg\":\"###############################################################################\\n#\\n#    话单存储器配置文件\\n#    林维志，2005-12-12\\n#    北京青牛软件技术有限责任公司　版权所有\\n#\\n###############################################################################\\n###############################################################################\\n# 以下话单收发模块drwr_client的配置\\n###############################################################################\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 0\\n# 话单接收服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 127.0.0.1\\n# 话单接收服务器的端口,\\ndrwr_server_port = 9092\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/cdr/temp/DRWRClientTest.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 60\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 20000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/cdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 0\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\ndrwr_file_backup_path = $USBOSS_HOME/cdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 2\\n# 日志文件名，最好为全路径名\\ndrwr_log_filename = $USBOSS_HOME/cdr/log/drwr_client.log\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = 700\\n###############################################################################\\n# 以下为实时话单接收器drwr_server的配置\\n###############################################################################\\n# drwr_server使用的本地的IP地址\\ndrwr_local_ip = 127.0.0.1\\n# drwr_server使用的本地的端口\\ndrwr_local_port = 9091\\n# drwr_server的线程池的大小\\ndrwr_thread_pool_size = 30\\n# 允许访问drwr_server的客户端的IP数量\\n#drwr_allow_ip_count = 0\\n# 允许访问drwr_server的客户端的IP\\n#drwr_allow_id_1 =\"}},{\"apiVersion\":\"v1\",\"data\":{\"fps.cfg\":\"[FPS]\\nUPLOAD.PROTOCOL = 2\\nUPLOAD.ROOTURL = ftp://ftpuser:ftpuser@10.130.41.59/test\\nUPLOAD.FTPPORT= 21\\nUPLOAD.ISNEED.SAVEDATA = no\\nUPLOAD.SAVEDATA.PATH = ../fpsdata\\nUPLOAD.HTTP.WAV.ENABLE = yes\\nUPLOAD.HTTP.WAV.URL = 10.130.24.34:8082/dfs_upload/AudioNotConvertUpload?convert=0\\nUPLOAD.HTTP.URL = 10.130.24.34:8082/dfs_upload/AudioNotConvertUpload?convert=1\\nUPLOAD.HTTP.TIMEOUT = 15\\nUPLOAD.METHOD.CONTROL = 1\\nUPLOAD.HTTP.ENTID.PREFIX.LIST = \\nUPLOAD.FTP.ENTID.PREFIX.LIST = YL,20160412,SCFG2016\\nUPLOAD.DIR.FIRSTDIR = record\\nUPLOAD.CONFIG.POSITION = 1\\nUPLOAD.HTTP.RESULT.SAVE.METHOD = 3\\nUPLOAD.KAFKAPOOL.SIZE = 5\\nUPLOAD.KAFKA.CFG = ../cfg/kafkaproducer.cfg\\nUPLOAD.KAFKA.PERSIST = ../fpskafka\\nUPLOAD.KAFKA.BAKPERSIST = ../fpsbakkafka\\nUPLOAD.HTTP.MONGODB.URI = 10.130.29.207:30000\\nUPLOAD.HTTP.TABLENAME = ent_record_fastdfs_url\\nUPLOAD.HTTP.STORE.METHOD = 2\\nUPLOAD.HTTP.SINGLE.DBHOST = mysql\\nUPLOAD.HTTP.SINGLE.DBUSER = ucds\\nUPLOAD.HTTP.SINGLE.DBPWD = ucds\\nUPLOAD.HTTP.SINGLE.DBENTID = ccod\\nUPLOAD.HTTP.SINGLE.DBNAME = ucds\\nUPLOAD.HTTP.MUTI.DBHOST = mysql\\nUPLOAD.HTTP.MUTI.DBUSER = ucds\\nUPLOAD.HTTP.MUTI.DBPWD = ucds\\nUPLOAD.HTTP.MUTI.DBENTID = ccod\\nUPLOAD.HTTP.MUTI.DBNAME = ucds\\nUPLOAD.ROOTDIR = /record/\\nUPLOAD.STARTTIME = 8\\nUPLOAD.ENDTIME = 23\\nUPLOAD.SEARCH.ROLE = 2\\nUPLOAD.FILE.MTIME = 240\\nUPLOAD.SUFFIXNAME = .wav\\nUPLOAD.MODE = 2\\nUPLOAD.REMOTEPATH.RULE = 1\\nUPLOAD.FILENAME.REGEXP = ^([0-9]{4})([0-9]{2})([0-9]{2})[0-9]{6}_[0-9]{2}_([0-9]*)_[0-9]*_([0-9]*).wav\\nUPLOAD.REMOTEPATH.NORMAL = (5)/(1)(2)/(4)/(2)(3)/\\nUPLOAD.REMOTEPATH.ABNORMAL = ERROR/(1)(2)(3)/\\nFAILED.BACKUP = /home/songbw/cti/fps/branch_mysql/unix/errbak\\nUPLOAD.SUCCESS.MODE = 2\\nUPLOADED.ROOTDIR = /home/songbw/cti/fps/branch_mysql/unix/bak\\nUPLOADED.REMOVE = YES\\nUPLOADED.REMOVE.PERIOD = 4\\nUPLOADED.REMOVE.DELETETIME = 0\\nUPLOADED.REMOVE.CKDEPTH = 1\\nUPLOAD.RETRIES = 2\\nUPLOAD.TIMEOUT = 15\\nUPLOAD.THREADPOOL.SIZE = 2\\nUPLOAD.FILE.PRIORITY = 1\\nUPLOAD.AGAIN.AMOUNT = 2000\\nLOGGER.CONF = ../cfg/log4cpp.cfg\\nFPS.COREDUMP = YES\\nFPS.DYNAMICLOADING.TIME = 20\\nUPLOAD.FILE.SIZE = 10\\nEXCEED.FILESIZ.BACKUP = /home/songbw/cti/fps/branch_mysql/unix/exceedFilesizeBackup\\n\",\"kafkaproducer.cfg\":\"# Copy this file to test.conf and set up according to your configuration.\\n#\\n# Test configuration\\n# xumj@channelsoft.com\\n#\\n# For slow connections: multiply test timeouts by this much (float)\\n#kafkaproducer.timeout.multiplier=3.5\\n# topic for producer\\nkafkaproducer.topic=ent_record_fastdfs_url\\n#ack count\\nrequest.required.acks=2\\n# the partition for store data.[-1,1000]\\nkafkaproducer.partition=-1\\n# Bootstrap broker(s)\\nmetadata.broker.list=localhost:9092\\n# Debugging\\n#debug=metadata,topic,msg,broker\\n# Any other librdkafka configuration property.\\napi.version.request=false\\nbroker.version.fallback=0.8.2.2\\n\",\"log4cpp.cfg\":\"log4j.rootCategory=DEBUG, rootAppender\\nlog4j.appender.rootAppender=org.apache.log4j.ConsoleAppender\\nlog4j.appender.rootAppender.layout=org.apache.log4j.PatternLayout\\n#log4j.appender.rootAppender.layout.ConversionPattern=%d{%Y-%m-%d %H:%M:%S.%l} %-5p %c %m%n\\nlog4j.appender.rootAppender.layout.ConversionPattern=%d{%Y-%m-%d %H:%M:%S.%l} [%-5p] %t %m%n\\nlog4j.category.FPS=DEBUG, FPSAppender\\nlog4j.additivity.FPS=true\\nlog4j.appender.FPSAppender=org.apache.log4j.RollingFileAppender\\nlog4j.appender.FPSAppender.layout=org.apache.log4j.PatternLayout\\n#log4j.appender.FPSAppender.layout.ConversionPattern=%d{%Y-%m-%d %H:%M:%S.%l} %-5p %c %m%n\\nlog4j.appender.FPSAppender.layout.ConversionPattern=%d{%Y-%m-%d %H:%M:%S.%l} [%-5p] %t %m%n\\nlog4j.appender.FPSAppender.fileName=../log/fps/fps.log\\nlog4j.appender.FPSAppender.maxFileSize=100485760\\nlog4j.appender.FPSAppender.maxBackupIndex=250\\n\"},\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"fpsvr-${DOMAINID}\",\"namespace\":\"${PLATFORMID}\"}}]}";
-//            K8sObjectTemplatePo obj = gson.fromJson(json, K8sObjectTemplatePo.class);
-//            obj.getLabels().put(appTypeLabel, AppType.BINARY_FILE.name);
-//            template.setLabels(obj.getLabels());
-//            template.setObjectTemplate(obj);
-//            k8sTemplateMapper.update(template);
-//        }
-//        getTemplateForBic();
-//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getLabels().get(ccodVersionLabel).equals("bic") && template.getLabels().containsKey(appTypeLabel) && template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//                template.getLabels().put(appTagLabel, "standard");
-//                template.getObjectTemplate().getLabels().put(appTagLabel, "standard");
-//                String app = null;
-//                for(String key : template.getLabels().keySet()){
-//                    if(template.getLabels().get(key).equals("ANY_VERSION")){
-//                        app = key;
-//                    }
-//                }
-//                template.getLabels().put(app, "*");
-//                template.getObjectTemplate().getLabels().put(app, "*");
-//                k8sTemplateMapper.update(template);
-//            }
-//        }
-//        getPlatformTemplateForBic();
-//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getLabels().get(ccodVersionLabel).equals("bic")){
-//                if(!template.getLabels().containsKey(appTypeLabel)){
-//                    template.getLabels().put(platformTagLabel, "standard");
-//                    template.getObjectTemplate().getLabels().put(platformTagLabel, "standard");
-//                    k8sTemplateMapper.update(template);
-//                }
-//            }
-//        }
-//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getLabels().get(ccodVersionLabel).equals("bic")){
-//                if(template.getLabels().containsKey(appTypeLabel) && template.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//                    String json = templateParseGson.toJson(template);
-//                    json = json.replace("\"namespace\":\"${PLATFORMID}\"", "\"namespace\":\"base-${PLATFORMID}\"");
-//                    k8sTemplateMapper.update(templateParseGson.fromJson(json, K8sTemplatePo.class));
-//                }
-//            }
-//        }
-//        for(K8sTemplatePo template : templateList){
-//            if(template.getLabels().containsKey(appTypeLabel)){
-//                if(template.getObjectTemplate().getIngresses() == null){
-//                    template.getObjectTemplate().setIngresses(new ArrayList<>());
-//                }
-//                if(template.getObjectTemplate().getSecrets() == null){
-//                    template.getObjectTemplate().setSecrets(new ArrayList<>());
-//                }
-//                if(template.getObjectTemplate().getConfigMaps() == null){
-//                    template.getObjectTemplate().setConfigMaps(new ArrayList<>());
-//                }
-//                if(template.getObjectTemplate().getStatefulSets() == null){
-//                    template.getObjectTemplate().setSecrets(new ArrayList<>());
-//                }
-//                k8sTemplateMapper.update(template);
-//            }
-//        }
-//        cloneExistPlatformTemplate("4.8", "standard", "4.8", "icbc");
-        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
-        for(K8sTemplatePo template : templateList){
-            for(String key : template.getLabels().keySet()){
-                if(template.getLabels().get(key).equals(forAllVersion)){
-                    template.getLabels().put(key, "*");
-                    template.getObjectTemplate().getLabels().put(key, "*");
-                    k8sTemplateMapper.update(template);
-                    break;
-                }
-            }
-        }
     }
-
-//    private void updateTemplate() throws Exception
-//    {
-////        Map<String, String> labels = new HashMap<>();
-////        labels.put(ccodVersionLabel, "4.8");
-////        labels.put(appTypeLabel, AppType.THREE_PART_APP.name);
-////        labels.put(appNameLabel, "umg");
-////        String json = "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\",\"labels\":{\"name\":\"umg\"}},\"spec\":{\"strategy\":{\"type\":\"Recreate\"},\"replicas\":1,\"revisionHistoryLimit\":5,\"selector\":{\"matchLabels\":{\"name\":\"umg\"}},\"template\":{\"metadata\":{\"labels\":{\"name\":\"umg\"}},\"spec\":{\"terminationGracePeriodSeconds\":0,\"volumes\":[{\"name\":\"config\",\"configMap\":{\"name\":\"umg\"}},{\"name\":\"ccod-runtime\",\"hostPath\":{\"path\":\"/var/ccod-runtime/default/ssr\"}},{\"name\":\"core\",\"hostPath\":{\"path\":\"/var/ccod-runtime/default/core/ssr\"}}],\"containers\":[{\"name\":\"umg\",\"imagePullPolicy\":\"Always\",\"image\":\"ccod/ssr-umg:225-3543_225-22317\",\"ports\":[{\"containerPort\":12000},{\"containerPort\":11500}],\"volumeMounts\":[{\"mountPath\":\"/root/ATS/config\",\"name\":\"config\"},{\"mountPath\":\"/root/ATS/runlog\",\"name\":\"ccod-runtime\"},{\"mountPath\":\"/ccod-core\",\"name\":\"core\"}],\"livenessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"readinessProbe\":{\"failureThreshold\":3,\"initialDelaySeconds\":20,\"periodSeconds\":10,\"successThreshold\":1,\"tcpSocket\":{\"port\":12000},\"timeoutSeconds\":1},\"resources\":{\"requests\":{\"memory\":\"1000Mi\",\"cpu\":\"1000m\"},\"limits\":{\"memory\":\"1000Mi\",\"cpu\":\"1000m\"}},\"workingDir\":\"/root/ATS/bin\",\"command\":[\"/bin/bash\",\"-c\"],\"args\":[\"./umgdaemon;\",\"tail -F /root/ATS/runlog/*;\"]}]}}}}";
-////        V1Deployment deployment = gson.fromJson(json, V1Deployment.class);
-////        json = "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\"},\"spec\":{\"ports\":[{\"name\":\"umg\",\"port\":11500,\"protocol\":\"TCP\",\"targetPort\":11500},{\"name\":\"ssr\",\"port\":12000,\"protocol\":\"TCP\",\"targetPort\":12000}],\"type\":\"ClusterIP\"}}";
-////        V1Service service = gson.fromJson(json, V1Service.class);
-////        json = "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"umg\",\"namespace\":\"default\"},\"data\":{\"ATSEConfigData.cfg\":\"<?xml version=\\\"1.0\\\" encoding=\\\"GB2312\\\"?>\\n<ATSE>\\n  <AttributeSet MediaServerIP=\\\"\\\" AutoAnswer = \\\"true\\\" StatisticsLevel=\\\"3\\\" IsDebug=\\\"true\\\" LogLevel=\\\"DT\\\" RunLog=\\\"true\\\" UseDRWRClient=\\\"true\\\" WriteUserDefinedCallID=\\\"true\\\" AutoClear = \\\"5\\\" MaxUserIdleSeconds=\\\"\\\" SMSMediaServerIP=\\\"\\\" SupportFileOnUnix=\\\"true\\\">\\n    <SSR2 IP=\\\"127.0.0.1\\\" Port=\\\"12000\\\" SLEEName=\\\"Slee1_name\\\" SLEEPassword=\\\"Slee1_pwd\\\"/>\\n    <SNMPAgent TargetAddress=\\\"127.0.0.1\\\" ListenPort=\\\"10015\\\" TargetPort=\\\"10061\\\" NodeId=\\\"100\\\" NodeLocation=\\\"wuxz_notebook\\\" NodeName=\\\"slee100\\\"/>\\n    <SDR NodeCode=\\\"1001\\\" DeviceCode=\\\"001001\\\"/>\\n  </AttributeSet>\\n  <DNGroups>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"outbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"3001\\\" EndDN=\\\"3001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"b.usml\\\" IsInbound=\\\"false\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n    </ResGroup>\\n    <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"inbound\\\">\\n      <DNList>\\n        <ComplexDN StartDN=\\\"5001\\\" EndDN=\\\"5001\\\"/>\\n      </DNList>\\n      <RunTime>\\n        <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n          <Application Name=\\\"ATS服务\\\" XMLFile=\\\"inbound.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n        </RunPeriod>\\n      </RunTime>\\n      </ResGroup>\\n        <ResGroup Desc=\\\"服务资源组1\\\" Type = \\\"App\\\">\\n          <DNList>\\n            <ComplexDN StartDN=\\\"7003\\\" EndDN=\\\"7003\\\"/>\\n          </DNList>\\n          <RunTime>\\n            <RunPeriod Begin=\\\"0\\\" End=\\\"23\\\">\\n              <Application Name=\\\"ATS服务\\\" XMLFile=\\\"a3.usml\\\" IsInbound=\\\"true\\\" IsAutoStart=\\\"false\\\"/>\\n            </RunPeriod>\\n          </RunTime>\\n    </ResGroup>\\n  </DNGroups>\\n  <Components>\\n    <Component ProgID=\\\"QNWriteFileCOM.clsWriteFile\\\"     ClassName=\\\"com.channelsoft.reusable.comobj.writefilecom.WriteFileCom\\\">    \\n      <Config>\\n        <Entry Key=\\\"WriteFilePath\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"QNDBCOM.clsQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QuerySQL.CQueryDB\\\" ClassName=\\\"com.channelsoft.reusable.comobj.dbcom.DBCom\\\"/>\\n    <Component ProgID=\\\"QNNetCOM.clsHttp\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"PublicUnity.CHTTP\\\" ClassName=\\\"com.channelsoft.reusable.comobj.httpcom.HttpCom\\\"/>\\n    <Component ProgID=\\\"MSSOAP.SoapClient30\\\" ClassName=\\\"com.channelsoft.reusable.comobj.ws.SoapClientByWSIF\\\"/>\\n    <Component ProgID=\\\"QnINICOM.ini\\\" ClassName=\\\"com.channelsoft.reusable.comobj.inicom.IniCom\\\"/>\\n    <Component ProgID=\\\"MD5Com.MD5Entity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.md5com.Md5Com\\\"/>            \\n    <Component ProgID=\\\"JMSCom.JMSEntity\\\" ClassName=\\\"com.channelsoft.reusable.comobj.jmscom.JmsCom\\\"/>    \\n    <Component ProgID=\\\"CCOD.AssociatedData\\\" ClassName=\\\"com.channelsoft.slee.callagent.ccod.servicedata.V2_ServiceData\\\"/>\\n    <Component ProgID=\\\"CONFNODE.ConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"TConfCom.TConfClient.1\\\" ClassName=\\\"com.channelsoft.reusable.comobj.confclient.ConfNode\\\"/>\\n    <Component ProgID=\\\"QnFaxForAgent.clsOprTask\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n    <Component ProgID=\\\"TDP.IVRInterface\\\" ClassName=\\\"com.channelsoft.reusable.comobj.DCOMInvoker\\\">\\n      <Config>\\n        <Entry Key=\\\"User\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"Password\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>    \\n    <Component ProgID=\\\"Microsoft.XMLDOM\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"MSXML2.DOMDocument.4.0\\\" ClassName=\\\"com.channelsoft.reusable.comobj.xmldom.DomDocument\\\"/>    \\n    <Component ProgID=\\\"CASRouterClient\\\" ClassName=\\\"com.channelsoft.reusable.comobj.cas.RouterClient\\\">\\n      <Config>\\n        <Entry Key=\\\"CASServerIP\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"CASServerPort\\\" Value=\\\"\\\"/>\\n        <Entry Key=\\\"ListenServerPort\\\" Value=\\\"\\\"/>\\n      </Config>\\n    </Component>\\n  </Components>\\n  <ServiceProviders>\\n    <ReasoningProvider>\\n      <ClassName>com.channelsoft.reusable.debugproxy.DebugAgent</ClassName>\\n      <Enabled>false</Enabled>\\n    </ReasoningProvider>\\n  </ServiceProviders>\\n</ATSE>  \",\"SSR.ini\":\"[System]\\nUMGIP=127.0.0.1\\nUMGPort=11500\\nRouteStratgy_1=ani\\nRouteStratgy_2=dnis\\nRouteStratgy_3=oriani\\nRouteStratgy_4=ani\\nRouteStratgy_5=mediatype\\nRouteStratgy_6=weight\\nRouteStratgy_7=average\\nClientCount=2\\nListenPort=12000\\nLog_path=../runlog\\nLog_level=debug\\n[Client1]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\\n[Client2]\\nType=cms\\nName=zxclone-cloud01-cms1\\nPassword=zxclone-cloud01-cms1\\nAcceptCall=yes\\nweigth=1\\nmediaType=0\\nDNIS=0000000001\",\"UMG.ini\":\"[SYSTEM]\\nlog_path=../runlog/\\nlog_level=debug\\nHWType=freeswitch\\nVGCP_listen_port=11500\\nchannel_worker_number=16\\nDefaultCallingNumber=1000\\nAccept_Route_Play=yes\\nMultiProcess=No\\nVolume=0\\nMax_Time_Drop_Enable=yes #是否启用超时挂断\\nMax_Drop_Time=7200 #超时挂断事件（S）该事件最低为300s，配置低于300默认为300\\nU2UInfo_for_OriANI = yes\\nRedis_Location = redis-headless:27379,redis-headless:27379,redis-headless:27379\\n[CPRLIST]\\ntotal=0\\ntone_clamp=yes\\necho_cancel=yes\\nneed_record=yes\\n[FilePath_Transfer]\\norig_path=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\\\ndest_path=/data/record/recording/\\norig_path_fax=D:\\\\ChannelSoft\\\\CsCCP\\\\SoftSwitch\\\\Document\\\\\\ndest_path_fax=./\\nnew_record_path = umg69\\n[PSR]\\nConnect_PSR = no\\nMasterEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11280\\nSlaveEndpoint = PSRServer:tcp_-h_10.9.26.79_-p_11481\\nEventServer = PSREventServer:tcp_-h_127.0.0.1_-p_14681\\nUMG4PSREndpoint = UMG:tcp_-h_10.9.43.75_-p_10072\\n[XoIP]\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nRegister_Period=3000\\nRegister_Expires=3600\\nRegister_Num_Begin=1000\\nRegister_Count=20\\nRegister_PhoneNumInterval=2\\nrtp_media_coding0=g711a\\nrtp_media_coding1=g711mu\\n[ModNumber]\\nIsNeedModNumber=yes #yes/no \\nModules_Params = ../hlr/hlr.13x, ../hlr/hlr.14x, ../hlr/hlr.15x, ../hlr/hlr.17x, ../hlr/hlr.18x\\n#[TRUNK_GROUP$]\\n#sip_server_address=user #客户交本地注册用户\\n[AccessExtMoudle] #iceserver链接配置 回呼\\nuse=true\\nIce_server=127.0.0.1\\nIce_port = 8001\\nIce_timeout = 5000\\n[StreamPlay] #流式放音\\nsupport =no                                                              \\nuri=10.9.43.75:8000\\n[StreamRecord] #流式录音\\nsupport = no\\nuri=10.9.43.75:8000\\nuser=source\\npasswd=hackme\\n[TRUNK_GROUP]\\ntotal=7\\n#linkChannels=960,962,964,966,968,970,972,974,976,978,980,982,984,986,988\\n#linkChannels=1025,1026,1027,1028,1029,1030,1032,1034,1036,1038,1040,1042,1044,1046,1048,1050,1052,1054,1055\\n[TRUNK_GROUP1]\\ntac=s\\nstart_number=0\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\n#sip_server_address=\\n#sip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP2]\\ntac=t\\nstart_number=5096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\nModNumber_Rules=../config/mod_number/beijing.xml\\n[TRUNK_GROUP3]\\ntac=w\\nstart_number=6096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75 #WGW地址\\nsip_server_port=6080 #WGW端口\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP4]\\ntac=z\\nstart_number=7096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.15.145 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\n#sip_server_address=10.9.43.75\\n#sip_server_port=6090\\nbillingcode=cd692\\nis_need_csr=yes\\n#internal|external\\nfstrunck=internal-ylxt\\n[TRUNK_GROUP5]\\ntac=o\\nstart_number=8096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.58.178 #联调外部厂商，可不配\\nsip_server_port=5060 #联调外部厂商，可不配\\nbillingcode=cd693\\nis_need_csr=yes\\nfstrunck=gateway/zealcomm\\n[TRUNK_GROUP6]\\ntac=m\\nstart_number=9096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.43.75\\nsip_server_port=7080\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[TRUNK_GROUP7]\\ntac=n\\nstart_number=10096\\ntotal= 1000\\nprotocol= sip\\naccept_call=yes\\ntrunkdrection=both\\ntacStrategy=1\\nsip_server_address=10.9.0.243\\nsip_server_port=5060\\n#sip_server_address=user\\n#sip_server_port=5060\\nbillingcode=cd691\\nis_need_csr=no\\n#internal|external\\nfstrunck=internal\\n[CDR]\\nsupport_cdr=yes\\ndevice_code=010VG1\\n[IvrMonitor]\\nsupported=no\\nivrmonitor_port=4321\\n[CtiAdapter]\\nsupported=yes\\nEndPoint=QRServer:tcp_-h_10.9.26.79_-p_11480 #tsr地址\\nLocalPath=/data/shdujian/\\nRemoteUrl=/data/wuzj/\\nTimeOut=3000\\nKeepAlive=false\\nLogFile=../runlog/\\n[SpecialAniAddrNature]\\naddr_nature=3\\nANI=95511,95533\\n[CloudData]\\nsupport =no\\nNodeID = 23\\nUMG_IP = 10.9.43.75 #中信测试环境未部署云接入\\nUMG_Port = 12000\\nzookeeper_ip = 10.130.41.140\\nzookeeper_port =2181\\nUMGName4Zookeeper=umg_fs_141\\nZooKeeperPath=/umg_cloud/cluster\\ntrunk_num = 2\\n[CloudData_Trunk1]\\nTac = s\\nType = SIP\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd691\\n[CloudData_Trunk2]\\nTac = t\\nType = PSTN\\nOperator = CMCC\\nLocalAreaCode = 10\\nAvailable = true\\nChannelThreshold = 0.85\\nTotalChannels = 1000\\nRecordAble=1\\nbillingcode=cd692\\n[Monitor]\\nIsNeedMonitor = no # 是否启用运行监控消息输出\\nMonitorFilePath = ../cctrack/umg # 运行监控消息输出目录，需要手动建立\\nMonitorFileName = UMG_TEST69 # 运行监控消息输出文件名\\nModuleName = UMG_TEST69 # 运行监控消息输出服务名  \\n[UUINFO]\\nvalue=\\\"ANI:15210508909|ID:2255|CLIENTNO:1002|CTINO:1002|SYSTEM:253648\\\"\\n[SS7ANI4BJLT]\\nSetSS7AniType=1 #use:1  nouse:0\\n[GLS]\\nConnect_GLS = yes\\nServiceName = UMG-DEMO\\nGlsLocation = GLSServer:tcp_-h_10.9.26.79_-p_17020\\n[FrontCode]\\nsupport = yes\\nCode = 9999\\nANIFile = ../config/ANIFile.cfg\\n[DataBase]\\nUSE_ICE=0\\n[IceServer]\\nIce_server=10.130.41.35\\nIce_port=10000\\n[FSW]\\nInboundTrunkTac=s\\nFSWServerAddr=127.0.0.1 #SGW地址\\nFSWServerPort=8021 #SGW端口\\nrecordingpath=/data/record/recording/\\nrecordedpath=/data/record/recorded/\\nsplitfileext=.wav\\nmixfileext=.wav\\nneed_add_alert=true\\n[Anon]\\nEnable=yes\\nExcTimeout=5\\nConTimeout=5\\nAgentid=010\\nUrl=http://ccod1:8082/ccod/getSerialNumber\\nAppID=ccodprivate\\nAppPWD=7cd3f4920ac00fad603a8205309c6e4c\\nRule=TEL:99\",\"drwr_client.cfg\":\"#######################################################################\\n# 话单存储器配置文件\\n# 林维志，2005-12-12\\n# 青牛（北京）技术有限公司 版权所有\\n#######################################################################\\n# ===========================\\n# 下面指定话单文件相关参数\\n# ===========================\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/sdr/temp/DRWRClient.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 10\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 10000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/sdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 1\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\n#drwr_file_backup_path = $USBOSS_HOME/sdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 1\\n# ===========================\\n# 下面指定服务器相关参数\\n# ===========================\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 1\\n# 服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 134.96.71.108\\n# 服务器的端口\\ndrwr_server_port = 9091\\n# ===========================\\n# 下面指定日志参数\\n# ===========================\\n# 日志文件名，最好为全路径名，且不需要指定扩展名。若此参数为空则不写日志。\\ndrwr_log_filename = $USBOSS_HOME/sdr/Log/\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = INFO\",\"umg_cdr.cfg\":\"###############################################################################\\n#\\n#    话单存储器配置文件\\n#    林维志，2005-12-12\\n#    北京青牛软件技术有限责任公司　版权所有\\n#\\n###############################################################################\\n###############################################################################\\n# 以下话单收发模块drwr_client的配置\\n###############################################################################\\n# 是否实时发送到AAA服务器。取值范围：[0,1]，分别代表[否，是]\\ndrwr_send_to_server = 0\\n# 话单接收服务器的地址xxx.xxx.xxx.xxx\\ndrwr_server_ip = 127.0.0.1\\n# 话单接收服务器的端口,\\ndrwr_server_port = 9092\\n# 缓存文件名，最好为全路径名。\\ndrwr_cache_filename = $USBOSS_HOME/cdr/temp/DRWRClientTest.dat\\n# 需要排除的业务标识前缀。缺省为USE_Service，为空时表示不需要排除功能。\\ndrwr_except_service_id_prefix = USE_Service\\n# 是否写话单文件。取值范围：[0,1]，分别代表[否，是]\\ndrwr_write_to_file = 1\\n# 生成话单文件的最大时间间隔，单位：分钟\\ndrwr_max_interval_per_file = 60\\n# 每个话单文件中允许的最大行数\\ndrwr_max_rows_per_file = 20000\\n# 话单文件的存放路径，最好使用全路径名\\ndrwr_file_storage_path = $USBOSS_HOME/cdr/DRFiles/\\n# 是否使用完整的存放路径，取值范围：[0,1],分别代表：[否，是(会在drwr_file_storage_path后加device_code)]\\ndrwr_need_full_storage_path = 0\\n# 话单文件备份的路径。最好使用全路径名。为空时不备份\\ndrwr_file_backup_path = $USBOSS_HOME/cdr/DRFilesBak/\\n# SDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_sdr_format = 2\\n# CDR话单文件的格式。取值范围：[1,2]，分别代表[格式1（老版本格式），格式2(新版本格式)]\\ndrwr_tel_cdr_format = 2\\n# 日志文件名，最好为全路径名\\ndrwr_log_filename = $USBOSS_HOME/cdr/log/drwr_client.log\\n# 日志级别。取值范围：[700,600,400,300,0]，分别代表[DEBUG,INFO,WARN,ERROR,FATAL]\\ndrwr_log_level = 700\\n###############################################################################\\n# 以下为实时话单接收器drwr_server的配置\\n###############################################################################\\n# drwr_server使用的本地的IP地址\\ndrwr_local_ip = 127.0.0.1\\n# drwr_server使用的本地的端口\\ndrwr_local_port = 9091\\n# drwr_server的线程池的大小\\ndrwr_thread_pool_size = 30\\n# 允许访问drwr_server的客户端的IP数量\\n#drwr_allow_ip_count = 0\\n# 允许访问drwr_server的客户端的IP\\n#drwr_allow_id_1 =\"}}";
-////        V1ConfigMap configMap = gson.fromJson(json, V1ConfigMap.class);
-////        updateAppK8sTemplate(labels, Arrays.asList(deployment), new ArrayList<>(), Arrays.asList(service), null, new ArrayList<>(), Arrays.asList(configMap));
-////        k8sTemplateMapper.select().forEach(t->{
-////            if (t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP)) {
-////
-////                K8sObjectTemplatePo o = t.getObjectTemplate();
-////                if(o.getDeployments() == null){
-////                    o.setDeployments(new ArrayList<>());
-////                }
-////                if(o.getEndpoints() == null){
-////                    o.setEndpoints(new ArrayList<>());
-////                }
-////                if(o.getConfigMaps() == null){
-////                    o.setConfigMaps(new ArrayList<>());
-////                }
-////                if(o.getStatefulSets() == null){
-////                    o.setStatefulSets(new ArrayList<>());
-////                }
-////                k8sTemplateMapper.update(t);
-////            }
-////        });
-//        List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
-////        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)).forEach(t->{
-////            t.getLabels().put(appTagLabel, "standard");
-////            t.getObjectTemplate().getLabels().put(appTagLabel, "standard");
-////            k8sTemplateMapper.update(t);
-////        });
-////        templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && t.getObjectTemplate().getStatefulSets() == null).forEach(t->{
-////            t.getObjectTemplate().setStatefulSets(new ArrayList<>());
-////            k8sTemplateMapper.update(t);
-////        });
-//
-//
-//        String platformId = K8sObjectTemplatePo.PLATFORM_ID;
-//        String domainId = K8sObjectTemplatePo.DOMAIN_ID;
-//        String appName = K8sObjectTemplatePo.APP_NAME;
-//        String alias = K8sObjectTemplatePo.ALIAS;
-//        String hostUrl = K8sObjectTemplatePo.HOST_URL;
-//        String k8sHostIp = K8sObjectTemplatePo.K8S_HOST_IP;
-//        String nfsServerIp = K8sObjectTemplatePo.NFS_SERVER_IP;
-////        for(K8sTemplatePo template : templateList){
-////            Map<String, String> labels = template.getLabels();
-//////            if(template.getLabels().containsKey(appTypeLabel)){
-//////                resetAppTemplate(template.getObjectTemplate());
-////////                k8sTemplateMapper.update(template);
-//////            }
-//////            String json = gson.toJson(template);
-//////
-////////            json = json.replace("\"server\":\"10.130.41.218\"", String.format("\"server\":\"%s\"", nfsServerIp));
-////////
-////////            json = json.replace("test-by-wyf.ccod.com", hostUrl);
-////////            json = json.replace("jhkgs.ccod.com", hostUrl);
-////////            json = json.replace("jhkzx-1.ccod.com", hostUrl);
-////////            json = json.replace("10.130.41.218", k8sHostIp);
-////////
-////////            json = json.replace("cas-manage01", String.format("%s-%s", alias, domainId));
-////////            json = json.replace("\"cas\"", String.format("\"%s\"", alias));
-////////            json = json.replace("\"cas-", String.format("\"%s-", alias));
-////////            json = json.replace("manage01", domainId);
-////////
-////////            json = json.replace("ucds", alias);
-////////            json = json.replace("cloud01", domainId);
-////////
-////////            json = json.replace("dcms", alias);
-////////            json = json.replace("dcmswebservice", alias);
-////////            json = json.replace("freeswitch-wgw", alias);
-////////
-////////            json = json.replace("test-by-wyf", platformId);
-////////            json = json.replace("someTest", platformId);
-////////            json = json.replace("jhkzx-1", platformId);
-////////            json = json.replace("test08", platformId);
-////////            json = json.replace("test48", platformId);
-////////            json = json.replace("k8s-test", platformId);
-////////
-////////            json = json.replace("base-volume/db/oracle/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
-////////            json = json.replace("base-volume/db/oracle/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
-////////
-////////            json = json.replace("base-volume/db/mysql/sql", String.format("base-volume/db/%s/sql", K8sObjectTemplatePo.ALIAS));
-////////            json = json.replace("base-volume/db/mysql/data", String.format("base-volume/db/%s/data", K8sObjectTemplatePo.ALIAS));
-//////
-//////            json = json.replace("202005-test", K8sObjectTemplatePo.PLATFORM_ID);
-//////
-//////            K8sTemplatePo po = gson.fromJson(json, K8sTemplatePo.class);
-//////            po.setLabels(labels);
-//////            po.getObjectTemplate().setLabels(labels);
-//////            k8sTemplateMapper.update(po);
-//////            logger.error(String.format("template=%s", gson.toJson(po)));
-//////            Map<String, String> labels = template.getLabels();
-//////            if(labels.containsKey(appTypeLabel) && labels.get(appTypeLabel).equals(AppType.THREE_PART_APP.name)){
-//////                String name = null;
-//////                for(String key : labels.keySet()){
-//////                    if(key.equals(appTypeLabel) || key.equals(ccodVersionLabel) || key.equals(appTagLabel))
-//////                        continue;
-//////                    name = labels.get(key);
-//////                    break;
-//////                }
-//////                labels.put(name, forAllVersion);
-//////                labels.remove(appNameLabel);
-//////                template.setLabels(labels);
-//////                template.getObjectTemplate().setLabels(labels);
-//////                k8sTemplateMapper.update(template);
-//////            }
-////        }
-//        List<K8sTemplatePo> updateList = templateList.stream().filter(t->t.getLabels().containsKey(appTypeLabel) && !t.getLabels().get(appTypeLabel).equals(AppType.THREE_PART_APP.name)).collect(Collectors.toList());
-//        for(K8sTemplatePo template : updateList){
-////                List<V1Container> inits = t.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().getInitContainers();
-////                if(inits != null && inits.size() == 1){
-////                    inits.get(0).setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION));
-////                }
-////                t.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().setInitContainers(inits);
-////                t.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().getInitContainers().forEach(c->c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION)));
-//            K8sTemplatePo po = gson.fromJson(gson.toJson(template), K8sTemplatePo.class);
-//            List<V1Container> inits = po.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().getInitContainers();
-//            for(V1Container c : inits){
-//                c.setImage(String.format("nexus.io:5000/ccod/%s:%s", K8sObjectTemplatePo.APP_LOW_NAME, K8sObjectTemplatePo.APP_VERSION));
-//            }
-//            po.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().setInitContainers(new ArrayList<>());
-//            po.getObjectTemplate().getDeployments().get(0).getSpec().getTemplate().getSpec().setInitContainers(inits);
-//            k8sTemplateMapper.update(po);
-//        }
-////        templateList.forEach(t->logger.error(String.format("template=%s", gson.toJson(t))));
-//    }
 
     private List<K8sTemplatePo> getPlatformTemplateForBic() throws ApiException{
         List<K8sTemplatePo> list = new ArrayList<>();
@@ -693,239 +247,6 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         list.add(new K8sTemplatePo(obj));
 
         return list;
-    }
-
-    private List<K8sTemplatePo> getTemplateForBic() throws Exception{
-        List<K8sTemplatePo> list = new ArrayList<>();
-//        K8sTemplatePo template;
-//        template = generateBicDomainAppTemplate("bic-portal", AppType.JAR, "app");
-//        list.add(template);
-//        template = generateBicDomainAppTemplate("cbs-cbs", AppType.TOMCAT_WEB_APP, "app");
-//        list.add(template);
-//        template = generateBicDomainAppTemplate("bic-ui", AppType.NODEJS, "app");
-//        list.add(template);
-//        template = generateBicAppTemplate(new String[]{"filepreview"}, AppType.THREE_PART_APP, "app");
-//        template.getLabels().put("filepreview", forAllVersion);
-//        template.getObjectTemplate().getLabels().put("filepreview", forAllVersion);
-//        list.add(template);
-//        template = generateBicAppTemplate(new String[]{"mysql"}, AppType.THREE_PART_APP, "app");
-//        template.getLabels().put("mysql", forAllVersion);
-//        template.getObjectTemplate().getLabels().put("mysql", forAllVersion);
-//        list.add(template);
-//        template = generateBicAppTemplate(new String[]{"fastdfs-nginx", "fastdfs-storage", "fastdfs-tracker"}, AppType.THREE_PART_APP, "name");
-//        template.getLabels().put("fastdfs", forAllVersion);
-//        template.getObjectTemplate().getLabels().put("fastdfs", forAllVersion);
-//        list.add(template);
-//        template = generateBicAppTemplate(new String[]{"redis"}, AppType.THREE_PART_APP, "app");
-//        template.getLabels().put("redis", forAllVersion);
-//        template.getObjectTemplate().getLabels().put("redis", forAllVersion);
-//        list.add(template);
-//        String appTag = "standard";
-        String platformId = "base-icbcsite";
-        String ccodVersion = "4.8";
-        String domainId = null;
-        String hostUrl = "icbcsite.ccod.io";
-//        String testK8sApiUrl = "https://10.130.36.102:6443";
-//        String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjBMWWJQVEczMTFKRzllVnhDazI1SC0tOU0xNjdHTGVrS0ltaVQ2VUpQN2sifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi10b2tlbi1ndGR6eCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJhZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImVhZmE2OGYwLWFmNTYtNDg1MC05NzZiLTBiMjRmODdhZDM4OCIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTphZG1pbiJ9.gHuo1vZXLXKrpJFXqefjNZ2RdAPKf095msES1AilAFxzWD-3Sei4Meigy_DkzJnZcG1F7Dg7b9T9WNzuE9dDOWIbvRF_fCSj53Of3DuMw873yMAAZXn6sZkXP4_61nPhBp1GGTqdk8CVPYXiaOgF69In_U32e9A4tbRrj3NhWV0MN34mGtqAvRKCQrBDVklIpzl17E-vniNs4MDv0lCotCWn2BTw2s8yuRWWyJGyJBgIp9ZfoGdlTD5FcXJNwXSdaeH6lCsb8l0ummFb_8_QVpEoTyv4IwXM1jQDu8ElPAJRsEbttBrPtaa5gyK7NnlneqDYqCfPf2BWVQJ8h-iDPQ";
-//        V1Deployment test = ik8sApiService.readNamespacedDeployment("test", "bic", testK8sApiUrl, testAuthToken);
-//        logger.warn(String.format("test=%s", templateParseGson.toJson(test)));
-        K8sObjectTemplatePo obj;
-        String appName;
-        String alias;
-        List<String> deploymentNames;
-        List<String> statefulSetNames;
-        List<String> serviceNames;
-        List<String> ingressNames;
-        List<String> endpointNames;
-        List<String> configMapNames;
-        List<String> secretNames;
-        appName = "mysql";
-        alias = "sdmysql";
-        deploymentNames = Arrays.asList(new String[]{"sdmysql"});
-        statefulSetNames = new ArrayList<>();
-        serviceNames = Arrays.asList(new String[]{"sdmysql"});
-        ingressNames = new ArrayList<>();
-        endpointNames = new ArrayList<>();
-        configMapNames = Arrays.asList(new String[]{"sdmysql-configuration"});
-        secretNames = new ArrayList<>();
-
-        K8sTemplateParamVo paramVo = new K8sTemplateParamVo();
-        paramVo.setAlias(alias);
-        paramVo.setAppName(appName);
-        paramVo.setAppType(AppType.THREE_PART_APP);
-        paramVo.setConfigMapNames(configMapNames);
-        paramVo.setDeploymentNames(deploymentNames);
-        paramVo.setDomainId(null);
-        paramVo.setEndpointNames(endpointNames);
-        paramVo.setHostUrl(hostUrl);
-        paramVo.setIngressNames(ingressNames);
-        paramVo.setK8sApiAuthToken(testAuthToken);
-        paramVo.setK8sApiUrl(testK8sApiUrl);
-        paramVo.setPlatformId(platformId);
-        paramVo.setSecretNames(secretNames);
-        paramVo.setServiceNames(serviceNames);
-        paramVo.setStatefulSetNames(statefulSetNames);
-        paramVo.setVersion(null);
-        obj = getAppObjectTemplateFromExist(AppType.THREE_PART_APP, appName, alias, deploymentNames,
-                statefulSetNames, serviceNames, endpointNames, ingressNames, configMapNames, secretNames, platformId, domainId,
-                hostUrl, testK8sApiUrl, testAuthToken);
-        logger.warn(String.format("%s=%s", gson.toJson(paramVo), gson.toJson(obj)));
-//
-//        appName = "filepreview";
-//        deploymentNames = Arrays.asList(new String[]{"filepreview"});
-//        statefulSetNames = new ArrayList<>();
-//        serviceNames = Arrays.asList(new String[]{"filepreview"});
-//        ingressNames = Arrays.asList(new String[]{"preview"});
-//        endpointNames = new ArrayList<>();
-//        configMapNames = new ArrayList<>();
-//        obj = generateAppObjectTemplateFromExist(AppType.THREE_PART_APP, appName, "*", deploymentNames,
-//                statefulSetNames, serviceNames, endpointNames, ingressNames, configMapNames, appTag, ccodVersion, platformId, domainId,
-//                hostUrl, testK8sApiUrl, testAuthToken);
-//        logger.warn(String.format("%s=%s", appName, gson.toJson(obj)));
-//
-//        appName = "fastdfs";
-//        deploymentNames = Arrays.asList(new String[]{"fastdfs-nginx", "fastdfs-storage", "fastdfs-tracker"});
-//        statefulSetNames = new ArrayList<>();
-//        serviceNames = Arrays.asList(new String[]{"fastdfs-nginx", "fastdfs-storage", "fastdfs-tracker"});
-//        ingressNames = Arrays.asList(new String[]{"fastdfs"});
-//        endpointNames = new ArrayList<>();
-//        configMapNames = Arrays.asList(new String[]{"fastdfs-nginx"});
-//        obj = generateAppObjectTemplateFromExist(AppType.THREE_PART_APP, appName, "*", deploymentNames,
-//                statefulSetNames, serviceNames, endpointNames, ingressNames, configMapNames, appTag, ccodVersion, platformId, domainId,
-//                hostUrl, testK8sApiUrl, testAuthToken);
-//        logger.warn(String.format("%s=%s", appName, gson.toJson(obj)));
-//
-//        appName = "redis";
-//        deploymentNames = new ArrayList<>();
-//        statefulSetNames = Arrays.asList(new String[]{"redis-master", "redis-slave"});
-//        serviceNames = Arrays.asList(new String[]{"redis", "redis-headless", "redis-out"});
-//        ingressNames = new ArrayList<>();
-//        endpointNames = new ArrayList<>();
-//        configMapNames = Arrays.asList(new String[]{"redis", "redis-health"});
-//        obj = generateAppObjectTemplateFromExist(AppType.THREE_PART_APP, appName, "*", deploymentNames,
-//                statefulSetNames, serviceNames, endpointNames, ingressNames, configMapNames, appTag, ccodVersion, platformId, domainId,
-//                hostUrl, testK8sApiUrl, testAuthToken);
-//        logger.warn(String.format("%s=%s", appName, gson.toJson(obj)));
-
-        return list;
-    }
-
-    private K8sTemplatePo generateBicAppTemplate(String[] apps, AppType appType, String labelTag) throws Exception{
-        String platformId = "bic";
-        String ccodVersion = "bic";
-        String testK8sApiUrl = "https://10.130.36.102:6443";
-        String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjBMWWJQVEczMTFKRzllVnhDazI1SC0tOU0xNjdHTGVrS0ltaVQ2VUpQN2sifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi10b2tlbi1ndGR6eCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJhZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImVhZmE2OGYwLWFmNTYtNDg1MC05NzZiLTBiMjRmODdhZDM4OCIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTphZG1pbiJ9.gHuo1vZXLXKrpJFXqefjNZ2RdAPKf095msES1AilAFxzWD-3Sei4Meigy_DkzJnZcG1F7Dg7b9T9WNzuE9dDOWIbvRF_fCSj53Of3DuMw873yMAAZXn6sZkXP4_61nPhBp1GGTqdk8CVPYXiaOgF69In_U32e9A4tbRrj3NhWV0MN34mGtqAvRKCQrBDVklIpzl17E-vniNs4MDv0lCotCWn2BTw2s8yuRWWyJGyJBgIp9ZfoGdlTD5FcXJNwXSdaeH6lCsb8l0ummFb_8_QVpEoTyv4IwXM1jQDu8ElPAJRsEbttBrPtaa5gyK7NnlneqDYqCfPf2BWVQJ8h-iDPQ";
-//        List<V1beta1StorageClass> storageClasses = ik8sApiService.listStorageClass(testK8sApiUrl, testAuthToken);
-//        System.out.println(templateParseGson.toJson(storageClasses));
-//        List<V1PersistentVolumeClaim> pvcList = ik8sApiService.listNamespacedPersistentVolumeClaim(platformId, testK8sApiUrl, testAuthToken);
-//        logger.warn(String.format("pvcList=%s", templateParseGson.toJson(pvcList)));
-        Map<String, String> label = new HashMap<>();
-        label.put(ccodVersionLabel, ccodVersion);
-        label.put(appTypeLabel, appType.name);
-        List<V1Deployment> deployments = new ArrayList<>();
-        List<V1Service> services = new ArrayList<>();
-        List<ExtensionsV1beta1Ingress> ingresses = new ArrayList<>();
-        List<V1ConfigMap> configMaps = new ArrayList<>();
-        List<V1StatefulSet> statefulSets = new ArrayList<>();
-        List<V1Deployment> all = ik8sApiService.listNamespacedDeployment(platformId, testK8sApiUrl, testAuthToken);
-//        all.forEach(d->{
-////            if(d.getMetadata().getLabels().containsKey("app")){
-////                System.out.println(d.getMetadata().getLabels().get("app"));
-////            }
-//            System.out.println(gson.toJson(d.getMetadata().getLabels()));
-//        });
-        for(String appName : apps){
-            Map<String, String> selector = new HashMap<>();
-            selector.put(labelTag, appName);
-            List<V1Deployment> deploys = ik8sApiService.selectNamespacedDeployment(platformId, selector, testK8sApiUrl, testAuthToken);
-            deployments.addAll(deploys);
-            List<V1Service> svcs = ik8sApiService.selectNamespacedService(platformId, selector, testK8sApiUrl, testAuthToken);
-            services.addAll(svcs);
-            List<V1ConfigMap> cons = ik8sApiService.selectNamespacedConfig(platformId,selector, testK8sApiUrl, testAuthToken);
-            configMaps.addAll(cons);
-            List<V1StatefulSet> sts = ik8sApiService.selectNamespacedStatefulSet(platformId, selector, testK8sApiUrl, testAuthToken);
-            statefulSets.addAll(sts);
-            if(appName.equals("fastdfs-nginx")){
-                V1ConfigMap configMap = ik8sApiService.readNamespacedConfigMap("fastdfs-nginx", platformId, testK8sApiUrl, testAuthToken);
-                configMaps.add(configMap);
-                ExtensionsV1beta1Ingress ingress = ik8sApiService.readNamespacedIngress("outdomain-fastdfs", platformId, testK8sApiUrl, testAuthToken);
-                ingresses.add(ingress);
-            }
-        }
-        K8sObjectTemplatePo obj = new K8sObjectTemplatePo();
-        obj.setServices(services);
-        obj.setLabels(label);
-        obj.setDeployments(deployments);
-        obj.setIngresses(ingresses);
-        obj.setEndpoints(new ArrayList<>());
-        obj.setConfigMaps(configMaps);
-        obj.setStatefulSets(statefulSets);
-        obj.setPods(new ArrayList<>());
-        K8sTemplatePo template = new K8sTemplatePo(obj);
-        return templateParseGson.fromJson(templateParseGson.toJson(template), K8sTemplatePo.class);
-    }
-
-    private K8sTemplatePo generateBicDomainAppTemplate(String appName, AppType appType, String labelTag) throws Exception{
-        String platformId = "bic";
-        String ccodVersion = "bic";
-        String testK8sApiUrl = "https://10.130.36.101:6443";
-        String testAuthToken = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjBMWWJQVEczMTFKRzllVnhDazI1SC0tOU0xNjdHTGVrS0ltaVQ2VUpQN2sifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi10b2tlbi1ndGR6eCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJhZG1pbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6ImVhZmE2OGYwLWFmNTYtNDg1MC05NzZiLTBiMjRmODdhZDM4OCIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTphZG1pbiJ9.gHuo1vZXLXKrpJFXqefjNZ2RdAPKf095msES1AilAFxzWD-3Sei4Meigy_DkzJnZcG1F7Dg7b9T9WNzuE9dDOWIbvRF_fCSj53Of3DuMw873yMAAZXn6sZkXP4_61nPhBp1GGTqdk8CVPYXiaOgF69In_U32e9A4tbRrj3NhWV0MN34mGtqAvRKCQrBDVklIpzl17E-vniNs4MDv0lCotCWn2BTw2s8yuRWWyJGyJBgIp9ZfoGdlTD5FcXJNwXSdaeH6lCsb8l0ummFb_8_QVpEoTyv4IwXM1jQDu8ElPAJRsEbttBrPtaa5gyK7NnlneqDYqCfPf2BWVQJ8h-iDPQ";
-        List<V1PersistentVolumeClaim> pvcs = ik8sApiService.listNamespacedPersistentVolumeClaim(platformId, testK8sApiUrl, testAuthToken);
-        logger.warn(String.format("pvcList=%s", templateParseGson.toJson(pvcs)));
-        Map<String, String> label = new HashMap<>();
-        label.put(ccodVersionLabel, ccodVersion);
-        label.put(appTypeLabel, appType.name);
-        List<V1Deployment> deployments = new ArrayList<>();
-        List<V1Service> services = new ArrayList<>();
-        List<ExtensionsV1beta1Ingress> ingresses = new ArrayList<>();
-        List<V1ConfigMap> configMaps = new ArrayList<>();
-        List<V1StatefulSet> statefulSets = new ArrayList<>();
-        Map<String, String> selector = new HashMap<>();
-        selector.put(labelTag, appName);
-        Map<String, String> matcher = new HashMap<>();
-        matcher.put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
-        String name = K8sObjectTemplatePo.ALIAS;
-        List<V1Deployment> deploys = ik8sApiService.selectNamespacedDeployment(platformId, selector, testK8sApiUrl, testAuthToken);
-        deploys.forEach(d->{
-            d.getMetadata().setNamespace(K8sObjectTemplatePo.PLATFORM_ID);
-            d.getMetadata().setName(name);
-            d.getMetadata().setAnnotations(null);
-            d.getMetadata().getLabels().clear();
-            d.getMetadata().getLabels().put(K8sObjectTemplatePo.APP_NAME, K8sObjectTemplatePo.ALIAS);
-            d.getSpec().getSelector().setMatchLabels(matcher);
-            d.getSpec().getTemplate().getMetadata().setLabels(matcher);
-        });
-        deployments.addAll(deploys);
-        List<V1Service> svcs = ik8sApiService.selectNamespacedService(platformId, selector, testK8sApiUrl, testAuthToken);
-        svcs.forEach(s->{
-            s.getMetadata().setNamespace(K8sObjectTemplatePo.PLATFORM_ID);
-            s.getSpec().setSelector(matcher);
-            s.getMetadata().setName(name);
-        });
-        services.addAll(svcs);
-        List<ExtensionsV1beta1Ingress> ins = ik8sApiService.selectNamespacedIngress(platformId, selector, testK8sApiUrl, testAuthToken);
-        ins.forEach(i->{
-            i.getMetadata().setNamespace(K8sObjectTemplatePo.PLATFORM_ID);
-            i.getSpec().getRules().forEach(r->{
-                r.setHost(K8sObjectTemplatePo.HOST_URL);
-                r.getHttp().getPaths().forEach(p->{
-                    p.setPath(String.format("/%s", K8sObjectTemplatePo.ALIAS));
-                    p.getBackend().setServiceName(K8sObjectTemplatePo.ALIAS);
-                });
-            });
-        });
-        ingresses.addAll(ins);
-        K8sObjectTemplatePo obj = new K8sObjectTemplatePo();
-        obj.setServices(services);
-        obj.setLabels(label);
-        obj.setDeployments(deployments);
-        obj.setIngresses(ingresses);
-        obj.setEndpoints(new ArrayList<>());
-        obj.setConfigMaps(configMaps);
-        obj.setStatefulSets(statefulSets);
-        obj.setPods(new ArrayList<>());
-        K8sTemplatePo template = new K8sTemplatePo(obj);
-        return templateParseGson.fromJson(templateParseGson.toJson(template), K8sTemplatePo.class);
     }
 
     private K8sObjectTemplatePo generatePlatformObjectTemplateFromExist(
@@ -2878,7 +2199,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
                 handleMap.put(alias, deployments.get(0));
                 optList.add(dst);
             }
-            if(aliases.size() == 1){
+            if(aliases.size() == 1 && !opt.getAppType().equals(AppType.DOCKER_RUN)){
                 generateMountAndCmdForSingleDeployment(deployment, opt, domain, platform);
             }
             Integer timeout = opt.getTimeout() == null ? module.getTimeout() : opt.getTimeout();
@@ -3325,6 +2646,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         List<V1Service> services = (List<V1Service>)selectObject;
         services.forEach(s->{
+            if(s.getMetadata().getLabels() == null){
+                s.getMetadata().setLabels(new HashMap<>());
+            }
             s.getMetadata().getLabels().put(appNameLabel, threePartAppPo.getAppName());
             s.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
         });
@@ -3335,6 +2659,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         List<V1Deployment> deployments = (List<V1Deployment>)selectObject;
         deployments.forEach(d->{
+            if(d.getMetadata().getLabels() == null){
+                d.getMetadata().setLabels(new HashMap<>());
+            }
             d.getMetadata().getLabels().put(appNameLabel, threePartAppPo.getAppName());
             d.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
         });
@@ -3345,6 +2672,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         List<V1Endpoints> endpoints = (List<V1Endpoints>)selectObject;
         endpoints.forEach(e->{
+            if(e.getMetadata().getLabels() == null){
+                e.getMetadata().setLabels(new HashMap<>());
+            }
             e.getMetadata().getLabels().put(appNameLabel, threePartAppPo.getAppName());
             e.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
         });
@@ -3355,6 +2685,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         List<V1ConfigMap> configMaps = (List<V1ConfigMap>)selectObject;
         configMaps.forEach(c->{
+            if(c.getMetadata().getLabels() == null){
+                c.getMetadata().setLabels(new HashMap<>());
+            }
             c.getMetadata().getLabels().put(appNameLabel, threePartAppPo.getAppName());
             c.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
         });
@@ -3365,6 +2698,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         List<V1StatefulSet> statefulSets = (List<V1StatefulSet>)selectObject;
         statefulSets.forEach(s->{
+            if(s.getMetadata().getLabels() == null){
+                s.getMetadata().setLabels(new HashMap<>());
+            }
             s.getMetadata().getLabels().put(appNameLabel, threePartAppPo.getAppName());
             s.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
         });
@@ -3376,14 +2712,17 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         }
         List<ExtensionsV1beta1Ingress> ingresses = (List<ExtensionsV1beta1Ingress>)selectObject;
         ingresses.forEach(s->{
+            if(s.getMetadata().getLabels() == null){
+                s.getMetadata().setLabels(new HashMap<>());
+            }
             s.getMetadata().getLabels().put(appNameLabel, threePartAppPo.getAppName());
             s.getMetadata().getLabels().put(threePartAppPo.getAppName(), threePartAppPo.getAlias());
         });
         K8sThreePartAppVo appVo = new K8sThreePartAppVo(threePartAppPo.getAppName(), threePartAppPo.getAlias(), threePartAppPo.getVersion(), deployments, statefulSets, services, endpoints, configMaps, ingresses);
-        String json = gson.toJson(appVo);
-        if(json.matches(".*\\$\\{.*\\}.*")){
-            throw new ParamException(String.format("%s for %s must be defined", json.replaceAll(".*\\$\\{", "").replaceAll("\\}\\}", ""), threePartAppPo.getAppName()));
-        }
+//        String json = gson.toJson(appVo);
+//        if(json.matches(".*\\$\\{.*\\}.*")){
+//            throw new ParamException(String.format("%s for %s must be defined", json.replaceAll(".*\\$\\{", "").replaceAll("\\}\\}", ""), threePartAppPo.getAppName()));
+//        }
         return appVo;
     }
 

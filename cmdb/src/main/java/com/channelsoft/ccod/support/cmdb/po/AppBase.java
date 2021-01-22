@@ -1,5 +1,6 @@
 package com.channelsoft.ccod.support.cmdb.po;
 
+import com.channelsoft.ccod.support.cmdb.constant.AppStatus;
 import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.vo.AppFileNexusInfo;
 import org.apache.commons.lang3.StringUtils;
@@ -55,6 +56,8 @@ public abstract class AppBase {
 
     protected AppFileNexusInfo installPackage; //应用安装包
 
+    protected AppStatus appStatus; //应用当前状态
+
     public AppBase(){}
 
     public AppBase(AppBase appBase) {
@@ -77,6 +80,7 @@ public abstract class AppBase {
         this.startCmd = appBase.startCmd;
         this.cfgs = appBase.cfgs;
         this.installPackage = appBase.installPackage;
+        this.appStatus = appBase.appStatus;
     }
 
     public String getAppName() {
@@ -191,6 +195,14 @@ public abstract class AppBase {
         this.checkAt = checkAt;
     }
 
+    public AppStatus getAppStatus() {
+        return appStatus;
+    }
+
+    public void setAppStatus(AppStatus appStatus) {
+        this.appStatus = appStatus;
+    }
+
     public String getResources() {
         return resources;
     }
@@ -251,19 +263,35 @@ public abstract class AppBase {
         this.appType = appBase.getAppType() != null ? appBase.getAppType() : appType;
         this.version = StringUtils.isNotBlank(appBase.version) ? appBase.version : this.version;
         this.basePath = StringUtils.isNotBlank(appBase.basePath) ? appBase.basePath : this.basePath;
-        this.checkAt = StringUtils.isNotBlank(appBase.checkAt) ? appBase.checkAt : this.checkAt;
+        this.checkAt = appBase.checkAt != null ? appBase.checkAt : this.checkAt;
+        if(StringUtils.isBlank(this.checkAt)){
+            this.checkAt = null;
+        }
         this.deployPath = StringUtils.isNotBlank(appBase.deployPath) ? appBase.deployPath : this.deployPath;
-        this.envLoadCmd = StringUtils.isNotBlank(appBase.envLoadCmd) ? appBase.envLoadCmd : this.envLoadCmd;
-        this.initCmd = StringUtils.isNotBlank(appBase.initCmd) ? appBase.initCmd : this.initCmd;
+        this.envLoadCmd = appBase.envLoadCmd != null ? appBase.envLoadCmd : this.envLoadCmd;
+        if(StringUtils.isBlank(this.envLoadCmd)){
+            this.envLoadCmd = null;
+        }
+        this.initCmd = appBase.initCmd != null ? appBase.initCmd : this.initCmd;
+        if(StringUtils.isBlank(this.initCmd)){
+            this.initCmd = null;
+        }
         this.initialDelaySeconds = appBase.initialDelaySeconds != null && appBase.initialDelaySeconds > 0 ? appBase.initialDelaySeconds : this.initialDelaySeconds;
         this.logOutputCmd = StringUtils.isNotBlank(appBase.logOutputCmd) ? appBase.logOutputCmd : this.logOutputCmd;
-        this.nodePorts = StringUtils.isNotBlank(appBase.nodePorts) ? appBase.nodePorts : this.nodePorts;
+        this.nodePorts = appBase.nodePorts != null ? appBase.nodePorts : this.nodePorts;
+        if(StringUtils.isBlank(this.nodePorts)){
+            this.nodePorts = null;
+        }
         this.periodSeconds = appBase.periodSeconds != null && appBase.periodSeconds > 0 ? appBase.periodSeconds : this.periodSeconds;
         this.ports = StringUtils.isNotBlank(appBase.ports) ? appBase.ports : this.ports;
-        this.resources = StringUtils.isNotBlank(appBase.resources) ? appBase.resources : this.resources;
+        this.resources = appBase.resources != null ? appBase.resources : this.resources;
+        if(StringUtils.isBlank(this.resources)){
+            this.resources = null;
+        }
         this.startCmd = StringUtils.isNotBlank(appBase.startCmd) ? appBase.startCmd : this.startCmd;
         this.cfgs = appBase.cfgs != null ? appBase.cfgs : this.cfgs;
         this.installPackage = appBase.installPackage != null ? appBase.installPackage : this.installPackage;
+        this.appStatus = appBase.appStatus != null ? appBase.appStatus : this.appStatus;
     }
 
     public void fill(AppBase appBase) {
@@ -272,19 +300,35 @@ public abstract class AppBase {
         this.version = StringUtils.isBlank(this.version) ? appBase.version : this.version;
         this.ccodVersion = StringUtils.isBlank(this.ccodVersion) ? appBase.ccodVersion : this.ccodVersion;
         this.basePath = StringUtils.isBlank(this.basePath) ? appBase.basePath : this.basePath;
-        this.checkAt = StringUtils.isBlank(this.checkAt) ? appBase.checkAt : this.checkAt;
+        this.checkAt = this.checkAt == null ? appBase.checkAt : this.checkAt;
+        if(StringUtils.isBlank(this.checkAt)){
+            this.checkAt = null;
+        }
         this.deployPath = StringUtils.isBlank(this.deployPath) ? appBase.deployPath : this.deployPath;
-        this.envLoadCmd = StringUtils.isBlank(this.envLoadCmd) ? appBase.envLoadCmd : this.envLoadCmd;
-        this.initCmd = StringUtils.isBlank(this.initCmd) ? appBase.initCmd : this.initCmd;
+        this.envLoadCmd = this.envLoadCmd == null ? appBase.envLoadCmd : this.envLoadCmd;
+        if(StringUtils.isBlank(this.envLoadCmd)){
+            this.envLoadCmd = null;
+        }
+        this.initCmd = this.initCmd == null ? appBase.initCmd : this.initCmd;
+        if(StringUtils.isBlank(this.initCmd)){
+            this.initCmd = null;
+        }
         this.initialDelaySeconds = this.initialDelaySeconds == null ? appBase.initialDelaySeconds : this.initialDelaySeconds;
         this.logOutputCmd = StringUtils.isBlank(this.logOutputCmd) ? appBase.logOutputCmd : this.logOutputCmd;
-        this.nodePorts = StringUtils.isBlank(this.nodePorts) ? appBase.nodePorts : this.nodePorts;
+        this.nodePorts = this.nodePorts == null ? appBase.nodePorts : this.nodePorts;
+        if(StringUtils.isBlank(this.nodePorts)){
+            this.nodePorts = null;
+        }
         this.periodSeconds = this.periodSeconds == null ? appBase.periodSeconds : this.periodSeconds;
         this.ports = StringUtils.isBlank(this.ports) ? appBase.ports : this.ports;
-        this.resources = StringUtils.isBlank(this.resources) ? appBase.resources : this.resources;
+        this.resources = this.resources == null ? appBase.resources : this.resources;
+        if(StringUtils.isBlank(this.resources)){
+            this.resources = null;
+        }
         this.startCmd = StringUtils.isBlank(this.startCmd) ? appBase.startCmd : this.startCmd;
         this.cfgs = this.cfgs == null ? appBase.cfgs : this.cfgs;
         this.installPackage = this.installPackage == null ? appBase.installPackage : this.installPackage;
+        this.appStatus = this.appStatus == null ? appBase.appStatus : this.appStatus;
     }
 
     public String getPlatformAppCfgDirectory(Date date, String platformId, String domainId)

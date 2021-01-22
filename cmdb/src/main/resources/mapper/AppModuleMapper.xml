@@ -30,6 +30,7 @@
         <result column="has_image" property="hasImage" jdbcType="VARCHAR" />
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
         <result column="install_package" property="installPackage" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler"/>
+        <result column="app_status" property="appStatus" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
         a.app_id,
@@ -59,7 +60,8 @@
         a.`comment`,
         a.has_image,
         a.cfgs,
-        a.install_package
+        a.install_package,
+        a.app_status
         FROM
         app a
         WHERE
@@ -77,6 +79,7 @@
         <if test="version!=null">
             And a.version=#{version,jdbcType=VARCHAR}
         </if>
+        order by a.app_name, a.create_time DESC
     </select>
     <select id="selectByNameAndVersion" resultMap="AppModuleMap">
         select

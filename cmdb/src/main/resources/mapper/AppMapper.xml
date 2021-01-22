@@ -30,6 +30,7 @@
         <result column="has_image" property="hasImage" jdbcType="BOOLEAN" />
         <result column="cfgs" property="cfgs" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler"/>
         <result column="install_package" property="installPackage" jdbcType="VARCHAR" typeHandler="com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler"/>
+        <result column="app_status" property="appStatus" jdbcType="VARCHAR" />
     </resultMap>
     <sql id="Base_Column_List" >
         a.app_id,
@@ -59,7 +60,8 @@
         a.version_control_url,
         a.has_image,
         a.cfgs,
-        a.install_package
+        a.install_package,
+        a.app_status
     </sql>
     <select id="selectByPrimaryKey" resultMap="AppMap" parameterType="java.lang.Integer">
         select
@@ -78,6 +80,7 @@
         <if test="appName!=null">
             And a.app_name=#{appName,jdbcType=VARCHAR}
         </if>
+        order by a.app_name, a.create_time DESC
     </select>
     <select id="selectByNameAndVersion" resultMap="AppMap">
         select
@@ -114,7 +117,8 @@
                         version_control_url,
                         has_image,
                         cfgs,
-                        install_package)
+                        install_package,
+                        app_status)
         values (
                     #{appName,jdbcType=VARCHAR},
                     #{appType,jdbcType=VARCHAR},
@@ -142,7 +146,8 @@
                     #{versionControlUrl,jdbcType=VARCHAR},
                     #{hasImage,jdbcType=BOOLEAN},
                     #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler},
-                    #{installPackage,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler}
+                    #{installPackage,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler},
+                    #{appStatus,jdbcType=VARCHAR}
                     )
     </insert>
     <delete id="delete" parameterType="java.lang.Integer">
@@ -174,7 +179,8 @@
         version_control_url = #{versionControlUrl,jdbcType=VARCHAR},
         has_image = #{hasImage,jdbcType=BOOLEAN},
         cfgs = #{cfgs,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.JsonAppNexusFileHandler},
-        install_package = #{installPackage,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler}
+        install_package = #{installPackage,typeHandler=com.channelsoft.ccod.support.cmdb.dao.typeHandler.AppNexusFileHandler},
+        app_status = #{appStatus,jdbcType=VARCHAR}
     where app_id = #{appId,jdbcType=INTEGER}
   </update>
 </mapper>

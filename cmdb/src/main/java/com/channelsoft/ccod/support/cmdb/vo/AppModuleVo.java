@@ -56,6 +56,7 @@ public class AppModuleVo extends AppBase{
         this.timeout = app.getTimeout();
         this.comment = app.getComment();
         this.hasImage = app.isHasImage();
+        this.appStatus = app.getAppStatus();
     }
 
     public int getAppId() {
@@ -156,6 +157,7 @@ public class AppModuleVo extends AppBase{
         po.setTimeout(this.timeout);
         po.setHasImage(this.hasImage);
         po.setComment(this.comment);
+        po.setAppStatus(this.appStatus);
         return po;
     }
 

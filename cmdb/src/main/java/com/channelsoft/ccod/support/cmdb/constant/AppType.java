@@ -21,6 +21,8 @@ public enum AppType
 
     NODEJS(6, "NODEJS", "nodejs开发的前端应用"),
 
+    DOCKER_RUN(7, "DOCKER_RUN", "直接运行docker镜像启动应用"),
+
     OTHER(99, "OTHER", "其它"),;
 
     public int id;

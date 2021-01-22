@@ -703,6 +703,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         boolean notRegister = false;
         boolean needProp = false;
         boolean checkProp = false;
+        boolean checkAppStatus = false;
         switch (operation)
         {
             case ADD:
@@ -724,6 +725,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 notRegister = true;
                 needProp = true;
                 checkProp = true;
+                checkAppStatus = true;
                 break;
             case DELETE:
                 needAlias = true;
@@ -789,6 +791,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 if(appBase.getPeriodSeconds() == null)
                     sb.append(String.format("periodSeconds can not be null for %s", tag));
                 return sb.toString();
+            }
+            if(checkAppStatus){
+                if(appBase.getAppStatus() == null){
+                    return "appStatus can not be null";
+                }
             }
             return "";
         }
@@ -885,6 +892,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Assert.notNull(appModule.getInstallPackage(), String.format("installPackage of %s(%s) can not be null", appName, version));
         Assert.notNull(appModule.getVersionControl(), String.format("versionControl of %s(%s) can not be null", appName,  version));
         Assert.isTrue(StringUtils.isNotBlank(appModule.getVersionControlUrl()), String.format("versionControlUrl of %s(%s) can not be empty", appName, version));
+        if(appModule.getAppStatus() == null){
+            appModule.setAppStatus(AppStatus.DEBUG);
+        }
         this.appReadLock.writeLock().lock();
         AppModuleVo chosen = null;
         boolean isMatch = true;

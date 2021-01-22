@@ -26,7 +26,7 @@ public class CustomConfiguration {
     public HttpMessageConverters customConverters() {
         Collection<HttpMessageConverter<?>> messageConverters = new ArrayList<>();
         GsonHttpMessageConverter gsonHttpMessageConverter = new GsonHttpMessageConverter();
-        Gson gson = new GsonBuilder().serializeNulls().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
+        Gson gson = new GsonBuilder().disableHtmlEscaping().serializeNulls().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
 //        Gson gson = new GsonBuilder().registerTypeAdapter(DateTime.class, new GsonDateUtil()).create();
         gsonHttpMessageConverter.setGson(gson);
         messageConverters.add(gsonHttpMessageConverter);
