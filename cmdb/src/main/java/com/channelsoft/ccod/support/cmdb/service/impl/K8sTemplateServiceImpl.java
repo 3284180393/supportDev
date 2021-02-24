@@ -190,9 +190,9 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 //        });
         List<K8sTemplatePo> templateList = k8sTemplateMapper.select();
         templateList.forEach(t->objectTemplateList.add(t.getObjectTemplate()));
-        List<K8sThreePartServiceVo> threeSvcs = parseTestThreePartServiceFromFile(this.testThreePartServiceSavePath);
+//        List<K8sThreePartServiceVo> threeSvcs = parseTestThreePartServiceFromFile(this.testThreePartServiceSavePath);
         templateSupportTags.addAll(Arrays.asList(new String[]{ccodVersionLabel, appTypeLabel, platformTagLabel, appTagLabel}));
-        this.testThreePartServices.addAll(threeSvcs);
+//        this.testThreePartServices.addAll(threeSvcs);
         try{
 //            updateTemplate();
 //            getTemplateForBic();

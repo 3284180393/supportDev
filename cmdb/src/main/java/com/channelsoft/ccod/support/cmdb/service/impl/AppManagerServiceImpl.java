@@ -269,14 +269,15 @@ public class AppManagerServiceImpl implements IAppManagerService {
     }
 
     @Override
-    public List<AppModuleVo> queryApps(String appName, Boolean hasImage) throws DataAccessException {
+    public List<AppModuleVo> queryApps(String appName, Boolean hasImage, String ccodVersion) throws DataAccessException {
         this.appReadLock.readLock().lock();
         try
         {
             logger.debug(String.format("begin to query app modules : appName=%s", appName));
             List<AppModuleVo> list = this.registerAppMap.containsKey(appName) ? this.registerAppMap.get(appName) : new ArrayList<>();;
-            if(hasImage != null)
-                list = list.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).containsKey(hasImage) ? list.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage)).get(hasImage) : new ArrayList<>();
+            list = list.stream().filter(a->hasImage==null || a.isHasImage()==hasImage)
+                    .filter(a->ccodVersion==null || Arrays.asList(a.getCcodVersion().split(",")).contains(ccodVersion))
+                    .collect(Collectors.toList());
             logger.info(String.format("query %d app module record with appName=%s and hasImage=%s", list.size(), appName, hasImage));
             return list;
         }
@@ -698,6 +699,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
         String appName = appBase.getAppName();
         if(StringUtils.isBlank(appName))
             return String.format("appName of %s is blank;", operation.name);
+        if(operation.equals(AppUpdateOperation.REGISTER) && StringUtils.isBlank(appBase.getCcodVersion())){
+            return String.format("supported ccodVersion of %s can not be blank", appName);
+        }
         boolean needVersion = false;
         boolean needAlias = false;
         boolean notRegister = false;
@@ -769,10 +773,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
                     AppModuleVo module = versionMap.get(version);
                     if(appBase.getAppType() != null && !appBase.getAppType().equals(module.getAppType()))
                         return String.format("type of %s is %s not %s", module.getAppType().name, appBase.getAppType().name);
-                    else if(StringUtils.isNotBlank(appBase.getCcodVersion()) && !appBase.getCcodVersion().equals(module.getCcodVersion()))
-                        return String.format("ccodVersion of %s[%s] is %s not %s", appName, version, module.getCcodVersion(), appBase.getCcodVersion());
                     appBase.setAppType(module.getAppType());
-                    appBase.setCcodVersion(module.getCcodVersion());
                 }
                 if(StringUtils.isBlank(appBase.getBasePath()))
                     sb.append(String.format("basePath of %s is blank;", tag));
@@ -1275,19 +1276,9 @@ public class AppManagerServiceImpl implements IAppManagerService {
         this.appReadLock.readLock().lock();
         try
         {
-            List<AppModuleVo> registerApps = this.registerAppMap.values().stream().flatMap(apps -> apps.stream()).collect(Collectors.toList());
-            List<AppModuleVo> imageList = registerApps;
-            if(hasImage != null) {
-                Map<Boolean, List<AppModuleVo>> map = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::isHasImage));
-                imageList = map.containsKey(hasImage) ? map.get(hasImage) : new ArrayList<>();
-            }
-            Map<String, List<AppModuleVo>> imageMap = imageList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-            List<AppModuleVo> versionList = registerApps;
-            if(StringUtils.isNotBlank(ccodVersion)) {
-                Map<String, List<AppModuleVo>> map = registerApps.stream().collect(Collectors.groupingBy(AppModuleVo::getCcodVersion));
-                versionList = map.containsKey(ccodVersion) ? map.get(ccodVersion) : new ArrayList<>();
-            }
-            Map<String, List<AppModuleVo>> ccodVersionMap = versionList.stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
+            Map<String, List<AppModuleVo>> appMap = this.registerAppMap.values().stream().flatMap(apps -> apps.stream())
+                    .filter(a->ccodVersion==null || Arrays.asList(a.getCcodVersion().split(",")).contains(ccodVersion))
+                    .filter(a->hasImage==null || a.isHasImage()==hasImage).collect(Collectors.groupingBy(AppModuleVo::getAppName));
             List<BizSetDefine> defineList = new ArrayList<>();
             for(BizSetDefine setDefine : this.ccodBiz.getSet())
             {
@@ -1298,11 +1289,11 @@ public class AppManagerServiceImpl implements IAppManagerService {
                 define.setId(setDefine.getId());
                 define.setIsBasic(setDefine.getIsBasic());
                 define.setName(setDefine.getName());
-                for(AppDefine appDefine : setDefine.getApps())
-                {
-                    if(imageMap.containsKey(appDefine.getName()) && ccodVersionMap.containsKey(appDefine.getName()))
-                        define.getApps().add(appDefine);
-                }
+                setDefine.getApps().forEach(a->{
+                    if(appMap.containsKey(a.getName())){
+                        define.getApps().add(a);
+                    }
+                });
                 defineList.add(define);
             }
             return defineList;
@@ -1480,5 +1471,31 @@ public class AppManagerServiceImpl implements IAppManagerService {
         Set<String> appSet = this.ccodBiz.getSet().stream().flatMap(s->s.getApps().stream()).collect(Collectors.toList())
                 .stream().collect(Collectors.groupingBy(AppDefine::getName)).keySet();
         return appSet.contains(appName);
+    }
+
+    @Override
+    public boolean isCcodVersionSupport(String appName, String version, String ccodVersion) {
+        logger.debug(String.format("check ccod %s is supported by %s(%s)", ccodVersion, appName, version));
+        boolean supported = false;
+        this.appReadLock.readLock().lock();
+        try{
+            if(registerAppMap.containsKey(appName)){
+                AppModuleVo module = registerAppMap.get(appName).stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version);
+                if(module != null){
+                    List<String> supports = Arrays.asList(module.getCcodVersion().split(","));
+                    if(supports.contains(ccodVersion)){
+                        supported = true;
+                    }
+                }
+            }
+        }
+        catch (Exception ex){
+            logger.error(String.format("check ccodVersion support exception"), ex);
+        }
+        finally {
+            this.appReadLock.readLock().unlock();
+        }
+        logger.info(String.format("ccod %s is supported by %s(%s) : %b", ccodVersion, appName, version, supported));
+        return supported;
     }
 }

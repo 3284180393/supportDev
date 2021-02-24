@@ -44,10 +44,11 @@ public interface IAppManagerService {
      * 查询指定应用信息,如果appName为空则查询所有的应用信息
      * @param appName 应用名
      * @param hasImage 是否已经生成镜像
+     * @param ccodVersion 支持指定ccod大版本，如果为空则忽略该参数
      * @return 查询结果
      * @throws Exception
      */
-    List<AppModuleVo> queryApps(String appName, Boolean hasImage) throws DataAccessException;
+    List<AppModuleVo> queryApps(String appName, Boolean hasImage, String ccodVersion) throws DataAccessException;
 
 
     /**
@@ -278,4 +279,13 @@ public interface IAppManagerService {
      * @return true支持，false不支持
      */
     boolean isSupport(String appName);
+
+    /**
+     * 指定的应用是否支持某个ccod大版本
+     * @param appName 应用名
+     * @param version 应用版本
+     * @param ccodVersion ccod大版本号
+     * @return 是否支持
+     */
+    boolean isCcodVersionSupport(String appName, String version, String ccodVersion);
 }

@@ -1291,8 +1291,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         else if(aliasExist != null && !aliasExist && aliasAppMap.containsKey(alias)){
             return String.format("%s has exist for %s", alias, tag);
         }
-        if(!notCheckVersion && StringUtils.isNotBlank(optInfo.getCcodVersion()) && !optInfo.getCcodVersion().equals(ccodVersion)){
-            return String.format("%s[%s] support ccod %s not %s", appName, optInfo.getVersion(), optInfo.getCcodVersion(), ccodVersion);
+        if(!notCheckVersion && !appManagerService.isCcodVersionSupport(appName, optInfo.getVersion(), ccodVersion)){
+            return String.format("%s[%s] not support ccod %s", appName, optInfo.getVersion(), ccodVersion);
         }
         if(needHostIp && StringUtils.isBlank(optInfo.getHostIp()))
             return String.format("hostIp is blank for %s", tag);

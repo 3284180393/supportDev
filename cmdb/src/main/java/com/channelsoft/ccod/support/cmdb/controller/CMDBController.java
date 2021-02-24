@@ -155,14 +155,14 @@ public class CMDBController {
     }
 
     @RequestMapping(value = "/apps/{appName}", method = RequestMethod.GET)
-    public AjaxResultPo queryAppsByName(@PathVariable String appName, Boolean hasImage)
+    public AjaxResultPo queryAppsByName(@PathVariable String appName, Boolean hasImage, String ccodVersion)
     {
-        String uri = String.format("GET %s/apps/%s, hasImage=%s", this.apiBasePath, appName, hasImage);
+        String uri = String.format("GET %s/apps/%s?hasImage=%s&&ccodVersion=%s", this.apiBasePath, appName, hasImage, ccodVersion);
         logger.debug(String.format("enter %s controller", uri));
         AjaxResultPo resultPo;
         try
         {
-            List<AppModuleVo> apps = this.appManagerService.queryApps(appName, hasImage);
+            List<AppModuleVo> apps = this.appManagerService.queryApps(appName, hasImage, ccodVersion);
             resultPo = new AjaxResultPo(true, "query SUCCESs", apps.size(), apps);
             logger.info(String.format("query SUCCESS, quit %s controller", uri));
         }
