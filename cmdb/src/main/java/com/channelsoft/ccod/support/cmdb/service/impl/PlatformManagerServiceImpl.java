@@ -466,6 +466,14 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             appPo = new CCODThreePartAppPo(ccodVersion, "standard", "oracle", "oracle");
             list.add(appPo);
         }
+        else if(ccodVersion.equals("4.9") && (StringUtils.isBlank(platformTag) || platformTag.equals("standard"))){
+            CCODThreePartAppPo appPo = new CCODThreePartAppPo(ccodVersion, "standard", "mysql", "mysql");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo(ccodVersion, "sd", "mysql", "sdmysql");
+            list.add(appPo);
+            appPo = new CCODThreePartAppPo(ccodVersion, "noPass", "redis", "redis");
+            list.add(appPo);
+        }
         else{
             throw new ParamException(String.format("can not find three part app for ccod %s with tag",
                     ccodVersion, platformTag));
@@ -3293,6 +3301,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return this.k8sApiService.listNamespacedPod(platformId, platformPo.getK8sApiUrl(), platformPo.getK8sAuthToken());
     }
 
+
+
     @Override
     public V1Pod queryPlatformK8sPodByName(String platformId, String podName) throws ParamException, ApiException {
         logger.debug(String.format("begin to query k8s pod %s of %s", podName, platformId));
@@ -4151,7 +4161,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         makeupHostSchema(schema);
         List<Map<String, Object>> yamlItems = generateHostYamlItems(schema);
         FileWriter writer = new FileWriter("/temp/config.yaml", false);
-        Yaml.dumpAll(yamlItems.iterator(), writer);
+//        Yaml.dumpAll(yamlItems.iterator(), writer);
         for(DomainUpdatePlanInfo plan : plans){
             String domainId = plan.getDomainId();
             BizSetDefine setDefine = getBizSetForDomainId(domainId);
@@ -4934,6 +4944,41 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         logger.error("conn timeout");
         return false;
+    }
+
+    @Override
+    public String readDomainAppLogsFromK8s(String platformId, String domainId, String appName, String alias, String podName, String container, Integer sinceSeconds, Integer tailLines) throws ApiException, ParamException {
+        Assert.isTrue(StringUtils.isNotBlank(platformId), "platformId can not be blank");
+        Assert.isTrue(StringUtils.isNotBlank(domainId), "domainId can not be blank");
+        Assert.isTrue(StringUtils.isNotBlank(appName), "appName can not be blank");
+        Assert.isTrue(StringUtils.isNotBlank(alias), "alias can not be blank");
+        logger.debug(String.format("begin to read %s(%s) in %s at %s log, podName=%s, container=%s, sinceSeconds=%s, tailLines=%s",
+                alias, appName, platformId, domainId, podName, container, sinceSeconds, tailLines));
+        PlatformPo platform = getK8sPlatform(platformId);
+        Map<String, String> selector = k8sTemplateService.getCCODDomainAppSelector(appName, alias, null, null, domainId, null);
+        if(StringUtils.isBlank(podName)){
+            List<V1Pod> pods = k8sApiService.selectNamespacedPod(platformId, selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+            if(pods.size() == 0){
+                throw new ParamException(String.format("can not select pod for %s(%s) at %s", alias, appName, domainId));
+            }
+            podName = pods.get(0).getMetadata().getName();
+            logger.debug(String.format("podName is assigned to %s", podName));
+        }
+        if(StringUtils.isBlank(container)){
+            V1Pod pod = k8sApiService.readNamespacedPod(podName, platformId, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+            container = pod.getSpec().getContainers().get(0).getName();
+            logger.debug(String.format("container is assigned to %s", container));
+        }
+        return k8sApiService.readNamespacedPodLog(podName, platformId, container, sinceSeconds, tailLines, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+    }
+
+    @Override
+    public List<V1Pod> getDomainAppPodFromK8s(String platformId, String domainId, String appName, String alias) throws ApiException, ParamException {
+        logger.debug(String.format("get pod of %s(%s) in %s at %s", alias, appName, domainId, platformId));
+        PlatformPo platform = getK8sPlatform(platformId);
+        Map<String, String> selector = k8sTemplateService.getCCODDomainAppSelector(appName, alias, null, null, domainId, null);
+        List<V1Pod> pods = k8sApiService.selectNamespacedPod(platformId, selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
+        return pods;
     }
 
     @Test

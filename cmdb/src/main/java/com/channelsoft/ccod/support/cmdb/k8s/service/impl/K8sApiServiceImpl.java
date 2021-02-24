@@ -112,6 +112,19 @@ public class K8sApiServiceImpl implements IK8sApiService {
         return list.getItems();
     }
 
+    @Override
+    public List<V1Pod> selectNamespacedPod(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException {
+        String labelSelector = null;
+        if(selector != null && selector.size() > 0)
+            labelSelector = String.join(",", selector.keySet().stream().map(key->String.format("%s=%s", key, selector.get(key))).collect(Collectors.toList()));
+        logger.debug(String.format("select pods at %s from %s for labelSelector=%s", namespace, k8sApiUrl, labelSelector));
+        getConnection(k8sApiUrl, authToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        List<V1Pod> pods = apiInstance.listNamespacedPod(namespace, null, null, null, null, labelSelector, null, null, null, null).getItems();
+        logger.debug(String.format("find %d pods %s at namespace %s from %s", pods.size(), gson.toJson(pods), namespace, k8sApiUrl));
+        return pods;
+    }
+
     /**
      * 生成k8s api客户端
      * @param httpApi k8s api url
@@ -1063,6 +1076,15 @@ public class K8sApiServiceImpl implements IK8sApiService {
         return srcSecret;
     }
 
+    @Override
+    public String readNamespacedPodLog(String name, String namespace, String container, Integer sinceSeconds, Integer tailLines, String k8sApiUrl, String authToken) throws ApiException {
+        logger.debug(String.format("read logs %s(%s) at %s, container=%s, sinceSeconds=%s, tailLines=%s",
+                name, namespace, k8sApiUrl, container, sinceSeconds, tailLines));
+        getConnection(this.testK8sApiUrl, this.testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        return apiInstance.readNamespacedPodLog(name, namespace, container, null, null,  null,null, sinceSeconds, tailLines, null);
+    }
+
     @Test
     public void k8sTest()
     {
@@ -1087,12 +1109,24 @@ public class K8sApiServiceImpl implements IK8sApiService {
 //            deploySelectTest();
 //            strTest();
 //            secretTest();
-            svcReplaceTest();
+//            svcReplaceTest();
+            eventTest();
         }
         catch (Exception ex)
         {
             ex.printStackTrace();
         }
+    }
+
+    private void eventTest() throws Exception{
+        getConnection(this.testK8sApiUrl, this.testAuthToken);
+        CoreV1Api apiInstance = new CoreV1Api();
+        String logs = apiInstance.readNamespacedPodLog("dcms-manage01-674d7857d6-qdzzv", "icbcsite", null, null, null, null, null, null, null, null);
+        System.out.println(logs);
+        V1Event event = apiInstance.readNamespacedEvent("name: cas-manage01", "icbcsite", null, null, null);
+        System.out.println(gson.toJson(event));
+//        V1EventList list = apiInstance.listNamespacedEvent("icbcsite", null, null, null, null, null, null, null, null, null);
+//        System.out.println(list.getItems());
     }
 
     private void strTest(){

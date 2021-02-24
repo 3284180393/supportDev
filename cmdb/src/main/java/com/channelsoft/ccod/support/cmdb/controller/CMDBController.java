@@ -2541,4 +2541,84 @@ public class CMDBController {
         }
         return resultPo;
     }
+
+    @RequestMapping("/domainAppLogs/{platformId}/{domainId}/{appName}/{alias}")
+    public AjaxResultPo getDomainAppLog(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String appName, @PathVariable String alias, Integer sinceSeconds, Integer tailLines)
+    {
+        String uri = String.format("GET %s/domainAppLogs/%s/%s/%s/%s, sinceSeconds=%s, tailLines=%s", this.apiBasePath, platformId, domainId, appName, alias, sinceSeconds, tailLines);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+           String log = platformManagerService.readDomainAppLogsFromK8s(platformId, domainId, appName, alias, null, null, sinceSeconds, tailLines);
+            resultPo = new AjaxResultPo(true, "read log success", 1, log);
+            logger.info(String.format("read log success, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("read log exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/domainAppLogs/{platformId}/{domainId}/{appName}/{alias}/{podName}")
+    public AjaxResultPo getDomainAppLogFromPod(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String appName, @PathVariable String alias, @PathVariable String podName, Integer sinceSeconds, Integer tailLines)
+    {
+        String uri = String.format("GET %s/domainAppLogs/%s/%s/%s/%s/%s, sinceSeconds=%s, tailLines=%s", this.apiBasePath, platformId, domainId, appName, alias, podName, sinceSeconds, tailLines);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            String log = platformManagerService.readDomainAppLogsFromK8s(platformId, domainId, appName, alias, podName, null, sinceSeconds, tailLines);
+            resultPo = new AjaxResultPo(true, "read log success", 1, log);
+            logger.info(String.format("read log success, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("read log exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/domainAppLogs/{platformId}/{domainId}/{appName}/{alias}/{podName}/{container}")
+    public AjaxResultPo getDomainAppLogFromPod(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String appName, @PathVariable String alias, @PathVariable String podName, @PathVariable String container, Integer sinceSeconds, Integer tailLines)
+    {
+        String uri = String.format("GET %s/domainAppLogs/%s/%s/%s/%s/%s/%s, sinceSeconds=%s, tailLines=%s", this.apiBasePath, platformId, domainId, appName, alias, podName, container, sinceSeconds, tailLines);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            String log = platformManagerService.readDomainAppLogsFromK8s(platformId, domainId, appName, alias, podName, container, sinceSeconds, tailLines);
+            resultPo = new AjaxResultPo(true, "read log success", 1, log);
+            logger.info(String.format("read log success, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("read log exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
+
+    @RequestMapping("/domainAppPods/{platformId}/{domainId}/{appName}/{alias}")
+    public AjaxResultPo getDomainAppPods(@PathVariable String platformId, @PathVariable String domainId, @PathVariable String appName, @PathVariable String alias, Integer sinceSeconds, Integer tailLines)
+    {
+        String uri = String.format("GET %s/domainAppPods/%s/%s/%s/%s, sinceSeconds=%s, tailLines=%s", this.apiBasePath, platformId, domainId, appName, alias, sinceSeconds, tailLines);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo;
+        try
+        {
+            List<V1Pod> pods = platformManagerService.getDomainAppPodFromK8s(platformId, domainId, appName, alias);
+            resultPo = new AjaxResultPo(true, "get pods success", pods.size(), pods);
+            logger.info(String.format("get pods, quit %s controller", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("get pods exception, quit %s controller", uri), e);
+            resultPo = AjaxResultPo.failed(e);
+        }
+        return resultPo;
+    }
 }

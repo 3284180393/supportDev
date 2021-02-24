@@ -1,6 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.service;
 
 import com.channelsoft.ccod.support.cmdb.config.BizSetDefine;
+import com.channelsoft.ccod.support.cmdb.constant.AppType;
 import com.channelsoft.ccod.support.cmdb.constant.AppUpdateOperation;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformDeployStatus;
 import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
@@ -723,5 +724,33 @@ public interface IPlatformManagerService {
      * @throws ApiException 调用k8s api异常
      */
     V1PersistentVolumeClaim replaceK8sPlatformPersistentVolumeClaim(String platformId, String persistentVolumeClaimName, V1PersistentVolumeClaim persistentVolumeClaim) throws ParamException, ApiException;
+
+    /**
+     * 读取平台指定应用日志
+     * @param platformId 平台id,不可为空
+     * @param domainId 域id，不可为空
+     * @param appName 应用名，不可为空
+     * @param alias 应用别名，不可为空
+     * @param podName 应用关联pod名，可为空，如果为空则取域模块关联的第一个pod名为podName
+     * @param container pod指定容器名,可为空，如果为空则则取pod的containers中的第一个container的名字作为container
+     * @param sinceSeconds 读多少秒日志，如果为空将沪铝该参数
+     * @param tailLines 读多少行日志，如果为空将忽略该参数
+     * @return 满足条件的指定应用日志
+     * @throws ApiException
+     * @throws ParamException
+     */
+    String readDomainAppLogsFromK8s(String platformId, String domainId, String appName, String alias, String podName, String container, Integer sinceSeconds, Integer tailLines) throws ApiException, ParamException;
+
+    /**
+     * 查询指定应用在k8s的运行pod信息
+     * @param platformId 平台id
+     * @param domainId 域id
+     * @param appName 应用名
+     * @param alias 应用别名
+     * @return 应用在k8s的运行pod信息
+     * @throws ApiException
+     * @throws ParamException
+     */
+    List<V1Pod> getDomainAppPodFromK8s(String platformId, String domainId, String appName, String alias) throws ApiException, ParamException;
 
 }

@@ -42,6 +42,17 @@ public interface IK8sApiService {
     List<V1Pod> listNamespacedPod(String namespace, String k8sApiUrl, String authToken) throws ApiException;
 
     /**
+     * 查询指定命名空间下满足指定条件的pod
+     * @param namespace 命名空间
+     * @param selector 查询条件
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return 指定namespace下满足条件的所有pod信息
+     * @throws ApiException 调用k8s api时返回异常
+     */
+    List<V1Pod> selectNamespacedPod(String namespace, Map<String, String> selector, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
      * 查询所有node
      * @param k8sApiUrl k8s的api的url
      * @param authToken 访问k8s api的认证token
@@ -881,4 +892,18 @@ public interface IK8sApiService {
      * @throws ApiException
      */
     V1Secret generateNamespacedSSLCert(String namespace, String k8sApiUrl, String authToken) throws ApiException;
+
+    /**
+     * 从指定pod读取 日志
+     * @param name pod名
+     * @param namespace 命名空间
+     * @param container 容器名
+     * @param sinceSeconds 读多少秒日志，如果为空则忽略该参数
+     * @param tailLines 读多少行日志，如果为空则忽略该参数
+     * @param k8sApiUrl k8s的api的url
+     * @param authToken 访问k8s api的认证token
+     * @return pod指定条件的日志
+     * @throws ApiException
+     */
+    String readNamespacedPodLog(String name, String namespace, String container, Integer sinceSeconds, Integer tailLines, String k8sApiUrl, String authToken) throws ApiException;
 }

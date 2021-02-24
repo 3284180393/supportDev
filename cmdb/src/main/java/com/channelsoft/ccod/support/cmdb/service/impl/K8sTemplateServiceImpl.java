@@ -2063,6 +2063,15 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         services.add(service);
         if(StringUtils.isNotBlank(appBase.getNodePorts())) {
             service = this.generateCCODDomainAppService(appBase, ServicePortType.NodePort, appBase.getNodePorts(), domain, platform);
+            Map<Integer, V1ServicePort> portMap = services.stream().flatMap(s->s.getSpec().getPorts().stream())
+                    .collect(Collectors.toMap(V1ServicePort::getPort, Function.identity()));
+            for(V1ServicePort nodePort : service.getSpec().getPorts()){
+                V1ServicePort clusterIpPort = portMap.get(nodePort.getPort());
+                if(clusterIpPort == null){
+                    throw new ParamException(String.format("nodePort %d not define in ports %s", nodePort.getPort(), appBase.getPorts()));
+                }
+                nodePort.setTargetPort(clusterIpPort.getTargetPort());
+            }
             services.add(service);
         }
         List<ExtensionsV1beta1Ingress> ingress = null;
