@@ -262,6 +262,22 @@ public interface IPlatformManagerService {
     String generatePlatformCreateScript(PlatformUpdateSchemaInfo schema) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException;
 
     /**
+     * 生成平台升级脚本
+     * @param schema 平台升级规划
+     * @param exportImage 是否输出必要的镜像
+     * @param imageSaveDir 如果需要输出镜像，存储镜像的目录
+     * @return 平台升级脚本存储路径
+     * @throws ParamException
+     * @throws NexusException
+     * @throws NotSupportAppException
+     * @throws InterfaceCallException
+     * @throws LJPaasException
+     * @throws IOException
+     * @throws ApiException
+     */
+    String generatePlatformUpdateScript(PlatformUpdateSchemaInfo schema, boolean exportImage, String imageSaveDir) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException;
+
+    /**
      * 为脚本部署生成schema
      * @param paramVo 通过脚本部署的平台相关参数
      * @return 生成的schema

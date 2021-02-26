@@ -194,7 +194,11 @@ public class K8sApiServiceImpl implements IK8sApiService {
         logger.debug(String.format("begin to replace configMap %s to %s at %s from %s", name, gson.toJson(configMap), namespace, k8sApiUrl));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1ConfigMap replace = apiInstance.replaceNamespacedConfigMap(name, namespace, configMap, null, null, null);
+        V1ConfigMap ori = apiInstance.readNamespacedConfigMap(name, namespace, null, null, null);
+        ori.setMetadata(configMap.getMetadata());
+        ori.setApiVersion(configMap.getApiVersion());
+        ori.setData(configMap.getData());
+        V1ConfigMap replace = apiInstance.replaceNamespacedConfigMap(name, namespace, ori, null, null, null);
         logger.info(String.format("configMap replace success : %s", gson.toJson(replace)));
         return replace;
     }
@@ -650,7 +654,11 @@ public class K8sApiServiceImpl implements IK8sApiService {
         logger.debug(String.format("replace Deployment %s at %s from %s to %s", name, namespace, k8sApiUrl, gson.toJson(deployment)));
         getConnection(k8sApiUrl, authToken);
         AppsV1Api apiInstance = new AppsV1Api();
-        V1Deployment replace = apiInstance.replaceNamespacedDeployment(name, namespace, deployment, null, null, null);
+        V1Deployment ori = apiInstance.readNamespacedDeployment(name, namespace, null, null, null);
+        ori.setApiVersion(deployment.getApiVersion());
+        ori.setMetadata(deployment.getMetadata());
+        ori.setSpec(deployment.getSpec());
+        V1Deployment replace = apiInstance.replaceNamespacedDeployment(name, namespace, ori, null, null, null);
         logger.info(String.format("replace Deployment %s at %s from %s to %s SUCCESS", name, namespace, k8sApiUrl, gson.toJson(replace)));
         return replace;
     }
@@ -810,7 +818,11 @@ public class K8sApiServiceImpl implements IK8sApiService {
         logger.debug(String.format("replace Service %s at %s from %s to %s", name, namespace, k8sApiUrl, gson.toJson(service)));
         getConnection(k8sApiUrl, authToken);
         CoreV1Api apiInstance = new CoreV1Api();
-        V1Service replace = apiInstance.replaceNamespacedService(name, namespace, service, null, null, null);
+        V1Service ori = apiInstance.readNamespacedService(name, namespace, null, null, null);
+        ori.setApiVersion(service.getApiVersion());
+        ori.setMetadata(service.getMetadata());
+        ori.setSpec(service.getSpec());
+        V1Service replace = apiInstance.replaceNamespacedService(name, namespace, ori, null, null, null);
         logger.info(String.format("replace Service %s at %s from %s to %s SUCCESS", name, namespace, k8sApiUrl, gson.toJson(replace)));
         return replace;
     }
@@ -1032,7 +1044,11 @@ public class K8sApiServiceImpl implements IK8sApiService {
         logger.debug(String.format("replace Ingress %s at %s from %s to %s", name, namespace, k8sApiUrl, gson.toJson(ingress)));
         getConnection(k8sApiUrl, authToken);
         ExtensionsV1beta1Api apiInstance = new ExtensionsV1beta1Api();
-        ExtensionsV1beta1Ingress replace = apiInstance.replaceNamespacedIngress(name, namespace, ingress, null, null, null);
+        ExtensionsV1beta1Ingress ori = apiInstance.readNamespacedIngress(name, namespace, null, null, null);
+        ori.setApiVersion(ingress.getApiVersion());
+        ori.setMetadata(ingress.getMetadata());
+        ori.setSpec(ingress.getSpec());
+        ExtensionsV1beta1Ingress replace = apiInstance.replaceNamespacedIngress(name, namespace, ori, null, null, null);
         logger.info(String.format("replace Ingress %s at %s from %s to %s SUCCESS", name, namespace, k8sApiUrl, gson.toJson(replace)));
         return replace;
     }

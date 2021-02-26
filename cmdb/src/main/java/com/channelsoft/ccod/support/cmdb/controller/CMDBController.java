@@ -2196,54 +2196,65 @@ public class CMDBController {
         {
             PlatformUpdateSchemaInfo schemaInfo = platformManagerService.generateSchemaForScriptDeploy(param);
             String zipFilePath = platformManagerService.generatePlatformCreateScript(schemaInfo);
-            String fileName = zipFilePath.replaceAll(".*/", "");
-            File file = new File(zipFilePath);
-            if (file.exists()) {
-                response.setContentType("application/force-download");// 设置强制下载不打开
-                response.addHeader("Content-Disposition", "attachment;fileName=" + fileName);// 设置文件名
-                byte[] buffer = new byte[1024];
-                FileInputStream fis = null;
-                BufferedInputStream bis = null;
-                try {
-                    fis = new FileInputStream(file);
-                    bis = new BufferedInputStream(fis);
-                    OutputStream os = response.getOutputStream();
-                    int i = bis.read(buffer);
-                    while (i != -1) {
-                        os.write(buffer, 0, i);
-                        i = bis.read(buffer);
-                    }
-                    resultPo = new AjaxResultPo(true, "部署脚本下载成功", 1, null);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    resultPo = new AjaxResultPo(false, e.getMessage());
-                } finally {
-                    if (bis != null) {
-                        try {
-                            bis.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            resultPo = new AjaxResultPo(false, e.getMessage());
-                        }
-                    }
-                    if (fis != null) {
-                        try {
-                            fis.close();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            resultPo = new AjaxResultPo(false, e.getMessage());
-                        }
-                    }
-                }
-            }
+            downloadExistFile(response, zipFilePath);
             logger.info(String.format("deploy script download success, quit %s", uri));
         }
         catch (Exception e)
         {
-            logger.error(String.format("qdeploy script download success, quit %s controller", uri), e);
+            logger.error(String.format("deploy script download exception, quit %s controller", uri), e);
             resultPo = new AjaxResultPo(false, e.getMessage());
         }
         return gson.toJson(resultPo);
+    }
+
+    @RequestMapping(value = "/platformUpdateScript", method = RequestMethod.POST)
+    public String createPlatformUpdateScript(
+            HttpServletRequest request, HttpServletResponse response, @RequestBody PlatformUpdateSchemaInfo schema,
+            Boolean exportImage, String imageSaveDir)
+    {
+        String uri = String.format("POST %s/platformUpdateScript, schema=%s, exportImage=%s and imageSaveDir=%s", this.apiBasePath, gson.toJson(schema), exportImage, imageSaveDir);
+        logger.debug(String.format("enter %s controller", uri));
+        AjaxResultPo resultPo = null;
+        try
+        {
+            String zipFilePath = platformManagerService.generatePlatformUpdateScript(schema, exportImage==null ? false:exportImage, imageSaveDir);
+            downloadExistFile(response, zipFilePath);
+            logger.info(String.format("deploy script download success, quit %s", uri));
+        }
+        catch (Exception e)
+        {
+            logger.error(String.format("deploy script download exception, quit %s controller", uri), e);
+            resultPo = new AjaxResultPo(false, e.getMessage());
+        }
+        return gson.toJson(resultPo);
+    }
+
+    private void downloadExistFile(HttpServletResponse response, String fileSavePath) throws FileNotFoundException, IOException
+    {
+        String fileName = fileSavePath.replaceAll(".*/", "");
+        File file = new File(fileSavePath);
+        response.setContentType("application/force-download");// 设置强制下载不打开
+        response.addHeader("Content-Disposition", "attachment;fileName=" + fileName);// 设置文件名
+        byte[] buffer = new byte[1024];
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        try {
+            fis = new FileInputStream(file);
+            bis = new BufferedInputStream(fis);
+            OutputStream os = response.getOutputStream();
+            int i = bis.read(buffer);
+            while (i != -1) {
+                os.write(buffer, 0, i);
+                i = bis.read(buffer);
+            }
+        } finally {
+            if (bis != null) {
+                bis.close();
+            }
+            if (fis != null) {
+                fis.close();
+            }
+        }
     }
 
     @RequestMapping(value = "/scriptDeploySchema", method = RequestMethod.POST)

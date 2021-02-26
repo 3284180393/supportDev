@@ -2327,6 +2327,63 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         return steps;
     }
 
+//    @Override
+//    public List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException {
+//        String domainId = domain.getDomainId();
+//        String alias = appBase.getAlias();
+//        String appName = appBase.getAppName();
+//        String version = appBase.getVersion();
+//        logger.debug(String.format("generate update step for %s at %s", alias, domainId));
+//        String platformId = platform.getPlatformId();
+//        String k8sApiUrl = platform.getK8sApiUrl();
+//        String k8sAuthToken = platform.getK8sAuthToken();
+//        K8sCCODDomainAppVo oriApp= getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
+//        K8sCCODDomainAppVo updateApp = generateNewCCODDomainApp(appBase, domain, platform);
+//        List<K8sOperationInfo> steps = new ArrayList<>();
+//        K8sOperationInfo step;
+//        for(V1Service service : updateApp.getServices())
+//        {
+//            String portKind = service.getSpec().getType();
+//            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getSpec().getType().equals(portKind)).collect(Collectors.toList());
+//            boolean isChanged = this.ik8sApiService.isServicePortChanged(portKind, service, oriServices);
+//            if(isChanged)
+//            {
+//                for(V1Service svc : oriServices)
+//                {
+//                    step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
+//                            svc.getMetadata().getName(), K8sOperation.DELETE, svc);
+//                    steps.add(step);
+//                }
+//            }
+//        }
+//        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
+//                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getDeploy());
+//        steps.add(step);
+//        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+//                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getConfigMap());
+//        steps.add(step);
+//        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
+//                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getConfigMap());
+//        steps.add(step);
+//        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
+//                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getDeploy());
+//        steps.add(step);
+////        for(V1Service service : updateApp.getServices())
+////        {
+////            String portKind = service.getSpec().getType();
+////            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getSpec().getType().equals(portKind)).collect(Collectors.toList());
+////            boolean isChanged = this.ik8sApiService.isServicePortChanged(portKind, service, oriServices);
+////            if(isChanged)
+////            {
+////                step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
+////                        service.getMetadata().getName(), K8sOperation.CREATE, service);
+////                steps.add(step);
+////            }
+////        }
+//        logger.debug(String.format("update %s at domain %s steps are %s", alias, domainId, gson.toJson(steps)));
+//        return steps;
+//    }
+
     @Override
     public List<K8sOperationInfo> generateUpdatePlatformAppSteps(String jobId, AppUpdateOperationInfo appBase, DomainPo domain, PlatformPo platform) throws ParamException, ApiException, InterfaceCallException, IOException {
         String domainId = domain.getDomainId();
@@ -2337,50 +2394,59 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
         String platformId = platform.getPlatformId();
         String k8sApiUrl = platform.getK8sApiUrl();
         String k8sAuthToken = platform.getK8sAuthToken();
-        K8sCCODDomainAppVo oriApp= getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
+        K8sCCODDomainAppVo oriApp = getCCODDomainApp(appName, alias, version, domainId, platformId, k8sApiUrl, k8sAuthToken);
         K8sCCODDomainAppVo updateApp = generateNewCCODDomainApp(appBase, domain, platform);
         List<K8sOperationInfo> steps = new ArrayList<>();
-        K8sOperationInfo step;
-        for(V1Service service : updateApp.getServices())
-        {
-            String portKind = service.getSpec().getType();
-            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getSpec().getType().equals(portKind)).collect(Collectors.toList());
-            boolean isChanged = this.ik8sApiService.isServicePortChanged(portKind, service, oriServices);
-            if(isChanged)
-            {
-                for(V1Service svc : oriServices)
-                {
-                    step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
-                            svc.getMetadata().getName(), K8sOperation.DELETE, svc);
-                    steps.add(step);
-                }
-            }
-        }
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
-                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getDeploy());
-        steps.add(step);
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
-                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.DELETE, oriApp.getConfigMap());
-        steps.add(step);
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.CONFIGMAP,
-                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getConfigMap());
-        steps.add(step);
-        step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.DEPLOYMENT,
-                updateApp.getConfigMap().getMetadata().getName(), K8sOperation.CREATE, updateApp.getDeploy());
-        steps.add(step);
-//        for(V1Service service : updateApp.getServices())
-//        {
-//            String portKind = service.getSpec().getType();
-//            List<V1Service> oriServices = oriApp.getServices().stream().filter(svc->svc.getSpec().getType().equals(portKind)).collect(Collectors.toList());
-//            boolean isChanged = this.ik8sApiService.isServicePortChanged(portKind, service, oriServices);
-//            if(isChanged)
-//            {
-//                step = new K8sOperationInfo(jobId, platformId, domainId, K8sKind.SERVICE,
-//                        service.getMetadata().getName(), K8sOperation.CREATE, service);
-//                steps.add(step);
-//            }
-//        }
+        List<K8sOperationInfo> configMapSteps = fromOriAndDst(oriApp.getConfigMap(), oriApp.getConfigMap().getMetadata().getName(),
+                updateApp.getConfigMap(), updateApp.getConfigMap().getMetadata().getName(), K8sKind.CONFIGMAP, jobId, platformId, domainId);
+        steps.addAll(configMapSteps);
+        Map<String, Object> oriMap = oriApp.getServices().stream().collect(Collectors.toMap(s->s.getMetadata().getName(), Function.identity()));
+        Map<String, Object> dstMap = updateApp.getServices().stream().collect(Collectors.toMap(s->s.getMetadata().getName(), Function.identity()));
+        List<K8sOperationInfo> svcSteps = fromOriAndDst(oriMap, dstMap, K8sKind.SERVICE, jobId, platformId, domainId);
+        steps.addAll(svcSteps);
+        oriMap = oriApp.getIngresses().stream().collect(Collectors.toMap(s->s.getMetadata().getName(), Function.identity()));
+        dstMap = updateApp.getIngresses().stream().collect(Collectors.toMap(s->s.getMetadata().getName(), Function.identity()));
+        List<K8sOperationInfo> ingressSteps = fromOriAndDst(oriMap, dstMap, K8sKind.INGRESS, jobId, platformId, domainId);
+        steps.addAll(ingressSteps);
+        List<K8sOperationInfo> deploySteps = fromOriAndDst(oriApp.getDeploy(), oriApp.getDeploy().getMetadata().getName(),
+                updateApp.getDeploy(), updateApp.getDeploy().getMetadata().getName(), K8sKind.DEPLOYMENT, jobId, platformId, domainId);
+        steps.addAll(deploySteps);
         logger.debug(String.format("update %s at domain %s steps are %s", alias, domainId, gson.toJson(steps)));
+        return steps;
+    }
+
+    private List<K8sOperationInfo> fromOriAndDst(Map<String, Object> ori, Map<String, Object> dst, K8sKind kind, String jobId, String platformId, String domainId){
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        ori.forEach((k,v)->{
+            K8sOperationInfo step;
+            if(!dst.containsKey(k)){
+                step = new K8sOperationInfo(jobId, platformId, domainId, kind, k, K8sOperation.DELETE, v);
+            }
+            else{
+                step = new K8sOperationInfo(jobId, platformId, domainId, kind, k, K8sOperation.REPLACE, dst.get(k));
+            }
+            steps.add(step);
+        });
+        dst.forEach((k,v)->{
+            K8sOperationInfo step = new K8sOperationInfo(jobId, platformId, domainId, kind, k, K8sOperation.CREATE, v);
+            steps.add(step);
+        });
+        return steps;
+    }
+
+    private List<K8sOperationInfo> fromOriAndDst(Object ori, String oriName, Object dst, String dstName, K8sKind kind, String jobId, String platformId, String domainId){
+        List<K8sOperationInfo> steps = new ArrayList<>();
+        K8sOperationInfo step;
+        if(oriName.equals(dstName)){
+            step = new K8sOperationInfo(jobId, platformId, domainId, kind, dstName, K8sOperation.REPLACE, dst);
+            steps.add(step);
+        }
+        else{
+            step = new K8sOperationInfo(jobId, platformId, domainId, kind, dstName, K8sOperation.DELETE, ori);
+            steps.add(step);
+            step = new K8sOperationInfo(jobId, platformId, domainId, kind, dstName, K8sOperation.CREATE, dst);
+            steps.add(step);
+        }
         return steps;
     }
 

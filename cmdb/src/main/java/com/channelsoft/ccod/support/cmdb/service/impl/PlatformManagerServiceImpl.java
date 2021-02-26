@@ -2814,6 +2814,32 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
+    public String generatePlatformUpdateScript(PlatformUpdateSchemaInfo schema, boolean exportImage, String imageSaveDir) throws ParamException, NexusException, NotSupportAppException, InterfaceCallException, LJPaasException, IOException, ApiException {
+        logger.debug(String.format("generate platform update script for %s", gson.toJson(schema)));
+        if(exportImage && StringUtils.isBlank(imageSaveDir)){
+            throw new ParamException(String.format("dir for save images must assigned"));
+        }
+        else if(exportImage){
+            File file = new File(imageSaveDir);
+            if(!file.exists()){
+                throw new ParamException(String.format("dir %s for save images not exist", imageSaveDir));
+            }
+            else if(!file.isDirectory()){
+                throw new ParamException(String.format("%s is not dir", imageSaveDir));
+            }
+        }
+        List<AppModuleVo> registerApps = this.appManagerService.queryAllRegisterAppModule(true);
+        LJHostInfo host = new LJHostInfo();
+        host.setHostInnerIp(schema.getK8sHostIp());
+        List<LJHostInfo> bkHostList = Arrays.asList(new LJHostInfo[]{host});
+        String platformCheckResult = checkPlatformUpdateSchema(schema.getCcodVersion(), schema, new ArrayList<>(), new ArrayList<>(), bkHostList, registerApps);
+        Assert.isTrue(StringUtils.isBlank(platformCheckResult), platformCheckResult);
+        List<K8sOperationInfo> steps = generateExecStepForSchema(schema.getCreatePlatform("test for generate script"), schema, new ArrayList<>(), new ArrayList<>());
+        String zipFilePath = generateYamlForDeploy(schema, steps, exportImage, imageSaveDir);
+        return zipFilePath;
+    }
+
+    @Override
     public PlatformUpdateSchemaInfo createNewPlatform(PlatformCreateParamVo paramVo) throws ParamException, NotSupportSetException, NotSupportAppException, InterfaceCallException, LJPaasException {
         logger.debug(String.format("prepare to create new platform : %s", gson.toJson(paramVo)));
         checkPlatformBase(paramVo, PlatformUpdateTaskType.CREATE, new ArrayList<>(), UpdateStatus.CREATE);
@@ -4469,6 +4495,11 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
      */
     private String generateYamlForDeploy(PlatformUpdateSchemaInfo schema, List<K8sOperationInfo> steps) throws IOException
     {
+        return generateYamlForDeploy(schema, steps, false, null);
+    }
+
+    private String generateYamlForDeploy(PlatformUpdateSchemaInfo schema, List<K8sOperationInfo> steps, boolean exportImage, String imageSaveDir) throws IOException
+    {
         String platformId = schema.getPlatformId();
         StringBuffer sb = new StringBuffer();
         Date now = new Date();
@@ -4495,10 +4526,17 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             FileUtils.saveContextToFile(saveDir, fileName, yamlContent, true);
             sb.append(content.toString());
             Map<String, Object> param = new HashMap<>();
-            param.put("timeout", step.getTimeout());
-            param.put("filePath", String.format("%s/%s", subDir, fileName).replaceAll("//", "/").replaceAll("^/", ""));
+            if(step.getTimeout() > 0){
+                param.put("timeout", step.getTimeout());
+            }
             param.put("kind", step.getKind().name);
             param.put("operation", step.getOperation());
+            if(step.getOperation().equals(K8sOperation.DELETE)){
+                param.put("name", step.getName());
+            }
+            else{
+                param.put("filePath", String.format("%s/%s", subDir, fileName).replaceAll("//", "/").replaceAll("^/", ""));
+            }
             if(isBase){
                 baseExecList.add(param);
             }
@@ -4517,16 +4555,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         params.put("platformParams", platParams);
         Set<String> images = new HashSet<>();
-        steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT)).forEach(s->{
-           V1Deployment deploy = (V1Deployment)s.getObj();
-           if(deploy.getSpec().getTemplate().getSpec().getInitContainers() != null)
-               deploy.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->{
-                   images.add(c.getImage());
-               });
-           if(deploy.getSpec().getTemplate().getSpec().getContainers() != null)
-               deploy.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
-                   images.add(c.getImage());
-               });
+        steps.stream().filter(s->s.getKind().equals(K8sKind.DEPLOYMENT) && (s.getOperation().equals(K8sOperation.CREATE) || s.getOperation().equals(K8sOperation.REPLACE))).forEach(s->{
+            V1Deployment deploy = (V1Deployment)s.getObj();
+            if(deploy.getSpec().getTemplate().getSpec().getInitContainers() != null)
+                deploy.getSpec().getTemplate().getSpec().getInitContainers().forEach(c->{
+                    images.add(c.getImage());
+                });
+            if(deploy.getSpec().getTemplate().getSpec().getContainers() != null)
+                deploy.getSpec().getTemplate().getSpec().getContainers().forEach(c->{
+                    images.add(c.getImage());
+                });
         });
         steps.stream().filter(s->s.getKind().equals(K8sKind.JOB)).forEach(s->{
             V1Job job = (V1Job)s.getObj();
@@ -4539,6 +4577,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         params.put("configCenterData", schema.getConfigCenterData() == null ? new HashMap<>() : schema.getConfigCenterData());
         FileUtils.saveContextToFile(basePath, "start_param.txt", gson.toJson(params), true);
         FileUtils.saveContextToFile(basePath, "platform_create.yaml", sb.toString(), true);
+        FileUtils.saveContextToFile(basePath, "ccod_platform.yaml", Yaml.dump(params), true);
         copySourceFile(this.platformDeployScriptFileName, basePath, this.platformDeployScriptFileName);
         if(((String)platParams.get(PlatformBase.glsDBTypeKey)).equals("ORACLE")){
             copySourceFile(this.platformDeployCfgFileName, basePath, this.platformDeployCfgFileName);
@@ -4546,7 +4585,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         else{
             copySourceFile(this.platformDeployMysqlCfgFileName, basePath, this.platformDeployCfgFileName);
         }
-
+        if(exportImage && images.size() > 0){
+            logger.debug(String.format("export necessary %d images %s to %s", images.size(), String.join(",", images), imageSaveDir));
+            Runtime runtime = Runtime.getRuntime();
+            for(String image : images){
+                String imageTag = image.replaceAll(".*/", image).replaceAll("\\:", "@");
+                logger.debug(String.format("export %s image to %s/%s.tar", image, imageSaveDir, imageTag));
+                String command = String.format("docker save -o %s/%s.tar %s", imageSaveDir, imageTag, image);
+                runtime.exec(command);
+            }
+        }
         String zipFilePath = String.format("%s/%s.zip", rootPath, platformId);
         File zipFile = new File(zipFilePath);
         if(zipFile.exists()){
@@ -4556,6 +4604,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         logger.debug(String.format("generated script for deploy platform %s has saved to %s", schema.getPlatformId(), zipFilePath));
         return zipFilePath;
     }
+
 
     @Override
     public PlatformUpdateRecordVo rollbackPlatform(String platformId, List<String> domainIds) throws ParamException, ApiException {
