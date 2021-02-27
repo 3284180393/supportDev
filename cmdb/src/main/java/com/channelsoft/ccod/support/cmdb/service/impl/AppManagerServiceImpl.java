@@ -199,6 +199,7 @@ public class AppManagerServiceImpl implements IAppManagerService {
         try
         {
 //            appUpdate();
+//            update4CfgFor49();
             System.out.println("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
         }
         catch (Exception ex)
@@ -207,6 +208,61 @@ public class AppManagerServiceImpl implements IAppManagerService {
         }
     }
 
+
+    private void update4CfgFor49() throws Exception
+    {
+        List<AppPo> appList = appMapper.select(null, null).stream()
+                .filter(a->Arrays.asList(a.getCcodVersion().split(",")).contains("4.9")).collect(Collectors.toList());
+        for(AppPo po : appList){
+            if(!po.getAppName().equals("dcmsStatics") || !po.getVersion().equals("e41f0c4632c16d44c631ef4c81e08a3d438bb807"))
+                continue;
+            AppType appType = po.getAppType();
+            String cfgDir;
+            switch (appType){
+                case RESIN_WEB_APP:
+                case TOMCAT_WEB_APP:
+                    cfgDir = "./webapps/WEB-INF";
+                    break;
+                case BINARY_FILE:
+                    cfgDir = "./cfg";
+                    break;
+                case JAR:
+                    cfgDir = "./config";
+                    break;
+                default:
+                    continue;
+            }
+            String group = String.format("/%s/%s", po.getAppName(), po.getVersion());
+            List<NexusAssetInfo> assets = nexusService.queryGroupAssets(nexusHostUrl, nexusUserName, nexusPassword, "tmp", group);
+            if(assets.size() == 0){
+                logger.error(String.format("can not find any file at /tmp%s", group));
+                continue;
+            }
+            List<AppFileNexusInfo> cfgs = new ArrayList<>();
+            for(NexusAssetInfo asset : assets){
+                if(asset.getNexusAssetFileName().equals(po.getInstallPackage().getFileName())){
+                    continue;
+                }
+                AppFileNexusInfo cfg = new AppFileNexusInfo();
+                if(appType.equals(AppType.RESIN_WEB_APP) && !asset.getNexusAssetFileName().equals("web.xml")){
+                    cfg.setDeployPath(String.format("%s/classes", cfgDir));
+                }
+                else{
+                    cfg.setDeployPath(cfgDir);
+                }
+                cfg.setFileName(asset.getNexusAssetFileName());
+                cfg.setNexusPath(asset.getPath());
+                cfg.setExt(cfg.getFileName().replaceAll(".*\\.", ""));
+                cfg.setMd5(asset.getMd5());
+                cfg.setNexusAssetId(asset.getId());
+                cfg.setNexusRepository("tmp");
+                cfgs.add(cfg);
+            }
+            po.setCfgs(cfgs);
+            AppModuleVo module = new AppModuleVo(po);
+            updateAppModule(module);
+        }
+    }
 
     private void appUpdate(){
 //        this.registerAppMap.values().stream().flatMap(s->s.stream()).filter(a->a.getStartCmd().equals("./")).forEach(a->{

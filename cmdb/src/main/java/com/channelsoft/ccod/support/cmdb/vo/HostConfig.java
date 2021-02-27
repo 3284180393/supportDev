@@ -1,5 +1,7 @@
 package com.channelsoft.ccod.support.cmdb.vo;
 
+import com.channelsoft.ccod.support.cmdb.constant.SystemFamily;
+
 import java.util.Map;
 
 /**
@@ -16,6 +18,8 @@ public class HostConfig {
     private String user; //用户名，缺省root
 
     private String password; //用户的登录密码
+
+    private SystemFamily systemFamily; //服务器的系统类型
 
     private String initCmd; //用来执行服务器初始化脚本
 
@@ -69,5 +73,13 @@ public class HostConfig {
 
     public void setCfg(Map<String, String> cfg) {
         this.cfg = cfg;
+    }
+
+    public SystemFamily getSystemFamily() {
+        return systemFamily;
+    }
+
+    public void setSystemFamily(SystemFamily systemFamily) {
+        this.systemFamily = systemFamily;
     }
 }

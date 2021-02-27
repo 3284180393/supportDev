@@ -8,6 +8,7 @@ import com.channelsoft.ccod.support.cmdb.k8s.service.IK8sApiService;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.utils.FileUtils;
+import com.channelsoft.ccod.support.cmdb.utils.JschTools;
 import com.channelsoft.ccod.support.cmdb.utils.ZipUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.ExclusionStrategy;
@@ -15,6 +16,9 @@ import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpException;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.Yaml;
@@ -308,6 +312,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private Map<String, BizSetDefine> setDefineMap;
 
+    private Map<String, String> supportSrcPackage;
+
     protected final ReentrantReadWriteLock appWriteLock = new ReentrantReadWriteLock();
 
     protected final ReentrantReadWriteLock debugLock = new ReentrantReadWriteLock();
@@ -323,6 +329,8 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private String aliasRegexFmt = "^%s\\d*$";
 
     private String domainServiceNameFmt = "^%s-%s($|(-[0-9a-z]+)+$)";
+
+    private String domainAppBasePath = "/home/ccodrunner";
 
     @PostConstruct
     void init() throws Exception {
@@ -5028,6 +5036,205 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         Map<String, String> selector = k8sTemplateService.getCCODDomainAppSelector(appName, alias, null, null, domainId, null);
         List<V1Pod> pods = k8sApiService.selectNamespacedPod(platformId, selector, platform.getK8sApiUrl(), platform.getK8sAuthToken());
         return pods;
+    }
+
+    private void deployDomainAppToServer(AppUpdateOperationInfo optInfo, HostConfig host) throws Exception
+    {
+        AppUpdateOperation operation = optInfo.getOperation();
+        String hostIp = host.getIp();
+        switch (operation){
+            case ADD:
+            case UPDATE:
+            case DEBUG:
+                break;
+            default:
+                throw new ParamException(String.format("operation %s not been supported to deploy to server", optInfo.getOperation().name));
+        }
+        Session rootSession = JschTools.createSshSession(hostIp, 22, host.getUser(), host.getPassword());
+        String alias = optInfo.getAlias();
+        String home = String.format("%s/%s", domainAppBasePath, alias).replaceAll("//", "/");
+        boolean userExist = JschTools.isUserExist(rootSession, alias);
+        if(operation.equals(AppUpdateOperation.ADD) && userExist){
+            throw new ParamException(String.format("user %s has exist at %s for ADD operation", alias, hostIp));
+        }
+        else if(operation.equals(AppUpdateOperation.UPDATE) && !userExist){
+            throw new ParamException(String.format("user %s has not exist at %s for UPDATE operation", alias, hostIp));
+        }
+        if(!userExist){
+            JschTools.createUser(rootSession, alias, alias, home));
+        }
+        else{
+            String oldHome = JschTools.getUserHome(rootSession, alias);
+            if(!home.equals(oldHome)){
+                throw new ParamException(String.format("wanted home of %s is %s, but exist is %s", alias, home, oldHome));
+            }
+        }
+        Map<String, Object> runtime = optInfo.getRuntime();
+        Map<String, String> env = runtime.containsKey("env") ? (Map<String, String>)runtime.get("env") : new HashMap<>();
+        String jdk = runtime.containsKey("jdkVersion") ? (String)runtime.get("jdkVersion") : null;
+        String tomcat = runtime.containsKey("tomcat") ? (String)runtime.get("tomcat") : null;
+        String resin = runtime.containsKey("resin") ? (String)runtime.get("resin") : null;
+        String appPath = String.format("%s/%s", home, optInfo.getAppName());
+        Session appSession = JschTools.createSshSession(hostIp, 22, alias, alias);
+        switch (optInfo.getAppType()){
+            case TOMCAT_WEB_APP:
+        }
+    }
+
+    private void initRuntimeForDomainApp(AppUpdateOperationInfo optInfo, HostConfig host) throws Exception
+    {
+        AppUpdateOperation operation = optInfo.getOperation();
+        String hostIp = host.getIp();
+        switch (operation){
+            case ADD:
+            case UPDATE:
+            case DEBUG:
+                break;
+            default:
+                throw new ParamException(String.format("operation %s not been supported to deploy to server", optInfo.getOperation().name));
+        }
+        Session rootSession = JschTools.createSshSession(hostIp, 22, host.getUser(), host.getPassword());
+        String alias = optInfo.getAlias();
+        String home = String.format("%s/%s", domainAppBasePath, alias).replaceAll("//", "/");
+        boolean userExist = JschTools.isUserExist(rootSession, alias);
+        if(operation.equals(AppUpdateOperation.ADD) && userExist){
+            throw new ParamException(String.format("user %s has exist at %s for ADD operation", alias, hostIp));
+        }
+        else if(operation.equals(AppUpdateOperation.UPDATE) && !userExist){
+            throw new ParamException(String.format("user %s has not exist at %s for UPDATE operation", alias, hostIp));
+        }
+        if(!userExist){
+            JschTools.createUser(rootSession, alias, alias, home));
+        }
+        else{
+            String oldHome = JschTools.getUserHome(rootSession, alias);
+            if(!home.equals(oldHome)){
+                throw new ParamException(String.format("wanted home of %s is %s, but exist is %s", alias, home, oldHome));
+            }
+        }
+        Map<String, Object> runtime = optInfo.getRuntime();
+        Map<String, String> env = runtime.containsKey("env") ? (Map<String, String>)runtime.get("env") : new HashMap<>();
+        String jdk = runtime.containsKey("jdkVersion") ? (String)runtime.get("jdkVersion") : null;
+        String tomcat = runtime.containsKey("tomcat") ? (String)runtime.get("tomcat") : null;
+        String resin = runtime.containsKey("resin") ? (String)runtime.get("resin") : null;
+        String appPath = String.format("%s/%s", home, optInfo.getAppName());
+        Session appSession = JschTools.createSshSession(hostIp, 22, alias, alias);
+        switch (optInfo.getAppType()){
+            case TOMCAT_WEB_APP:
+        }
+    }
+
+    private String rePackageWar(AppFileNexusInfo installPackage, List<AppFileNexusInfo> cfgs, String saveDir) throws Exception{
+        nexusService.downloadFile(nexusUserName, nexusPassword, installPackage.getFileNexusDownloadUrl(nexusHostUrl), saveDir, installPackage.getFileName());
+        StringBuffer sb = new StringBuffer();
+        for(AppFileNexusInfo cfg : cfgs){
+            String cfgDir = cfg.getDeployPath().replaceAll("./", "/");
+            nexusService.downloadFile(nexusUserName, nexusPassword, cfg.getFileNexusDownloadUrl(nexusHostUrl),
+                    String.format("%s/%s", saveDir, cfgDir), cfg.getFileName());
+            sb.append(String.format("jar uf %s %s/%s;", installPackage.getFileName(), cfgDir, cfg.getFileName()));
+        }
+        String command = String.format("cd %s;%s", saveDir, sb.toString().replaceAll(";$", ""));
+        Runtime runtime = Runtime.getRuntime();
+        logger.warn(String.format("begin to exec %s", command));
+        runtime.exec(command);
+        return String.format("%s/%s", saveDir, installPackage.getFileName());
+    }
+
+    /**
+     * 为指定用户初始化jdk运行环境
+     * @param jdkPkgPath jdk包在服务器存放的绝对路径
+     * @param workDir 用来存放jdk的工作路径
+     * @param profile 用户source文件绝对路径
+     * @param session 指定用户的ssh会话
+     * @throws ParamException
+     * @throws JSchException
+     * @throws IOException
+     * @throws CommandExecuteException
+     * @throws SftpException
+     */
+    private void initJdkForApp(String jdkPkgPath, String workDir, String profile, Session session) throws JSchException, IOException, CommandExecuteException, SftpException
+    {
+        String pkgName = jdkPkgPath.replaceAll(".*/", "");
+        JschTools.put(session, jdkPkgPath, String.format("%s/%s", workDir, pkgName));
+        JschTools.runCommand(session, String.format("cd %s;tar -xvzf %s", workDir, pkgName));
+        StringBuffer sb = new StringBuffer();
+        sb.append(String.format("echo 'JAVA_HOME=%s/%s' >> %s", workDir, pkgName.replaceAll("..*", ""), profile));
+        sb.append(String.format(";echo 'PATH=\\\\$JAVA_HOME/bin:\\\\$PATH' >> %s", profile));
+        sb.append(String.format(";echo 'CLASSPATH=.:\\\\$JAVA_HOME/lib/dt.jar:\\\\$JAVA_HOME/lib/tools.jar' >> %s", profile));
+        sb.append(String.format(";echo 'export JAVA_HOME' >> %s", profile));
+        sb.append(String.format(";echo 'export PATH' >> %s", profile));
+        sb.append(String.format(";echo 'export CLASSPATH' >> %s", profile));
+        JschTools.runCommand(session, sb.toString());
+    }
+
+    /**
+     * 为指定用户初始化tomcat
+     * @param tomcatPkgPath tomcat包在本地的存放路径
+     * @param workDir tomcat在目标服务器的部署路径
+     * @param port tomcat需要打开的端口
+     * @param session 指定用更好的ssh连接会话
+     * @return tomcat部署后的绝对路径
+     * @throws JSchException
+     * @throws IOException
+     * @throws CommandExecuteException
+     * @throws SftpException
+     */
+    private String initTomcatForApp(String tomcatPkgPath, String workDir, int port, Session session) throws JSchException, IOException, CommandExecuteException, SftpException
+    {
+        String pkgName = tomcatPkgPath.replaceAll(".*/", "");
+        JschTools.put(session, tomcatPkgPath, String.format("%s/%s", workDir, pkgName));
+        JschTools.runCommand(session, String.format("cd %s;tar -xvzf %s", workDir, pkgName));
+        String path = String.format("%s/%s", workDir, pkgName.replaceAll("..*", ""));
+        String configFilePath = String.format("%s/conf/server.xml", path);
+        JschTools.replaceFileKeyWord(session, configFilePath, String.format("%d", 8080), String.format("%d", port));
+        JschTools.replaceFileKeyWord(session, configFilePath, String.format("%d", 8443), String.format("%d", port-8080+8443));
+        JschTools.replaceFileKeyWord(session, configFilePath, String.format("%d", 8009), String.format("%d", port-8080+8009));
+        return path;
+    }
+
+    /**
+     * 为指定用户初始化resin
+     * @param resinPkgPath resin包在本地的存放路径
+     * @param workDir 目标服务器用来部署resin的服务器
+     * @param port resin打开的服务端口
+     * @param session 指定用户的ssh会话
+     * @return resin部署后的路径
+     * @throws JSchException
+     * @throws IOException
+     * @throws CommandExecuteException
+     * @throws SftpException
+     */
+    private String initResinForApp(String resinPkgPath, String workDir, int port, Session session) throws JSchException, IOException, CommandExecuteException, SftpException
+    {
+        String pkgName = resinPkgPath.replaceAll(".*/", "");
+        JschTools.put(session, resinPkgPath, String.format("%s/%s", workDir, pkgName));
+        JschTools.runCommand(session, String.format("cd %s;tar -xvzf %s", workDir, pkgName));
+        String path = String.format("%s/%s", workDir, pkgName.replaceAll("..*", ""));
+        String configFilePath = String.format("%s/conf/server.xml", path);
+        JschTools.replaceFileKeyWord(session, String.format("%s/conf/resin.xml", path), String.format("%d", 8080), String.format("%d", port));
+        JschTools.replaceFileKeyWord(session, String.format("%s/conf/resin.xml", path), String.format("%d", 6800), String.format("%d", port-8080+6800));
+        JschTools.replaceFileKeyWord(session, String.format("%s/conf/local_server.xml", path), String.format("%d", 6800), String.format("%d", port-8080+6800));
+        JschTools.replaceFileKeyWord(session, String.format("%s/conf/local_server.xml", path), String.format("%d", 6600), String.format("%d", port-8080+6600));
+        JschTools.replaceFileKeyWord(session, String.format("%s/conf/local_jvm.xml", path), String.format("%d", 9999), String.format("%d", port-8080+9999));
+        return path;
+    }
+
+    /**
+     * 将指定环境变量添加到用户变量文件中
+     * @param env 环境变量k,v键值对
+     * @param profile 用户source文件
+     * @param session 指定用户的ssh会话
+     * @throws JSchException
+     * @throws IOException
+     * @throws CommandExecuteException
+     */
+    private void initEnv(Map<String, String> env, String profile, Session session) throws JSchException, IOException, CommandExecuteException
+    {
+        StringBuffer sb = new StringBuffer();
+        env.forEach((k,v)->{
+            sb.append(String.format("echo '%s=%s' >> %s;echo 'export %s >> %s", k, v, profile, k, profile));
+        });
+        JschTools.runCommand(session, sb.toString().replaceAll(";$", ""));
     }
 
     @Test
