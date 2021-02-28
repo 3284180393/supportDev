@@ -8,6 +8,8 @@ import com.channelsoft.ccod.support.cmdb.constant.PlatformFunction;
 import com.channelsoft.ccod.support.cmdb.exception.*;
 import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.vo.*;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.SftpException;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.models.*;
 
@@ -197,7 +199,7 @@ public interface IPlatformManagerService {
      * @throws NexusException 调用nexus api返回调用失败或是解析nexus api返回结果失败
      * @throws IOException 处理文件失败
      */
-    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException;
+    void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws CommandExecuteException, JSchException, SftpException, InterruptedException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException;
 
     /**
      * 查询平台回滚信息
@@ -299,7 +301,7 @@ public interface IPlatformManagerService {
      * @throws ClassNotFoundException
      * @throws SQLException
      */
-    void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException;
+    void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws CommandExecuteException, JSchException, SftpException, InterruptedException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException;
 
     /**
      * 是否平台部署正在进行

@@ -342,6 +342,11 @@ ccod:
     - mysql
   threePartServices:
     - umg
+  necessaryPackages:
+    jdk7: /opt/depends/jdk1.7.0_79/jdk1.7.0_79.tar.gz
+    jdk8: /opt/depends/jdk1.8.0_131/jdk-8u131-linux-x64.tar.gz
+    tomcat6: /opt/depends/tomcat-6.0.53/tomcat-6.0.53.gz
+    resin4: /opt/depends/resin-4.0.13/resin-4.0.13.gz
 
 nexus:
   user : admin

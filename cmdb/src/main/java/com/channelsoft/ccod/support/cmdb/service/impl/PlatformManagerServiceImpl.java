@@ -9,6 +9,7 @@ import com.channelsoft.ccod.support.cmdb.po.*;
 import com.channelsoft.ccod.support.cmdb.service.*;
 import com.channelsoft.ccod.support.cmdb.utils.FileUtils;
 import com.channelsoft.ccod.support.cmdb.utils.JschTools;
+import com.channelsoft.ccod.support.cmdb.utils.NetTools;
 import com.channelsoft.ccod.support.cmdb.utils.ZipUtils;
 import com.channelsoft.ccod.support.cmdb.vo.*;
 import com.google.gson.ExclusionStrategy;
@@ -311,8 +312,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     private Map<String, List<BizSetDefine>> appSetRelationMap;
 
     private Map<String, BizSetDefine> setDefineMap;
-
-    private Map<String, String> supportSrcPackage;
 
     protected final ReentrantReadWriteLock appWriteLock = new ReentrantReadWriteLock();
 
@@ -1950,7 +1949,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException {
+    public void updatePlatformUpdateSchema(PlatformUpdateSchemaInfo updateSchema) throws CommandExecuteException, JSchException, SftpException, InterruptedException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException{
         logger.debug(String.format("begin to update platform update schema : %s", gson.toJson(updateSchema)));
 //        resetSchema(updateSchema);
 //        logger.warn(gson.toJson(updateSchema));
@@ -2023,10 +2022,49 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         platformPo.setStatus(updateSchema.getTaskType().equals(PlatformUpdateTaskType.CREATE) ? CCODPlatformStatus.SCHEMA_CREATE : CCODPlatformStatus.SCHEMA_UPDATE);
         this.platformMapper.update(platformPo);
         if (status.equals(UpdateStatus.EXEC) || status.equals(UpdateStatus.WAIT_EXEC)){
-            execPlatformSchema(platformPo, updateSchema, domainList, assembleList, platformDeployApps, registerApps);
+            if(platformPo.getType().equals(PlatformType.PHYSICAL_MACHINE)){
+                if(status.equals(UpdateStatus.EXEC)){
+                    deployPlatformToServer(updateSchema);
+                }
+            }
+            else{
+                execPlatformSchema(platformPo, updateSchema, domainList, assembleList, platformDeployApps, registerApps);
+            }
         }
         logger.info(String.format("update %s schema success", updateSchema.getSchemaId()));
     }
+
+    private String checkSchemaForPhisicalMachine(PlatformUpdateSchemaInfo schema){
+        StringBuffer sb = new StringBuffer();
+        if(schema.getHosts() == null || schema.getHosts().size() == 0){
+            return "hosts can not be empty";
+        }
+        schema.getHosts().stream().collect(Collectors.groupingBy(HostConfig::getIp)).forEach((k,v)->{
+            if(v.size() > 1){
+                sb.append(String.format("%s,", k));
+            }
+        });
+        if(StringUtils.isNotBlank(sb.toString())){
+            return String.format("ip %s multi defined", sb.toString().replaceAll(",$", ""));
+        }
+        Map<String, HostConfig> hostMap = schema.getHosts().stream().collect(Collectors.toMap(HostConfig::getIp, Function.identity()));
+        List<AppUpdateOperationInfo> apps = schema.getDomains().stream().flatMap(d->d.getApps().stream()).collect(Collectors.toList());;
+        apps.stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp)).keySet().forEach(ip->{
+            if(!hostMap.containsKey(ip)){
+                sb.append(String.format("%s,", ip));
+            }
+        });
+        if(StringUtils.isNotBlank(sb)){
+            return String.format("ip %s not defined in hosts", sb.toString().replaceAll(",$", ""));
+        }
+        apps.forEach(a->{
+            Map<String, Object> runtime = a.getRuntime();
+            switch (a.getAppType()){
+                case RESIN_WEB_APP:
+            }
+        });
+    }
+
 
     private Comparator<DomainUpdatePlanInfo> getDomainPlanSort()
     {
@@ -4134,7 +4172,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
     }
 
     @Override
-    public void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException {
+    public void deployPlatformByHostScript(PlatformUpdateSchemaInfo schema) throws CommandExecuteException, JSchException, SftpException, InterruptedException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException {
         Date now = new Date();
         schema.setTaskType(PlatformUpdateTaskType.CREATE);
         schema.setCreateMethod(PlatformCreateMethod.HOST_BY_SCRIPT);
@@ -4146,7 +4184,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         logger.info(String.format("generate zip is %s", gson.toJson(scriptZipList)));
     }
 
-    private List<String> generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir) throws NotSupportSetException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException, K8sDataException, ClassNotFoundException, SQLException
+    private List<String> generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir) throws CommandExecuteException, JSchException, SftpException, InterruptedException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException
     {
         Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
         List<String> scriptList = new ArrayList<>();
@@ -5038,97 +5076,254 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return pods;
     }
 
-    private void deployDomainAppToServer(AppUpdateOperationInfo optInfo, HostConfig host) throws Exception
+    public void deployPlatformToServer(PlatformUpdateSchemaInfo schema) throws ParamException, IOException, InterfaceCallException, JSchException, SftpException, CommandExecuteException, InterruptedException
     {
-        AppUpdateOperation operation = optInfo.getOperation();
-        String hostIp = host.getIp();
-        switch (operation){
-            case ADD:
-            case UPDATE:
-            case DEBUG:
-                break;
-            default:
-                throw new ParamException(String.format("operation %s not been supported to deploy to server", optInfo.getOperation().name));
-        }
-        Session rootSession = JschTools.createSshSession(hostIp, 22, host.getUser(), host.getPassword());
-        String alias = optInfo.getAlias();
-        String home = String.format("%s/%s", domainAppBasePath, alias).replaceAll("//", "/");
-        boolean userExist = JschTools.isUserExist(rootSession, alias);
-        if(operation.equals(AppUpdateOperation.ADD) && userExist){
-            throw new ParamException(String.format("user %s has exist at %s for ADD operation", alias, hostIp));
-        }
-        else if(operation.equals(AppUpdateOperation.UPDATE) && !userExist){
-            throw new ParamException(String.format("user %s has not exist at %s for UPDATE operation", alias, hostIp));
-        }
-        if(!userExist){
-            JschTools.createUser(rootSession, alias, alias, home));
-        }
-        else{
-            String oldHome = JschTools.getUserHome(rootSession, alias);
-            if(!home.equals(oldHome)){
-                throw new ParamException(String.format("wanted home of %s is %s, but exist is %s", alias, home, oldHome));
+        Map<String, HostConfig> hostMap = schema.getHosts().stream().collect(Collectors.toMap(HostConfig::getIp, Function.identity()));
+        Date now = new Date();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+        if(schema.getCfgs() != null && schema.getCfgs().size() > 0){
+            logger.debug(String.format("deploy all platform public config to all host %s", String.join(",", hostMap.keySet())));
+            String saveDir = String.format("%s/temp/cfg/%s/%s",
+                    System.getProperty("user.dir"), schema.getPlatformId(), sf.format(now));
+            for(HostConfig host : schema.getHosts()){
+                Session session = null;
+                try{
+                    session = JschTools.createSshSession(host.getIp(), host.getSshPort(), host.getUser(), host.getPassword());
+                    for(AppFileNexusInfo cfg : schema.getCfgs()){
+                        putFromNexusToServer(cfg, session, saveDir, "/");
+                    }
+                }
+                finally {
+                    if(session != null){
+                        session.disconnect();
+                    }
+                }
             }
         }
-        Map<String, Object> runtime = optInfo.getRuntime();
-        Map<String, String> env = runtime.containsKey("env") ? (Map<String, String>)runtime.get("env") : new HashMap<>();
-        String jdk = runtime.containsKey("jdkVersion") ? (String)runtime.get("jdkVersion") : null;
-        String tomcat = runtime.containsKey("tomcat") ? (String)runtime.get("tomcat") : null;
-        String resin = runtime.containsKey("resin") ? (String)runtime.get("resin") : null;
-        String appPath = String.format("%s/%s", home, optInfo.getAppName());
-        Session appSession = JschTools.createSshSession(hostIp, 22, alias, alias);
-        switch (optInfo.getAppType()){
-            case TOMCAT_WEB_APP:
+        for(DomainUpdatePlanInfo plan : schema.getDomains()){
+            if(plan.getPublicConfig() != null || plan.getPublicConfig().size() > 0){
+                Map<String, List<AppUpdateOperationInfo>> hostAppMap = plan.getApps().stream().collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
+                logger.debug(String.format("put all domain public config file to domain hosts : %s", String.join(",", hostAppMap.keySet())));
+                for(String hostIp : hostAppMap.keySet()){
+                    String saveDir = String.format("%s/temp/cfg/%s/%s/%s",
+                            System.getProperty("user.dir"), schema.getPlatformId(), sf.format(now), plan.getDomainId());
+                    HostConfig host = hostMap.get(hostIp);
+                    Session session = null;
+                    try{
+                        session = JschTools.createSshSession(host.getIp(), host.getSshPort(), host.getUser(), host.getPassword());
+                        for(AppFileNexusInfo cfg : plan.getPublicConfig()){
+                            putFromNexusToServer(cfg, session, saveDir, "/");
+                        }
+                    }
+                    finally {
+                        if(session != null){
+                            session.disconnect();
+                        }
+                    }
+                }
+            }
+            for(AppUpdateOperationInfo optInfo : plan.getApps()){
+                HostConfig host = hostMap.get(optInfo.getHostIp());
+                deployDomainAppToServer(optInfo, host, now);
+            }
         }
     }
 
-    private void initRuntimeForDomainApp(AppUpdateOperationInfo optInfo, HostConfig host) throws Exception
+    private void deployDomainAppToServer(AppUpdateOperationInfo optInfo, HostConfig host, Date date) throws ParamException, IOException, InterfaceCallException, JSchException, SftpException, CommandExecuteException, InterruptedException
     {
-        AppUpdateOperation operation = optInfo.getOperation();
-        String hostIp = host.getIp();
-        switch (operation){
-            case ADD:
-            case UPDATE:
-            case DEBUG:
-                break;
-            default:
-                throw new ParamException(String.format("operation %s not been supported to deploy to server", optInfo.getOperation().name));
+        String workDir = initRuntimeForDomainApp(optInfo, host, date);
+        Session session = null;
+        String command;
+        try{
+            AppType appType = optInfo.getAppType();
+            if(appType.equals(AppType.NODEJS)){
+                session = JschTools.createSshSession(host.getIp(), host.getSshPort(), host.getUser(), host.getPassword());
+                command = optInfo.getStartCmd();
+            }
+            else{
+                session = JschTools.createSshSession(host.getIp(), host.getSshPort(), optInfo.getAlias(), optInfo.getAlias());
+                command = String.format("cd %s;%s", workDir, optInfo.getStartCmd());
+            }
+            JschTools.runCommand(session, command);
         }
-        Session rootSession = JschTools.createSshSession(hostIp, 22, host.getUser(), host.getPassword());
-        String alias = optInfo.getAlias();
-        String home = String.format("%s/%s", domainAppBasePath, alias).replaceAll("//", "/");
-        boolean userExist = JschTools.isUserExist(rootSession, alias);
-        if(operation.equals(AppUpdateOperation.ADD) && userExist){
-            throw new ParamException(String.format("user %s has exist at %s for ADD operation", alias, hostIp));
-        }
-        else if(operation.equals(AppUpdateOperation.UPDATE) && !userExist){
-            throw new ParamException(String.format("user %s has not exist at %s for UPDATE operation", alias, hostIp));
-        }
-        if(!userExist){
-            JschTools.createUser(rootSession, alias, alias, home));
-        }
-        else{
-            String oldHome = JschTools.getUserHome(rootSession, alias);
-            if(!home.equals(oldHome)){
-                throw new ParamException(String.format("wanted home of %s is %s, but exist is %s", alias, home, oldHome));
+        finally {
+            if(session != null){
+                session.disconnect();
             }
         }
-        Map<String, Object> runtime = optInfo.getRuntime();
-        Map<String, String> env = runtime.containsKey("env") ? (Map<String, String>)runtime.get("env") : new HashMap<>();
-        String jdk = runtime.containsKey("jdkVersion") ? (String)runtime.get("jdkVersion") : null;
-        String tomcat = runtime.containsKey("tomcat") ? (String)runtime.get("tomcat") : null;
-        String resin = runtime.containsKey("resin") ? (String)runtime.get("resin") : null;
-        String appPath = String.format("%s/%s", home, optInfo.getAppName());
-        Session appSession = JschTools.createSshSession(hostIp, 22, alias, alias);
-        switch (optInfo.getAppType()){
-            case TOMCAT_WEB_APP:
+        if(optInfo.getTimeout() == null || optInfo.getTimeout() == 0){
+            logger.info(String.format("%s[%s] at %s of %s has been started", optInfo.getAlias(), optInfo.getAppName(), optInfo.getHostIp(), optInfo.getDomainId()));
+            return;
+        }
+        long begin = System.currentTimeMillis();
+        boolean startSucc = checkAppPorts(optInfo.getPorts(), optInfo.getHostIp(), optInfo.getTimeout());
+        long timeUsge = (System.currentTimeMillis() - begin) / 1000;
+        logger.info(String.format("%s(%s) at %s started is %b with timeUsge=%d",
+                optInfo.getAlias(), optInfo.getAppName(), optInfo.getHostIp(), startSucc, timeUsge));
+    }
+
+    private boolean checkAppPorts(String portStr, String hostIp, int timeout) throws InterruptedException
+    {
+        List<Integer> ports = Arrays.asList(portStr.split(",")).stream()
+                .map(s->Integer.parseInt(s.replaceAll(":.*", "").replaceAll("/.*", "")))
+                .collect(Collectors.toList());
+        long timeUsage = 0;
+        long begin = System.currentTimeMillis();
+        boolean startSucc = false;
+        while(timeUsage < timeout){
+            for(int port : ports){
+                boolean isConnect = NetTools.telnet(hostIp, port, 200);
+                timeUsage = System.currentTimeMillis() - begin;
+                if(!isConnect){
+                    logger.warn(String.format("%d : port %d is not open at %s", timeUsage, port, hostIp));
+                    startSucc = false;
+                    break;
+                }
+                else{
+                    logger.warn(String.format("%d : port %d is open at %s", timeUsage, port, hostIp));
+                    startSucc = true;
+                }
+            }
+            if(!startSucc){
+                Thread.sleep(3000);
+                timeUsage = System.currentTimeMillis() - begin;
+            }
+            else{
+                break;
+            }
+        }
+        logger.info(String.format("%s is open at %d : %b", portStr, timeUsage, startSucc));
+        return startSucc;
+    }
+
+    private String initRuntimeForDomainApp(AppUpdateOperationInfo optInfo, HostConfig host, Date date) throws ParamException, IOException, InterfaceCallException, JSchException, SftpException, CommandExecuteException
+    {
+        AppUpdateOperation operation = optInfo.getOperation();
+        Session rootSession = null;
+        Session appSession = null;
+        try{
+            String hostIp = host.getIp();
+            switch (operation){
+                case ADD:
+                case UPDATE:
+                case DEBUG:
+                    break;
+                default:
+                    throw new ParamException(String.format("operation %s not been supported to deploy to server", optInfo.getOperation().name));
+            }
+            rootSession = JschTools.createSshSession(hostIp, 22, host.getUser(), host.getPassword());
+            String alias = optInfo.getAlias();
+            AppType appType = optInfo.getAppType();
+            String home = appType.equals(AppType.NODEJS) ? "/root" : String.format("%s/%s", domainAppBasePath, alias).replaceAll("//", "/");
+            String user = appType.equals(AppType.NODEJS) ? "root" : alias;
+            boolean userExist = JschTools.isUserExist(rootSession, user);
+            if(operation.equals(AppUpdateOperation.ADD) && userExist && !appType.equals(AppType.NODEJS)){
+                throw new ParamException(String.format("user %s has exist at %s for ADD operation with appType=%s",
+                        alias, hostIp, appType.name));
+            }
+            else if(operation.equals(AppUpdateOperation.UPDATE) && !userExist){
+                throw new ParamException(String.format("user %s has not exist at %s for UPDATE operation", alias, hostIp));
+            }
+            if(!userExist){
+                JschTools.createUser(rootSession, user, user, home);
+            }
+            else{
+                String oldHome = JschTools.getUserHome(rootSession, user);
+                if(!home.equals(oldHome)){
+                    throw new ParamException(String.format("wanted home of %s is %s, but exist is %s", alias, home, oldHome));
+                }
+            }
+            String profile = String.format("%s/%s", home, host.getSystemFamily().equals(SystemFamily.SUSE)?".profile":".bashrc");
+            Map<String, Object> runtime = optInfo.getRuntime();
+            Map<String, String> env = runtime.containsKey("env") ? (Map<String, String>)runtime.get("env") : new HashMap<>();
+            String jdk = runtime.containsKey("jdkVersion") ? (String)runtime.get("jdkVersion") : null;
+            String tomcat = runtime.containsKey("tomcat") ? (String)runtime.get("tomcat") : null;
+            String resin = runtime.containsKey("resin") ? (String)runtime.get("resin") : null;
+            appSession = JschTools.createSshSession(hostIp, 22, alias, alias);
+            String workDir = String.format("%s/%s", home, optInfo.getAppName());
+            SimpleDateFormat sf = new SimpleDateFormat("yyyyMMddHHmmss");
+            String saveDir = String.format("%s/temp/war/%s/%s/%s/%s",
+                    System.getProperty("user.dir"), optInfo.getPlatformId(), sf.format(date), optInfo.getDomainId(), optInfo.getAlias());
+            switch (optInfo.getAppType()){
+                case TOMCAT_WEB_APP:{
+                    initJdkForApp(ccodBiz.necessaryPackages.get(jdk), workDir, profile, appSession);
+                    String tomcatPath = initTomcatForApp(ccodBiz.necessaryPackages.get(tomcat), workDir, Integer.parseInt(optInfo.getPorts().replaceAll(":.*", "").replaceAll("/.*", "")), appSession);
+                    String repackPath = rePackageWar(optInfo.getInstallPackage(), optInfo.getCfgs(), saveDir);
+                    JschTools.put(appSession, repackPath, String.format("%s/webapps/%s", tomcatPath, repackPath.replaceAll(".*/", "")));
+                    break;
+                }
+                case RESIN_WEB_APP:{
+                    initJdkForApp(ccodBiz.necessaryPackages.get(jdk), workDir, profile, appSession);
+                    String resinPath = initResinForApp(ccodBiz.necessaryPackages.get(resin), workDir, Integer.parseInt(optInfo.getPorts().replaceAll(":.*", "").replaceAll("/.*", "")), appSession);
+                    String repackPath = rePackageWar(optInfo.getInstallPackage(), optInfo.getCfgs(), saveDir);
+                    JschTools.put(appSession, repackPath, String.format("%s/webapps/%s", resinPath, repackPath.replaceAll(".*/", "")));
+                    break;
+                }
+                case JAR:{
+                    initJdkForApp(supportSrcPackage.get(jdk), workDir, profile, appSession);
+                    putDomainAppFileToServer(optInfo, appSession, saveDir, workDir);
+                    break;
+                }
+                case DOCKER_RUN:
+                case BINARY_FILE:{
+                    putDomainAppFileToServer(optInfo, appSession, saveDir, workDir);
+                    break;
+                }
+                case NODEJS:{
+                    putDomainAppFileToServer(optInfo, rootSession, saveDir, workDir);
+                    break;
+                }
+                default:
+                    throw new ParamException(String.format("%s not supported to deploy to physical machine", optInfo.getAppType().name));
+            }
+            if(env != null && env.size() > 0){
+                if(optInfo.getAppType().equals(AppType.NODEJS)){
+                    initEnv(env, profile, rootSession);
+                }
+                else{
+                    initEnv(env, profile, appSession);
+                }
+            }
+            return workDir;
+        }
+        finally {
+            if(rootSession != null){
+                rootSession.disconnect();
+            }
+            if(appSession != null){
+                appSession.disconnect();
+            }
         }
     }
 
-    private String rePackageWar(AppFileNexusInfo installPackage, List<AppFileNexusInfo> cfgs, String saveDir) throws Exception{
+    private void putDomainAppFileToServer(AppUpdateOperationInfo optInfo, Session session, String saveDir, String workDir) throws IOException, InterfaceCallException, JSchException, SftpException, CommandExecuteException{
+        putFromNexusToServer(optInfo.getInstallPackage(), session, saveDir, workDir);
+        for(AppFileNexusInfo cfg : optInfo.getCfgs()){
+            putFromNexusToServer(cfg, session, saveDir, workDir);
+        }
+    }
+
+    private void putFromNexusToServer(AppFileNexusInfo fileInfo, Session session, String saveDir, String workDir) throws IOException, InterfaceCallException, JSchException, SftpException, CommandExecuteException{
+        String savePath = nexusService.downloadFile(nexusUserName, nexusPassword, fileInfo.getFileNexusDownloadUrl(nexusHostUrl), saveDir, fileInfo.getFileName());
+        String deployPath = String.format(String.format("%s/%s", workDir, fileInfo.getDeployPath().replaceAll("^./", "")))
+                .replaceAll("/$", "").replaceAll("//", "/");
+        JschTools.runCommand(session, String.format("mkdir -p %s", deployPath));
+        JschTools.put(session, savePath, String.format("%s/%s", deployPath, fileInfo.getFileName()));
+    }
+
+    /**
+     * 用配置文件替代后重新打包war包
+     * @param installPackage war包相关信息
+     * @param cfgs 配置文件相关信息
+     * @param saveDir 存储目录
+     * @return 重新打包后war的绝对路径
+     * @throws Exception
+     */
+    private String rePackageWar(AppFileNexusInfo installPackage, List<AppFileNexusInfo> cfgs, String saveDir) throws InterfaceCallException, IOException{
         nexusService.downloadFile(nexusUserName, nexusPassword, installPackage.getFileNexusDownloadUrl(nexusHostUrl), saveDir, installPackage.getFileName());
         StringBuffer sb = new StringBuffer();
         for(AppFileNexusInfo cfg : cfgs){
-            String cfgDir = cfg.getDeployPath().replaceAll("./", "/");
+            String cfgDir = cfg.getDeployPath().replaceAll(".*/WEB-INF/", "WEB-INF/");
             nexusService.downloadFile(nexusUserName, nexusPassword, cfg.getFileNexusDownloadUrl(nexusHostUrl),
                     String.format("%s/%s", saveDir, cfgDir), cfg.getFileName());
             sb.append(String.format("jar uf %s %s/%s;", installPackage.getFileName(), cfgDir, cfg.getFileName()));

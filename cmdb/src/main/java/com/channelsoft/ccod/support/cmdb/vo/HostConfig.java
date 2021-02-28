@@ -19,6 +19,8 @@ public class HostConfig {
 
     private String password; //用户的登录密码
 
+    private int sshPort; //服务器的ssh登陆端口
+
     private SystemFamily systemFamily; //服务器的系统类型
 
     private String initCmd; //用来执行服务器初始化脚本
@@ -81,5 +83,13 @@ public class HostConfig {
 
     public void setSystemFamily(SystemFamily systemFamily) {
         this.systemFamily = systemFamily;
+    }
+
+    public int getSshPort() {
+        return sshPort;
+    }
+
+    public void setSshPort(int sshPort) {
+        this.sshPort = sshPort;
     }
 }

@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @ClassName: CCODBiz
@@ -16,15 +17,17 @@ import java.util.List;
 @ConfigurationProperties(prefix = "ccod")
 public class CCODBiz {
 
-    private List<BizSetDefine> set;
+    public List<BizSetDefine> set;
 
-    private List<String> notCheckCfgApps;
+    public List<String> notCheckCfgApps;
 
-    private List<String> threePartApps;
+    public Map<String, String> necessaryPackages;
 
-    private List<String> threePartServices;
+    public List<String> threePartApps;
 
-    private StartChains startChains;
+    public List<String> threePartServices;
+
+    public StartChains startChains;
 
     public List<BizSetDefine> getSet() {
         return set;
@@ -64,5 +67,13 @@ public class CCODBiz {
 
     public void setStartChains(StartChains startChains) {
         this.startChains = startChains;
+    }
+
+    public Map<String, String> getNecessaryPackages() {
+        return necessaryPackages;
+    }
+
+    public void setNecessaryPackages(Map<String, String> necessaryPackages) {
+        this.necessaryPackages = necessaryPackages;
     }
 }
