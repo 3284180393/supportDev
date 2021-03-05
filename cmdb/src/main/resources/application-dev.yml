@@ -130,6 +130,8 @@ ccod:
       name: UCGateway
     apps[17]:
       name: MonitorProxy
+    apps[18]:
+      name: rmt
   set[3]:
     name: 运营门户
     id: supportPortal
@@ -261,6 +263,18 @@ ccod:
       name: chatDemoPc
     apps[48]:
       name: chatDemoVideo
+    apps[49]:
+      name: dcmse
+    apps[50]:
+      name: ivr-manage-platform
+    apps[51]:
+      name: agentmap-monitor
+    apps[52]:
+      name: ivradapter
+    apps[53]:
+      name: dcms-strategy
+    apps[54]:
+      name: customRecordBack
   set[5]:
     name: 对外接口
     id: api
@@ -304,7 +318,7 @@ ccod:
       name: filepreview
     apps[2]:
       name: bic-report-server
-      alias: bic-report
+      alias: report
   set[8]:
     name: 后端模块
     id: backend

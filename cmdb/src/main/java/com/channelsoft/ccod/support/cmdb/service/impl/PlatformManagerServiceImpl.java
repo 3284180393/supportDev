@@ -331,6 +331,16 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private String domainAppBasePath = "/home/ccodrunner";
 
+    private boolean generatePortForHostDeploy = true;
+
+    private int startPortForHostDeploy = 46000;
+
+    private String nginxIp = "10.130.25.214";
+
+    private String nginxConf = "/etc/nginx/conf.d/default.conf";
+
+
+
     @PostConstruct
     void init() throws Exception {
         this.appSetRelationMap = new HashMap<>();
@@ -2063,6 +2073,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 case RESIN_WEB_APP:
             }
         });
+        return sb.toString();
     }
 
 
@@ -3654,48 +3665,6 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return setDefine;
     }
 
-    /**
-     * 根据域id获得域所在的业务集群
-     *
-     * @param domainId 域id
-     * @return 域所在的业务集群
-     */
-
-
-    private AppType getAppTypeFromImageUrl(String imageUrl) throws ParamException, NotSupportAppException {
-        Map<String, List<AppModuleVo>> registerAppMap = this.appManagerService.queryAllRegisterAppModule(true)
-                .stream().collect(Collectors.groupingBy(AppModuleVo::getAppName));
-        String[] arr = imageUrl.split("/");
-        if (arr.length != 3)
-            throw new ParamException(String.format("%s is illegal imageUrl", imageUrl));
-        String repository = arr[1];
-        arr = arr[2].split("\\:");
-        if (arr.length != 2)
-            throw new ParamException(String.format("%s is illegal image tag", arr[2]));
-        String appName = arr[0];
-        String version = arr[1].replaceAll("\\-", ":");
-        Set<String> ccodRepSet = new HashSet<>(imageCfg.getCcodModuleRepository());
-        Set<String> threeAppRepSet = new HashSet<>(imageCfg.getThreeAppRepository());
-        AppType appType = null;
-        if (ccodRepSet.contains(repository)) {
-            for (String name : registerAppMap.keySet()) {
-                if (name.toLowerCase().equals(appName)) {
-                    List<AppModuleVo> modules = registerAppMap.get(name);
-                    appType = modules.stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).containsKey(version) ? modules.stream().collect(Collectors.toMap(AppModuleVo::getVersion, Function.identity())).get(version).getAppType() : null;
-                    if (appType == null)
-                        throw new ParamException(String.format("%s[%s] not register", name, version));
-                    break;
-                }
-            }
-            if (appType == null)
-                throw new NotSupportAppException(String.format("ccod module %s not supported", appName));
-        } else if (threeAppRepSet.contains(repository))
-            appType = AppType.THREE_PART_APP;
-        else
-            appType = AppType.OTHER;
-        logger.debug(String.format("type of image %s is %s", imageUrl, appType.name));
-        return appType;
-    }
 
     /**
      * 根据域id和别名获取模块名称
@@ -4186,6 +4155,24 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
     private List<String> generatePythonScriptForPlatformDeploy(PlatformUpdateSchemaInfo schema, String fileSaveDir) throws CommandExecuteException, JSchException, SftpException, InterruptedException, NotSupportAppException, ParamException, InterfaceCallException, LJPaasException, NexusException, IOException, ApiException
     {
+        if(generatePortForHostDeploy){
+            generatePortForHostDeploy(schema, startPortForHostDeploy);
+        }
+        PlatformPo platform = getK8sPlatform(schema.getPlatformId());
+        List<DomainPo> domains = domainMapper.select(schema.getPlatformId(), null);
+        List<PlatformAppDeployDetailVo> deployApps = platformAppDeployDetailMapper.selectPlatformApps(schema.getPlatformId(), null, null);
+        List<K8sOperationInfo> allSteps = generateExecStepForSchema(platform, schema, domains, deployApps);
+        Map<String, AppUpdateOperationInfo> optMap = schema.getDomains().stream().flatMap(d->d.getApps().stream())
+                .collect(Collectors.toMap(AppUpdateOperationInfo::getDeployName, Function.identity()));
+        List<Map<String, Object>> routes = new ArrayList<>();
+        allSteps.stream().filter(s->s.getKind().equals(K8sKind.INGRESS) && !s.getOperation().equals(K8sOperation.DELETE))
+                .map(s->(ExtensionsV1beta1Ingress)s.getObj()).flatMap(i->i.getSpec().getRules().stream()).flatMap(r->r.getHttp().getPaths().stream())
+                .forEach(p->{
+                    if(optMap.containsKey(p.getBackend().getServiceName())){
+                        Map<String, Object> route = generateRoute(p, optMap.get(p.getBackend().getServiceName()));
+                        routes.add(route);
+                    }
+                });
         Comparator<DomainUpdatePlanInfo> sort = getDomainPlanSort();
         List<String> scriptList = new ArrayList<>();
         List<DomainUpdatePlanInfo> plans = schema.getDomains().stream().
@@ -4198,39 +4185,19 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                 o.fill(module);
             }
         }
-        Map<String, String> hosts = schema.getDomains().stream().flatMap(p->p.getApps().stream())
+        Set<String> routePathSet = routes.stream()
+                .map(m->((String)m.get("path")).replaceAll("^/", "")).collect(Collectors.toSet());
+        Map<String, String> hosts = schema.getDomains().stream().flatMap(p->p.getApps().stream()).filter(a->!routePathSet.contains(a.getDeployName()))
                 .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp, Collectors.mapping(AppUpdateOperationInfo::getDeployName, Collectors.joining(" "))));
         Map<String, Object> platformParams = new HashMap<>();
-        platformParams.put("hosts", hosts);
-        platformParams.put("hostname", schema.getHostUrl());
-//        List<AppUpdateOperationInfo> portAppList = schema.getDomains().stream().flatMap(d->d.getApps().stream().filter(a->a.getAppType().equals(AppType.JAR) || a.getAppType().equals(AppType.TOMCAT_WEB_APP) || a.getAppType().equals(AppType.RESIN_WEB_APP))).collect(Collectors.toList());
-//        int startPort = 45800;
-//        for(AppUpdateOperationInfo opt : portAppList){
-//            if(opt.getAlias().equals("gls")){
-//                opt.setPorts("8081/TCP");
-//                opt.setCheckAt("8081/TCP");
-//                continue;
-//            }
-//            if(opt.getAlias().equals("dcms")){
-//                opt.setPorts("8082/TCP");
-//                opt.setCheckAt("8082/TCP");
-//                continue;
-//            }
-//            switch (opt.getAppType()){
-//                case JAR:
-//                    opt.setStartCmd(String.format("%s --server.port=%d", opt.getStartCmd(), startPort));
-//                case RESIN_WEB_APP:
-//                case TOMCAT_WEB_APP:
-//                    opt.setPorts(String.format("%d/TCP", startPort));
-//                    opt.setCheckAt(String.format("%d/TCP", startPort));
-//                    startPort++;
-//                    break;
-//            }
-//        }
-//        logger.error(String.format("schema=%s", gson.toJson(schema)));
         updatePlatformUpdateSchema(schema);
 //        PlatformUpdateSchemaInfo cloneSchema = hostSchemaGson.fromJson(hostSchemaGson.toJson(schema), PlatformUpdateSchemaInfo.class);
         makeupHostSchema(schema);
+        hosts.put(schema.getNginx().getIp(), String.join("", routePathSet));
+        platformParams.put("hosts", hosts);
+        platformParams.put("hostname", schema.getHostUrl());
+        platformParams.put("routes", routes);
+        platformParams.put("nginx", schema.getNginx());
         List<Map<String, Object>> yamlItems = generateHostYamlItems(schema);
         FileWriter writer = new FileWriter("/temp/config.yaml", false);
 //        Yaml.dumpAll(yamlItems.iterator(), writer);
@@ -4241,7 +4208,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
             Map<String, List<AppUpdateOperationInfo>> hostAppMap = plan.getApps().stream().sorted(appSort)
                     .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp));
             for(String ip : hostAppMap.keySet()){
-                String scriptPath = generateScriptForHostDeploy(ip, domainId, hostAppMap.get(ip), fileSaveDir, platformParams);
+                String scriptPath = generateScriptForHostDeploy(ip, domainId, hostAppMap.get(ip), plan.getPublicConfig(), schema.getCfgs(), fileSaveDir, platformParams);
                 scriptList.add(scriptPath);
             }
         }
@@ -4281,10 +4248,24 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         return null;
     }
 
-    private String generateScriptForHostDeploy(String hostIp, String domainId, List<AppUpdateOperationInfo> optList, String fileSaveDir, Map<String, Object> platformParams) throws NexusException, InterfaceCallException, IOException
+    private String generateScriptForHostDeploy(String hostIp, String domainId, List<AppUpdateOperationInfo> optList, List<AppFileNexusInfo> domainPublicCfgs, List<AppFileNexusInfo> platformPublicCfgs, String fileSaveDir, Map<String, Object> platformParams) throws NexusException, InterfaceCallException, IOException
     {
         String saveDir = String.format("%s/%s/%s", fileSaveDir, hostIp, domainId);
         Map<String, Object> params = new HashMap<>();
+        if(domainPublicCfgs != null && domainPublicCfgs.size() > 0){
+            params.put("domainPublicCfgs", domainPublicCfgs);
+            for(AppFileNexusInfo cfg : domainPublicCfgs){
+                nexusService.downloadFile(nexusUserName, nexusPassword, cfg.getFileNexusDownloadUrl(nexusHostUrl),
+                        String.format("%s/domain", saveDir), cfg.getFileName());
+            }
+        }
+        if(platformPublicCfgs != null && platformPublicCfgs.size() > 0){
+            params.put("platformPublicCfgs", platformPublicCfgs);
+            for(AppFileNexusInfo cfg : platformPublicCfgs){
+                nexusService.downloadFile(nexusUserName, nexusPassword, cfg.getFileNexusDownloadUrl(nexusHostUrl),
+                        String.format("%s/platform", saveDir), cfg.getFileName());
+            }
+        }
         for(AppUpdateOperationInfo optInfo : optList){
             nexusService.downloadFile(nexusUserName, nexusPassword, optInfo.getInstallPackage().getFileNexusDownloadUrl(nexusHostUrl),
                     String.format("%s/%s/package", saveDir, optInfo.getAlias()), optInfo.getInstallPackage().getFileName());
@@ -4333,15 +4314,12 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         }
         if(schema.getNginx() == null){
             NginxConfig config = new NginxConfig();
-            config.setConf("/etc/nginx/conf.d/default.conf");
+            config.setConf(this.nginxConf);
             List<String> headers = Arrays.asList(new String[]{"Host $host", "X-Real-IP $remote_addr", "X-Forwarded-For $proxy_add_x_forwarded_for"});
             config.setHeaders(headers);
             config.setHttp("80");
             config.setHttps("443 ssl");
-            String ip = schema.getDomains().stream().flatMap(d->d.getApps().stream())
-                    .filter(o->o.getAppType().equals(AppType.RESIN_WEB_APP) || o.getAppType().equals(AppType.TOMCAT_WEB_APP) || o.getAppType().equals(AppType.JAR))
-                    .collect(Collectors.toList()).get(0).getHostIp();
-            config.setIp(ip);
+            config.setIp(this.nginxIp);
             schema.setNginx(config);
         }
         if(schema.getDepend() == null || schema.getDepend().size() == 0){
@@ -5260,7 +5238,7 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
                     break;
                 }
                 case JAR:{
-                    initJdkForApp(supportSrcPackage.get(jdk), workDir, profile, appSession);
+                    initJdkForApp(ccodBiz.necessaryPackages.get(jdk), workDir, profile, appSession);
                     putDomainAppFileToServer(optInfo, appSession, saveDir, workDir);
                     break;
                 }
@@ -5432,11 +5410,44 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
         JschTools.runCommand(session, sb.toString().replaceAll(";$", ""));
     }
 
+    /**
+     * 根据ingress信息和应用信息生成应用路由规则
+     * @param ingressPath 应用ingress的path信息
+     * @param optInfo 应用信息
+     * @return 路由规则，缺省为nginx路由规则
+     */
+    private Map<String, Object> generateRoute(ExtensionsV1beta1HTTPIngressPath ingressPath, AppUpdateOperationInfo optInfo){
+        int port = Integer.parseInt(optInfo.getPorts().replaceAll(":.*", "").replaceAll("/.*", ""));
+        Map<String, Object> route = new HashMap<>();
+        route.put("path", ingressPath.getPath());
+        route.put("proxy_pass", String.format("http://%s:%d/%s-%s", optInfo.getHostIp(), port, optInfo.getAlias(), optInfo.getDomainId()));
+        Map<String, String> header = new HashMap<>();
+        header.put("Host", "$host");
+        header.put("X-Real-IP", "$remote_addr");
+        header.put("X-Forwarded-For", "$proxy_add_x_forwarded_for");
+        route.put("proxy-set-header", header);
+        return route;
+    }
+
+    private PlatformUpdateSchemaInfo generatePortForHostDeploy(PlatformUpdateSchemaInfo schema, int startPort){
+        schema.getDomains().stream().flatMap(d->d.getApps().stream())
+                .filter(a->(a.getAppType().equals(AppType.TOMCAT_WEB_APP) || a.getAppType().equals(AppType.RESIN_WEB_APP) || a.getAppType().equals(AppType.JAR)))
+                .collect(Collectors.groupingBy(AppUpdateOperationInfo::getHostIp)).forEach((k,v)->{
+                    int port = startPort;
+                    for(AppUpdateOperationInfo optInfo : v){
+                        optInfo.setPorts(String.format("%d/TCP", port));
+                        port++;
+                    }
+        });
+        return schema;
+    }
+
     @Test
     public void platformTest()
     {
         try{
-            dbTest();
+//            dbTest();
+            someTest();
         }
         catch (Exception ex)
         {
@@ -5449,6 +5460,13 @@ public class PlatformManagerServiceImpl implements IPlatformManagerService {
 
         Connection conn = createDBConnection(DatabaseType.MYSQL, "root", "qnsoft", "10.130.41.88", 3306, "cmdb_shop");
         System.out.println("Ok");
+    }
+
+    private void someTest()
+    {
+        String str = "3000:58022/TCP";
+        int port = Integer.parseInt(str.replaceAll(":.*", "").replaceAll("/.*", ""));
+        System.out.println(port);
     }
 
 }

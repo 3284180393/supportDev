@@ -587,6 +587,7 @@ public class K8sApiServiceImpl implements IK8sApiService {
 
     @Override
     public K8sStatus getStatusFromDeployment(V1Deployment deployment) {
+        logger.debug(String.format("begin to get deployment %s status", deployment.getMetadata().getName()));
         K8sStatus status = K8sStatus.UPDATING;
         if( deployment.getStatus().getAvailableReplicas() != null && deployment.getStatus().getAvailableReplicas() == deployment.getStatus().getReplicas())
             status = K8sStatus.ACTIVE;

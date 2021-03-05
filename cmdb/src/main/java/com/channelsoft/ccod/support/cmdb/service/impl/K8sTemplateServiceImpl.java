@@ -3121,7 +3121,7 @@ public class K8sTemplateServiceImpl implements IK8sTemplateService {
 
                 }
                 catch (Exception ex){
-                    logger.error(String.format("parse %s exception"), ex);
+                    logger.error(String.format("parse %s exception", imageUrl), ex);
                 }
             }
         }
